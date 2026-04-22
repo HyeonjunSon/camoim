@@ -13,10 +13,22 @@ function generateCode() {
 
 // 인증 이메일 발송
 async function sendVerificationEmail(to, code) {
+  const text = [
+    '카모임 이메일 인증',
+    '',
+    `인증 코드: ${code}`,
+    '',
+    '이 코드는 10분간 유효합니다.',
+    '본인이 요청하지 않은 경우 이 이메일을 무시해주세요.',
+    '',
+    '— CaMoim 팀',
+  ].join('\n');
+
   const { data, error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to,
-    subject: '[카모임] 이메일 인증 코드',
+    subject: '카모임 이메일 인증 코드',
+    text,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 20px;">
         <h2 style="color: #1a1a1a; margin-bottom: 8px;">카모임 이메일 인증</h2>
