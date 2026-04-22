@@ -16,6 +16,7 @@ const { containsBannedWord } = require('../middleware/systemGuard');
 const mongoose = require('mongoose');
 
 const { expandCity } = require('../utils/metro');
+const { LOCAL_BOARD_SLUGS } = require('../constants/boards');
 
 const router = express.Router();
 
@@ -438,9 +439,11 @@ router.post('/', requireAuth, uploadImages.array('images', 5), async (req, res) 
     const htmlImageUrls = /<img/i.test(content) ? extractImagesFromHtml(content) : [];
     const imageUrls = [...uploadedImageUrls, ...htmlImageUrls].slice(0, 10);
 
-    // 도시: body에서 명시적으로 보내면 그 값, 아니면 유저 프로필에서 자동 복사
-    const author = await User.findById(req.user.id).select('city').lean();
-    const postCity = req.body.city?.trim() || author?.city || '';
+    // 도시: 로컬 보드(장터/구인/룸랜트/자동차/나눔/부동산/모임)에서만 저장.
+    // 클라이언트가 보낸 값만 신뢰(빈문자열 = "전체"), 프로필에서 자동복사하지 않음.
+    const board = await Board.findById(boardId).select('slug').lean();
+    const isLocalBoard = board && LOCAL_BOARD_SLUGS.includes(board.slug);
+    const postCity = isLocalBoard ? (req.body.city?.trim() || '') : '';
 
     const post = await Post.create({
       boardId,
@@ -479,6 +482,13 @@ router.put('/:postId', requireAuth, async (req, res) => {
     } else if (content !== undefined) {
       // 본문이 텍스트만 → 이미지 없음
       post.images = [];
+    }
+
+    // 도시: 보드 slug 기준으로 로컬 보드만 저장 허용
+    if (req.body.city !== undefined) {
+      const board = await Board.findById(post.boardId).select('slug').lean();
+      const isLocalBoard = board && LOCAL_BOARD_SLUGS.includes(board.slug);
+      post.city = isLocalBoard ? (req.body.city?.trim() || '') : '';
     }
 
     await post.save();
