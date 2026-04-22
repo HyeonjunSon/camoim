@@ -1,18 +1,10 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // STARTTLS로 업그레이드
-  requireTLS: true,
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-  connectionTimeout: 10_000,
-  greetingTimeout: 10_000,
-  socketTimeout: 15_000,
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// 발신 주소 — Resend에서 도메인 검증 완료된 주소여야 함
+// 도메인 검증 전에는 'onboarding@resend.dev'로 fallback (본인 이메일로만 발송 가능)
+const FROM_ADDRESS = process.env.MAIL_FROM || 'CaMoim <onboarding@resend.dev>';
 
 // 6자리 인증 코드 생성
 function generateCode() {
@@ -21,8 +13,8 @@ function generateCode() {
 
 // 인증 이메일 발송
 async function sendVerificationEmail(to, code) {
-  const mailOptions = {
-    from: `"카모임" <${process.env.GMAIL_USER}>`,
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
     to,
     subject: '[카모임] 이메일 인증 코드',
     html: `
@@ -39,9 +31,17 @@ async function sendVerificationEmail(to, code) {
         </p>
       </div>
     `,
-  };
+  });
 
-  await transporter.sendMail(mailOptions);
+  if (error) {
+    // Resend 에러를 상위로 전달 (routes/auth.js catch 블록에서 로그 찍음)
+    const err = new Error(error.message || 'Resend 이메일 발송 실패');
+    err.code = error.name || 'RESEND_ERROR';
+    err.response = error;
+    throw err;
+  }
+
+  return data;
 }
 
 module.exports = { generateCode, sendVerificationEmail };
