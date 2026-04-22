@@ -1,0 +1,441 @@
+import { useState, useCallback } from 'react';
+import { Text } from '../../components/StyledText';
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect } from '@react-navigation/native';
+import { useTheme } from '../../context/ThemeContext';
+import { colors } from '../../constants/colors'
+import { applyVerify, getVerifyStatus } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
+import { useLang } from '../../context/LangContext';
+
+// 지원 대학교 목록 (서버 shortName과 일치해야 함)
+const UNIVERSITIES = [
+  'University of Toronto (UofT)', 'University of British Columbia (UBC)', 'McGill University',
+  'University of Alberta (UAlberta)', 'University of Waterloo (UW)',
+  'Western University', "Queen's University", 'Simon Fraser University (SFU)',
+  'University of Calgary (UCalgary)', 'University of Ottawa (uOttawa)',
+  'York University', 'University of Victoria (UVic)', 'Dalhousie University (Dal)',
+  'University of Manitoba (UManitoba)',
+  'British Columbia Institute of Technology (BCIT)', 'Seneca College', 'George Brown College',
+  'Humber College', 'Southern Alberta Institute of Technology (SAIT)', 'Langara College',
+];
+
+const CURRENT_YEAR = new Date().getFullYear();
+const GRADUATION_YEARS = Array.from({ length: 15 }, (_, i) => CURRENT_YEAR - i);
+
+const statusStyle = (t) => ({
+  pending:  { bg: '#FFF8E1', text: '#F59E0B', label: t('verify.stPending') },
+  approved: { bg: '#E8FFF1', text: '#2D9E5A', label: t('verify.stApproved') },
+  rejected: { bg: '#FFF0F0', text: '#EF4444', label: t('verify.stRejected') },
+});
+
+export default function VerifyStudentScreen({ navigation }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+
+  const { refreshUser } = useAuth();
+  const { t } = useLang();
+  const STATUS_STYLE = statusStyle(t);
+
+  const [existingRequest, setExistingRequest] = useState(undefined); // undefined = 로딩 전
+  const [statusLoading, setStatusLoading] = useState(true);
+
+  const [university, setUniversity] = useState('');
+  const [studentType, setStudentType] = useState('current');
+  const [graduationYear, setGraduationYear] = useState(String(CURRENT_YEAR - 1));
+  const [fileUri, setFileUri] = useState(null);
+  const [fileName, setFileName] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const [showUnivPicker, setShowUnivPicker] = useState(false);
+  const [showYearPicker, setShowYearPicker] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkStatus();
+    }, [])
+  );
+
+  async function checkStatus() {
+    setStatusLoading(true);
+    try {
+      const res = await getVerifyStatus();
+      setExistingRequest(res.success ? res.data : null);
+    } catch (e) {
+      setExistingRequest(null);
+    } finally {
+      setStatusLoading(false);
+    }
+  }
+
+  async function pickDocument() {
+    try {
+      // 현재 권한 상태 먼저 확인
+      const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== 'granted') {
+        if (!canAskAgain) {
+          Alert.alert(t('verify.galleryPermTitle'), t('verify.galleryPermMsg'));
+        } else {
+          Alert.alert(t('verify.permRequired'), t('verify.galleryRequired'));
+        }
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsEditing: false,
+      });
+
+      if (!result.canceled && result.assets?.length > 0) {
+        const asset = result.assets[0];
+        setFileUri(asset.uri);
+        setFileName(asset.fileName ?? `document_${Date.now()}.jpg`);
+      }
+    } catch (e) {
+      Alert.alert(t('common.error'), `${t('verify.cantOpenGallery')}: ${e.message}`);
+    }
+  }
+
+  async function takePhoto() {
+    try {
+      const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
+
+      if (status !== 'granted') {
+        if (!canAskAgain) {
+          Alert.alert(t('verify.cameraPermTitle'), t('verify.cameraPermMsg'));
+        } else {
+          Alert.alert(t('verify.permRequired'), t('verify.cameraRequired'));
+        }
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets?.length > 0) {
+        setFileUri(result.assets[0].uri);
+        setFileName(`photo_${Date.now()}.jpg`);
+      }
+    } catch (e) {
+      Alert.alert(t('common.error'), `${t('verify.cantOpenCamera')}: ${e.message}`);
+    }
+  }
+
+  async function handleSubmit() {
+    if (!university) { Alert.alert(t('post.notice'), t('verify.pickSchool')); return; }
+    if (!fileUri)     { Alert.alert(t('post.notice'), t('verify.pickFile')); return; }
+
+    setSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('university', university);
+      formData.append('studentType', studentType);
+      if (studentType === 'alumni') formData.append('graduationYear', graduationYear);
+      // iOS HEIC 등 확장자 관계없이 서버에는 항상 .jpg로 전송
+      const safeFileName = `document_${Date.now()}.jpg`;
+      formData.append('file', { uri: fileUri, name: safeFileName, type: 'image/jpeg' });
+
+      const res = await applyVerify(formData);
+      if (res.success) {
+        Alert.alert(t('verify.submitDone'), t('verify.submitDoneMsg'), [
+          { text: t('common.ok'), onPress: () => { checkStatus(); refreshUser(); } },
+        ]);
+      }
+    } catch (e) {
+      Alert.alert(t('common.error'), e.message ?? t('verify.submitFailed'));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // ── 로딩
+  if (statusLoading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  // ── 기존 신청 상태 표시
+  if (existingRequest) {
+    const st = STATUS_STYLE[existingRequest.status] ?? STATUS_STYLE.pending;
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.centeredContent}>
+        <View style={styles.statusCard}>
+          <Text style={styles.statusCardTitle}>{t('verify.statusTitle')}</Text>
+
+          <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
+            <Text style={[styles.statusBadgeText, { color: st.text }]}>{st.label}</Text>
+          </View>
+
+          <View style={styles.statusInfoRow}>
+            <Text style={styles.statusLabel}>{t('verify.school')}</Text>
+            <Text style={styles.statusValue}>{existingRequest.university}</Text>
+          </View>
+          <View style={styles.statusInfoRow}>
+            <Text style={styles.statusLabel}>{t('verify.type')}</Text>
+            <Text style={styles.statusValue}>
+              {existingRequest.studentType === 'current'
+                ? t('verify.current')
+                : t('verify.alumniYear').replace('{y}', existingRequest.graduationYear)}
+            </Text>
+          </View>
+
+          {existingRequest.status === 'rejected' && existingRequest.adminNote ? (
+            <View style={styles.rejectNoteBox}>
+              <Text style={styles.rejectNoteLabel}>{t('verify.rejectReason')}</Text>
+              <Text style={styles.rejectNoteText}>{existingRequest.adminNote}</Text>
+            </View>
+          ) : null}
+
+          {existingRequest.status === 'rejected' && (
+            <TouchableOpacity
+              style={styles.reapplyBtn}
+              onPress={() => setExistingRequest(null)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.reapplyBtnText}>{t('verify.reapply')}</Text>
+            </TouchableOpacity>
+          )}
+
+          {existingRequest.status === 'pending' && (
+            <Text style={styles.pendingHint}>{t('verify.pendingHint')}</Text>
+          )}
+        </View>
+      </ScrollView>
+    );
+  }
+
+  // ── 신청 폼
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.formContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.infoBanner}>
+          <Text style={styles.infoBannerTitle}>{t('verify.bannerTitle')}</Text>
+          <Text style={styles.infoBannerDesc}>{t('verify.bannerDesc')}</Text>
+        </View>
+
+        {/* 학교 선택 */}
+        <Text style={styles.fieldLabel}>{t('verify.schoolLabel')}</Text>
+        <TouchableOpacity
+          style={styles.selector}
+          onPress={() => { setShowUnivPicker(v => !v); setShowYearPicker(false); }}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.selectorText, !university && styles.placeholderText]}>
+            {university || t('verify.schoolPh')}
+          </Text>
+          <Text style={styles.selectorChevron}>{showUnivPicker ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+        {showUnivPicker && (
+          <ScrollView style={styles.pickerList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+            {UNIVERSITIES.map(u => (
+              <TouchableOpacity
+                key={u}
+                style={[styles.pickerItem, university === u && styles.pickerItemSelected]}
+                onPress={() => { setUniversity(u); setShowUnivPicker(false); }}
+              >
+                <Text style={[styles.pickerItemText, university === u && styles.pickerItemTextSelected]}>
+                  {u}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* 재학생 / 졸업생 */}
+        <Text style={[styles.fieldLabel, { marginTop: 20 }]}>{t('verify.typeLabel')}</Text>
+        <View style={styles.typeRow}>
+          {[
+            { key: 'current', label: t('verify.currentBtn') },
+            { key: 'alumni',  label: t('verify.alumniBtn') },
+          ].map(opt => (
+            <TouchableOpacity
+              key={opt.key}
+              style={[styles.typeBtn, studentType === opt.key && styles.typeBtnActive]}
+              onPress={() => setStudentType(opt.key)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.typeBtnText, studentType === opt.key && styles.typeBtnTextActive]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* 졸업 연도 */}
+        {studentType === 'alumni' && (
+          <>
+            <Text style={[styles.fieldLabel, { marginTop: 20 }]}>{t('verify.gradYearLabel')}</Text>
+            <TouchableOpacity
+              style={styles.selector}
+              onPress={() => { setShowYearPicker(v => !v); setShowUnivPicker(false); }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.selectorText}>{graduationYear}{t('verify.yearSuffix')}</Text>
+              <Text style={styles.selectorChevron}>{showYearPicker ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+            {showYearPicker && (
+              <ScrollView style={styles.pickerList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                {GRADUATION_YEARS.map(y => (
+                  <TouchableOpacity
+                    key={y}
+                    style={[styles.pickerItem, String(y) === graduationYear && styles.pickerItemSelected]}
+                    onPress={() => { setGraduationYear(String(y)); setShowYearPicker(false); }}
+                  >
+                    <Text style={[styles.pickerItemText, String(y) === graduationYear && styles.pickerItemTextSelected]}>
+                      {y}{t('verify.yearSuffix')}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </>
+        )}
+
+        {/* 서류 첨부 */}
+        <Text style={[styles.fieldLabel, { marginTop: 20 }]}>{t('verify.docLabel')}</Text>
+        <Text style={styles.fieldHint}>{t('verify.docHint')}</Text>
+
+        {fileUri ? (
+          <View style={styles.filePreviewBox}>
+            <Image source={{ uri: fileUri }} style={styles.filePreview} resizeMode="cover" />
+            <TouchableOpacity
+              style={styles.fileRemoveBtn}
+              onPress={() => { setFileUri(null); setFileName(''); }}
+            >
+              <Text style={styles.fileRemoveText}>{t('verify.reSelect')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.filePickerRow}>
+            <TouchableOpacity style={styles.filePickerBtn} onPress={pickDocument} activeOpacity={0.8}>
+              <Text style={styles.filePickerIcon}>🖼️</Text>
+              <Text style={styles.filePickerText}>{t('verify.gallery')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.filePickerBtn} onPress={takePhoto} activeOpacity={0.8}>
+              <Text style={styles.filePickerIcon}>📷</Text>
+              <Text style={styles.filePickerText}>{t('verify.camera')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* 제출 버튼 */}
+        <TouchableOpacity
+          style={[styles.submitBtn, (!university || !fileUri || submitting) && styles.submitBtnDisabled]}
+          onPress={handleSubmit}
+          disabled={!university || !fileUri || submitting}
+          activeOpacity={0.85}
+        >
+          {submitting
+            ? <ActivityIndicator size="small" color={colors.white} />
+            : <Text style={styles.submitBtnText}>{t('verify.submitBtn')}</Text>
+          }
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const createStyles = (colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+  centeredContent: { flexGrow: 1, justifyContent: 'center', padding: 20 },
+  formContent: { padding: 20, paddingBottom: 40 },
+  infoBanner: {
+    backgroundColor: colors.primary + '12', borderRadius: 14, padding: 16, marginBottom: 20,
+  },
+  infoBannerTitle: { fontSize: 15, fontWeight: '700', color: colors.primary },
+  infoBannerDesc: { fontSize: 13, color: colors.textSecondary, marginTop: 6, lineHeight: 20 },
+  fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8 },
+  fieldHint: { fontSize: 12, color: colors.textSecondary, marginBottom: 10, lineHeight: 18 },
+  selector: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.inputBg, borderRadius: 12, padding: 14,
+  },
+  selectorText: { fontSize: 14, color: colors.text },
+  selectorChevron: { fontSize: 14, color: colors.textSecondary },
+  placeholderText: { color: colors.textSecondary },
+  pickerList: {
+    backgroundColor: colors.surface, borderRadius: 12, marginTop: 6,
+    borderWidth: 1, borderColor: colors.border, maxHeight: 250, overflow: 'hidden',
+  },
+  pickerItem: { paddingHorizontal: 16, paddingVertical: 12 },
+  pickerItemSelected: { backgroundColor: colors.primary + '12' },
+  pickerItemText: { fontSize: 14, color: colors.text },
+  pickerItemTextSelected: { color: colors.primary, fontWeight: '700' },
+  typeRow: { flexDirection: 'row', gap: 10 },
+  typeBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 12,
+    backgroundColor: colors.inputBg, borderRadius: 12, borderWidth: 1.5, borderColor: 'transparent',
+  },
+  typeBtnActive: { borderColor: colors.primary, backgroundColor: colors.primary + '08' },
+  typeBtnText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  typeBtnTextActive: { color: colors.primary },
+  filePickerRow: { flexDirection: 'row', gap: 12 },
+  filePickerBtn: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.inputBg, borderRadius: 14, padding: 20,
+    borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed',
+  },
+  filePickerIcon: { fontSize: 28, marginBottom: 6 },
+  filePickerText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
+  filePreviewBox: { borderRadius: 14, overflow: 'hidden' },
+  filePreview: { width: '100%', height: 200, borderRadius: 14 },
+  fileRemoveBtn: {
+    marginTop: 8, alignSelf: 'center', paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: colors.inputBg, borderRadius: 8,
+  },
+  fileRemoveText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
+  submitBtn: {
+    backgroundColor: colors.primary, borderRadius: 14, padding: 16,
+    alignItems: 'center', marginTop: 28,
+  },
+  submitBtnDisabled: { opacity: 0.5 },
+  submitBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  statusCard: {
+    backgroundColor: colors.surface, borderRadius: 16, padding: 24, alignItems: 'center',
+  },
+  statusCardTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 16 },
+  statusBadge: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 12, marginBottom: 20 },
+  statusBadgeText: { fontSize: 14, fontWeight: '700' },
+  statusInfoRow: {
+    flexDirection: 'row', justifyContent: 'space-between', width: '100%',
+    paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: colors.border,
+  },
+  statusLabel: { fontSize: 13, color: colors.textSecondary },
+  statusValue: { fontSize: 14, fontWeight: '600', color: colors.text },
+  rejectNoteBox: {
+    backgroundColor: colors.danger + '15', borderRadius: 10, padding: 12, marginTop: 16, width: '100%',
+  },
+  rejectNoteLabel: { fontSize: 12, fontWeight: '600', color: colors.danger, marginBottom: 4 },
+  rejectNoteText: { fontSize: 13, color: colors.text, lineHeight: 20 },
+  reapplyBtn: {
+    backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, marginTop: 20,
+  },
+  reapplyBtnText: { color: colors.white, fontSize: 14, fontWeight: '700' },
+  pendingHint: { fontSize: 13, color: colors.textSecondary, marginTop: 16, textAlign: 'center' },
+});

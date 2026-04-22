@@ -1,0 +1,15 @@
+# EAS 빌드 시 제외할 파일/폴더 (앱 빌드에 불필요)
+
+# 백엔드 전체 제외 (별도 서버로 배포)
+server/
+
+# 스크립트·워크스페이스
+scripts/
+*.code-workspace
+
+# 문서
+CLAUDE.md
+.text
+
+# 로컬 dev
+.claude/

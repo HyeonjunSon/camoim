@@ -1,0 +1,64 @@
+import { createContext, useContext, useState, useEffect } from 'react';
+import { setToken, getToken, clearToken } from '../lib/storage';
+import { login as apiLogin, register as apiRegister, getMe } from '../lib/api';
+
+const AuthContext = createContext(null);
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function restoreSession() {
+      try {
+        const token = await getToken();
+        if (token) {
+          const res = await getMe();
+          if (res.success) setUser(res.data);
+          else await clearToken();
+        }
+      } catch (e) {
+        await clearToken();
+      } finally {
+        setLoading(false);
+      }
+    }
+    restoreSession();
+  }, []);
+
+  const login = async (email, password) => {
+    const res = await apiLogin(email, password);
+    if (!res.success) throw new Error(res.message);
+    await setToken(res.data.token);
+    setUser(res.data.user);
+  };
+
+  const register = async (email, password, nickname, role, city) => {
+    const res = await apiRegister(email, password, nickname, role, city);
+    if (!res.success) throw new Error(res.message);
+    await setToken(res.data.token);
+    setUser(res.data.user);
+  };
+
+  const logout = async () => {
+    await clearToken();
+    setUser(null);
+  };
+
+  const refreshUser = async () => {
+    try {
+      const res = await getMe();
+      if (res.success) setUser(res.data);
+    } catch (e) {}
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  return useContext(AuthContext);
+}

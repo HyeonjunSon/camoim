@@ -1,0 +1,297 @@
+import Constants from 'expo-constants';
+import { getToken } from './storage';
+import { API_BASE_URL } from './config';
+import { handleResponseCode } from './systemStatus';
+
+const BASE_URL = API_BASE_URL;
+const APP_VERSION = Constants.expoConfig?.version || Constants.manifest?.version || '1.0.0';
+
+// snake_case 객체를 재귀적으로 camelCase로 변환 (_id → id 포함)
+function toCamel(obj) {
+  if (Array.isArray(obj)) return obj.map(toCamel);
+  if (obj !== null && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => {
+        const key = k === '_id' ? 'id' : k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+        return [key, toCamel(v)];
+      })
+    );
+  }
+  return obj;
+}
+
+// 공통 요청 함수 - 토큰 자동 첨부, 오류 처리 포함
+async function request(method, path, body) {
+  const token = await getToken();
+  const headers = { 'Content-Type': 'application/json', 'x-app-version': APP_VERSION };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  const data = await res.json();
+
+  // 응답이 실패인 경우 에러 throw
+  if (!res.ok) {
+    handleResponseCode(data);
+    const err = new Error(data.message || '요청에 실패했습니다.');
+    err.code = data.code;
+    throw err;
+  }
+
+  // snake_case → camelCase 자동 변환
+  return toCamel(data);
+}
+
+// 인증 API
+export const register = (email, password, nickname, role, city) =>
+  request('POST', '/auth/register', { email, password, nickname, role, city });
+export const login = (email, password) =>
+  request('POST', '/auth/login', { email, password });
+export const getMe = () => request('GET', '/auth/me');
+export const deleteMyAccount = (password, reason) =>
+  request('DELETE', '/auth/me', { password, reason });
+export const checkNickname = (nickname) =>
+  request('GET', `/auth/check-nickname?nickname=${encodeURIComponent(nickname)}`);
+export const sendEmailCode = (email) =>
+  request('POST', '/auth/send-code', { email });
+export const checkEmailCode = (email, code) =>
+  request('POST', '/auth/check-code', { email, code });
+
+// 게시판 API
+export const getBoards = () => request('GET', '/boards');
+export const getUniversityBoards = () => request('GET', '/boards/university');
+export const getBoardPosts = (boardId, page = 1, { search, sort, city } = {}) => {
+  const params = new URLSearchParams({ page });
+  if (search) params.append('search', search);
+  if (sort) params.append('sort', sort);
+  if (city) params.append('city', city);
+  return request('GET', `/boards/${boardId}/posts?${params}`);
+};
+export const createPost = (boardId, data) =>
+  request('POST', '/posts', { boardId, ...data });
+export const getPost = (postId) => request('GET', `/posts/${postId}`);
+export const deletePost = (postId) => request('DELETE', `/posts/${postId}`);
+export const likePost = (postId) => request('POST', `/posts/${postId}/like`);
+export const bookmarkPost = (postId) => request('POST', `/posts/${postId}/bookmark`);
+
+// 리치 에디터용 단일 이미지 업로드 → 서버 URL 반환
+export const uploadPostImage = async (asset) => {
+  const token = await getToken();
+  const formData = new FormData();
+  formData.append('image', {
+    uri: asset.uri,
+    name: asset.filename ?? `post_img_${Date.now()}.jpg`,
+    type: asset.type ?? 'image/jpeg',
+  });
+  const res = await fetch(`${BASE_URL}/posts/upload-image`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || '업로드에 실패했습니다.');
+  return toCamel(data);
+};
+
+// 아바타 업로드 → Cloudinary URL 반환
+export const uploadAvatar = async (asset) => {
+  const token = await getToken();
+  const formData = new FormData();
+  formData.append('image', {
+    uri: asset.uri,
+    name: asset.filename ?? `avatar_${Date.now()}.jpg`,
+    type: asset.type ?? 'image/jpeg',
+  });
+  const res = await fetch(`${BASE_URL}/users/me/avatar`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || '업로드에 실패했습니다.');
+  return toCamel(data);
+};
+
+// 홈 최신 피드
+export const getHomeFeed = (page = 1, city = '') =>
+  request('GET', `/posts/feed?page=${page}${city ? `&city=${encodeURIComponent(city)}` : ''}`);
+
+// 홈 인기 피드 (최근 48시간 기준)
+export const getHotFeed = (page = 1, city = '') =>
+  request('GET', `/posts/hot?page=${page}${city ? `&city=${encodeURIComponent(city)}` : ''}`);
+
+// 게시판별 인기글 (인기 탭 섹션용)
+export const getHotByBoard = (city = '') =>
+  request('GET', `/posts/hot-by-board?limit=4${city ? `&city=${encodeURIComponent(city)}` : ''}`);
+
+// 게시판별 최근 글 1개 (게시판 목록 미리보기용)
+export const getLatestByBoard = () =>
+  request('GET', '/posts/latest-by-board');
+
+// 홈 섹션별 데이터 (자유/장터/구인 최신글)
+export const getHomeSections = (city = '') =>
+  request('GET', `/posts/home-sections${city ? `?city=${encodeURIComponent(city)}` : ''}`);
+
+// 댓글 API
+export const getComments = (postId) =>
+  request('GET', `/posts/${postId}/comments`);
+export const addComment = (postId, data) =>
+  request('POST', `/posts/${postId}/comments`, data);
+export const pinComment = (postId, commentId) =>
+  request('PUT', `/posts/${postId}/comments/${commentId}/pin`);
+export const deleteComment = (postId, commentId) =>
+  request('DELETE', `/posts/${postId}/comments/${commentId}`);
+export const editComment = (postId, commentId, content) =>
+  request('PATCH', `/posts/${postId}/comments/${commentId}`, { content });
+
+// 유저 API
+export const getMyPosts = (page = 1) =>
+  request('GET', `/users/me/posts?page=${page}`);
+export const getLikedPosts = (page = 1) =>
+  request('GET', `/users/me/liked-posts?page=${page}`);
+export const getBookmarkedPosts = (page = 1) =>
+  request('GET', `/users/me/bookmarks?page=${page}`);
+export const updateProfile = (data) => request('PUT', '/users/me', data);
+export const getUserProfile = (userId) => request('GET', `/users/${userId}`);
+
+// 알림 API
+export const getNotifications = () => request('GET', '/notifications');
+export const getUnreadCount = () => request('GET', '/notifications/unread-count');
+export const markNotificationRead = (id) =>
+  request('PUT', `/notifications/${id}/read`);
+export const markAllNotificationsRead = () =>
+  request('PUT', '/notifications/read-all');
+
+// 학교 인증 API (기존 이메일 방식 - 레거시)
+export const verifyStudent = (universityEmail) =>
+  request('POST', '/auth/verify-student', { universityEmail });
+export const getUniversities = () => request('GET', '/auth/universities');
+
+// 서류 인증 신청 API (multipart/form-data)
+export const applyVerify = async (formData) => {
+  const token = await getToken();
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  // Content-Type 헤더 직접 지정하지 않음 - fetch가 boundary 자동 설정
+  const res = await fetch(`${BASE_URL}/verify/apply`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || '요청에 실패했습니다.');
+  return toCamel(data);
+};
+
+// 내 인증 신청 상태 조회
+export const getVerifyStatus = () => request('GET', '/verify/status');
+
+// 신고 API
+export const reportPost = (data) => request('POST', '/reports', data);
+
+// 관리자 API
+export const getAdminVerifyRequests = (status = 'pending') =>
+  request('GET', `/admin/verify-requests?status=${status}`);
+export const approveVerifyRequest = (id) =>
+  request('PUT', `/admin/verify-requests/${id}/approve`);
+export const rejectVerifyRequest = (id, adminNote = '') =>
+  request('PUT', `/admin/verify-requests/${id}/reject`, { adminNote });
+export const getAdminReports = (status = 'pending') =>
+  request('GET', `/admin/reports?status=${status}`);
+export const resolveReport = (id) =>
+  request('PUT', `/admin/reports/${id}/resolve`);
+export const dismissReport = (id) =>
+  request('PUT', `/admin/reports/${id}/dismiss`);
+
+// 관리자 - 유저
+export const adminListUsers = (params = {}) => {
+  const q = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') q.append(k, v); });
+  const s = q.toString();
+  return request('GET', `/admin/users${s ? `?${s}` : ''}`);
+};
+export const adminGetUser = (id) => request('GET', `/admin/users/${id}`);
+export const adminSanctionUser = (id, data) => request('PUT', `/admin/users/${id}/sanction`, data);
+export const adminSetUserRole = (id, role) => request('PUT', `/admin/users/${id}/role`, { role });
+export const adminEditUserProfile = (id, data) => request('PUT', `/admin/users/${id}/profile`, data);
+export const adminDeleteUser = (id, reason = '') => request('DELETE', `/admin/users/${id}`, { reason });
+
+// 관리자 - 콘텐츠
+export const adminListPosts = (params = {}) => {
+  const q = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') q.append(k, v); });
+  const s = q.toString();
+  return request('GET', `/admin/posts${s ? `?${s}` : ''}`);
+};
+export const adminHidePost = (id, hidden, reason = '') => request('PUT', `/admin/posts/${id}/hide`, { hidden, reason });
+export const adminPinPost = (id, pinned) => request('PUT', `/admin/posts/${id}/pin`, { pinned });
+export const adminMovePost = (id, boardId) => request('PUT', `/admin/posts/${id}/move`, { boardId });
+export const adminDeletePost = (id, reason = '') => request('DELETE', `/admin/posts/${id}`, { reason });
+export const adminDeleteComment = (id) => request('DELETE', `/admin/comments/${id}`);
+
+// 관리자 - 게시판
+export const adminListBoards = () => request('GET', '/admin/boards');
+export const adminCreateBoard = (data) => request('POST', '/admin/boards', data);
+export const adminUpdateBoard = (id, data) => request('PUT', `/admin/boards/${id}`, data);
+export const adminDeleteBoard = (id) => request('DELETE', `/admin/boards/${id}`);
+
+// 관리자 - 통계 / 시스템 / 로그 / 푸시
+export const adminGetStats = () => request('GET', '/admin/stats');
+export const adminGetSettings = () => request('GET', '/admin/settings');
+export const adminUpdateSetting = (key, value) => request('PUT', `/admin/settings/${key}`, { value });
+export const adminGetLogs = (params = {}) => {
+  const q = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') q.append(k, v); });
+  const s = q.toString();
+  return request('GET', `/admin/logs${s ? `?${s}` : ''}`);
+};
+export const adminBroadcastPush = (data) => request('POST', '/admin/push', data);
+
+// 푸시 토큰 등록
+export const registerPushToken = (pushToken) =>
+  request('PUT', '/users/me/push-token', { pushToken });
+
+// 알림 설정
+export const getNotificationSettings = () =>
+  request('GET', '/users/me/notifications');
+export const updateNotificationSettings = (patch) =>
+  request('PATCH', '/users/me/notifications', patch);
+
+// 고객센터 / 문의
+export const createInquiry = (data) => request('POST', '/inquiries', data);
+export const getMyInquiries = () => request('GET', '/inquiries/me');
+export const getMyInquiry = (id) => request('GET', `/inquiries/me/${id}`);
+export const adminListInquiries = (type = 'all', status = 'all') => {
+  const params = new URLSearchParams();
+  if (type !== 'all') params.append('type', type);
+  if (status !== 'all') params.append('status', status);
+  const q = params.toString();
+  return request('GET', `/inquiries/admin${q ? `?${q}` : ''}`);
+};
+export const adminAnswerInquiry = (id, answer) =>
+  request('PUT', `/inquiries/admin/${id}/answer`, { answer });
+
+// 공지사항
+export const getNotices = () => request('GET', '/notices');
+export const getNotice = (id) => request('GET', `/notices/${id}`);
+export const createNotice = (data) => request('POST', '/notices', data);
+export const updateNotice = (id, data) => request('PUT', `/notices/${id}`, data);
+export const deleteNotice = (id) => request('DELETE', `/notices/${id}`);
+
+// 채팅 상태 확인
+export const checkChatStatus = (userId) =>
+  request('GET', `/chats/check/${userId}`);
+
+// 차단
+export const getMyBlocks = () =>
+  request('GET', '/users/me/blocks');
+export const getBlockStatus = (userId) =>
+  request('GET', `/users/${userId}/block-status`);
+export const setBlock = (userId, { blockChat, hideContent }) =>
+  request('PUT', `/users/${userId}/block`, { blockChat, hideContent });
+export const unblockUser = (userId) =>
+  request('DELETE', `/users/${userId}/block`);

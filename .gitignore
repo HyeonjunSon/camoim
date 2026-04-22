@@ -32,6 +32,18 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+server/.env
+
+# claude
+.claude/
+
+# temp
+.text
+
+# server upload cache (Cloudinary 사용 — 로컬 폴더는 레거시)
+server/uploads/*
+!server/uploads/.gitkeep
 
 # typescript
 *.tsbuildinfo
