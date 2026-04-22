@@ -42,8 +42,8 @@ const pendingCodes = new Map(); // email -> { code, expires }
 
 // POST /api/auth/send-code — 가입 전 이메일 인증 코드 발송
 router.post('/send-code', async (req, res) => {
+  const { email } = req.body || {};
   try {
-    const { email } = req.body;
     if (!email) return res.status(400).json({ success: false, message: '이메일을 입력해주세요.' });
 
     // 이미 가입된 이메일인지 확인
