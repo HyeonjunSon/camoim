@@ -26,11 +26,20 @@ async function request(method, path, body) {
   const headers = { 'Content-Type': 'application/json', 'x-app-version': APP_VERSION };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (e) {
+    if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+      throw new Error('요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
+    }
+    throw e;
+  }
 
   const data = await res.json();
 

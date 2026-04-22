@@ -59,8 +59,14 @@ router.post('/send-code', async (req, res) => {
     await sendVerificationEmail(email, code);
     res.json({ success: true, message: '인증 코드가 발송되었습니다.' });
   } catch (err) {
-    console.error('인증 코드 발송 오류:', err);
-    res.status(500).json({ success: false, message: '이메일 발송에 실패했습니다.' });
+    console.error('[send-code] 이메일 발송 실패:', {
+      to: email,
+      code: err.code,
+      command: err.command,
+      response: err.response,
+      message: err.message,
+    });
+    res.status(500).json({ success: false, message: `이메일 발송에 실패했습니다. (${err.code || err.message || 'unknown'})` });
   }
 });
 
