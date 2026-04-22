@@ -86,7 +86,6 @@ export default function CreatePostScreen({ route, navigation }) {
   const [h2Active, setH2Active] = useState(false);
 
   const richRef = useRef(null);
-  const scrollRef = useRef(null);
 
   const initialHtmlRef = useRef(
     isEditMode ? contentToHtml(editPost.content ?? '') : ''
@@ -409,13 +408,6 @@ export default function CreatePostScreen({ route, navigation }) {
         </View>
       )}
 
-      <ScrollView
-        ref={scrollRef}
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-      >
       {/* 도시 선택 모달 */}
       <Modal visible={cityModalOpen} transparent animationType="slide" onRequestClose={() => setCityModalOpen(false)}>
         <TouchableOpacity style={styles.cityModalOverlay} activeOpacity={1} onPress={() => setCityModalOpen(false)}>
@@ -457,18 +449,13 @@ export default function CreatePostScreen({ route, navigation }) {
 
       <View style={styles.divider} />
 
-      {/* 리치 에디터 — 외부 ScrollView 사용, 내부 컨테이너/스크롤 비활성 */}
+      {/* 리치 에디터 — 자체 WebView 스크롤 사용 */}
       <View style={styles.editorWrap}>
         <RichEditor
           ref={richRef}
-          useContainer={false}
           initialContentHTML=""
           placeholder={t('post.contentPh')}
-          scrollEnabled={false}
-          onCursorPosition={(cursorY) => {
-            // 커서가 화면 아래쪽에 있을 때 외부 ScrollView를 스크롤
-            scrollRef.current?.scrollTo({ y: Math.max(0, cursorY - 80), animated: true });
-          }}
+          scrollEnabled={true}
           onMessage={handleEditorMessage}
           editorInitializedCallback={() => {
             // 이미지 탭 감지 → RN으로 메시지 전송 (선택된 이미지에 outline 표시)
@@ -665,9 +652,9 @@ export default function CreatePostScreen({ route, navigation }) {
             `,
           }}
           initialHeight={320}
+          useContainer
         />
       </View>
-        </ScrollView>
 
       {uploadingImage && (
         <View style={styles.uploadOverlay} pointerEvents="auto">
@@ -738,9 +725,7 @@ export default function CreatePostScreen({ route, navigation }) {
 
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  scrollView: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingBottom: 40 },
-  editorWrap: { minHeight: 320 },
+  editorWrap: { flex: 1 },
 
   topBar: {
     flexDirection: 'row',
