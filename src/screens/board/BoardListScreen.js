@@ -10,6 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
@@ -19,6 +20,7 @@ import { formatTime } from '../../lib/time';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { getBoardName } from '../../lib/i18n';
+import { toShortUniversityName } from '../../lib/university';
 
 const PINNED_KEY = '@camoim_pinned_boards';
 
@@ -201,25 +203,41 @@ export default function BoardListScreen({ navigation }) {
     );
   }
 
-  // 학교 커뮤니티 컴팩트 배너
-  const SchoolBanner = () => (
-    <TouchableOpacity
-      style={styles.schoolBanner}
-      onPress={() => navigation.navigate('UniversityBoard')}
-      activeOpacity={0.85}
-    >
-      <View style={{ flex: 1 }}>
-        <Text style={styles.schoolTitle}>
-          {isAdmin ? '🛡️' : '🎓'}{' '}
-          {isAdmin ? t('board.schoolAll') : `${user?.university ?? t('mypage.school')} ${t('board.schoolCommunity')}`}
-        </Text>
-        <Text style={styles.schoolSub}>
-          {isAdmin ? t('board.schoolBoardAdmin') : t('board.forStudents')}
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={colors.white + 'CC'} />
-    </TouchableOpacity>
-  );
+  // 학교 커뮤니티 컴팩트 배너 (프리미엄 카드 느낌)
+  const SchoolBanner = () => {
+    const uniShort = isAdmin ? t('board.schoolAll') : (toShortUniversityName(user?.university) || t('mypage.school'));
+    const subText = isAdmin ? t('board.schoolBoardAdmin') : `Community · ${t('board.forStudents')}`;
+    return (
+      <TouchableOpacity onPress={() => navigation.navigate('UniversityBoard')} activeOpacity={0.85}>
+        <LinearGradient
+          colors={[colors.primary, colors.primary + 'D0']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.schoolBanner}
+        >
+          {/* 상단 하이라이트 선 (유리광택) */}
+          <View style={styles.schoolBannerShine} pointerEvents="none" />
+          <View style={styles.schoolIconBadge}>
+            <Text style={styles.schoolIconEmoji}>{isAdmin ? '🛡️' : '🎓'}</Text>
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <View style={styles.schoolTitleRow}>
+              <Text style={styles.schoolTitleLarge} numberOfLines={1} ellipsizeMode="tail">
+                {uniShort}
+              </Text>
+              {!isAdmin && (
+                <Ionicons name="checkmark-circle" size={14} color="#FFD66B" style={{ marginLeft: 4 }} />
+              )}
+            </View>
+            <Text style={styles.schoolSub} numberOfLines={1} ellipsizeMode="tail">
+              {subText}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.white + 'CC'} />
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -427,23 +445,49 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.white,
   },
 
-  // ── 학교 커뮤니티 배너
+  // ── 학교 커뮤니티 배너 (프리미엄)
   schoolBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 14,
     gap: 10,
+    overflow: 'hidden',
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
-  schoolTitle: { fontSize: 14, fontWeight: '800', color: colors.white, marginBottom: 1 },
-  schoolSub:   { fontSize: 11, color: colors.white + 'CC' },
+  schoolBannerShine: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  schoolIconBadge: {
+    width: 34, height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  schoolIconEmoji: { fontSize: 18 },
+  schoolTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  schoolTitleLarge: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: colors.white,
+    letterSpacing: -0.2,
+    flexShrink: 1,
+  },
+  schoolSub: { fontSize: 11, color: colors.white + 'B8', marginTop: 1, fontWeight: '500' },
 
   // ── 인증 유도 카드
   verifyCard: {

@@ -8,12 +8,14 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { getUniversityBoards } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { getBoardName, getBoardDescription } from '../../lib/i18n';
+import { toShortUniversityName } from '../../lib/university';
 
 // 게시판 slugSuffix별 아이콘·색상 매핑
 const BOARD_META = {
@@ -134,13 +136,31 @@ export default function UniversityBoardScreen({ navigation }) {
       contentContainerStyle={{ paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* ── 헤더 (슬림) ── */}
-      <View style={styles.heroBanner}>
-        <Text style={styles.heroIcon}>{isAdmin ? '🛡️' : '🎓'}</Text>
-        <Text style={styles.heroTitle}>
-          {isAdmin ? t('board.schoolAll') : `${user?.university ?? t('mypage.school')} ${t('board.schoolCommunity')}`}
-        </Text>
-      </View>
+      {/* ── 헤더 (프리미엄 배너, BoardListScreen과 통일) ── */}
+      <LinearGradient
+        colors={[colors.primary, colors.primary + 'D0']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.heroBanner}
+      >
+        <View style={styles.heroShine} pointerEvents="none" />
+        <View style={styles.heroIconBadge}>
+          <Text style={styles.heroIconEmoji}>{isAdmin ? '🛡️' : '🎓'}</Text>
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={styles.heroTitleRow}>
+            <Text style={styles.heroTitle} numberOfLines={1} ellipsizeMode="tail">
+              {isAdmin ? t('board.schoolAll') : (toShortUniversityName(user?.university) || t('mypage.school'))}
+            </Text>
+            {!isAdmin && (
+              <Ionicons name="checkmark-circle" size={16} color="#FFD66B" style={{ marginLeft: 5 }} />
+            )}
+          </View>
+          <Text style={styles.heroSub} numberOfLines={1} ellipsizeMode="tail">
+            {isAdmin ? t('board.schoolBoardAdmin') : `Community · ${t('board.forStudents')}`}
+          </Text>
+        </View>
+      </LinearGradient>
 
       {/* ── admin: 검색 + 학교별 접기/펼치기 ── */}
       {isAdmin && groupedByUniversity ? (
@@ -218,24 +238,48 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // ── 헤더 (적당한 높이)
+  // ── 헤더 (프리미엄 배너, BoardListScreen과 통일)
   heroBanner: {
-    backgroundColor: colors.primary,
     paddingHorizontal: 18,
     paddingTop: 14,
-    paddingBottom: 16,
+    paddingBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+    overflow: 'hidden',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
-  heroIcon: {
-    fontSize: 22,
+  heroShine: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  heroIconBadge: {
+    width: 38, height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroIconEmoji: { fontSize: 20 },
+  heroTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   heroTitle: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 19,
+    fontWeight: '900',
     color: colors.white,
-    letterSpacing: 0.2,
+    letterSpacing: -0.2,
+    flexShrink: 1,
+  },
+  heroSub: {
+    fontSize: 12,
+    color: colors.white + 'B8',
+    marginTop: 2,
+    fontWeight: '500',
   },
 
   // ── admin 검색바
