@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const http = require('http');
 const express = require('express');
 const cors = require('cors');
@@ -42,6 +43,11 @@ app.use('/api/notices', noticeRoutes);
 app.use('/api/inquiries', inquiryRoutes);
 
 app.get('/health', (req, res) => res.json({ success: true, message: 'CaMoim 서버 정상 작동 중' }));
+
+// 개인정보처리방침 · Privacy Policy (App Store 심사 필수 URL)
+app.get(['/privacy', '/privacy-policy'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
 
 // 기본 게시판 데이터 시드 (없을 때만)
 async function seedBoards() {
