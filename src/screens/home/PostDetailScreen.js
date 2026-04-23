@@ -183,11 +183,11 @@ function CommentItem({ comment, isReply = false, onMore, onAvatarPress, onReply,
 const isHtmlContent = (s) => typeof s === 'string' && /<\w+/.test(s);
 
 const buildHtmlTagsStyles = (colors) => ({
-  body: { color: colors.text, fontSize: 16, lineHeight: 26 },
+  body: { color: colors.text, fontSize: 15, lineHeight: 24 },
   p: { marginTop: 0, marginBottom: 8, color: colors.text },
-  h1: { fontSize: 22, fontWeight: '800', color: colors.text, marginTop: 6, marginBottom: 6 },
-  h2: { fontSize: 20, fontWeight: '800', color: colors.text, marginTop: 6, marginBottom: 6 },
-  h3: { fontSize: 18, fontWeight: '700', color: colors.text, marginTop: 4, marginBottom: 4 },
+  h1: { fontSize: 21, fontWeight: '800', color: colors.text, marginTop: 6, marginBottom: 6 },
+  h2: { fontSize: 19, fontWeight: '800', color: colors.text, marginTop: 6, marginBottom: 6 },
+  h3: { fontSize: 17, fontWeight: '700', color: colors.text, marginTop: 4, marginBottom: 4 },
   strong: { fontWeight: '800' },
   b: { fontWeight: '800' },
   em: { fontStyle: 'italic' },
@@ -569,7 +569,7 @@ export default function PostDetailScreen({ route, navigation }) {
               }
             }}
           >
-            <Avatar nickname={post.nickname || t('common.anonymous')} uri={post.isAnonymous ? null : post.avatarUrl} size={36} showLetter />
+            <Avatar nickname={post.nickname || t('common.anonymous')} uri={post.isAnonymous ? null : post.avatarUrl} size={40} showLetter />
             <View style={styles.authorInfo}>
               <View style={styles.authorNameRow}>
                 <Text style={styles.authorName}>{post.nickname || t('common.anonymous')}</Text>
@@ -583,8 +583,7 @@ export default function PostDetailScreen({ route, navigation }) {
             </View>
           </TouchableOpacity>
 
-          {/* 구분선 */}
-          <View style={styles.contentDivider} />
+          <View style={styles.sectionDivider} />
 
           {/* 본문: HTML(리치 에디터) 또는 레거시 블록 */}
           {isHtmlContent(post.content) ? (
@@ -623,6 +622,9 @@ export default function PostDetailScreen({ route, navigation }) {
             )
           )}
         </View>
+
+        {/* 본문이 짧을 때 scrap/like/댓글을 화면 하단으로 밀기 위한 flex spacer */}
+        <View style={styles.bottomSpacer} />
 
         {/* ── 스크랩 · 좋아요 버튼 */}
         <View style={styles.actionBigWrap}>
@@ -767,7 +769,8 @@ export default function PostDetailScreen({ route, navigation }) {
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 4 },
+  scrollContent: { flexGrow: 1, paddingBottom: 4 },
+  bottomSpacer: { flex: 1, backgroundColor: colors.surface },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   errorText: { fontSize: 15, color: colors.textSecondary },
 
@@ -817,16 +820,19 @@ const createStyles = (colors) => StyleSheet.create({
   // ── 게시글 카드
   postCard: {
     backgroundColor: colors.surface,
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 20,
-    marginBottom: 6,
-    minHeight: SCREEN_HEIGHT * 0.5,
+    paddingHorizontal: 19,
+    paddingTop: 13,
+    paddingBottom: 19,
+  },
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginVertical: 13,
   },
 
   // 게시판 태그 (배경 없는 컬러 텍스트)
   boardTag: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.primary,
     fontWeight: '700',
     marginBottom: 8,
@@ -834,12 +840,12 @@ const createStyles = (colors) => StyleSheet.create({
 
   // 제목
   title: {
-    fontSize: 24,
+    fontSize: 25,
     fontWeight: '800',
     color: colors.text,
     lineHeight: 34,
     letterSpacing: -0.3,
-    marginBottom: 14,
+    marginBottom: 13,
   },
 
   // 작성자 행
@@ -847,14 +853,14 @@ const createStyles = (colors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 14,
+    marginBottom: 13,
   },
   authorInfo: { flex: 1, gap: 2 },
   authorNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  authorName: { fontSize: 14, fontWeight: '400', color: colors.text },
+  authorName: { fontSize: 15, fontWeight: '400', color: colors.text },
   authorMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { fontSize: 12, color: colors.textSecondary },
-  metaDot: { fontSize: 12, color: colors.border },
+  metaText: { fontSize: 11, color: colors.textSecondary },
+  metaDot: { fontSize: 11, color: colors.border },
 
   // 구분선
   contentDivider: {
@@ -865,13 +871,13 @@ const createStyles = (colors) => StyleSheet.create({
 
   // 본문
   content: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#2B2B2B',
-    lineHeight: 26,
+    lineHeight: 24,
     marginBottom: 8,
     letterSpacing: 0.1,
   },
-  contentHeading: { fontSize: 20, lineHeight: 30, fontWeight: '800', color: colors.text, marginTop: 4 },
+  contentHeading: { fontSize: 19, lineHeight: 28, fontWeight: '800', color: colors.text, marginTop: 4 },
   contentBold: { fontWeight: '800', color: colors.text },
   contentCenter: { textAlign: 'center' },
 
@@ -892,7 +898,9 @@ const createStyles = (colors) => StyleSheet.create({
     gap: 12,
     backgroundColor: colors.surface,
     paddingVertical: 18,
-    marginBottom: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    marginBottom: 8,
   },
   actionBigBtn: {
     flexDirection: 'row',
@@ -919,7 +927,7 @@ const createStyles = (colors) => StyleSheet.create({
 
   // ── 댓글 섹션
   commentSection: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 12,

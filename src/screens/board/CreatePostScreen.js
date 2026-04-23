@@ -93,6 +93,8 @@ export default function CreatePostScreen({ route, navigation }) {
   const { user } = useAuth();
 
   const isLocalBoard = LOCAL_BOARD_SLUGS.includes(boardSlug);
+  // 익명 게시판 판별: 'anonymous' 또는 '{school}-anonymous'
+  const isAnonymousBoard = boardSlug === 'anonymous' || /(^|-)anonymous$/.test(boardSlug || '');
   const [selectedCity, setSelectedCity] = useState(isEditMode ? (editPost?.city || '') : (user?.city || ''));
   const [cityModalOpen, setCityModalOpen] = useState(false);
 
@@ -353,7 +355,7 @@ export default function CreatePostScreen({ route, navigation }) {
         boardId,
         title: trimmedTitle,
         content: html,
-        isAnonymous: false,
+        isAnonymous: isAnonymousBoard,
         ...(isLocalBoard ? { city: selectedCity || '' } : {}),
       });
       const url = isEditMode ? `${BASE_URL}/posts/${editPost.id}` : `${BASE_URL}/posts`;

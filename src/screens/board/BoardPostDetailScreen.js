@@ -30,11 +30,11 @@ function absolutizeHtml(html) {
   return out.replace(/src=["'](\/uploads\/[^"']+)["']/g, (m, p) => `src="${require('../../lib/config').SERVER_HOST}${p}"`);
 }
 const buildHtmlTagsStyles = (colors) => ({
-  body: { color: colors.text, fontSize: 16, lineHeight: 26 },
+  body: { color: colors.text, fontSize: 15, lineHeight: 24 },
   p: { marginTop: 0, marginBottom: 8, color: colors.text },
-  h1: { fontSize: 22, fontWeight: '800', color: colors.text, marginTop: 6, marginBottom: 6 },
-  h2: { fontSize: 20, fontWeight: '800', color: colors.text, marginTop: 6, marginBottom: 6 },
-  h3: { fontSize: 18, fontWeight: '700', color: colors.text, marginTop: 4, marginBottom: 4 },
+  h1: { fontSize: 21, fontWeight: '800', color: colors.text, marginTop: 6, marginBottom: 6 },
+  h2: { fontSize: 19, fontWeight: '800', color: colors.text, marginTop: 6, marginBottom: 6 },
+  h3: { fontSize: 17, fontWeight: '700', color: colors.text, marginTop: 4, marginBottom: 4 },
   strong: { fontWeight: '800' },
   b: { fontWeight: '800' },
   em: { fontStyle: 'italic' },
@@ -540,7 +540,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
               }
             }}
           >
-            <Avatar nickname={post.nickname || t('common.anonymous')} uri={post.isAnonymous ? null : post.avatarUrl} size={36} showLetter />
+            <Avatar nickname={post.nickname || t('common.anonymous')} uri={post.isAnonymous ? null : post.avatarUrl} size={40} showLetter />
             <View style={styles.authorInfo}>
               <View style={styles.authorNameRow}>
                 <Text style={styles.authorName}>{post.nickname || t('common.anonymous')}</Text>
@@ -554,8 +554,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
             </View>
           </TouchableOpacity>
 
-          {/* 구분선 */}
-          <View style={styles.contentDivider} />
+          <View style={styles.sectionDivider} />
 
           {/* 본문: HTML(리치 에디터) 또는 레거시 블록 */}
           {isHtmlContent(post.content) ? (
@@ -595,6 +594,9 @@ export default function BoardPostDetailScreen({ route, navigation }) {
           )}
 
         </View>
+
+        {/* 본문이 짧을 때 scrap/like/댓글을 화면 하단으로 밀기 위한 flex spacer */}
+        <View style={styles.bottomSpacer} />
 
         {/* ── 스크랩 / 좋아요 큰 버튼 */}
         <View style={styles.likeBigWrap}>
@@ -740,28 +742,41 @@ const createStyles = (colors) => StyleSheet.create({
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   errorText: { fontSize: 14, color: colors.danger },
   scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 20 },
-  postCard: { backgroundColor: colors.surface, padding: 18, marginBottom: 8 },
+  scrollContent: { flexGrow: 1, paddingBottom: 20 },
+  bottomSpacer: { flex: 1, backgroundColor: colors.surface },
+  postCard: { backgroundColor: colors.surface, padding: 17 },
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginVertical: 13,
+  },
   boardTag: {
     alignSelf: 'flex-start', fontSize: 11, fontWeight: '700', color: colors.primary,
     backgroundColor: colors.primary + '12', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
     marginBottom: 10,
   },
-  title: { fontSize: 20, fontWeight: '800', color: colors.text, lineHeight: 28 },
-  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
+  title: { fontSize: 21, fontWeight: '800', color: colors.text, lineHeight: 28 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 13 },
   authorInfo: { flex: 1 },
   authorNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  authorName: { fontSize: 14, fontWeight: '700', color: colors.text },
+  authorName: { fontSize: 15, fontWeight: '700', color: colors.text },
   authorMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  metaText: { fontSize: 12, color: colors.textSecondary },
-  metaDot: { fontSize: 12, color: colors.textSecondary },
-  contentDivider: { height: 0.5, backgroundColor: colors.border, marginVertical: 16 },
-  content: { fontSize: 16, lineHeight: 26, color: colors.text },
-  contentHeading: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
+  metaText: { fontSize: 11, color: colors.textSecondary },
+  metaDot: { fontSize: 11, color: colors.textSecondary },
+  contentDivider: { height: 0.5, backgroundColor: colors.border, marginVertical: 15 },
+  content: { fontSize: 15, lineHeight: 24, color: colors.text },
+  contentHeading: { fontSize: 19, fontWeight: '800', marginBottom: 4 },
   contentBold: { fontWeight: '700' },
   contentCenter: { textAlign: 'center' },
   postImage: { width: '100%', height: 280, borderRadius: 12, marginVertical: 10, backgroundColor: colors.inputBg },
-  likeBigWrap: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, paddingVertical: 16 },
+  likeBigWrap: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: 10, paddingVertical: 16,
+    backgroundColor: colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    marginBottom: 8,
+  },
   likeBigBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24,
@@ -772,7 +787,7 @@ const createStyles = (colors) => StyleSheet.create({
   likeBigTextActive: { color: '#FF3B6B' },
   bookmarkBigBtnActive: { backgroundColor: colors.primary + '12', borderColor: colors.primary + '60' },
   bookmarkBigTextActive: { color: colors.primary },
-  commentSection: { backgroundColor: colors.surface, padding: 16, paddingBottom: 8 },
+  commentSection: { backgroundColor: colors.background, padding: 16, paddingBottom: 8 },
   commentCount: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 12 },
   noCommentText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingVertical: 24 },
   commentItem: {

@@ -441,18 +441,19 @@ router.post('/', requireAuth, uploadImages.array('images', 5), async (req, res) 
     const htmlImageUrls = /<img/i.test(content) ? extractImagesFromHtml(content) : [];
     const imageUrls = [...uploadedImageUrls, ...htmlImageUrls].slice(0, 10);
 
-    // 도시: 로컬 보드(장터/구인/룸랜트/자동차/나눔/부동산/모임)에서만 저장.
-    // 클라이언트가 보낸 값만 신뢰(빈문자열 = "전체"), 프로필에서 자동복사하지 않음.
-    const board = await Board.findById(boardId).select('slug').lean();
+    // 보드 정보 로드 (도시·익명 규칙 판별용)
+    const board = await Board.findById(boardId).select('slug isAnonymousAllowed').lean();
     const isLocalBoard = board && LOCAL_BOARD_SLUGS.includes(board.slug);
     const postCity = isLocalBoard ? (req.body.city?.trim() || '') : '';
+    // 익명은 보드 설정이 결정 (클라 조작 방어): 익명 보드면 항상 true, 아니면 항상 false
+    const enforcedIsAnonymous = !!board?.isAnonymousAllowed;
 
     const post = await Post.create({
       boardId,
       userId: req.user.id,
       title,
       content,
-      isAnonymous: isAnonymous === 'true' || isAnonymous === true,
+      isAnonymous: enforcedIsAnonymous,
       images: imageUrls,
       city: postCity,
     });
@@ -698,12 +699,16 @@ router.post('/:postId/comments', requireAuth, async (req, res) => {
     const post = await Post.findById(req.params.postId);
     if (!post) return res.status(404).json({ success: false, message: '게시글을 찾을 수 없습니다.' });
 
+    // 익명은 보드 설정에 따라 강제: 익명 보드면 true, 아니면 false (클라 조작 방어)
+    const board = await Board.findById(post.boardId).select('isAnonymousAllowed').lean();
+    const enforcedIsAnonymous = !!board?.isAnonymousAllowed;
+
     const comment = await Comment.create({
       postId: req.params.postId,
       userId: req.user.id,
       parentId: parentId || null,
       content,
-      isAnonymous: isAnonymous || false,
+      isAnonymous: enforcedIsAnonymous,
       isSecret: isSecret || false,
     });
 
@@ -715,7 +720,7 @@ router.post('/:postId/comments', requireAuth, async (req, res) => {
         User.findById(req.user.id).select('nickname'),
         User.findById(post.userId).select('pushToken notificationSettings'),
       ]);
-      const commenterName = isAnonymous ? '익명' : (commenter?.nickname ?? '누군가');
+      const commenterName = enforcedIsAnonymous ? '익명' : (commenter?.nickname ?? '누군가');
 
       // DB 알림 저장
       await Notification.create({
