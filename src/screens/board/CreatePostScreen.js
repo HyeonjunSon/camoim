@@ -41,6 +41,14 @@ function contentToHtml(content) {
   // 과거 주입으로 박힌 ✕ 버튼/래퍼 제거 (방어)
   out = out.replace(/<span[^>]*data-img-del[^>]*>[\s\S]*?<\/span>/gi, '');
   out = out.replace(/<span[^>]*data-img-wrap[^>]*>([\s\S]*?)<\/span>/gi, '$1');
+  // 시작/끝/중간 빈 블록 정리 — P와 DIV 모두 대응 (pell-rich-editor 기본이 div)
+  const emptyBlock = /<(?:p|div)[^>]*>(\s|&nbsp;|<br\s*\/?>)*<\/(?:p|div)>/i;
+  // 맨 앞 빈 블록/br/공백 전부 제거 (leading)
+  out = out.replace(new RegExp(`^(\\s|<br\\s*\\/?>|${emptyBlock.source})+`, 'i'), '');
+  // 끝 빈 블록/br 전부 제거 (trailing)
+  out = out.replace(new RegExp(`(\\s|<br\\s*\\/?>|${emptyBlock.source})+$`, 'i'), '');
+  // 연속된 빈 블록을 하나로 축약
+  out = out.replace(new RegExp(`(${emptyBlock.source})(\\s*${emptyBlock.source})+`, 'gi'), '<p><br></p>');
   // /uploads/ → 절대 URL
   out = out.replace(/src=["'](\/uploads\/[^"']+)["']/g, `src="${SERVER_HOST}$1"`);
   return out;
@@ -54,8 +62,15 @@ function normalizeHtmlForSave(html) {
   out = out.replace(/<span[^>]*data-img-wrap[^>]*>([\s\S]*?)<\/span>/gi, '$1');
   // "글 추가" 힌트 제거
   out = out.replace(/<p[^>]*data-add-hint[^>]*>[\s\S]*?<\/p>/gi, '');
+  // data-fresh 속성 정리
+  out = out.replace(/\s*data-fresh="[^"]*"/gi, '');
   // 이미지 액션바(혹시라도 직렬화되면) 제거
   out = out.replace(/<div[^>]*id=["']__imgActionBar["'][^>]*>[\s\S]*?<\/div>/gi, '');
+  // 시작/끝/중간 빈 블록 정리 — P와 DIV 모두 대응
+  const emptyBlock = /<(?:p|div)[^>]*>(\s|&nbsp;|<br\s*\/?>)*<\/(?:p|div)>/i;
+  out = out.replace(new RegExp(`^(\\s|<br\\s*\\/?>|${emptyBlock.source})+`, 'i'), '');
+  out = out.replace(new RegExp(`(\\s|<br\\s*\\/?>|${emptyBlock.source})+$`, 'i'), '');
+  out = out.replace(new RegExp(`(${emptyBlock.source})(\\s*${emptyBlock.source})+`, 'gi'), '<p><br></p>');
   // 로컬 서버 URL만 상대 경로로 변환 (Cloudinary URL은 절대 URL 그대로 유지)
   const escaped = SERVER_HOST.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   out = out.replace(new RegExp(`src=["']${escaped}(/uploads/[^"']+)["']`, 'g'), 'src="$1"');
@@ -66,14 +81,19 @@ export default function CreatePostScreen({ route, navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
-  const { boardId, boardSlug, boardName, editPost } = route.params ?? {};
+  const routeParams = route.params ?? {};
+  const editPost = routeParams.editPost;
   const isEditMode = !!editPost;
+  // 수정 모드일 때는 editPost에서 보드 정보를 가져옴 (네비게이션이 editPost만 넘기는 경우 대응)
+  const boardId = routeParams.boardId ?? editPost?.boardId;
+  const boardSlug = routeParams.boardSlug ?? editPost?.boardSlug;
+  const boardName = routeParams.boardName ?? editPost?.boardName;
   const insets = useSafeAreaInsets();
   const { t } = useLang();
   const { user } = useAuth();
 
   const isLocalBoard = LOCAL_BOARD_SLUGS.includes(boardSlug);
-  const [selectedCity, setSelectedCity] = useState(user?.city || '');
+  const [selectedCity, setSelectedCity] = useState(isEditMode ? (editPost?.city || '') : (user?.city || ''));
   const [cityModalOpen, setCityModalOpen] = useState(false);
 
   const [title, setTitle] = useState(editPost?.title ?? '');
@@ -86,6 +106,8 @@ export default function CreatePostScreen({ route, navigation }) {
   const [h2Active, setH2Active] = useState(false);
 
   const richRef = useRef(null);
+  const scrollRef = useRef(null);
+  const scrollViewHeightRef = useRef(0);
 
   const initialHtmlRef = useRef(
     isEditMode ? contentToHtml(editPost.content ?? '') : ''
@@ -143,7 +165,7 @@ export default function CreatePostScreen({ route, navigation }) {
         const html = `<p><img src="${imgUrl}" /></p><p><br></p>`;
         try { richRef.current?.insertHTML(html); }
         catch (e) { richRef.current?.insertImage(imgUrl); }
-        // 새 이미지 로드 후 리플로우 (1/4만 보이는 현상 방지)
+        // 새 이미지 로드 후 리플로우 + 힌트 재계산
         const reflowJS = `
           (function(){
             var imgs = document.querySelectorAll('img');
@@ -155,6 +177,8 @@ export default function CreatePostScreen({ route, navigation }) {
               var ev = document.createEvent('Event');
               ev.initEvent('input', true, true);
               (document.querySelector('[contenteditable]')||document.body).dispatchEvent(ev);
+              // 이미지 삽입 후 힌트 즉시 재계산 (사진 사이에 힌트 표시)
+              if (window.__decorateHints) window.__decorateHints();
             }
             if (!last || last.complete) refresh();
             else {
@@ -390,8 +414,8 @@ export default function CreatePostScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* 게시판 + 도시 선택 */}
-      {!isEditMode && boardName && (
+      {/* 게시판 + 도시 선택 (작성/수정 모두) */}
+      {boardName && (
         <View style={styles.boardRow}>
           <View style={styles.boardSelect}>
             <Text style={styles.boardSelectText}>{boardName}</Text>
@@ -449,13 +473,28 @@ export default function CreatePostScreen({ route, navigation }) {
 
       <View style={styles.divider} />
 
-      {/* 리치 에디터 — 자체 WebView 스크롤 사용 */}
-      <View style={styles.editorWrap}>
+      {/* 리치 에디터 — 외부 ScrollView가 스크롤 담당 (pell-rich-editor는 WebView 내부 스크롤 비활성) */}
+      <ScrollView
+        ref={scrollRef}
+        style={styles.editorScroll}
+        contentContainerStyle={styles.editorScrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        showsVerticalScrollIndicator={false}
+        onLayout={(e) => { scrollViewHeightRef.current = e.nativeEvent.layout.height; }}
+      >
         <RichEditor
           ref={richRef}
           initialContentHTML=""
           placeholder={t('post.contentPh')}
           scrollEnabled={true}
+          onCursorPosition={(cursorY) => {
+            // 커서가 화면 중간(1/2 지점)에 오도록 자동 스크롤
+            const visibleH = scrollViewHeightRef.current || 400;
+            if (visibleH <= 0) return;
+            const targetY = Math.max(0, cursorY - visibleH / 2);
+            scrollRef.current?.scrollTo({ y: targetY, animated: true });
+          }}
           onMessage={handleEditorMessage}
           editorInitializedCallback={() => {
             // 이미지 탭 감지 → RN으로 메시지 전송 (선택된 이미지에 outline 표시)
@@ -533,66 +572,186 @@ export default function CreatePostScreen({ route, navigation }) {
             `;
             try { richRef.current?.injectJavascript?.(selTrackJS); } catch(e) {}
 
-            // 인접한 사진 사이에 "─ 글 추가 ─" 힌트 자동 삽입
+            // 사진 위/사이에 "─ 글 추가 ─" 힌트 자동 삽입
             const hintJS = `
               (function(){
+                // pell-rich-editor는 상황에 따라 P 또는 DIV로 감쌈 → 둘 다 블록으로 인식
+                function isBlock(el){
+                  return !!el && (el.nodeName === 'P' || el.nodeName === 'DIV');
+                }
                 function isImgPara(el){
-                  if (!el || el.nodeName !== 'P') return false;
+                  if (!isBlock(el)) return false;
                   var imgs = el.querySelectorAll('img');
                   if (imgs.length === 0) return false;
-                  var txt = (el.innerText || '').replace(/\\s/g,'');
+                  var txt = (el.textContent || '').replace(/[\\s\\u200b\\u200c\\u200d\\ufeff\\u00a0]+/g, '');
                   return txt.length === 0;
                 }
+                function isHint(el){
+                  return el && el.dataset && el.dataset.addHint === '1';
+                }
+                function makeHint(){
+                  var hint = document.createElement('p');
+                  hint.setAttribute('data-add-hint','1');
+                  hint.contentEditable = 'false';
+                  hint.style.margin = '6px 0';
+                  hint.style.cursor = 'pointer';
+                  hint.style.userSelect = 'none';
+                  hint.style.textAlign = 'center';
+                  hint.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:#F2F2F4;color:#9A9AA2;font-size:12px;font-weight:600;line-height:1;">${t('post.addHint')}</span>';
+                  hint.addEventListener('click', function(e){
+                    e.preventDefault();
+                    var blank = document.createElement('p');
+                    blank.innerHTML = '<br>';
+                    blank.setAttribute('data-fresh','1'); // 방금 생성됨 → 전역 리스너가 유저 입력 감지 시 0으로 전환
+                    hint.parentNode.replaceChild(blank, hint);
+                    var range = document.createRange();
+                    range.setStart(blank, 0);
+                    range.collapse(true);
+                    var sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    blank.focus && blank.focus();
+                    var ev = document.createEvent('Event');
+                    ev.initEvent('input', true, true);
+                    (document.querySelector('[contenteditable]')||document.body).dispatchEvent(ev);
+                  });
+                  return hint;
+                }
+
+                // 전역: 유저의 실제 입력(e.isTrusted)만 감지해서 fresh 블랭크를 0으로 전환
+                // 합성 이벤트(programmatic dispatchEvent)는 무시 → 초기 생성 시점 오발동 없음
+                function flipFreshIfUserTyped(e){
+                  if (!e || e.isTrusted === false) return;
+                  var sel = window.getSelection();
+                  if (!sel || !sel.anchorNode) return;
+                  var node = sel.anchorNode;
+                  while (node) {
+                    if (node.nodeType === 1 && node.getAttribute && node.getAttribute('data-fresh') === '1') {
+                      node.setAttribute('data-fresh','0');
+                      return;
+                    }
+                    node = node.parentNode;
+                  }
+                }
+                if (!window.__freshFlipBound) {
+                  window.__freshFlipBound = true;
+                  document.addEventListener('input', flipFreshIfUserTyped, true);
+                  document.addEventListener('keyup', flipFreshIfUserTyped, true);
+                  document.addEventListener('compositionend', flipFreshIfUserTyped, true);
+                }
+                function isEmptyPara(el){
+                  if (!isBlock(el)) return false;
+                  if (isHint(el)) return false;
+                  if (el.querySelectorAll('img').length > 0) return false;
+                  // textContent + 모든 종류의 공백/제로폭 문자 제거 (iOS 대응)
+                  var txt = (el.textContent || '').replace(/[\\s\\u200b\\u200c\\u200d\\ufeff\\u00a0]+/g, '');
+                  return txt.length === 0;
+                }
+                function isCursorIn(el){
+                  var sel = window.getSelection();
+                  if (!sel || sel.rangeCount === 0) return false;
+                  var node = sel.anchorNode;
+                  while (node) { if (node === el) return true; node = node.parentNode; }
+                  return false;
+                }
                 function decorate(){
-                  // 1) 더 이상 사진 사이가 아닌 stale 힌트 제거
+                  var root = document.querySelector('[contenteditable]') || document.body;
+
+                  // 1) stale 힌트 제거 (TOP: next가 이미지, MIDDLE: prev/next 모두 이미지)
                   var hints = document.querySelectorAll('[data-add-hint="1"]');
                   hints.forEach(function(h){
                     var prev = h.previousElementSibling;
                     var next = h.nextElementSibling;
-                    if (!isImgPara(prev) || !isImgPara(next)) {
+                    var isTop = !prev && isImgPara(next);
+                    var isMid = isImgPara(prev) && isImgPara(next);
+                    if (!isTop && !isMid) {
                       h.parentNode && h.parentNode.removeChild(h);
                     }
                   });
-                  // 2) 인접 사진 사이에 힌트 추가
-                  var ps = document.querySelectorAll('p');
+
+                  // fresh='1' 인 빈 문단은 방금 힌트 클릭으로 만들어진 것 → 건드리지 않음
+                  // fresh='0' 또는 속성 없음 → 유저가 타이핑하다 비웠거나 기존 빈 문단 → 힌트로 교체 가능
+                  function canReplace(el){
+                    return isEmptyPara(el) && el.getAttribute('data-fresh') !== '1';
+                  }
+
+                  // 2) TOP 슬롯
+                  var first = root.firstElementChild;
+                  if (first && isImgPara(first)) {
+                    root.insertBefore(makeHint(), first);
+                  } else if (first && canReplace(first)) {
+                    var second = first.nextElementSibling;
+                    if (isImgPara(second)) {
+                      first.parentNode.replaceChild(makeHint(), first);
+                    }
+                  }
+
+                  // 3) MIDDLE 슬롯
+                  var ps = Array.prototype.slice.call(root.querySelectorAll('p'));
                   ps.forEach(function(p){
                     if (!isImgPara(p)) return;
                     var next = p.nextElementSibling;
-                    if (!next || !isImgPara(next)) return;
-                    if (next.previousElementSibling && next.previousElementSibling.dataset && next.previousElementSibling.dataset.addHint === '1') return;
-                    var hint = document.createElement('p');
-                    hint.setAttribute('data-add-hint','1');
-                    hint.contentEditable = 'false';
-                    hint.style.margin = '6px 0';
-                    hint.style.cursor = 'pointer';
-                    hint.style.userSelect = 'none';
-                    hint.style.textAlign = 'center';
-                    hint.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:#F2F2F4;color:#9A9AA2;font-size:12px;font-weight:600;line-height:1;">${t('post.addHint')}</span>';
-                    hint.addEventListener('click', function(e){
-                      e.preventDefault();
-                      var blank = document.createElement('p');
-                      blank.innerHTML = '<br>';
-                      hint.parentNode.replaceChild(blank, hint);
-                      var range = document.createRange();
-                      range.setStart(blank, 0);
-                      range.collapse(true);
-                      var sel = window.getSelection();
-                      sel.removeAllRanges();
-                      sel.addRange(range);
-                      blank.focus && blank.focus();
-                      var ev = document.createEvent('Event');
-                      ev.initEvent('input', true, true);
-                      (document.querySelector('[contenteditable]')||document.body).dispatchEvent(ev);
-                    });
-                    p.parentNode.insertBefore(hint, next);
+                    if (!next) return;
+                    if (isImgPara(next)) {
+                      if (!isHint(next.previousElementSibling)) {
+                        p.parentNode.insertBefore(makeHint(), next);
+                      }
+                    } else if (canReplace(next)) {
+                      var after = next.nextElementSibling;
+                      if (isImgPara(after)) {
+                        next.parentNode.replaceChild(makeHint(), next);
+                      }
+                    }
                   });
                 }
+                // 전역 노출: 이미지 삽입 등 외부에서 명시적 호출 가능
+                window.__decorateHints = decorate;
                 decorate();
-                var obs = new MutationObserver(function(){
-                  // 무한 루프 방지: 자기 자신이 추가한 노드는 무시되도록 다음 틱에
-                  setTimeout(decorate, 0);
+                // childList: 요소 추가/제거, characterData: 텍스트 변경 (글자 단위 삭제 감지)
+                var decTimer = null;
+                function schedule(){
+                  clearTimeout(decTimer);
+                  decTimer = setTimeout(decorate, 0);
+                }
+                var obs = new MutationObserver(schedule);
+                obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+                document.addEventListener('selectionchange', function(){
+                  clearTimeout(decTimer);
+                  decTimer = setTimeout(decorate, 100);
                 });
-                obs.observe(document.body, { childList: true, subtree: true });
+                document.addEventListener('input', function(e){
+                  if (e.isTrusted === false) return;
+                  schedule();
+                }, true);
+                document.addEventListener('keyup', function(e){
+                  if (e.isTrusted === false) return;
+                  schedule();
+                }, true);
+
+                // pell-rich-editor의 height 동기화 강화: scrollHeight 변화를 주기적으로 감지
+                // 원인: 이미지 로드 과정에서 scrollHeight가 일시적으로 spike되면 state.height가 그 값에 고착 → 큰 빈공간
+                var editable = document.querySelector('[contenteditable]');
+                var lastHeight = 0;
+                function syncHeight(){
+                  if (!editable) editable = document.querySelector('[contenteditable]');
+                  if (!editable) return;
+                  var h = editable.scrollHeight;
+                  if (h !== lastHeight) {
+                    lastHeight = h;
+                    var ev = document.createEvent('Event');
+                    ev.initEvent('input', true, true);
+                    editable.dispatchEvent(ev);
+                  }
+                }
+                // ResizeObserver로 내용 크기 변화 실시간 감지
+                if (window.ResizeObserver && editable) {
+                  try { new ResizeObserver(syncHeight).observe(editable); } catch(e) {}
+                }
+                // 폴링 보조 (ResizeObserver 없거나 놓친 경우)
+                setInterval(function(){
+                  decorate();
+                  syncHeight();
+                }, 500);
                 true;
               })();
             `;
@@ -602,25 +761,24 @@ export default function CreatePostScreen({ route, navigation }) {
             setTimeout(() => {
               try {
                 richRef.current?.setContentHTML(initialHtmlRef.current);
-                // 이미지 로드 후 강제 리플로우 (스페이스바 안 눌러도 전체 렌더되게)
+                // 이미지 로드마다 height 재계산 + 힌트 decorate
                 const reflowJS = `
                   (function(){
-                    var imgs = document.querySelectorAll('img');
-                    var done = 0, total = imgs.length;
-                    function refresh(){
-                      document.body.style.display='none';
-                      void document.body.offsetHeight;
-                      document.body.style.display='';
+                    function onReady(){
                       var ev = document.createEvent('Event');
                       ev.initEvent('input', true, true);
                       (document.querySelector('[contenteditable]')||document.body).dispatchEvent(ev);
+                      if (window.__decorateHints) window.__decorateHints();
                     }
-                    if (total === 0) { refresh(); return true; }
+                    // 콘텐츠 설정 직후 즉시 한 번 호출 (이미지 없거나 이미 캐시된 경우)
+                    onReady();
+                    var imgs = document.querySelectorAll('img');
                     imgs.forEach(function(img){
-                      if (img.complete) { done++; if(done===total) refresh(); }
-                      else {
-                        img.addEventListener('load', function(){ done++; if(done===total) refresh(); });
-                        img.addEventListener('error', function(){ done++; if(done===total) refresh(); });
+                      if (img.complete) {
+                        onReady();
+                      } else {
+                        img.addEventListener('load', onReady);
+                        img.addEventListener('error', onReady);
                       }
                     });
                     true;
@@ -638,23 +796,33 @@ export default function CreatePostScreen({ route, navigation }) {
             color: colors.text,
             placeholderColor: colors.textSecondary,
             contentCSSText: `
+              height: auto !important;
+              min-height: 0 !important;
+              overflow: visible !important;
               font-size: 16px;
               line-height: 1.6;
               padding: 12px 16px;
-              min-height: 300px;
               font-weight: 400;
               color: ${colors.text};
               p { font-weight: 400; margin: 0 0 8px 0; }
               b, strong { font-weight: 800; }
               h1, h2, h3 { font-weight: 800; color: ${colors.text}; margin: 8px 0; }
               h2 { font-size: 20px; }
-              img { display: block; margin: 14px auto; max-width: 100%; border-radius: 8px; }
+              img {
+                display: block;
+                margin: 14px auto;
+                max-width: 100%;
+                border-radius: 8px;
+                -webkit-touch-callout: none;
+                -webkit-user-drag: none;
+              }
             `,
           }}
-          initialHeight={320}
+          initialHeight={140}
           useContainer
+          defaultParagraphSeparator="p"
         />
-      </View>
+      </ScrollView>
 
       {uploadingImage && (
         <View style={styles.uploadOverlay} pointerEvents="auto">
@@ -725,7 +893,8 @@ export default function CreatePostScreen({ route, navigation }) {
 
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  editorWrap: { flex: 1 },
+  editorScroll: { flex: 1 },
+  editorScrollContent: { paddingBottom: 16 },
 
   topBar: {
     flexDirection: 'row',

@@ -156,7 +156,7 @@ export default function BoardListScreen({ navigation }) {
 
   function handleWriteSelect(board) {
     setWriteModalVisible(false);
-    navigation.navigate('CreatePost', { boardId: board.id, boardName: getBoardName(board.slug, board.name, t) });
+    navigation.navigate('CreatePost', { boardId: board.id, boardSlug: board.slug, boardName: getBoardName(board.slug, board.name, t) });
   }
 
   // ── 컴팩트 게시판 행

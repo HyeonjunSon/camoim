@@ -26,19 +26,24 @@ async function request(method, path, body) {
   const headers = { 'Content-Type': 'application/json', 'x-app-version': APP_VERSION };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
+  // RN Hermes는 AbortSignal.timeout 미지원 → AbortController로 수동 구현
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20_000);
   let res;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(20_000),
+      signal: controller.signal,
     });
   } catch (e) {
-    if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+    if (e.name === 'AbortError') {
       throw new Error('요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
     }
     throw e;
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   const data = await res.json();

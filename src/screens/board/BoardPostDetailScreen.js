@@ -287,43 +287,6 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     }
   }, [bookmarkBusy, bookmarked, postId]);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <TouchableOpacity
-            onPress={handleToggleBookmark}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons
-              name={bookmarked ? 'bookmark' : 'bookmark-outline'}
-              size={22}
-              color={bookmarked ? colors.primary : colors.text}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleToggleLike}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 4 }}
-          >
-            <Ionicons
-              name={liked ? 'heart' : 'heart-outline'}
-              size={24}
-              color={liked ? '#FF3B6B' : colors.text}
-            />
-            {likeCount > 0 && (
-              <Text style={{ fontSize: 13, color: liked ? '#FF3B6B' : colors.text, fontWeight: '600' }}>
-                {likeCount}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      ),
-    });
-  }, [navigation, liked, likeCount, handleToggleLike, bookmarked, handleToggleBookmark]);
-
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
   const refreshComments = async () => {
@@ -341,18 +304,6 @@ export default function BoardPostDetailScreen({ route, navigation }) {
   const cancelReply = () => {
     setReplyTo(null);
     setCommentText('');
-  };
-
-  // 공유
-  const handleShare = async () => {
-    try {
-      const url = `https://camoim.app/p/${postId}`;
-      await Share.share({
-        message: `[CaMoim] ${post.title}\n${url}`,
-        url,
-        title: post.title,
-      });
-    } catch (e) {}
   };
 
   // 댓글 고정
@@ -522,6 +473,21 @@ export default function BoardPostDetailScreen({ route, navigation }) {
       Alert.alert('', '', items);
     }
   };
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleMore}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, handleMore]);
+
   const totalCommentCount = comments.reduce((acc, c) => acc + 1 + (c.replies?.length ?? 0), 0);
 
   if (loading) return <View style={styles.loadingContainer}><ActivityIndicator size="large" color={colors.primary} /></View>;
@@ -616,8 +582,24 @@ export default function BoardPostDetailScreen({ route, navigation }) {
 
         </View>
 
-        {/* ── 좋아요 큰 버튼 */}
+        {/* ── 스크랩 / 좋아요 큰 버튼 */}
         <View style={styles.likeBigWrap}>
+          <TouchableOpacity
+            style={[styles.likeBigBtn, bookmarked && styles.bookmarkBigBtnActive]}
+            onPress={handleToggleBookmark}
+            activeOpacity={0.85}
+            disabled={bookmarkBusy}
+          >
+            <Ionicons
+              name={bookmarked ? 'bookmark' : 'bookmark-outline'}
+              size={22}
+              color={bookmarked ? colors.primary : colors.textSecondary}
+            />
+            <Text style={[styles.likeBigText, bookmarked && styles.bookmarkBigTextActive]}>
+              {t('post.bookmarkBtn')}
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.likeBigBtn, liked && styles.likeBigBtnActive]}
             onPress={handleToggleLike}
@@ -690,51 +672,49 @@ export default function BoardPostDetailScreen({ route, navigation }) {
 
       {/* ── 바텀 바 */}
       <View style={styles.bottomBar}>
-        {/* 잠금 댓글 토글 */}
-        <TouchableOpacity
-          style={[styles.barLockBtn, isSecret && styles.barLockBtnActive]}
-          onPress={() => setIsSecret(v => !v)}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={isSecret ? 'lock-closed' : 'lock-open-outline'}
-            size={18}
-            color={isSecret ? colors.primary : colors.textSecondary}
-          />
-        </TouchableOpacity>
-
-        <TextInput
-          ref={inputRef}
-          style={[styles.barInput, isSecret && styles.barInputSecret]}
-          placeholder={
-            replyTo
-              ? `${replyTo.nickname}${t('post.replyToPlaceholder')}`
-              : (isSecret ? t('post.secretCommentPlaceholder') : t('post.commentPlaceholder'))
-          }
-          placeholderTextColor={isSecret ? colors.primary + '90' : colors.textSecondary}
-          value={commentText}
-          onChangeText={setCommentText}
-          returnKeyType="send"
-          onSubmitEditing={handleSubmitComment}
-          maxLength={300}
-        />
-
-        {commentText.trim() ? (
-          <TouchableOpacity style={styles.barSendBtn} onPress={handleSubmitComment} disabled={submitting} activeOpacity={0.8}>
-            {submitting
-              ? <ActivityIndicator size="small" color={colors.white} />
-              : <Text style={styles.barSendText}>{t('common.send')}</Text>}
+        <View style={styles.barInputWrap}>
+          {/* 잠금 댓글 토글 */}
+          <TouchableOpacity
+            style={[styles.barLockBtn, isSecret && styles.barLockBtnActive]}
+            onPress={() => setIsSecret(v => !v)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={isSecret ? 'lock-closed' : 'lock-open-outline'}
+              size={18}
+              color={isSecret ? colors.primary : colors.textSecondary}
+            />
           </TouchableOpacity>
-        ) : (
-          <>
-            <TouchableOpacity style={styles.barIcon} onPress={handleShare} activeOpacity={0.7}>
-              <Ionicons name="paper-plane-outline" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.barIcon} onPress={handleMore} activeOpacity={0.7}>
-              <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </>
-        )}
+
+          <View style={styles.barSep} />
+
+          <TextInput
+            ref={inputRef}
+            style={[styles.barInput, isSecret && styles.barInputSecret]}
+            placeholder={
+              replyTo
+                ? `${replyTo.nickname}${t('post.replyToPlaceholder')}`
+                : (isSecret ? t('post.secretCommentPlaceholder') : t('post.commentPlaceholder'))
+            }
+            placeholderTextColor={isSecret ? colors.primary + '90' : colors.textSecondary}
+            value={commentText}
+            onChangeText={setCommentText}
+            returnKeyType="send"
+            onSubmitEditing={handleSubmitComment}
+            maxLength={300}
+          />
+        </View>
+
+        <TouchableOpacity
+          style={[styles.barSendBtn, !commentText.trim() && styles.barSendBtnInactive]}
+          onPress={handleSubmitComment}
+          disabled={submitting || !commentText.trim()}
+          activeOpacity={0.8}
+        >
+          {submitting
+            ? <ActivityIndicator size="small" color={colors.white} />
+            : <Text style={styles.barSendText}>{t('common.send')}</Text>}
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -767,7 +747,7 @@ const createStyles = (colors) => StyleSheet.create({
   contentBold: { fontWeight: '700' },
   contentCenter: { textAlign: 'center' },
   postImage: { width: '100%', height: 280, borderRadius: 12, marginVertical: 10, backgroundColor: colors.inputBg },
-  likeBigWrap: { alignItems: 'center', paddingVertical: 16 },
+  likeBigWrap: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, paddingVertical: 16 },
   likeBigBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24,
@@ -776,6 +756,8 @@ const createStyles = (colors) => StyleSheet.create({
   likeBigBtnActive: { backgroundColor: colors.danger + '12', borderColor: '#FFB3C6' },
   likeBigText: { fontSize: 14, fontWeight: '700', color: colors.textSecondary },
   likeBigTextActive: { color: '#FF3B6B' },
+  bookmarkBigBtnActive: { backgroundColor: colors.primary + '12', borderColor: colors.primary + '60' },
+  bookmarkBigTextActive: { color: colors.primary },
   commentSection: { backgroundColor: colors.surface, padding: 16, paddingBottom: 8 },
   commentCount: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 12 },
   noCommentText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingVertical: 24 },
@@ -815,20 +797,27 @@ const createStyles = (colors) => StyleSheet.create({
   replyBannerNick: { fontWeight: '700' },
   replyBannerCancel: { fontSize: 18, color: colors.textSecondary, paddingHorizontal: 8 },
   bottomBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.surface,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 10, paddingVertical: 8, backgroundColor: colors.surface,
     borderTopWidth: 0.5, borderTopColor: colors.border,
   },
-  barLockBtn: { padding: 8, borderRadius: 8 },
+  barInputWrap: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.inputBg, borderRadius: 24, paddingHorizontal: 4, minHeight: 44,
+  },
+  barSep: { width: StyleSheet.hairlineWidth, height: 20, backgroundColor: colors.border, marginHorizontal: 2 },
+  barLockBtn: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 14 },
   barLockBtnActive: { backgroundColor: colors.primary + '15' },
   barInput: {
-    flex: 1, backgroundColor: colors.inputBg, borderRadius: 20, paddingHorizontal: 14,
-    paddingVertical: 8, fontSize: 14, color: colors.text, maxHeight: 100,
+    flex: 1, paddingHorizontal: 10, paddingVertical: 10,
+    fontSize: 15, color: colors.text, maxHeight: 100,
   },
-  barInputSecret: { borderWidth: 1, borderColor: colors.primary + '40' },
+  barInputSecret: { color: colors.primary },
   barSendBtn: {
-    backgroundColor: colors.primary, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8,
+    backgroundColor: colors.primary, borderRadius: 22, paddingHorizontal: 18,
+    minHeight: 44, justifyContent: 'center', alignItems: 'center',
   },
+  barSendBtnInactive: { backgroundColor: colors.primary + '55' },
   barSendText: { fontSize: 13, fontWeight: '700', color: colors.white },
   barIcon: { padding: 8 },
 });

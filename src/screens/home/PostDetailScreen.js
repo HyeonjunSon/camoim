@@ -327,18 +327,6 @@ export default function PostDetailScreen({ route, navigation }) {
     setCommentText('');
   };
 
-  // 공유
-  const handleShare = async () => {
-    try {
-      const url = `https://camoim.app/p/${postId}`;
-      await Share.share({
-        message: `[CaMoim] ${post.title}\n${url}`,
-        url, // iOS만 사용
-        title: post.title,
-      });
-    } catch (e) {}
-  };
-
   // 댓글 고정
   const handlePin = async (comment) => {
     try {
@@ -542,30 +530,19 @@ export default function PostDetailScreen({ route, navigation }) {
 
         <Text style={styles.headerTitle}>{t('post.postTitle')}</Text>
 
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.headerCircle}
-            onPress={handleToggleBookmark}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={bookmarked ? 'bookmark' : 'bookmark-outline'}
-              size={19}
-              color={bookmarked ? colors.primary : colors.text}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerCircle}
-            onPress={handleToggleLike}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={liked ? 'heart' : 'heart-outline'}
-              size={19}
-              color={liked ? '#FF3B6B' : colors.text}
-            />
-          </TouchableOpacity>
-        </View>
+        <View style={{ flex: 1 }} />
+
+        <TouchableOpacity
+          style={styles.headerCircle}
+          onPress={handleMore}
+          activeOpacity={0.7}
+        >
+          <View style={styles.headerDotsRow}>
+            <View style={styles.headerDot} />
+            <View style={styles.headerDot} />
+            <View style={styles.headerDot} />
+          </View>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -653,22 +630,6 @@ export default function PostDetailScreen({ route, navigation }) {
         {/* ── 스크랩 · 좋아요 버튼 */}
         <View style={styles.actionBigWrap}>
           <TouchableOpacity
-            style={[styles.actionBigBtn, bookmarked && styles.bookmarkBigBtnActive]}
-            onPress={handleToggleBookmark}
-            activeOpacity={0.85}
-            disabled={bookmarkBusy}
-          >
-            <Ionicons
-              name={bookmarked ? 'bookmark' : 'bookmark-outline'}
-              size={20}
-              color={bookmarked ? colors.primary : colors.textSecondary}
-            />
-            <Text style={[styles.actionBigText, bookmarked && styles.bookmarkBigTextActive]}>
-              {t('post.bookmarkBtn')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={[styles.actionBigBtn, liked && styles.likeBigBtnActive]}
             onPress={handleToggleLike}
             activeOpacity={0.85}
@@ -681,6 +642,22 @@ export default function PostDetailScreen({ route, navigation }) {
             />
             <Text style={[styles.actionBigText, liked && styles.likeBigTextActive]}>
               {t('post.likeBtn')} {likeCount}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionBigBtn, bookmarked && styles.bookmarkBigBtnActive]}
+            onPress={handleToggleBookmark}
+            activeOpacity={0.85}
+            disabled={bookmarkBusy}
+          >
+            <Ionicons
+              name={bookmarked ? 'bookmark' : 'bookmark-outline'}
+              size={20}
+              color={bookmarked ? colors.primary : colors.textSecondary}
+            />
+            <Text style={[styles.actionBigText, bookmarked && styles.bookmarkBigTextActive]}>
+              {t('post.bookmarkBtn')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -741,6 +718,7 @@ export default function PostDetailScreen({ route, navigation }) {
 
       {/* ── 바텀 바 */}
       <View style={styles.bottomBar}>
+        <View style={styles.barInputWrap}>
         {/* 잠금 댓글 토글 */}
         <TouchableOpacity
           style={[styles.barLockBtn, isSecret && styles.barLockBtnActive]}
@@ -753,6 +731,8 @@ export default function PostDetailScreen({ route, navigation }) {
             color={isSecret ? colors.primary : colors.textSecondary}
           />
         </TouchableOpacity>
+
+        <View style={styles.barSep} />
 
         {/* 댓글 입력 */}
         <TextInput
@@ -770,23 +750,18 @@ export default function PostDetailScreen({ route, navigation }) {
           onSubmitEditing={handleSubmitComment}
           maxLength={300}
         />
+        </View>
 
-        {commentText.trim() ? (
-          <TouchableOpacity style={styles.barSendBtn} onPress={handleSubmitComment} disabled={submitting} activeOpacity={0.8}>
-            {submitting
-              ? <ActivityIndicator size="small" color={colors.white} />
-              : <Text style={styles.barSendText}>{t('common.send')}</Text>}
-          </TouchableOpacity>
-        ) : (
-          <>
-            <TouchableOpacity style={styles.barIcon} onPress={handleShare} activeOpacity={0.7}>
-              <Ionicons name="paper-plane-outline" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.barIcon} onPress={handleMore} activeOpacity={0.7}>
-              <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </>
-        )}
+        <TouchableOpacity
+          style={[styles.barSendBtn, !commentText.trim() && styles.barSendBtnInactive]}
+          onPress={handleSubmitComment}
+          disabled={submitting || !commentText.trim()}
+          activeOpacity={0.8}
+        >
+          {submitting
+            ? <ActivityIndicator size="small" color={colors.white} />
+            : <Text style={styles.barSendText}>{t('common.send')}</Text>}
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -813,6 +788,17 @@ const createStyles = (colors) => StyleSheet.create({
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: colors.inputBg,
     alignItems: 'center', justifyContent: 'center',
+  },
+  headerDotsRow: {
+    width: 22, height: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  headerDot: {
+    width: 4, height: 4, borderRadius: 2,
+    backgroundColor: colors.text,
   },
   headerTitle: {
     position: 'absolute',
@@ -1018,26 +1004,34 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingHorizontal: 4,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 8,
   },
-  barSep: { width: 1, height: 20, backgroundColor: colors.border },
+  barInputWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.inputBg,
+    borderRadius: 24,
+    paddingHorizontal: 4,
+    minHeight: 44,
+  },
+  barSep: { width: StyleSheet.hairlineWidth, height: 20, backgroundColor: colors.border, marginHorizontal: 2 },
   barInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     color: colors.text,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
   },
   barInputSecret: {
-    backgroundColor: colors.primary + '10',
     color: colors.primary,
   },
   barLockBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 14,
   },
   barLockBtnActive: {
     backgroundColor: colors.primary + '18',
@@ -1045,10 +1039,14 @@ const createStyles = (colors) => StyleSheet.create({
   barLockIcon: { fontSize: 18 },
   barSendBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginRight: 6,
+    paddingHorizontal: 18,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 22,
+  },
+  barSendBtnInactive: {
+    backgroundColor: colors.primary + '55',
   },
   barSendText: { fontSize: 13, fontWeight: '700', color: colors.white },
   barComments: {

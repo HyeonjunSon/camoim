@@ -13,7 +13,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { getBoardPosts } from '../../lib/api';
-import { useAuth } from '../../context/AuthContext';
 import PostCard from '../../components/PostCard';
 import { useLang } from '../../context/LangContext';
 
@@ -39,12 +38,11 @@ export default function BoardFeedScreen({ route, navigation }) {
 
   const { boardId, boardName, boardSlug } = route.params ?? {};
   const { t } = useLang();
-  const { user } = useAuth();
 
   // 로컬 게시판 여부
   const isLocalBoard = LOCAL_BOARD_SLUGS.includes(boardSlug);
-  // 도시 필터: 로컬 게시판이면 내 도시가 기본값
-  const [cityFilter, setCityFilter] = useState(isLocalBoard ? (user?.city || '') : '');
+  // 도시 필터: 기본값은 "전체"
+  const [cityFilter, setCityFilter] = useState('');
 
   const [posts, setPosts] = useState([]);
   const [page, setPage] = useState(1);
@@ -242,18 +240,7 @@ export default function BoardFeedScreen({ route, navigation }) {
                 {t('home.regionAll')}
               </Text>
             </TouchableOpacity>
-            {user?.city && (
-              <TouchableOpacity
-                style={[styles.cityChip, cityFilter === user.city && styles.cityChipActive]}
-                onPress={() => handleCityChange(user.city)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.cityChipText, cityFilter === user.city && styles.cityChipTextActive]}>
-                  📍 {t(`city.${user.city}`)}
-                </Text>
-              </TouchableOpacity>
-            )}
-            {CITIES.filter(c => c !== user?.city).map(city => (
+            {CITIES.map(city => (
               <TouchableOpacity
                 key={city}
                 style={[styles.cityChip, cityFilter === city && styles.cityChipActive]}
