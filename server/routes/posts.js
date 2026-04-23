@@ -397,6 +397,8 @@ router.get('/:postId', optionalAuth, async (req, res) => {
         createdAt: post.createdAt,
         boardName: post.boardId?.name,
         boardSlug: post.boardId?.slug,
+        boardId: post.boardId?._id,
+        city: post.city ?? '',
         userId: post.isAnonymous ? null : post.userId?._id,
         nickname: post.isAnonymous ? '익명' : (post.userId?.nickname ?? '탈퇴한 회원'),
         role: post.isAnonymous ? null : post.userId?.role,
