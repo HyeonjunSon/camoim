@@ -4,6 +4,7 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   Image,
   StyleSheet,
   ActivityIndicator,
@@ -475,18 +476,8 @@ export default function BoardPostDetailScreen({ route, navigation }) {
   };
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={handleMore}
-          activeOpacity={0.7}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, handleMore]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const totalCommentCount = comments.reduce((acc, c) => acc + 1 + (c.replies?.length ?? 0), 0);
 
@@ -497,8 +488,31 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+      keyboardVerticalOffset={0}
     >
+      {/* 커스텀 헤더 (PostDetailScreen과 동일) */}
+      <View style={[styles.customHeader, { paddingTop: insets.top }]}>
+        <TouchableOpacity
+          style={styles.headerCircle}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
+        </TouchableOpacity>
+
+        <Text style={styles.headerTitle}>{t('post.postTitle')}</Text>
+
+        <View style={{ flex: 1 }} />
+
+        <Pressable style={styles.headerCircleMore} onPress={handleMore} hitSlop={8}>
+          <View style={styles.headerDotsGroup}>
+            <View style={styles.headerDot} />
+            <View style={styles.headerDot} />
+            <View style={styles.headerDot} />
+          </View>
+        </Pressable>
+      </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -820,4 +834,42 @@ const createStyles = (colors) => StyleSheet.create({
   barSendBtnInactive: { backgroundColor: colors.primary + '55' },
   barSendText: { fontSize: 13, fontWeight: '700', color: colors.white },
   barIcon: { padding: 8 },
+
+  // 커스텀 헤더 (PostDetailScreen과 동일 스타일)
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  headerCircle: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.inputBg,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  headerCircleMore: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.inputBg,
+    alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  headerDotsGroup: {
+    width: 18, height: 4,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  headerDot: {
+    width: 4, height: 4, borderRadius: 2,
+    backgroundColor: colors.text,
+  },
+  headerTitle: {
+    position: 'absolute',
+    left: 0, right: 0, bottom: 10,
+    textAlign: 'center',
+    fontSize: 16, fontWeight: '700', color: colors.text,
+    pointerEvents: 'none',
+  },
 });

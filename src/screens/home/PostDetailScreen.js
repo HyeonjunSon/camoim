@@ -4,6 +4,7 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   Image,
   StyleSheet,
   ActivityIndicator,
@@ -532,17 +533,13 @@ export default function PostDetailScreen({ route, navigation }) {
 
         <View style={{ flex: 1 }} />
 
-        <TouchableOpacity
-          style={styles.headerCircle}
-          onPress={handleMore}
-          activeOpacity={0.7}
-        >
-          <View style={styles.headerDotsRow}>
+        <Pressable style={styles.headerCircleMore} onPress={handleMore} hitSlop={8}>
+          <View style={styles.headerDotsGroup}>
             <View style={styles.headerDot} />
             <View style={styles.headerDot} />
             <View style={styles.headerDot} />
           </View>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <ScrollView
@@ -789,12 +786,18 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.inputBg,
     alignItems: 'center', justifyContent: 'center',
   },
-  headerDotsRow: {
-    width: 22, height: 36,
+  // ⋯ 메뉴: 36×36 원 안에 18px 도트 그룹을 flex center
+  // 3 dots × 4 + 2 gaps × 3 = 18px wide group
+  headerCircleMore: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.inputBg,
+    alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  headerDotsGroup: {
+    width: 18, height: 4,
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
+    justifyContent: 'space-between',
   },
   headerDot: {
     width: 4, height: 4, borderRadius: 2,
