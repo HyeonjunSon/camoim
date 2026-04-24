@@ -112,8 +112,10 @@ const UNIVERSITY_BOARD_TEMPLATES = [
 ];
 
 async function ensureUniversityBoards(universityShortName) {
+  // slug 생성은 server/index.js의 seed/migration과 동일해야 중복 방지됨
+  const prefix = universityShortName.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-');
   for (const tmpl of UNIVERSITY_BOARD_TEMPLATES) {
-    const slug = `${universityShortName.toLowerCase().replace(/\s+/g, '-')}-${tmpl.slugSuffix}`;
+    const slug = `${prefix}-${tmpl.slugSuffix}`;
     const exists = await Board.findOne({ slug });
     if (!exists) {
       await Board.create({
@@ -367,7 +369,10 @@ router.put('/users/:id/profile', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/users/:id — 강제 탈퇴 (soft delete)
+// DELETE /api/admin/users/:id — 강제 탈퇴 (hard delete)
+// 본인 탈퇴(DELETE /api/auth/me)와 동일한 방식:
+//  - 작성 글/댓글은 userId=null, isAnonymous=true 로 전환("탈퇴한 회원" 표시)
+//  - 유저 레코드는 DB에서 완전 삭제, 관련 메타데이터도 정리
 router.delete('/users/:id', async (req, res) => {
   try {
     if (String(req.params.id) === String(req.user.id)) {
@@ -381,11 +386,27 @@ router.delete('/users/:id', async (req, res) => {
         return res.status(400).json({ success: false, message: '마지막 관리자는 탈퇴시킬 수 없어요' });
       }
     }
-    target.status = 'deleted';
-    target.email = `deleted_${Date.now()}_${target.email}`;
-    target.nickname = `(탈퇴) ${target.nickname}`.slice(0, 100);
-    await target.save();
-    logAdmin(req, 'user.delete', { targetType: 'user', targetId: target._id, meta: { reason: req.body.reason || '' } });
+
+    const Block = require('../models/Block');
+    const Notification = require('../models/Notification');
+    const Inquiry = require('../models/Inquiry');
+    const Bookmark = require('../models/Bookmark');
+    const userId = target._id;
+
+    await Post.updateMany({ likedBy: userId }, { $pull: { likedBy: userId }, $inc: { likeCount: -1 } });
+    await Promise.all([
+      Post.updateMany({ userId }, { $set: { userId: null, isAnonymous: true } }),
+      Comment.updateMany({ userId }, { $set: { userId: null, isAnonymous: true } }),
+      Block.deleteMany({ $or: [{ blockerId: userId }, { blockedId: userId }] }),
+      Report.deleteMany({ reporterId: userId }),
+      VerifyRequest.deleteMany({ userId }),
+      Notification.deleteMany({ userId }),
+      Inquiry.deleteMany({ userId }),
+      Bookmark.deleteMany({ userId }),
+    ]);
+
+    await User.findByIdAndDelete(userId);
+    logAdmin(req, 'user.delete', { targetType: 'user', targetId: userId, meta: { reason: req.body.reason || '', hardDelete: true } });
     res.json({ success: true });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);

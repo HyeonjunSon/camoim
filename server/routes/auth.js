@@ -17,8 +17,11 @@ const UNIVERSITY_BOARD_TEMPLATES = [
 ];
 
 async function ensureUniversityBoards(universityShortName) {
+  // slug 생성은 server/index.js의 seed/migration과 동일해야 중복 방지됨
+  // (괄호 포함 학교명이 있어 반드시 [()]도 제거)
+  const prefix = universityShortName.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-');
   for (const tmpl of UNIVERSITY_BOARD_TEMPLATES) {
-    const slug = `${universityShortName.toLowerCase().replace(/\s+/g, '-')}-${tmpl.slugSuffix}`;
+    const slug = `${prefix}-${tmpl.slugSuffix}`;
     const exists = await Board.findOne({ slug });
     if (!exists) {
       await Board.create({
