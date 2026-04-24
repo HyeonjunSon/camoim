@@ -7,7 +7,7 @@ import {
 } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
+import { StatusBar, setStatusBarStyle } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useFonts } from 'expo-font';
@@ -141,7 +141,14 @@ function ThemedNavigation() {
 
   return (
     <ErrorBoundary>
-      <NavigationContainer ref={navigationRef} theme={navTheme}>
+      <NavigationContainer
+        ref={navigationRef}
+        theme={navTheme}
+        onStateChange={() => {
+          // iOS가 새 화면 push 시 VC별 statusBar 기본값으로 리셋하는 이슈 방지
+          setStatusBarStyle(resolved === 'dark' ? 'light' : 'dark', true);
+        }}
+      >
         <OfflineNotice />
         <SystemStatusGate>
           <AppNavigator />
