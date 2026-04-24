@@ -43,6 +43,7 @@ router.get('/', optionalAuth, async (req, res) => {
     const boards = await Board.find(query).sort({ isUniversityBoard: 1, sortOrder: 1 });
     res.json({ success: true, data: boards });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });

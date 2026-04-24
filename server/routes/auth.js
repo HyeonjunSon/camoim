@@ -90,6 +90,7 @@ router.post('/check-code', async (req, res) => {
     pending.verified = true;
     res.json({ success: true, message: '이메일 인증이 완료되었습니다.' });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -274,6 +275,7 @@ router.get('/me', requireAuth, async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -327,6 +329,7 @@ router.get('/check-nickname', async (req, res) => {
     const available = !existing || (selfId && String(existing._id) === String(selfId));
     res.json({ success: true, data: { available } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });

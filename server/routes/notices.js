@@ -24,6 +24,7 @@ router.get('/', async (req, res) => {
     }));
     res.json({ success: true, data });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -46,6 +47,7 @@ router.get('/:id', async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -95,6 +97,7 @@ router.post('/', requireAuth, requireRole('admin'), async (req, res) => {
       data: { id: notice._id, title: notice.title, content: notice.content, pinned: notice.pinned, createdAt: notice.createdAt },
     });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -111,6 +114,7 @@ router.put('/:id', requireAuth, requireRole('admin'), async (req, res) => {
     if (!n) return res.status(404).json({ success: false, message: '공지사항을 찾을 수 없습니다.' });
     res.json({ success: true, data: { id: n._id, title: n.title, content: n.content, pinned: n.pinned } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -121,6 +125,7 @@ router.delete('/:id', requireAuth, requireRole('admin'), async (req, res) => {
     await Notice.findByIdAndDelete(req.params.id);
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });

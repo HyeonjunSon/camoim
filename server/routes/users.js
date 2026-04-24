@@ -72,6 +72,7 @@ router.get('/me/posts', requireAuth, async (req, res) => {
 
     res.json({ success: true, data: { posts: formatted, total } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -110,6 +111,7 @@ router.get('/me/liked-posts', requireAuth, async (req, res) => {
 
     res.json({ success: true, data: { posts: formatted, total } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -157,6 +159,7 @@ router.get('/me/bookmarks', requireAuth, async (req, res) => {
 
     res.json({ success: true, data: { posts: formatted, total } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -218,6 +221,7 @@ router.get('/me/notifications', requireAuth, async (req, res) => {
     const user = await User.findById(req.user.id).select('notificationSettings');
     res.json({ success: true, data: user.notificationSettings });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -235,6 +239,7 @@ router.patch('/me/notifications', requireAuth, async (req, res) => {
     const user = await User.findByIdAndUpdate(req.user.id, update, { new: true }).select('notificationSettings');
     res.json({ success: true, data: user.notificationSettings });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -247,6 +252,7 @@ router.put('/me/push-token', requireAuth, async (req, res) => {
     await User.findByIdAndUpdate(req.user.id, { pushToken });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -268,6 +274,7 @@ router.get('/me/blocks', requireAuth, async (req, res) => {
     }));
     res.json({ success: true, data });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -286,6 +293,7 @@ router.get('/:userId/block-status', requireAuth, async (req, res) => {
         : { blocked: false, blockChat: false, hideContent: false },
     });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -319,6 +327,7 @@ router.put('/:userId/block', requireAuth, async (req, res) => {
       data: { blocked: true, blockChat: block.blockChat, hideContent: block.hideContent },
     });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -329,6 +338,7 @@ router.delete('/:userId/block', requireAuth, async (req, res) => {
     await Block.deleteOne({ blockerId: req.user.id, blockedId: req.params.userId });
     res.json({ success: true, data: { blocked: false } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -370,6 +380,7 @@ router.get('/:userId', async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });

@@ -69,6 +69,7 @@ router.get('/me', requireAuth, async (req, res) => {
     }));
     res.json({ success: true, data });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -95,6 +96,7 @@ router.get('/me/:id', requireAuth, async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -131,6 +133,7 @@ router.get('/admin', requireAuth, requireRole('admin'), async (req, res) => {
     }));
     res.json({ success: true, data });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -167,6 +170,7 @@ router.put('/admin/:id/answer', requireAuth, requireRole('admin'), async (req, r
 
     res.json({ success: true, data: { id: inquiry._id, status: inquiry.status, answer: inquiry.answer, answeredAt: inquiry.answeredAt } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });

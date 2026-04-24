@@ -12,4 +12,8 @@ const verifyRequestSchema = new mongoose.Schema({
   reviewedAt:     { type: Date, default: null },
 }, { timestamps: true });
 
+// 본인 신청 상태 조회 + 관리자 pending 목록 조회 핫 쿼리
+verifyRequestSchema.index({ userId: 1, createdAt: -1 });
+verifyRequestSchema.index({ status: 1, createdAt: -1 });
+
 module.exports = mongoose.model('VerifyRequest', verifyRequestSchema);

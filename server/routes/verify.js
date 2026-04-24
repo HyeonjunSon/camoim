@@ -114,6 +114,7 @@ router.get('/status', requireAuth, async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });

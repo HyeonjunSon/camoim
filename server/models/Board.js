@@ -10,4 +10,8 @@ const boardSchema = new mongoose.Schema({
   isUniversityBoard: { type: Boolean, default: false },
 });
 
+// 학교 게시판 필터/정렬 핫 쿼리
+boardSchema.index({ isUniversityBoard: 1, sortOrder: 1 });
+boardSchema.index({ university: 1 });
+
 module.exports = mongoose.model('Board', boardSchema);

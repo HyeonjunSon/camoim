@@ -10,4 +10,8 @@ const notificationSchema = new mongoose.Schema({
   isRead: { type: Boolean, default: false },
 }, { timestamps: true });
 
+// 알림 목록/미읽음 카운트 핫 쿼리
+notificationSchema.index({ userId: 1, createdAt: -1 });
+notificationSchema.index({ userId: 1, isRead: 1 });
+
 module.exports = mongoose.model('Notification', notificationSchema);

@@ -49,6 +49,7 @@ router.get('/', requireAuth, async (req, res) => {
 
     res.json({ success: true, data: result });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -93,6 +94,7 @@ router.post('/', requireAuth, async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -143,6 +145,7 @@ router.get('/:roomId/messages', requireAuth, async (req, res) => {
 
     res.json({ success: true, data: formatted, otherLeft });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -165,6 +168,7 @@ router.put('/:roomId/accept', requireAuth, async (req, res) => {
     await room.save();
     res.json({ success: true, data: { id: room._id, status: room.status } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -221,6 +225,7 @@ router.delete('/:roomId', requireAuth, async (req, res) => {
 
     res.json({ success: true, data: { message: '삭제되었습니다.' } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -245,6 +250,7 @@ router.get('/check/:userId', requireAuth, async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });

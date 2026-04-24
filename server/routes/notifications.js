@@ -10,6 +10,7 @@ router.get('/unread-count', requireAuth, async (req, res) => {
     const count = await Notification.countDocuments({ userId: req.user.id, isRead: false });
     res.json({ success: true, data: { count } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -33,6 +34,7 @@ router.get('/', requireAuth, async (req, res) => {
 
     res.json({ success: true, data: formatted });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -43,6 +45,7 @@ router.put('/read-all', requireAuth, async (req, res) => {
     await Notification.updateMany({ userId: req.user.id, isRead: false }, { isRead: true });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -53,6 +56,7 @@ router.put('/:id/read', requireAuth, async (req, res) => {
     await Notification.findOneAndUpdate({ _id: req.params.id, userId: req.user.id }, { isRead: true });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });

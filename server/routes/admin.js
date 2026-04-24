@@ -42,6 +42,7 @@ router.get('/verify-requests', async (req, res) => {
 
     res.json({ success: true, data: formatted });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -74,6 +75,7 @@ router.put('/verify-requests/:id/approve', async (req, res) => {
 
     res.json({ success: true, data: { message: '승인 완료' } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -96,6 +98,7 @@ router.put('/verify-requests/:id/reject', async (req, res) => {
 
     res.json({ success: true, data: { message: '거절 완료' } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -189,6 +192,7 @@ router.put('/reports/:id/resolve', async (req, res) => {
 
     res.json({ success: true, data: { message: '처리 완료 및 콘텐츠 삭제됨' } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -199,6 +203,7 @@ router.put('/reports/:id/dismiss', async (req, res) => {
     await Report.findByIdAndUpdate(req.params.id, { status: 'dismissed', adminNote: req.body.adminNote || '' });
     res.json({ success: true, data: { message: '신고 기각됨' } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -267,6 +272,7 @@ router.get('/users/:id', async (req, res) => {
       data: { ...u, stats: { postCount, commentCount, reportCount, reportedCount } },
     });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -305,6 +311,7 @@ router.put('/users/:id/sanction', async (req, res) => {
     logAdmin(req, `user.${type}`, { targetType: 'user', targetId: target._id, meta: { days, reason } });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -336,6 +343,7 @@ router.put('/users/:id/role', async (req, res) => {
     logAdmin(req, 'user.role', { targetType: 'user', targetId: target._id, meta: { role } });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -354,6 +362,7 @@ router.put('/users/:id/profile', async (req, res) => {
     logAdmin(req, 'user.profile', { targetType: 'user', targetId: req.params.id, meta: patch });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -379,6 +388,7 @@ router.delete('/users/:id', async (req, res) => {
     logAdmin(req, 'user.delete', { targetType: 'user', targetId: target._id, meta: { reason: req.body.reason || '' } });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -414,6 +424,7 @@ router.get('/posts', async (req, res) => {
 
     res.json({ success: true, data: { posts, total, page: Number(page), pages: Math.ceil(total / limit) } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -426,6 +437,7 @@ router.put('/posts/:id/hide', async (req, res) => {
     logAdmin(req, hidden ? 'post.hide' : 'post.unhide', { targetType: 'post', targetId: req.params.id, meta: { reason } });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -438,6 +450,7 @@ router.put('/posts/:id/pin', async (req, res) => {
     logAdmin(req, pinned ? 'post.pin' : 'post.unpin', { targetType: 'post', targetId: req.params.id });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -451,6 +464,7 @@ router.put('/posts/:id/move', async (req, res) => {
     logAdmin(req, 'post.move', { targetType: 'post', targetId: req.params.id, meta: { boardId } });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -463,6 +477,7 @@ router.delete('/posts/:id', async (req, res) => {
     logAdmin(req, 'post.delete', { targetType: 'post', targetId: req.params.id, meta: { reason: req.body.reason || '' } });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -475,6 +490,7 @@ router.delete('/comments/:id', async (req, res) => {
     logAdmin(req, 'comment.delete', { targetType: 'comment', targetId: req.params.id });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -493,6 +509,7 @@ router.get('/boards', async (req, res) => {
     })));
     res.json({ success: true, data: withCounts });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -512,6 +529,7 @@ router.post('/boards', async (req, res) => {
     logAdmin(req, 'board.create', { targetType: 'board', targetId: b._id, meta: { slug, name } });
     res.json({ success: true, data: b });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -527,6 +545,7 @@ router.put('/boards/:id', async (req, res) => {
     logAdmin(req, 'board.update', { targetType: 'board', targetId: req.params.id, meta: patch });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -542,6 +561,7 @@ router.delete('/boards/:id', async (req, res) => {
     logAdmin(req, 'board.delete', { targetType: 'board', targetId: req.params.id });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -628,6 +648,7 @@ router.get('/settings', async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -646,6 +667,7 @@ router.put('/settings/:key', async (req, res) => {
     logAdmin(req, `setting.${key}`, { targetType: 'system', meta: { value } });
     res.json({ success: true });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -670,6 +692,7 @@ router.get('/logs', async (req, res) => {
       .lean();
     res.json({ success: true, data: { logs, total, page: Number(page), pages: Math.ceil(total / limit) } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -694,6 +717,7 @@ router.post('/push', async (req, res) => {
     logAdmin(req, 'push.broadcast', { targetType: 'system', meta: { count: users.length, target } });
     res.json({ success: true, data: { sent: users.length } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });

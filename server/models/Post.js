@@ -18,4 +18,10 @@ const postSchema = new mongoose.Schema({
   pinned:     { type: Boolean, default: false }, // 게시판 상단 고정
 }, { timestamps: true });
 
+// 핫 쿼리용 복합 인덱스 — 게시판 목록/내 글/홈 피드 전부 이 인덱스로 빨라짐
+postSchema.index({ boardId: 1, createdAt: -1 });
+postSchema.index({ userId: 1, createdAt: -1 });
+postSchema.index({ createdAt: -1 });
+postSchema.index({ likedBy: 1 });
+
 module.exports = mongoose.model('Post', postSchema);

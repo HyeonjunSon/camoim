@@ -11,4 +11,9 @@ const commentSchema = new mongoose.Schema({
   isSecret: { type: Boolean, default: false }, // 잠금 댓글 (작성자 + 글 작성자만 열람 가능)
 }, { timestamps: true });
 
+// 게시글 상세 진입 시 댓글 조회 핫 쿼리
+commentSchema.index({ postId: 1, createdAt: 1 });
+commentSchema.index({ userId: 1, createdAt: -1 });
+commentSchema.index({ parentId: 1 });
+
 module.exports = mongoose.model('Comment', commentSchema);

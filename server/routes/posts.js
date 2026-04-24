@@ -85,6 +85,7 @@ router.get('/', optionalAuth, async (req, res) => {
 
     res.json({ success: true, data: result });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
@@ -407,6 +408,7 @@ router.get('/:postId', optionalAuth, async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -419,6 +421,7 @@ router.post('/upload-image', requireAuth, uploadImages.single('image'), async (r
     const url = req.file.path;
     res.json({ success: true, data: { url } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '업로드에 실패했습니다.' });
   }
 });
@@ -497,6 +500,7 @@ router.put('/:postId', requireAuth, async (req, res) => {
     await post.save();
     res.json({ success: true, data: { message: '수정되었습니다.' } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -512,6 +516,7 @@ router.delete('/:postId', requireAuth, async (req, res) => {
     await post.deleteOne();
     res.json({ success: true, data: { message: '삭제되었습니다.' } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -565,6 +570,7 @@ router.post('/:postId/like', requireAuth, async (req, res) => {
 
     res.json({ success: true, data: { liked: !alreadyLiked, likeCount: post.likeCount } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -582,6 +588,7 @@ router.post('/:postId/bookmark', requireAuth, async (req, res) => {
     await Bookmark.create({ userId, postId });
     res.json({ success: true, data: { bookmarked: true } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -650,6 +657,7 @@ router.get('/:postId/comments', optionalAuth, async (req, res) => {
 
     res.json({ success: true, data: topLevel });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -681,6 +689,7 @@ router.put('/:postId/comments/:commentId/pin', requireAuth, async (req, res) => 
 
     res.json({ success: true, data: { isPinned: true } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -745,6 +754,7 @@ router.post('/:postId/comments', requireAuth, async (req, res) => {
 
     res.status(201).json({ success: true, data: { id: comment._id } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -761,6 +771,7 @@ router.delete('/:postId/comments/:commentId', requireAuth, async (req, res) => {
     await Post.findByIdAndUpdate(req.params.postId, { $inc: { commentCount: -1 } });
     res.json({ success: true, data: { message: '삭제되었습니다.' } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
@@ -779,6 +790,7 @@ router.patch('/:postId/comments/:commentId', requireAuth, async (req, res) => {
     await comment.save();
     res.json({ success: true, data: { message: '수정되었습니다.' } });
   } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
