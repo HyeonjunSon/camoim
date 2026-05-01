@@ -1,9 +1,20 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Localization from 'expo-localization';
 import { translate } from '../lib/i18n';
 
 const STORAGE_KEY = '@camoim_lang';
 const LangContext = createContext({ lang: 'ko', setLang: () => {}, t: (k) => k });
+
+function detectInitialLang() {
+  try {
+    const locales = Localization.getLocales?.();
+    const code = (locales && locales[0]?.languageCode) || Localization.locale || 'ko';
+    return String(code).toLowerCase().startsWith('ko') ? 'ko' : 'en';
+  } catch {
+    return 'ko';
+  }
+}
 
 export function LangProvider({ children }) {
   const [lang, setLangState] = useState('ko');
@@ -12,8 +23,14 @@ export function LangProvider({ children }) {
     (async () => {
       try {
         const saved = await AsyncStorage.getItem(STORAGE_KEY);
-        if (saved === 'ko' || saved === 'en') setLangState(saved);
-      } catch {}
+        if (saved === 'ko' || saved === 'en') {
+          setLangState(saved);
+        } else {
+          setLangState(detectInitialLang());
+        }
+      } catch {
+        setLangState(detectInitialLang());
+      }
     })();
   }, []);
 

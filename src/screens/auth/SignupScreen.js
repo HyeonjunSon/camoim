@@ -21,6 +21,7 @@ import { ROLES } from '../../constants/roles';
 import { checkNickname, sendEmailCode, checkEmailCode } from '../../lib/api';
 import { TERMS_OF_SERVICE, PRIVACY_POLICY } from '../../constants/legal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AuthLangToggle from '../../components/AuthLangToggle';
 
 const CITIES = [
   'Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Edmonton',
@@ -221,6 +222,7 @@ export default function SignupScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top }}>
+    <AuthLangToggle />
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

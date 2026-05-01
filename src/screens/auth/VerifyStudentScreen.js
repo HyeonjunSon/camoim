@@ -18,6 +18,7 @@ import { colors } from '../../constants/colors'
 import { applyVerify, getVerifyStatus } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
+import AuthLangToggle from '../../components/AuthLangToggle';
 
 // 지원 대학교 목록 (서버 shortName과 일치해야 함)
 const UNIVERSITIES = [
@@ -177,6 +178,7 @@ export default function VerifyStudentScreen({ navigation }) {
     const st = STATUS_STYLE[existingRequest.status] ?? STATUS_STYLE.pending;
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.centeredContent}>
+        <AuthLangToggle />
         <View style={styles.statusCard}>
           <Text style={styles.statusCardTitle}>{t('verify.statusTitle')}</Text>
 
@@ -228,6 +230,7 @@ export default function VerifyStudentScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <AuthLangToggle />
       <ScrollView
         contentContainerStyle={styles.formContent}
         keyboardShouldPersistTaps="handled"

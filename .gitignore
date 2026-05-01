@@ -38,6 +38,9 @@ server/.env
 # claude
 .claude/
 
+# IDE
+.vscode/
+
 # temp
 .text
 

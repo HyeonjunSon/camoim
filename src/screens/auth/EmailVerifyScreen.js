@@ -13,6 +13,7 @@ import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
 import { verifyEmail, resendEmailCode } from '../../lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AuthLangToggle from '../../components/AuthLangToggle';
 
 export default function EmailVerifyScreen() {
   const { colors } = useTheme();
@@ -74,6 +75,7 @@ export default function EmailVerifyScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 60 }]}>
+      <AuthLangToggle />
       <View style={styles.iconWrap}>
         <Ionicons name="mail-outline" size={56} color={colors.primary} />
       </View>

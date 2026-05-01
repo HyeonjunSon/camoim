@@ -10,6 +10,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -27,6 +28,25 @@ import RoleBadge from '../../components/RoleBadge';
 
 const APP_VERSION = Constants.expoConfig?.version || Constants.manifest?.version || '1.0.0';
 
+// 도시 목록 (Signup 화면과 동일)
+const CITIES = [
+  'Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Edmonton',
+  'Ottawa', 'Winnipeg', 'Victoria', 'Halifax', 'Saskatoon',
+  'London', 'Quebec',
+];
+
+// 학교 목록 (VerifyStudentScreen과 동일)
+const UNIVERSITIES = [
+  'University of Toronto (UofT)', 'University of British Columbia (UBC)', 'McGill University',
+  'University of Alberta (UAlberta)', 'University of Waterloo (UW)',
+  'Western University', "Queen's University", 'Simon Fraser University (SFU)',
+  'University of Calgary (UCalgary)', 'University of Ottawa (uOttawa)',
+  'York University', 'University of Victoria (UVic)', 'Dalhousie University (Dal)',
+  'University of Manitoba (UManitoba)',
+  'British Columbia Institute of Technology (BCIT)', 'Seneca College', 'George Brown College',
+  'Humber College', 'Southern Alberta Institute of Technology (SAIT)', 'Langara College',
+];
+
 // 마이페이지 화면 — 프로필 + 통계 + 메뉴
 export default function MyPageScreen({ navigation }) {
   const { colors, mode: themeMode, setMode: setThemeMode } = useTheme();
@@ -41,8 +61,10 @@ export default function MyPageScreen({ navigation }) {
   // 프로필 수정 모달 상태
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editForm, setEditForm] = useState({
-    nickname: '', location: '', school: '', bio: '',
+    nickname: '', city: '', school: '',
   });
+  const [cityModalOpen, setCityModalOpen] = useState(false);
+  const [schoolModalOpen, setSchoolModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [nickChecked, setNickChecked] = useState(false);
@@ -107,9 +129,8 @@ export default function MyPageScreen({ navigation }) {
   const openEditModal = () => {
     setEditForm({
       nickname: user?.nickname ?? '',
-      location: user?.location ?? '',
+      city: user?.city ?? '',
       school: user?.school ?? '',
-      bio: user?.bio ?? '',
     });
     setNickChecked(true); // 본인 기존 닉네임은 통과 상태로 시작
     setNickMsg('');
@@ -129,9 +150,8 @@ export default function MyPageScreen({ navigation }) {
     try {
       const res = await updateProfile({
         nickname: editForm.nickname.trim(),
-        location: editForm.location.trim(),
-        school: editForm.school.trim(),
-        bio: editForm.bio.trim(),
+        city: editForm.city,
+        school: editForm.school,
       });
       if (res.success) {
         await refreshUser();
@@ -280,9 +300,6 @@ export default function MyPageScreen({ navigation }) {
           ) : user?.city ? (
             <Text style={styles.subInfo}>📍 {user.city}</Text>
           ) : null}
-
-          {/* bio */}
-          {user?.bio ? <Text style={styles.bio} numberOfLines={2}>{user.bio}</Text> : null}
         </View>
 
         {/* ── 통계 카드 (3컬럼) ── */}
@@ -525,36 +542,121 @@ export default function MyPageScreen({ navigation }) {
                 <Text style={[styles.nickMsg, nickChecked && styles.nickMsgOk]}>{nickMsg}</Text>
               ) : null}
               <Text style={styles.fieldLabel}>{t('mypage.region')}</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={editForm.location}
-                onChangeText={v => setEditForm(prev => ({ ...prev, location: v }))}
-                placeholder={t('mypage.regionPlaceholder')}
-                placeholderTextColor={colors.textSecondary}
-                maxLength={50}
-              />
+              <TouchableOpacity
+                style={styles.dropdownBtn}
+                onPress={() => setCityModalOpen(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.dropdownText, !editForm.city && styles.dropdownPlaceholder]}>
+                  {editForm.city ? (t(`city.${editForm.city}`) || editForm.city) : t('mypage.regionPlaceholder')}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+
               <Text style={styles.fieldLabel}>{t('mypage.school')}</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={editForm.school}
-                onChangeText={v => setEditForm(prev => ({ ...prev, school: v }))}
-                placeholder={t('mypage.schoolPlaceholder')}
-                placeholderTextColor={colors.textSecondary}
-                maxLength={50}
-              />
-              <Text style={styles.fieldLabel}>{t('mypage.bio')}</Text>
-              <TextInput
-                style={[styles.fieldInput, styles.bioInput]}
-                value={editForm.bio}
-                onChangeText={v => setEditForm(prev => ({ ...prev, bio: v }))}
-                placeholder={t('mypage.bioPlaceholder')}
-                placeholderTextColor={colors.textSecondary}
-                multiline
-                maxLength={150}
-              />
+              <TouchableOpacity
+                style={styles.dropdownBtn}
+                onPress={() => setSchoolModalOpen(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.dropdownText, !editForm.school && styles.dropdownPlaceholder]}>
+                  {editForm.school || t('mypage.schoolPlaceholder')}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
+
+        {/* 도시 선택 모달 */}
+        <Modal
+          visible={cityModalOpen}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setCityModalOpen(false)}
+        >
+          <View style={styles.pickerOverlay}>
+            <View style={styles.pickerSheet}>
+              <View style={styles.pickerHeader}>
+                <Text style={styles.pickerTitle}>{t('home.regionFilter')}</Text>
+                <TouchableOpacity onPress={() => setCityModalOpen(false)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[styles.pickerItem, !editForm.city && styles.pickerItemActive]}
+                onPress={() => { setEditForm(p => ({ ...p, city: '' })); setCityModalOpen(false); }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.pickerItemText, !editForm.city && styles.pickerItemTextActive]}>
+                  {t('auth.citySkip')}
+                </Text>
+              </TouchableOpacity>
+              <FlatList
+                data={CITIES}
+                keyExtractor={item => item}
+                renderItem={({ item: c }) => (
+                  <TouchableOpacity
+                    style={[styles.pickerItem, editForm.city === c && styles.pickerItemActive]}
+                    onPress={() => { setEditForm(p => ({ ...p, city: c })); setCityModalOpen(false); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.pickerItemText, editForm.city === c && styles.pickerItemTextActive]}>
+                      📍 {t(`city.${c}`) || c}
+                    </Text>
+                    {editForm.city === c && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                  </TouchableOpacity>
+                )}
+                style={{ maxHeight: 400 }}
+              />
+            </View>
+          </View>
+        </Modal>
+
+        {/* 학교 선택 모달 */}
+        <Modal
+          visible={schoolModalOpen}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setSchoolModalOpen(false)}
+        >
+          <View style={styles.pickerOverlay}>
+            <View style={styles.pickerSheet}>
+              <View style={styles.pickerHeader}>
+                <Text style={styles.pickerTitle}>{t('mypage.school')}</Text>
+                <TouchableOpacity onPress={() => setSchoolModalOpen(false)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[styles.pickerItem, !editForm.school && styles.pickerItemActive]}
+                onPress={() => { setEditForm(p => ({ ...p, school: '' })); setSchoolModalOpen(false); }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.pickerItemText, !editForm.school && styles.pickerItemTextActive]}>
+                  {t('auth.citySkip')}
+                </Text>
+              </TouchableOpacity>
+              <FlatList
+                data={UNIVERSITIES}
+                keyExtractor={item => item}
+                renderItem={({ item: u }) => (
+                  <TouchableOpacity
+                    style={[styles.pickerItem, editForm.school === u && styles.pickerItemActive]}
+                    onPress={() => { setEditForm(p => ({ ...p, school: u })); setSchoolModalOpen(false); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.pickerItemText, editForm.school === u && styles.pickerItemTextActive]} numberOfLines={1}>
+                      🎓 {u}
+                    </Text>
+                    {editForm.school === u && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                  </TouchableOpacity>
+                )}
+                style={{ maxHeight: 500 }}
+              />
+            </View>
+          </View>
+        </Modal>
       </Modal>
     </View>
   );
@@ -615,14 +717,6 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     marginTop: 6,
-  },
-  bio: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 19,
-    textAlign: 'center',
-    marginTop: 10,
-    paddingHorizontal: 16,
   },
 
   // ── 통계 카드
@@ -764,9 +858,68 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 15,
     color: colors.text,
   },
-  bioInput: {
-    height: 90,
-    textAlignVertical: 'top',
+  dropdownBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.inputBg,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  dropdownText: {
+    fontSize: 15,
+    color: colors.text,
+    flex: 1,
+  },
+  dropdownPlaceholder: {
+    color: colors.textSecondary,
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  pickerSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34,
+    maxHeight: '75%',
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  pickerItemActive: {
+    backgroundColor: colors.primary + '10',
+  },
+  pickerItemText: {
+    fontSize: 15,
+    color: colors.text,
+    flex: 1,
+  },
+  pickerItemTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
   },
   nickRow: {
     flexDirection: 'row',

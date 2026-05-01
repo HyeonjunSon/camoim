@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
+import AuthLangToggle from '../../components/AuthLangToggle';
 
 // 로그인 화면
 export default function LoginScreen({ navigation }) {
@@ -50,6 +51,7 @@ export default function LoginScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <AuthLangToggle />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
