@@ -12,6 +12,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { getBookmarkedPosts } from '../../lib/api';
 import PostCard from '../../components/PostCard';
 import { useLang } from '../../context/LangContext';
+import EmptyState from '../../components/EmptyState';
 
 // 북마크(스크랩)한 글 목록
 export default function BookmarkedPostsScreen({ navigation }) {
@@ -78,10 +79,11 @@ export default function BookmarkedPostsScreen({ navigation }) {
           />
         )}
         ListEmptyComponent={() => (
-          <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>🔖</Text>
-            <Text style={styles.emptyText}>{t('mypage.noBookmarked')}</Text>
-          </View>
+          <EmptyState
+            emoji="🔖"
+            title={t('emptyState.noBookmarks')}
+            description={t('emptyState.noBookmarksCta')}
+          />
         )}
         ListFooterComponent={() => loadingMore
           ? <View style={styles.footer}><ActivityIndicator size="small" color={colors.primary} /></View>

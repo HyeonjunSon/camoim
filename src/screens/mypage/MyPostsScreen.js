@@ -17,6 +17,7 @@ import { colors } from '../../constants/colors'
 import { getMyPosts, deletePost } from '../../lib/api';
 import PostCard from '../../components/PostCard';
 import { useLang } from '../../context/LangContext';
+import EmptyState from '../../components/EmptyState';
 
 // 내가 쓴 글 목록 화면
 export default function MyPostsScreen({ navigation }) {
@@ -125,10 +126,13 @@ export default function MyPostsScreen({ navigation }) {
           </Swipeable>
         )}
         ListEmptyComponent={() => (
-          <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>📝</Text>
-            <Text style={styles.emptyText}>{t('mypage.noPosts')}</Text>
-          </View>
+          <EmptyState
+            emoji="📝"
+            title={t('emptyState.noPosts')}
+            description={t('emptyState.noPostsCta')}
+            ctaLabel={t('emptyState.writeFirst')}
+            onCtaPress={() => navigation.navigate('Board')}
+          />
         )}
         ListFooterComponent={() => loadingMore
           ? <View style={styles.footer}><ActivityIndicator size="small" color={colors.primary} /></View>

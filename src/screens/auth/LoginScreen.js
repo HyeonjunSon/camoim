@@ -83,7 +83,13 @@ export default function LoginScreen({ navigation }) {
               secureTextEntry={!showPassword}
               autoCapitalize="none"
             />
-            <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(v => !v)} hitSlop={8}>
+            <TouchableOpacity
+              style={styles.eyeBtn}
+              onPress={() => setShowPassword(v => !v)}
+              hitSlop={12}
+              accessibilityLabel={t('a11y.togglePassword')}
+              accessibilityRole="button"
+            >
               <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>

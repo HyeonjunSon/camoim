@@ -58,7 +58,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={12}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={12} accessibilityLabel={t('a11y.back')} accessibilityRole="button">
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
 

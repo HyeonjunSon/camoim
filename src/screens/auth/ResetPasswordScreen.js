@@ -72,7 +72,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={12}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={12} accessibilityLabel={t('a11y.back')} accessibilityRole="button">
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
 
@@ -115,7 +115,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
             secureTextEntry={!showPw}
             autoCapitalize="none"
           />
-          <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPw((v) => !v)} hitSlop={12}>
+          <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPw((v) => !v)} hitSlop={12} accessibilityLabel={t('a11y.togglePassword')} accessibilityRole="button">
             <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>

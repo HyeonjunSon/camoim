@@ -1,4 +1,5 @@
-import { View, Image, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, TouchableOpacity, StyleSheet } from 'react-native'
+import { Image } from 'expo-image';
 import { Text } from './StyledText';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -53,7 +54,10 @@ export default function PostCard({ post, onPress }) {
           <Image
             source={{ uri: post.thumbnail.startsWith('http') ? post.thumbnail : `${SERVER_HOST}${post.thumbnail}` }}
             style={styles.thumbnail}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+            accessibilityLabel={t('a11y.postImage')}
           />
         )}
       </View>

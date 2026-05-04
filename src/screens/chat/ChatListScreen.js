@@ -18,6 +18,7 @@ import { colors } from '../../constants/colors'
 import { getToken } from '../../lib/storage';
 import { API_BASE_URL } from '../../lib/config';
 import Avatar from '../../components/common/Avatar';
+import EmptyState from '../../components/EmptyState';
 import { useLang } from '../../context/LangContext';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
@@ -231,14 +232,18 @@ export default function ChatListScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
-          <View style={styles.center}>
-            <Text style={styles.emptyText}>
-              {tab === 'chats' ? t('chat.empty') : t('chat.requestEmpty')}
-            </Text>
-            {tab === 'chats' && (
-              <Text style={styles.emptySubText}>{t('chat.emptyHint')}</Text>
-            )}
-          </View>
+          tab === 'chats' ? (
+            <EmptyState
+              icon="chatbubbles-outline"
+              title={t('emptyState.noChats')}
+              description={t('emptyState.noChatsCta')}
+            />
+          ) : (
+            <EmptyState
+              icon="mail-unread-outline"
+              title={t('emptyState.noChatRequests')}
+            />
+          )
         }
       />
     </View>

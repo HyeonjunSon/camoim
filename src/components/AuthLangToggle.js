@@ -23,7 +23,10 @@ export default function AuthLangToggle({ topOffset = 0 }) {
           style={[styles.opt, lang === 'ko' && styles.optActive]}
           onPress={() => setLang('ko')}
           activeOpacity={0.8}
-          hitSlop={6}
+          hitSlop={8}
+          accessibilityLabel="Switch to Korean"
+          accessibilityRole="button"
+          accessibilityState={{ selected: lang === 'ko' }}
         >
           <Text style={[styles.optText, lang === 'ko' && styles.optTextActive]}>한국어</Text>
         </TouchableOpacity>
@@ -31,7 +34,10 @@ export default function AuthLangToggle({ topOffset = 0 }) {
           style={[styles.opt, lang === 'en' && styles.optActive]}
           onPress={() => setLang('en')}
           activeOpacity={0.8}
-          hitSlop={6}
+          hitSlop={8}
+          accessibilityLabel="Switch to English"
+          accessibilityRole="button"
+          accessibilityState={{ selected: lang === 'en' }}
         >
           <Text style={[styles.optText, lang === 'en' && styles.optTextActive]}>EN</Text>
         </TouchableOpacity>

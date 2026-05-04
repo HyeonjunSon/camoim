@@ -7,9 +7,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
-  Image,
   Dimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -283,7 +283,10 @@ export default function HomeScreen({ navigation }) {
                 <Image
                   source={{ uri: post.thumbnail.startsWith('http') ? post.thumbnail : `${SERVER_HOST}${post.thumbnail}` }}
                   style={styles.freeThumbnail}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={150}
+                  accessibilityLabel={t('a11y.postImage')}
                 />
               )}
             </TouchableOpacity>
@@ -323,7 +326,10 @@ export default function HomeScreen({ navigation }) {
                   <Image
                     source={{ uri: post.thumbnail.startsWith('http') ? post.thumbnail : `${SERVER_HOST}${post.thumbnail}` }}
                     style={styles.marketImage}
-                    resizeMode="cover"
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={150}
+                    accessibilityLabel={t('a11y.postImage')}
                   />
                 ) : (
                   <View style={[styles.marketImage, styles.marketImagePlaceholder]}>
@@ -509,6 +515,9 @@ export default function HomeScreen({ navigation }) {
           style={styles.headerBtn}
           onPress={() => navigation.push('Notification')}
           activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel={t('a11y.notification')}
+          accessibilityRole="button"
         >
           <Ionicons name="notifications-outline" size={22} color={colors.text} />
           {unreadCount > 0 && (

@@ -1,4 +1,5 @@
-import { View, Image, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
+import { Image } from 'expo-image';
 import { Text } from '../StyledText';
 
 // 닉네임 첫 글자로 색상 결정 (팔레트 순환)
@@ -44,6 +45,10 @@ export default function Avatar({ nickname, uri, size = 40, style, showLetter = f
       <Image
         source={{ uri }}
         style={base}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
+        accessibilityLabel="Profile picture"
       />
     );
   }

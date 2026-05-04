@@ -71,8 +71,10 @@ export default function BoardFeedScreen({ route, navigation }) {
       headerRight: () => (
         <TouchableOpacity
           onPress={toggleSearch}
-          hitSlop={10}
+          hitSlop={12}
           style={{ paddingHorizontal: 8 }}
+          accessibilityLabel={searchOpen ? t('a11y.close') : t('a11y.search')}
+          accessibilityRole="button"
         >
           <Ionicons
             name={searchOpen ? 'close' : 'search'}

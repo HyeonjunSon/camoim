@@ -20,6 +20,7 @@ import {
 } from '../../lib/api';
 import { useLang } from '../../context/LangContext';
 import { formatTime } from '../../lib/time';
+import EmptyState from '../../components/EmptyState';
 
 const buildTypeMeta = (colors) => ({
   comment: { icon: '💬', labelKey: 'notif.catComment', color: colors.info,    bg: colors.infoSoft },
@@ -169,9 +170,11 @@ export default function NotificationScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={() => loadNotifications(true)} tintColor={colors.primary} />
           }
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.emptyText}>{t('notif.empty')}</Text>
-            </View>
+            <EmptyState
+              icon="notifications-outline"
+              title={t('emptyState.noNotifications')}
+              description={t('emptyState.noNotificationsCta')}
+            />
           }
           ListFooterComponent={
             filtered.length > 0
