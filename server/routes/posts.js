@@ -17,6 +17,7 @@ const mongoose = require('mongoose');
 
 const { expandCity } = require('../utils/metro');
 const { LOCAL_BOARD_SLUGS } = require('../constants/boards');
+const { toContentPreview } = require('../utils/contentPreview');
 
 const router = express.Router();
 
@@ -73,7 +74,7 @@ router.get('/', optionalAuth, async (req, res) => {
     const result = posts.map(p => ({
       id: p._id,
       title: p.title,
-      content: p.content,
+      content: toContentPreview(p.content),
       boardName: p.boardId?.name,
       nickname: p.isAnonymous ? '익명' : (p.userId?.nickname ?? '탈퇴한 회원'),
       likeCount: p.likeCount,
@@ -121,7 +122,7 @@ router.get('/feed', optionalAuth, async (req, res) => {
     const formatted = posts.map(p => ({
       id: p._id,
       title: p.title,
-      content: p.content,
+      content: toContentPreview(p.content),
       isAnonymous: p.isAnonymous,
       likeCount: p.likeCount,
       commentCount: p.commentCount,
@@ -183,7 +184,7 @@ router.get('/hot-by-board', optionalAuth, async (req, res) => {
           posts: posts.map(p => ({
             id: p._id,
             title: p.title,
-            content: p.content,
+            content: toContentPreview(p.content),
             isAnonymous: p.isAnonymous,
             likeCount: p.likeCount,
             commentCount: p.commentCount,
@@ -269,7 +270,7 @@ router.get('/home-sections', optionalAuth, async (req, res) => {
       return posts.map(p => ({
         id: p._id,
         title: p.title,
-        content: p.content,
+        content: toContentPreview(p.content),
         isAnonymous: p.isAnonymous,
         likeCount: p.likeCount ?? 0,
         commentCount: p.commentCount ?? 0,
@@ -349,7 +350,7 @@ router.get('/hot', optionalAuth, async (req, res) => {
     const formatted = posts.map(p => ({
       id: p._id,
       title: p.title,
-      content: p.content,
+      content: toContentPreview(p.content),
       isAnonymous: p.isAnonymous,
       likeCount: p.likeCount,
       commentCount: p.commentCount,

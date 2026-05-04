@@ -235,7 +235,11 @@ router.post('/register', registerLimiter, async (req, res) => {
       emailVerified: true,
     });
 
-    const token = jwt.sign({ id: user._id, email: user.email, nickname: user.nickname }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign(
+      { id: user._id, email: user.email, nickname: user.nickname, v: 0 },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
 
     res.status(201).json({
       success: true,
@@ -390,6 +394,17 @@ router.post('/login', loginLimiter, async (req, res) => {
   } catch (err) {
     console.error('로그인 오류:', err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/auth/logout — 현재 토큰 + 동일 사용자의 모든 기존 토큰 무효화
+router.post('/logout', requireAuth, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user.id, { $inc: { tokenVersion: 1 } });
+    res.json({ success: true, message: 'Logged out.' });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: 'Server error.' });
   }
 });
 

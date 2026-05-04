@@ -66,6 +66,7 @@ export const register = (email, password, nickname, role, city) =>
   request('POST', '/auth/register', { email, password, nickname, role, city });
 export const login = (email, password) =>
   request('POST', '/auth/login', { email, password });
+export const logout = () => request('POST', '/auth/logout');
 export const getMe = () => request('GET', '/auth/me');
 export const deleteMyAccount = (password, reason) =>
   request('DELETE', '/auth/me', { password, reason });

@@ -5,6 +5,7 @@ const Post = require('../models/Post');
 const User = require('../models/User');
 
 const { expandCity } = require('../utils/metro');
+const { toContentPreview } = require('../utils/contentPreview');
 
 const router = express.Router();
 
@@ -142,7 +143,7 @@ router.get('/:boardId/posts', async (req, res) => {
     const formatted = posts.map(p => ({
       id: p._id,
       title: p.title,
-      content: p.content,
+      content: toContentPreview(p.content),
       isAnonymous: p.isAnonymous,
       likeCount: p.likeCount,
       commentCount: p.commentCount,

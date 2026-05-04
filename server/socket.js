@@ -5,9 +5,21 @@ const Message = require('./models/Message');
 const Notification = require('./models/Notification');
 const { isChatBlocked } = require('./utils/blocks');
 
+// 네이티브 앱(Origin 헤더 없음)은 항상 허용, 웹 origin은 환경변수 화이트리스트만 허용
+const SOCKET_ORIGINS = (process.env.SOCKET_CORS_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 function initSocket(httpServer) {
   const io = new Server(httpServer, {
-    cors: { origin: '*' },
+    cors: {
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (SOCKET_ORIGINS.includes(origin)) return callback(null, true);
+        callback(new Error('Origin not allowed by Socket.io CORS'));
+      },
+    },
   });
 
   // JWT 인증 미들웨어

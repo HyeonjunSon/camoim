@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { setToken, getToken, clearToken } from '../lib/storage';
-import { login as apiLogin, register as apiRegister, getMe } from '../lib/api';
+import { login as apiLogin, register as apiRegister, getMe, logout as apiLogout } from '../lib/api';
 
 const AuthContext = createContext(null);
 
@@ -41,6 +41,8 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
+    // 서버에 tokenVersion 증가 요청 — 실패해도 로컬 정리는 진행
+    try { await apiLogout(); } catch {}
     await clearToken();
     setUser(null);
   };

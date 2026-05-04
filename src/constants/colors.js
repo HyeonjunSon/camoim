@@ -1,5 +1,42 @@
 // 라이트/다크 테마 색상 정의
 
+// 게시판 슬러그별 액센트 색상 — 라이트/다크 가독성을 위해 톤 분리
+const lightBoardColors = {
+  free:           '#6366F1',
+  anonymous:      '#8B5CF6',
+  meetup:         '#FB923C',
+  immigration:    '#0891B2',
+  study:          '#3B82F6',
+  workingholiday: '#D97706',
+  market:         '#F97316',
+  car:            '#94A3B8',
+  giveaway:       '#10B981',
+  jobs:           '#10B981',
+  realestate:     '#F43F5E',
+  roomrent:       '#EF4444',
+  exchange:       '#CA8A04',
+  university:     '#3B82F6',
+  default:        '#9CA3AF',
+};
+
+const darkBoardColors = {
+  free:           '#818CF8',
+  anonymous:      '#A78BFA',
+  meetup:         '#FDBA74',
+  immigration:    '#22D3EE',
+  study:          '#60A5FA',
+  workingholiday: '#FBBF24',
+  market:         '#FB923C',
+  car:            '#CBD5E1',
+  giveaway:       '#34D399',
+  jobs:           '#34D399',
+  realestate:     '#FB7185',
+  roomrent:       '#F87171',
+  exchange:       '#FACC15',
+  university:     '#60A5FA',
+  default:        '#D1D5DB',
+};
+
 export const lightColors = {
   primary: '#7F77DD',
   primaryLight: '#A09BE8',
@@ -21,6 +58,7 @@ export const lightColors = {
   accentSoft: '#F5F3FF',
   card: '#FFFFFF',
   inputBg: '#F4F5F9',
+  boardColors: lightBoardColors,
 };
 
 export const darkColors = {
@@ -44,6 +82,7 @@ export const darkColors = {
   accentSoft: '#2A1F3D',
   card: '#1A1B22',
   inputBg: '#262830',
+  boardColors: darkBoardColors,
 };
 
 // 현재 활성 테마를 추적하는 반응형 colors 객체

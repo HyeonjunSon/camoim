@@ -289,7 +289,7 @@ export default function SignupScreen({ navigation }) {
           </View>
         )}
         {emailVerified && (
-          <Text style={[styles.hint, { color: '#2D9E5A' }]}>{t('auth.emailVerifiedMsg')}</Text>
+          <Text style={[styles.hint, { color: colors.success }]}>{t('auth.emailVerifiedMsg')}</Text>
         )}
 
         <Text style={[styles.label, { marginTop: 14 }]}>{t('auth.password')}</Text>
@@ -373,7 +373,7 @@ export default function SignupScreen({ navigation }) {
           </TouchableOpacity>
         </View>
         {!!nickMsg && (
-          <Text style={[styles.hint, { color: nickChecked ? '#2D9E5A' : colors.danger }]}>
+          <Text style={[styles.hint, { color: nickChecked ? colors.success : colors.danger }]}>
             {nickMsg}
           </Text>
         )}
@@ -595,7 +595,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   pwReqs: { marginTop: 6, gap: 2 },
   pwReqItem: { fontSize: 11, color: colors.textSecondary },
-  pwReqMet: { color: '#2D9E5A' },
+  pwReqMet: { color: colors.success },
   strengthRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6,
   },
