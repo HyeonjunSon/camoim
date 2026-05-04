@@ -14,7 +14,7 @@ import { Text, TextInput } from '../../components/StyledText';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import AuthLangToggle from '../../components/AuthLangToggle';
-import { resetPassword } from '../../lib/api';
+import { resetPassword, verifyResetCode } from '../../lib/api';
 
 export default function ResetPasswordScreen({ route, navigation }) {
   const { colors } = useTheme();
@@ -24,6 +24,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
   const initialEmail = route?.params?.email || '';
   const [email, setEmail] = useState(initialEmail);
   const [code, setCode] = useState('');
+  const [codeStatus, setCodeStatus] = useState(null); // null | 'verifying' | 'ok' | 'invalid' | 'expired'
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -32,17 +33,40 @@ export default function ResetPasswordScreen({ route, navigation }) {
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const codeValid = /^\d{6}$/.test(code.trim());
+  const codeVerified = codeStatus === 'ok';
   const pwValid = password.length >= 6;
   const pwMatches = password === passwordConfirm && password.length > 0;
-  const allValid = emailValid && codeValid && pwValid && pwMatches;
+  const allValid = emailValid && codeValid && codeVerified && pwValid && pwMatches;
+
+  // 코드/이메일 변경 시 인증 상태 초기화
+  const onChangeEmail = (v) => { setEmail(v); setCodeStatus(null); setError(''); };
+  const onChangeCode = (v) => {
+    setCode(v.replace(/[^0-9]/g, '').slice(0, 6));
+    setCodeStatus(null);
+    setError('');
+  };
+
+  const handleVerifyCode = async () => {
+    if (!emailValid || !codeValid) return;
+    setCodeStatus('verifying');
+    try {
+      await verifyResetCode(email.trim(), code.trim());
+      setCodeStatus('ok');
+    } catch (e) {
+      // 서버가 EXPIRED_CODE / INVALID_CODE 코드 줌
+      if (e?.code === 'EXPIRED_CODE') setCodeStatus('expired');
+      else setCodeStatus('invalid');
+    }
+  };
 
   const handleSubmit = async () => {
-    if (!allValid) {
-      if (!pwMatches) setError(t('auth.pwMismatch'));
-      else if (!pwValid) setError(t('auth.pwTooShort'));
-      else setError(t('auth.fillAllFields'));
+    if (!codeVerified) {
+      setError(t('auth.verifyCodeFirst'));
       return;
     }
+    if (!pwMatches) { setError(t('auth.pwMismatch')); return; }
+    if (!pwValid) { setError(t('auth.pwTooShort')); return; }
+    if (!allValid) { setError(t('auth.fillAllFields')); return; }
     setError('');
     setLoading(true);
     try {
@@ -61,6 +85,16 @@ export default function ResetPasswordScreen({ route, navigation }) {
       setLoading(false);
     }
   };
+
+  const codeStatusText =
+    codeStatus === 'ok' ? t('auth.codeVerifiedOk') :
+    codeStatus === 'invalid' ? t('auth.codeInvalid') :
+    codeStatus === 'expired' ? t('auth.codeExpired') :
+    null;
+  const codeStatusColor =
+    codeStatus === 'ok' ? colors.success :
+    (codeStatus === 'invalid' || codeStatus === 'expired') ? colors.danger :
+    colors.textSecondary;
 
   return (
     <KeyboardAvoidingView
@@ -87,22 +121,43 @@ export default function ResetPasswordScreen({ route, navigation }) {
           placeholder={t('auth.emailPlaceholder')}
           placeholderTextColor={colors.textSecondary}
           value={email}
-          onChangeText={setEmail}
+          onChangeText={onChangeEmail}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
         />
 
         <Text style={styles.label}>{t('auth.verifyCode')}</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="000000"
-          placeholderTextColor={colors.textSecondary}
-          value={code}
-          onChangeText={(v) => setCode(v.replace(/[^0-9]/g, '').slice(0, 6))}
-          keyboardType="number-pad"
-          maxLength={6}
-        />
+        <View style={styles.row}>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            placeholder="000000"
+            placeholderTextColor={colors.textSecondary}
+            value={code}
+            onChangeText={onChangeCode}
+            keyboardType="number-pad"
+            maxLength={6}
+            editable={codeStatus !== 'verifying'}
+          />
+          <TouchableOpacity
+            style={[styles.verifyBtn, (!emailValid || !codeValid || codeStatus === 'verifying' || codeStatus === 'ok') && styles.verifyBtnDisabled]}
+            onPress={handleVerifyCode}
+            disabled={!emailValid || !codeValid || codeStatus === 'verifying' || codeStatus === 'ok'}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
+            {codeStatus === 'verifying' ? (
+              <ActivityIndicator color={colors.white} size="small" />
+            ) : (
+              <Text style={styles.verifyBtnText}>
+                {codeStatus === 'ok' ? '✓' : t('auth.verifyCodeBtn')}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+        {codeStatusText ? (
+          <Text style={[styles.statusText, { color: codeStatusColor }]}>{codeStatusText}</Text>
+        ) : null}
 
         <Text style={styles.label}>{t('auth.newPassword')}</Text>
         <View style={styles.pwWrap}>
@@ -114,6 +169,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
             onChangeText={setPassword}
             secureTextEntry={!showPw}
             autoCapitalize="none"
+            editable={codeVerified}
           />
           <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPw((v) => !v)} hitSlop={12} accessibilityLabel={t('a11y.togglePassword')} accessibilityRole="button">
             <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textSecondary} />
@@ -129,7 +185,18 @@ export default function ResetPasswordScreen({ route, navigation }) {
           onChangeText={setPasswordConfirm}
           secureTextEntry={!showPw}
           autoCapitalize="none"
+          editable={codeVerified}
         />
+        {passwordConfirm.length > 0 && password.length > 0 ? (
+          <Text
+            style={[
+              styles.statusText,
+              { color: pwMatches ? colors.success : colors.danger },
+            ]}
+          >
+            {pwMatches ? t('auth.pwMatchOk') : t('auth.pwMismatch')}
+          </Text>
+        ) : null}
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -138,6 +205,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
           onPress={handleSubmit}
           disabled={!allValid || loading}
           activeOpacity={0.85}
+          accessibilityRole="button"
         >
           {loading ? (
             <ActivityIndicator color={colors.white} />
@@ -165,6 +233,19 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.inputBg, borderRadius: 12, padding: 14,
     fontSize: 15, color: colors.text, marginBottom: 0,
   },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  verifyBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifyBtnDisabled: { opacity: 0.4 },
+  verifyBtnText: { color: colors.white, fontSize: 14, fontWeight: '700' },
+  statusText: { fontSize: 12, fontWeight: '600', marginTop: 6 },
   pwWrap: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: colors.inputBg, borderRadius: 12,

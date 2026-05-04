@@ -78,6 +78,9 @@ export const sendEmailCode = (email) =>
 export const sendPasswordResetCode = (email) =>
   request('POST', '/auth/forgot-password', { email });
 
+export const verifyResetCode = (email, code) =>
+  request('POST', '/auth/verify-reset-code', { email, code });
+
 export const resetPassword = (email, code, newPassword) =>
   request('POST', '/auth/reset-password', { email, code, newPassword });
 export const checkEmailCode = (email, code) =>

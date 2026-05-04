@@ -159,6 +159,30 @@ router.post('/forgot-password', resetLimiter, async (req, res) => {
   }
 });
 
+// POST /api/auth/verify-reset-code — 비밀번호 재설정 코드 사전 검증 (consume 안 함)
+router.post('/verify-reset-code', resetLimiter, async (req, res) => {
+  try {
+    const { email, code } = req.body || {};
+    if (!email || !code) {
+      return res.status(400).json({ success: false, message: 'Email and code are required.' });
+    }
+    const user = await User.findOne({ email: String(email).toLowerCase() });
+    if (!user || !user.resetCode || !user.resetExpires) {
+      return res.status(400).json({ success: false, code: 'INVALID_CODE', message: 'Invalid or expired code.' });
+    }
+    if (user.resetExpires.getTime() < Date.now()) {
+      return res.status(400).json({ success: false, code: 'EXPIRED_CODE', message: 'Code expired. Please request a new one.' });
+    }
+    if (user.resetCode !== String(code).trim()) {
+      return res.status(400).json({ success: false, code: 'INVALID_CODE', message: 'Invalid code.' });
+    }
+    res.json({ success: true, message: 'Code verified.' });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
 // POST /api/auth/reset-password — 코드 검증 + 비밀번호 변경
 router.post('/reset-password', resetLimiter, async (req, res) => {
   try {
