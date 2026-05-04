@@ -187,6 +187,9 @@ router.post('/reset-password', resetLimiter, async (req, res) => {
     user.passwordHash = passwordHash;
     user.resetCode = '';
     user.resetExpires = null;
+    user.tokenVersion = (user.tokenVersion || 0) + 1; // 기존 모든 토큰 무효화
+    user.failedLoginCount = 0;
+    user.lockedUntil = null;
     await user.save();
 
     res.json({ success: true, message: 'Password has been reset. Please log in with your new password.' });
@@ -309,6 +312,9 @@ router.post('/resend-email', requireAuth, async (req, res) => {
 });
 
 // POST /api/auth/login
+const MAX_FAILED_LOGINS = 5;
+const LOCKOUT_MINUTES = 30;
+
 router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -321,12 +327,46 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ success: false, message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
+    // 잠금 상태 확인 — 잠긴 시간이 지났으면 자동 해제
+    if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+      const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+      return res.status(423).json({
+        success: false,
+        code: 'ACCOUNT_LOCKED',
+        message: `Too many failed attempts. Account locked for ${minutesLeft} minute(s).`,
+      });
     }
 
-    const token = jwt.sign({ id: user._id, email: user.email, nickname: user.nickname }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!isMatch) {
+      const newCount = (user.failedLoginCount || 0) + 1;
+      const update = { failedLoginCount: newCount };
+      if (newCount >= MAX_FAILED_LOGINS) {
+        update.lockedUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
+        update.failedLoginCount = 0; // 잠금 후 카운트 리셋 (잠금 풀린 후 다시 시도 가능)
+      }
+      await User.updateOne({ _id: user._id }, { $set: update });
+      const remaining = Math.max(0, MAX_FAILED_LOGINS - newCount);
+      const lockedNow = newCount >= MAX_FAILED_LOGINS;
+      return res.status(401).json({
+        success: false,
+        code: lockedNow ? 'ACCOUNT_LOCKED' : 'INVALID_CREDENTIALS',
+        message: lockedNow
+          ? `Too many failed attempts. Account locked for ${LOCKOUT_MINUTES} minutes.`
+          : `이메일 또는 비밀번호가 올바르지 않습니다.${remaining > 0 ? ` (${remaining} 회 남음)` : ''}`,
+      });
+    }
+
+    // 로그인 성공 — 카운터 리셋 + 잠금 해제
+    if (user.failedLoginCount || user.lockedUntil) {
+      await User.updateOne({ _id: user._id }, { $set: { failedLoginCount: 0, lockedUntil: null } });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, email: user.email, nickname: user.nickname, v: user.tokenVersion || 0 },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
 
     res.json({
       success: true,

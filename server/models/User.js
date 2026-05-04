@@ -35,6 +35,11 @@ const userSchema = new mongoose.Schema({
   emailVerifyExpires: { type: Date, default: null },
   resetCode: { type: String, default: '' },
   resetExpires: { type: Date, default: null },
+  // 로그인 잠금 (brute-force 방어)
+  failedLoginCount: { type: Number, default: 0 },
+  lockedUntil: { type: Date, default: null },
+  // JWT 무효화용 — 비번 변경/리셋 시 증가시키면 기존 토큰 모두 만료
+  tokenVersion: { type: Number, default: 0 },
   pushToken: {
     type: String,
     default: '',

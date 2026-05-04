@@ -236,13 +236,19 @@ async function migrateUniversityNames() {
   else console.log('✅ 학교 이름 이미 최신 상태');
 }
 
+const { startVerifyCleanupJob } = require('./utils/verifyCleanup');
+
 connectDB().then(async () => {
   await seedBoards();
   await migrateUniversityBoards();
   await migrateUniversityNames();
   const io = initSocket(httpServer);
   app.set('io', io); // 라우트에서 req.app.get('io')로 접근 가능
+  startVerifyCleanupJob(); // 인증 서류 90일 자동 삭제 cron
   httpServer.listen(PORT, () => {
     console.log(`🚀 서버 시작: http://localhost:${PORT}`);
   });
+}).catch((err) => {
+  console.error('❌ DB 연결 실패. 서버 시작 안 함:', err);
+  process.exit(1);
 });
