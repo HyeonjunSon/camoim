@@ -14,7 +14,7 @@ function generateCode() {
 // 인증 이메일 발송
 async function sendVerificationEmail(to, code) {
   const text = [
-    '카모임 이메일 인증',
+    '캐모임 이메일 인증',
     '',
     `인증 코드: ${code}`,
     '',
@@ -27,11 +27,11 @@ async function sendVerificationEmail(to, code) {
   const { data, error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to,
-    subject: '카모임 이메일 인증 코드',
+    subject: '캐모임 이메일 인증 코드',
     text,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 20px;">
-        <h2 style="color: #1a1a1a; margin-bottom: 8px;">카모임 이메일 인증</h2>
+        <h2 style="color: #1a1a1a; margin-bottom: 8px;">캐모임 이메일 인증</h2>
         <p style="color: #666; font-size: 14px; line-height: 1.6;">
           아래 인증 코드를 입력해주세요. 코드는 10분간 유효합니다.
         </p>
@@ -59,7 +59,7 @@ async function sendVerificationEmail(to, code) {
 // 비밀번호 재설정 이메일 발송
 async function sendPasswordResetEmail(to, code) {
   const text = [
-    'CaMoim Password Reset / 카모임 비밀번호 재설정',
+    'CaMoim Password Reset / 캐모임 비밀번호 재설정',
     '',
     `Reset code: ${code}`,
     '',
@@ -73,7 +73,7 @@ async function sendPasswordResetEmail(to, code) {
   const { data, error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to,
-    subject: 'CaMoim Password Reset / 카모임 비밀번호 재설정 코드',
+    subject: 'CaMoim Password Reset / 캐모임 비밀번호 재설정 코드',
     text,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 20px;">
