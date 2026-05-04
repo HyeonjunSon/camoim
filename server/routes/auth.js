@@ -3,10 +3,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
-const Board = require('../models/Board');
 const { requireAuth } = require('../middleware/auth');
 const { ROLES } = require('../constants/roles');
-const { UNIVERSITIES, findUniversityByEmail } = require('../constants/universities');
+const { UNIVERSITIES } = require('../constants/universities');
 const { generateCode, sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer');
 
 const loginLimiter = rateLimit({
@@ -37,35 +36,6 @@ const resetLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: 'Too many password reset attempts. Please try again later.' },
 });
-
-// 학교 인증 시 생성할 게시판 4종 템플릿
-const UNIVERSITY_BOARD_TEMPLATES = [
-  { slugSuffix: 'free',      name: '학교자유게시판',   description: '학교 친구들과 자유롭게 이야기해요',         isAnonymousAllowed: false, sortOrder: 1 },
-  { slugSuffix: 'anonymous', name: '학교 익명',        description: '익명으로 털어놓아요',                       isAnonymousAllowed: true,  sortOrder: 2 },
-  { slugSuffix: 'meetup',    name: '학교 한인 모임',   description: '밥약·스터디·운동·동아리 같이 할 사람 찾아요', isAnonymousAllowed: false, sortOrder: 3 },
-  { slugSuffix: 'info',      name: '학교 유학생 정보', description: '학교 생활·비자·세금 등 궁금한 걸 물어봐요',   isAnonymousAllowed: false, sortOrder: 4 },
-];
-
-async function ensureUniversityBoards(universityShortName) {
-  // slug 생성은 server/index.js의 seed/migration과 동일해야 중복 방지됨
-  // (괄호 포함 학교명이 있어 반드시 [()]도 제거)
-  const prefix = universityShortName.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-');
-  for (const tmpl of UNIVERSITY_BOARD_TEMPLATES) {
-    const slug = `${prefix}-${tmpl.slugSuffix}`;
-    const exists = await Board.findOne({ slug });
-    if (!exists) {
-      await Board.create({
-        slug,
-        name: tmpl.name,
-        description: tmpl.description,
-        isAnonymousAllowed: tmpl.isAnonymousAllowed,
-        sortOrder: tmpl.sortOrder,
-        university: universityShortName,
-        isUniversityBoard: true,
-      });
-    }
-  }
-}
 
 const router = express.Router();
 const ALLOWED_SIGNUP_ROLES = [ROLES.STUDENT, ROLES.WORKING_HOLIDAY, ROLES.GENERAL];
@@ -456,36 +426,6 @@ router.get('/me', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
-    res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
-  }
-});
-
-// POST /api/auth/verify-student
-router.post('/verify-student', requireAuth, async (req, res) => {
-  try {
-    const { universityEmail } = req.body;
-    if (!universityEmail) {
-      return res.status(400).json({ success: false, message: '학교 이메일을 입력해주세요.' });
-    }
-    const university = findUniversityByEmail(universityEmail);
-    if (!university) {
-      return res.status(400).json({
-        success: false,
-        message: '지원하지 않는 학교 이메일입니다. 관리자에게 문의해주세요.',
-      });
-    }
-    await User.findByIdAndUpdate(req.user.id, {
-      role: 'student',
-      verified: true,
-      university: university.shortName,
-    });
-    await ensureUniversityBoards(university.shortName);
-    res.json({
-      success: true,
-      data: { verified: true, university: university.shortName, universityName: university.name },
-    });
-  } catch (err) {
-    console.error('학교 인증 오류:', err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });

@@ -59,17 +59,15 @@ router.post('/apply', requireAuth, upload.single('file'), async (req, res) => {
       return res.status(400).json({ success: false, message: '졸업연도를 입력해주세요.' });
     }
 
-    // 기존 대기/승인 신청 있으면 중복 방지
-    const existing = await VerifyRequest.findOne({
+    // pending 상태 신청만 중복 방지 (approved는 편입/학교변경 신청 허용)
+    const pendingExisting = await VerifyRequest.findOne({
       userId: req.user.id,
-      status: { $in: ['pending', 'approved'] },
+      status: 'pending',
     });
-    if (existing) {
+    if (pendingExisting) {
       return res.status(409).json({
         success: false,
-        message: existing.status === 'approved'
-          ? '이미 인증이 완료된 계정입니다.'
-          : '이미 심사 중인 신청이 있습니다.',
+        message: '이미 심사 중인 신청이 있습니다.',
       });
     }
 

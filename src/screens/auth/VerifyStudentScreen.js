@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
@@ -34,7 +35,8 @@ export default function VerifyStudentScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
-  const { refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const isTransfer = !!(user?.verified && user?.university);
   const { t } = useLang();
   const STATUS_STYLE = statusStyle(t);
 
@@ -220,6 +222,17 @@ export default function VerifyStudentScreen({ navigation }) {
             </TouchableOpacity>
           )}
 
+          {existingRequest.status === 'approved' && (
+            <TouchableOpacity
+              style={[styles.reapplyBtn, styles.transferBtn]}
+              onPress={() => setExistingRequest(null)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="swap-horizontal" size={16} color={colors.white} />
+              <Text style={styles.reapplyBtnText}>  {t('mypage.changeSchool')}</Text>
+            </TouchableOpacity>
+          )}
+
           {existingRequest.status === 'pending' && (
             <Text style={styles.pendingHint}>{t('verify.pendingHint')}</Text>
           )}
@@ -240,10 +253,20 @@ export default function VerifyStudentScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.infoBanner}>
-          <Text style={styles.infoBannerTitle}>{t('verify.bannerTitle')}</Text>
-          <Text style={styles.infoBannerDesc}>{t('verify.bannerDesc')}</Text>
-        </View>
+        {isTransfer ? (
+          <View style={[styles.infoBanner, styles.transferBanner]}>
+            <Text style={styles.infoBannerTitle}>{t('verify.transferTitle')}</Text>
+            <Text style={styles.transferCurrentSchool}>
+              {t('verify.transferBanner').replace('{school}', user.university)}
+            </Text>
+            <Text style={styles.infoBannerDesc}>{t('verify.transferDesc')}</Text>
+          </View>
+        ) : (
+          <View style={styles.infoBanner}>
+            <Text style={styles.infoBannerTitle}>{t('verify.bannerTitle')}</Text>
+            <Text style={styles.infoBannerDesc}>{t('verify.bannerDesc')}</Text>
+          </View>
+        )}
 
         {/* 학교 선택 */}
         <Text style={styles.fieldLabel}>{t('verify.schoolLabel')}</Text>
@@ -375,6 +398,18 @@ const createStyles = (colors) => StyleSheet.create({
   infoBanner: {
     backgroundColor: colors.primary + '12', borderRadius: 14, padding: 16, marginBottom: 20,
   },
+  transferBanner: {
+    backgroundColor: colors.warningSoft,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.warning,
+  },
+  transferCurrentSchool: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 8,
+    marginBottom: 4,
+  },
   infoBannerTitle: { fontSize: 15, fontWeight: '700', color: colors.primary },
   infoBannerDesc: { fontSize: 13, color: colors.textSecondary, marginTop: 6, lineHeight: 20 },
   fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8 },
@@ -440,6 +475,12 @@ const createStyles = (colors) => StyleSheet.create({
   },
   rejectNoteLabel: { fontSize: 12, fontWeight: '600', color: colors.danger, marginBottom: 4 },
   rejectNoteText: { fontSize: 13, color: colors.text, lineHeight: 20 },
+  transferBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
   reapplyBtn: {
     backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, marginTop: 20,
   },

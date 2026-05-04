@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Text, TextInput } from '../../components/StyledText';
 import {
   View,
@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { getMyPosts, updateProfile, checkNickname, uploadAvatar, getUniversities } from '../../lib/api';
+import { getMyPosts, updateProfile, checkNickname, uploadAvatar } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -51,25 +51,9 @@ export default function MyPageScreen({ navigation }) {
   // 프로필 수정 모달 상태
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editForm, setEditForm] = useState({
-    nickname: '', city: '', school: '',
+    nickname: '', city: '',
   });
   const [cityModalOpen, setCityModalOpen] = useState(false);
-  const [schoolModalOpen, setSchoolModalOpen] = useState(false);
-  const [universityList, setUniversityList] = useState([]);
-
-  // 학교 리스트 1회 로드 (백엔드)
-  useEffect(() => {
-    let mounted = true;
-    getUniversities()
-      .then((res) => {
-        if (!mounted) return;
-        if (res?.success && Array.isArray(res.data)) {
-          setUniversityList(res.data.map(u => u.shortName).filter(Boolean));
-        }
-      })
-      .catch(() => {});
-    return () => { mounted = false; };
-  }, []);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [nickChecked, setNickChecked] = useState(false);
@@ -135,7 +119,6 @@ export default function MyPageScreen({ navigation }) {
     setEditForm({
       nickname: user?.nickname ?? '',
       city: user?.city ?? '',
-      school: user?.school ?? '',
     });
     setNickChecked(true); // 본인 기존 닉네임은 통과 상태로 시작
     setNickMsg('');
@@ -156,7 +139,6 @@ export default function MyPageScreen({ navigation }) {
       const res = await updateProfile({
         nickname: editForm.nickname.trim(),
         city: editForm.city,
-        school: editForm.school,
       });
       if (res.success) {
         await refreshUser();
@@ -559,16 +541,45 @@ export default function MyPageScreen({ navigation }) {
               </TouchableOpacity>
 
               <Text style={styles.fieldLabel}>{t('mypage.school')}</Text>
-              <TouchableOpacity
-                style={styles.dropdownBtn}
-                onPress={() => setSchoolModalOpen(true)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.dropdownText, !editForm.school && styles.dropdownPlaceholder]}>
-                  {editForm.school || t('mypage.schoolPlaceholder')}
-                </Text>
-                <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
-              </TouchableOpacity>
+              {user?.verified && user?.university ? (
+                // 인증된 사용자: 학교 read-only + 변경 버튼
+                <View>
+                  <View style={styles.schoolReadOnly}>
+                    <Text style={styles.schoolReadOnlyText}>🎓 {user.university}</Text>
+                    <View style={styles.verifiedBadge}>
+                      <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                      <Text style={styles.verifiedBadgeText}>{t('mypage.schoolVerified')}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.changeSchoolBtn}
+                    onPress={() => {
+                      setEditModalVisible(false);
+                      setTimeout(() => navigation.navigate('VerifyStudent'), 250);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
+                    <Text style={styles.changeSchoolBtnText}>{t('mypage.changeSchool')}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                // 미인증 사용자: 학교 인증 CTA
+                <View style={styles.verifyCta}>
+                  <Text style={styles.verifyCtaText}>{t('mypage.verifyHint')}</Text>
+                  <TouchableOpacity
+                    style={styles.verifyCtaBtn}
+                    onPress={() => {
+                      setEditModalVisible(false);
+                      setTimeout(() => navigation.navigate('VerifyStudent'), 250);
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="school-outline" size={16} color={colors.white} />
+                    <Text style={styles.verifyCtaBtnText}>{t('mypage.verifySchool')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -613,51 +624,6 @@ export default function MyPageScreen({ navigation }) {
                   </TouchableOpacity>
                 )}
                 style={{ maxHeight: 400 }}
-              />
-            </View>
-          </View>
-        </Modal>
-
-        {/* 학교 선택 모달 */}
-        <Modal
-          visible={schoolModalOpen}
-          animationType="slide"
-          transparent
-          onRequestClose={() => setSchoolModalOpen(false)}
-        >
-          <View style={styles.pickerOverlay}>
-            <View style={styles.pickerSheet}>
-              <View style={styles.pickerHeader}>
-                <Text style={styles.pickerTitle}>{t('mypage.school')}</Text>
-                <TouchableOpacity onPress={() => setSchoolModalOpen(false)}>
-                  <Ionicons name="close" size={24} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity
-                style={[styles.pickerItem, !editForm.school && styles.pickerItemActive]}
-                onPress={() => { setEditForm(p => ({ ...p, school: '' })); setSchoolModalOpen(false); }}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.pickerItemText, !editForm.school && styles.pickerItemTextActive]}>
-                  {t('auth.citySkip')}
-                </Text>
-              </TouchableOpacity>
-              <FlatList
-                data={universityList}
-                keyExtractor={item => item}
-                renderItem={({ item: u }) => (
-                  <TouchableOpacity
-                    style={[styles.pickerItem, editForm.school === u && styles.pickerItemActive]}
-                    onPress={() => { setEditForm(p => ({ ...p, school: u })); setSchoolModalOpen(false); }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.pickerItemText, editForm.school === u && styles.pickerItemTextActive]} numberOfLines={1}>
-                      🎓 {u}
-                    </Text>
-                    {editForm.school === u && <Ionicons name="checkmark" size={18} color={colors.primary} />}
-                  </TouchableOpacity>
-                )}
-                style={{ maxHeight: 500 }}
               />
             </View>
           </View>
@@ -879,6 +845,81 @@ const createStyles = (colors) => StyleSheet.create({
   },
   dropdownPlaceholder: {
     color: colors.textSecondary,
+  },
+  // 인증된 학교 read-only 표시
+  schoolReadOnly: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.successSoft,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  schoolReadOnlyText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: colors.success + '20',
+  },
+  verifiedBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.success,
+  },
+  changeSchoolBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    alignSelf: 'flex-end',
+    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: 'transparent',
+  },
+  changeSchoolBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  // 미인증 사용자 학교 인증 CTA
+  verifyCta: {
+    backgroundColor: colors.primary + '10',
+    borderRadius: 10,
+    padding: 14,
+    gap: 10,
+  },
+  verifyCtaText: {
+    fontSize: 13,
+    color: colors.text,
+    lineHeight: 19,
+  },
+  verifyCtaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 10,
+  },
+  verifyCtaBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.white,
   },
   pickerOverlay: {
     flex: 1,

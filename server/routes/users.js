@@ -167,7 +167,8 @@ router.get('/me/bookmarks', requireAuth, async (req, res) => {
 // PUT /api/users/me
 router.put('/me', requireAuth, async (req, res) => {
   try {
-    const { nickname, location, school, bio, role, city } = req.body;
+    // school 필드는 받지 않음 — 학교는 인증 흐름(VerifyRequest 승인)으로만 user.university 설정
+    const { nickname, location, bio, role, city } = req.body;
     const update = {};
     if (nickname) {
       const dup = await User.findOne({ nickname, _id: { $ne: req.user.id } });
@@ -177,7 +178,6 @@ router.put('/me', requireAuth, async (req, res) => {
       update.nickname = nickname;
     }
     if (location !== undefined) update.location = location;
-    if (school !== undefined) update.school = school;
     if (bio !== undefined) update.bio = bio;
     if (city !== undefined) update.city = city;
 
