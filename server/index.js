@@ -3,6 +3,7 @@ const path = require('path');
 const http = require('http');
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const connectDB = require('./db');
 const Board = require('./models/Board');
 const initSocket = require('./socket');
@@ -21,11 +22,16 @@ const inquiryRoutes = require('./routes/inquiries');
 const { systemGuard } = require('./middleware/systemGuard');
 
 const app = express();
+app.set('trust proxy', 1);
 const httpServer = http.createServer(app);
 const PORT = process.env.PORT || 4000;
 
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // 점검모드/IP차단/강제업데이트 가드 (admin/health 제외)
 app.use(systemGuard);

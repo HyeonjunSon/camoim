@@ -91,7 +91,7 @@ router.put('/verify-requests/:id/reject', async (req, res) => {
     }
 
     request.status = 'rejected';
-    request.adminNote = adminNote || '';
+    request.adminNote = String(adminNote || '').slice(0, 1000);
     request.reviewedBy = req.user.id;
     request.reviewedAt = new Date();
     await request.save();
@@ -190,7 +190,7 @@ router.put('/reports/:id/resolve', async (req, res) => {
     }
 
     // 같은 대상의 모든 신고 resolved 처리
-    await Report.updateMany({ targetId: report.targetId }, { status: 'resolved', adminNote: req.body.adminNote || '' });
+    await Report.updateMany({ targetId: report.targetId }, { status: 'resolved', adminNote: String(req.body.adminNote || '').slice(0, 1000) });
 
     res.json({ success: true, data: { message: '처리 완료 및 콘텐츠 삭제됨' } });
   } catch (err) {
@@ -202,7 +202,7 @@ router.put('/reports/:id/resolve', async (req, res) => {
 // PUT /api/admin/reports/:id/dismiss — 신고 기각
 router.put('/reports/:id/dismiss', async (req, res) => {
   try {
-    await Report.findByIdAndUpdate(req.params.id, { status: 'dismissed', adminNote: req.body.adminNote || '' });
+    await Report.findByIdAndUpdate(req.params.id, { status: 'dismissed', adminNote: String(req.body.adminNote || '').slice(0, 1000) });
     res.json({ success: true, data: { message: '신고 기각됨' } });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
@@ -221,9 +221,10 @@ router.get('/users', async (req, res) => {
     const limit = 30;
     const conditions = [];
     if (q) {
+      const safeQ = String(q).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       conditions.push({ $or: [
-        { nickname: { $regex: q, $options: 'i' } },
-        { email:    { $regex: q, $options: 'i' } },
+        { nickname: { $regex: safeQ, $options: 'i' } },
+        { email:    { $regex: safeQ, $options: 'i' } },
       ]});
     }
     if (status === 'active') {
@@ -424,7 +425,10 @@ router.get('/posts', async (req, res) => {
     const { q = '', boardId, boardIds, userId, hidden, page = 1 } = req.query;
     const limit = 30;
     const filter = {};
-    if (q) filter.$or = [{ title: { $regex: q, $options: 'i' } }, { content: { $regex: q, $options: 'i' } }];
+    if (q) {
+      const safeQ = String(q).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.$or = [{ title: { $regex: safeQ, $options: 'i' } }, { content: { $regex: safeQ, $options: 'i' } }];
+    }
     if (boardId) filter.boardId = boardId;
     else if (boardIds) {
       const ids = String(boardIds).split(',').filter(Boolean);
@@ -703,7 +707,10 @@ router.get('/logs', async (req, res) => {
     const { action, adminId, page = 1 } = req.query;
     const limit = 50;
     const filter = {};
-    if (action) filter.action = { $regex: action, $options: 'i' };
+    if (action) {
+      const safeAction = String(action).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.action = { $regex: safeAction, $options: 'i' };
+    }
     if (adminId) filter.adminId = adminId;
     const total = await AdminLog.countDocuments(filter);
     const logs = await AdminLog.find(filter)

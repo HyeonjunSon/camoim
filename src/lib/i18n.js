@@ -12,6 +12,9 @@ export const TRANSLATIONS = {
       anonymous: '익명', placeholderNickname: '닉네임', notFound: '찾을 수 없어요',
       networkError: '네트워크 오류가 발생했어요.', serverError: '서버 오류가 발생했어요.',
       deletedUser: '탈퇴한 회원',
+      timeoutError: '요청 시간이 초과되었어요. 잠시 후 다시 시도해주세요.',
+      requestFailed: '요청에 실패했어요.',
+      uploadFailed: '업로드에 실패했어요.',
     },
     tabs: { home: '홈', search: '검색', board: '게시판', chat: '채팅', mypage: '마이페이지', admin: '관리' },
     home: {
@@ -517,6 +520,9 @@ export const TRANSLATIONS = {
       anonymous: 'Anonymous', placeholderNickname: 'Nickname', notFound: 'Not found',
       networkError: 'Network error occurred.', serverError: 'Server error occurred.',
       deletedUser: 'Deleted User',
+      timeoutError: 'Request timed out. Please try again.',
+      requestFailed: 'Request failed.',
+      uploadFailed: 'Upload failed.',
     },
     tabs: { home: 'Home', search: 'Search', board: 'Boards', chat: 'Chat', mypage: 'My', admin: 'Admin' },
     home: {

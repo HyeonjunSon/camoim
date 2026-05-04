@@ -1,13 +1,13 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true, lowercase: true },
+  email: { type: String, required: true, unique: true, lowercase: true, maxlength: 200 },
   passwordHash: { type: String, required: true },
-  nickname: { type: String, required: true, unique: true, maxlength: 100 },
-  location: { type: String, default: '' },
-  school: { type: String, default: '' },
-  bio: { type: String, default: '' },
-  avatarUrl: { type: String, default: '' },
+  nickname: { type: String, required: true, unique: true, maxlength: 30 },
+  location: { type: String, default: '', maxlength: 100 },
+  school: { type: String, default: '', maxlength: 200 },
+  bio: { type: String, default: '', maxlength: 500 },
+  avatarUrl: { type: String, default: '', maxlength: 500 },
   role: {
     type: String,
     enum: ['admin', 'student', 'working_holiday', 'general'],
@@ -20,10 +20,12 @@ const userSchema = new mongoose.Schema({
   university: {
     type: String,
     default: '',
+    maxlength: 200,
   },
   city: {
     type: String,
     default: '',
+    maxlength: 100,
   },
   emailVerified: {
     type: Boolean,
@@ -43,7 +45,7 @@ const userSchema = new mongoose.Schema({
     index: true,
   },
   suspendedUntil: { type: Date, default: null }, // null이고 status=suspended면 무기한
-  suspendReason:  { type: String, default: '' },
+  suspendReason:  { type: String, default: '', maxlength: 500 },
   warningCount:   { type: Number, default: 0 },
   shadowBanned:   { type: Boolean, default: false }, // 본인은 모르고 글이 다른 사람에게 안 보임
   notificationSettings: {
@@ -55,5 +57,8 @@ const userSchema = new mongoose.Schema({
     notice:     { type: Boolean, default: true }, // 공지사항
   },
 }, { timestamps: true });
+
+userSchema.index({ email: 1 });
+userSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('User', userSchema);

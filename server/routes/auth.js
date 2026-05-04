@@ -1,12 +1,35 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const Board = require('../models/Board');
 const { requireAuth } = require('../middleware/auth');
 const { ROLES } = require('../constants/roles');
 const { UNIVERSITIES, findUniversityByEmail } = require('../constants/universities');
 const { generateCode, sendVerificationEmail } = require('../utils/mailer');
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many login attempts. Please try again in 15 minutes.' },
+});
+const codeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many verification code requests. Please try again later.' },
+});
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many signup attempts. Please try again later.' },
+});
 
 // 학교 인증 시 생성할 게시판 4종 템플릿
 const UNIVERSITY_BOARD_TEMPLATES = [
@@ -44,7 +67,7 @@ const ALLOWED_SIGNUP_ROLES = [ROLES.STUDENT, ROLES.WORKING_HOLIDAY, ROLES.GENERA
 const pendingCodes = new Map(); // email -> { code, expires }
 
 // POST /api/auth/send-code — 가입 전 이메일 인증 코드 발송
-router.post('/send-code', async (req, res) => {
+router.post('/send-code', codeLimiter, async (req, res) => {
   const { email } = req.body || {};
   try {
     if (!email) return res.status(400).json({ success: false, message: '이메일을 입력해주세요.' });
@@ -74,7 +97,7 @@ router.post('/send-code', async (req, res) => {
 });
 
 // POST /api/auth/check-code — 가입 전 인증 코드 확인
-router.post('/check-code', async (req, res) => {
+router.post('/check-code', codeLimiter, async (req, res) => {
   try {
     const { email, code } = req.body;
     if (!email || !code) return res.status(400).json({ success: false, message: '이메일과 코드를 입력해주세요.' });
@@ -99,7 +122,7 @@ router.post('/check-code', async (req, res) => {
 });
 
 // POST /api/auth/register
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
   try {
     const { email, password, nickname, role, city } = req.body;
     if (!email || !password || !nickname) {
@@ -211,7 +234,7 @@ router.post('/resend-email', requireAuth, async (req, res) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {

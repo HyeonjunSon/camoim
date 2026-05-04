@@ -1,8 +1,8 @@
 import { Component } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from './StyledText';
+import { useLang } from '../context/LangContext';
 
-// React 클래스 컴포넌트 (ErrorBoundary는 클래스만 가능)
 export default class ErrorBoundary extends Component {
   state = { hasError: false };
 
@@ -26,17 +26,26 @@ export default class ErrorBoundary extends Component {
   }
 }
 
-// 에러 발생 시 표시되는 화면
 function ErrorFallback({ onRetry }) {
+  let t;
+  try {
+    ({ t } = useLang());
+  } catch {
+    t = (k) => k;
+  }
+  const safe = (key, fallback) => {
+    const v = t(key);
+    return v && v !== key ? v : fallback;
+  };
   return (
     <View style={styles.container}>
       <Text style={styles.emoji}>😵</Text>
-      <Text style={styles.title}>문제가 발생했어요</Text>
+      <Text style={styles.title}>{safe('errorBoundary.title', 'Something went wrong')}</Text>
       <Text style={styles.desc}>
-        예상치 못한 오류가 발생했습니다.{'\n'}앱을 다시 시작해주세요.
+        {safe('errorBoundary.desc', 'An unexpected error occurred.\nPlease restart the app.')}
       </Text>
       <TouchableOpacity style={styles.btn} onPress={onRetry} activeOpacity={0.85}>
-        <Text style={styles.btnText}>다시 시도</Text>
+        <Text style={styles.btnText}>{safe('errorBoundary.retry', 'Try Again')}</Text>
       </TouchableOpacity>
     </View>
   );

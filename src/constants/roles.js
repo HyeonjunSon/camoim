@@ -1,4 +1,5 @@
-// 역할 상수 (프론트엔드용)
+import { getRuntimeLang } from '../lib/runtimeLang';
+
 export const ROLES = {
   ADMIN: 'admin',
   STUDENT: 'student',
@@ -6,18 +7,29 @@ export const ROLES = {
   GENERAL: 'general',
 };
 
-// i18n 키 기반 — getRoleLabel(role, t) 사용 권장
-export const ROLE_LABELS = {
+const ROLE_LABELS_KO = {
   admin: '관리자',
   student: '유학생',
   working_holiday: '워홀',
   general: '일반',
 };
+const ROLE_LABELS_EN = {
+  admin: 'Admin',
+  student: 'Student',
+  working_holiday: 'Working Holiday',
+  general: 'General',
+};
 
-// t() 함수를 받아서 번역된 역할명 반환
+export const ROLE_LABELS = ROLE_LABELS_KO;
+
 export function getRoleLabel(role, t) {
-  if (t) return t(`roles.${role}`) || ROLE_LABELS[role] || role;
-  return ROLE_LABELS[role] || role;
+  if (t) {
+    const v = t(`roles.${role}`);
+    if (v && v !== `roles.${role}`) return v;
+  }
+  const lang = getRuntimeLang();
+  const map = lang === 'en' ? ROLE_LABELS_EN : ROLE_LABELS_KO;
+  return map[role] || role;
 }
 
 // 역할별 색상

@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import { getToken } from './storage';
 import { API_BASE_URL } from './config';
 import { handleResponseCode } from './systemStatus';
+import { rt } from './runtimeLang';
 
 const BASE_URL = API_BASE_URL;
 const APP_VERSION = Constants.expoConfig?.version || Constants.manifest?.version || '1.0.0';
@@ -39,7 +40,7 @@ async function request(method, path, body) {
     });
   } catch (e) {
     if (e.name === 'AbortError') {
-      throw new Error('요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
+      throw new Error(rt('common.timeoutError'));
     }
     throw e;
   } finally {
@@ -51,7 +52,7 @@ async function request(method, path, body) {
   // 응답이 실패인 경우 에러 throw
   if (!res.ok) {
     handleResponseCode(data);
-    const err = new Error(data.message || '요청에 실패했습니다.');
+    const err = new Error(data.message || rt('common.requestFailed'));
     err.code = data.code;
     throw err;
   }
@@ -107,7 +108,7 @@ export const uploadPostImage = async (asset) => {
     body: formData,
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.message || '업로드에 실패했습니다.');
+  if (!res.ok) throw new Error(data.message || rt('common.uploadFailed'));
   return toCamel(data);
 };
 

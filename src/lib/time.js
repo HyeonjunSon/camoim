@@ -6,15 +6,21 @@
 // - 올해: "4월 19일" / "Apr 19"
 // - 작년 이전: "2025.04.19" / "Apr 19, 2025"
 
+import { getRuntimeLang } from './runtimeLang';
+
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const pad2 = (n) => String(n).padStart(2, '0');
 
-// 기본(한국어) 라벨
-const DEFAULT_LABELS = {
+const KO_LABELS = {
   now: '방금 전', minute: '분 전', hour: '시간 전', day: '일 전',
   monthDay: '{m}월 {d}일', fullDate: '{y}.{m}.{d}',
 };
+const EN_LABELS = {
+  now: 'just now', minute: 'm ago', hour: 'h ago', day: 'd ago',
+  monthDay: '{month} {d}', fullDate: '{month} {d}, {y}',
+};
+const DEFAULT_LABELS = () => (getRuntimeLang() === 'en' ? EN_LABELS : KO_LABELS);
 
 export function formatTime(input, t) {
   if (!input) return '';
@@ -22,16 +28,20 @@ export function formatTime(input, t) {
   const now = new Date();
   const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  const labels = t
-    ? {
-        now: t('time.now') || DEFAULT_LABELS.now,
-        minute: t('time.minute') || DEFAULT_LABELS.minute,
-        hour: t('time.hour') || DEFAULT_LABELS.hour,
-        day: t('time.day') || DEFAULT_LABELS.day,
-        monthDay: t('time.monthDay') || DEFAULT_LABELS.monthDay,
-        fullDate: t('time.fullDate') || DEFAULT_LABELS.fullDate,
-      }
-    : DEFAULT_LABELS;
+  const fallback = DEFAULT_LABELS();
+  const pickT = (key, fb) => {
+    if (!t) return fb;
+    const v = t(`time.${key}`);
+    return v && v !== `time.${key}` ? v : fb;
+  };
+  const labels = {
+    now: pickT('now', fallback.now),
+    minute: pickT('minute', fallback.minute),
+    hour: pickT('hour', fallback.hour),
+    day: pickT('day', fallback.day),
+    monthDay: pickT('monthDay', fallback.monthDay),
+    fullDate: pickT('fullDate', fallback.fullDate),
+  };
 
   // 상대 시간
   if (diffSec < 60) return labels.now;
