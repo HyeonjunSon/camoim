@@ -9,6 +9,9 @@ const commentSchema = new mongoose.Schema({
   likeCount: { type: Number, default: 0 },
   isPinned: { type: Boolean, default: false }, // 댓글 고정 (게시글 작성자만 가능)
   isSecret: { type: Boolean, default: false }, // 잠금 댓글 (작성자 + 글 작성자만 열람 가능)
+  // 자동 숨김 (신고 누적)
+  autoHidden:  { type: Boolean, default: false, index: true },
+  reportCount: { type: Number, default: 0 },
 }, { timestamps: true });
 
 // 게시글 상세 진입 시 댓글 조회 핫 쿼리

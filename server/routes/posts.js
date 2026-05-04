@@ -102,7 +102,7 @@ router.get('/feed', optionalAuth, async (req, res) => {
 
     const blocked = await getBlockedUserIds(req.user?.id);
     const city = req.query.city?.trim() || '';
-    const filter = { hidden: { $ne: true } };
+    const filter = { hidden: { $ne: true }, autoHidden: { $ne: true } };
     if (uniBoardIds.length) filter.boardId = { $nin: uniBoardIds };
     if (blocked.length) filter.userId = { $nin: blocked };
     const cities = expandCity(city);
@@ -160,7 +160,7 @@ router.get('/hot-by-board', optionalAuth, async (req, res) => {
     const sections = await Promise.all(
       boards.map(async (board) => {
         const posts = await Post.aggregate([
-          { $match: { boardId: board._id, createdAt: { $gte: since }, hidden: { $ne: true }, ...(blockedOids.length ? { userId: { $nin: blockedOids } } : {}), ...(expandCity(city) ? { city: { $in: expandCity(city) } } : {}) } },
+          { $match: { boardId: board._id, createdAt: { $gte: since }, hidden: { $ne: true }, autoHidden: { $ne: true }, ...(blockedOids.length ? { userId: { $nin: blockedOids } } : {}), ...(expandCity(city) ? { city: { $in: expandCity(city) } } : {}) } },
           { $addFields: { hotScore: { $add: [{ $multiply: ['$likeCount', 3] }, '$commentCount'] } } },
           { $sort: { hotScore: -1, createdAt: -1 } },
           { $limit: limit },
@@ -242,7 +242,7 @@ router.get('/home-sections', optionalAuth, async (req, res) => {
   try {
     const blocked = await getBlockedUserIds(req.user?.id);
     const city = req.query.city?.trim() || '';
-    const baseFilter = { hidden: { $ne: true } };
+    const baseFilter = { hidden: { $ne: true }, autoHidden: { $ne: true } };
     if (blocked.length) baseFilter.userId = { $nin: blocked };
 
     // 로컬 게시판 (장터, 구인) — city 필터 적용
@@ -313,6 +313,7 @@ router.get('/hot', optionalAuth, async (req, res) => {
     const matchBase = {
       createdAt: { $gte: since },
       hidden: { $ne: true },
+      autoHidden: { $ne: true },
       ...(uniBoardIds.length ? { boardId: { $nin: uniBoardIds } } : {}),
       ...(blockedOids.length ? { userId: { $nin: blockedOids } } : {}),
       ...(expandCity(city) ? { city: { $in: expandCity(city) } } : {}),
@@ -379,6 +380,14 @@ router.get('/:postId', optionalAuth, async (req, res) => {
       .populate('boardId', 'name slug');
 
     if (!post) return res.status(404).json({ success: false, message: '게시글을 찾을 수 없습니다.' });
+
+    // 자동 숨김 게시글: 작성자 본인 외에는 접근 불가 (admin은 별도 라우트)
+    if (post.autoHidden) {
+      const isOwner = req.user && String(post.userId?._id || post.userId) === String(req.user.id);
+      if (!isOwner) {
+        return res.status(403).json({ success: false, message: '신고 누적으로 숨김 처리된 게시글입니다.' });
+      }
+    }
 
     const liked = req.user ? post.likedBy.some(id => String(id) === String(req.user.id)) : false;
     const bookmarked = req.user ? !!(await Bookmark.findOne({ userId: req.user.id, postId: post._id })) : false;
@@ -602,7 +611,7 @@ router.get('/:postId/comments', optionalAuth, async (req, res) => {
     const postAuthorId = post?.userId ? String(post.userId) : null;
 
     const blocked = await getBlockedUserIds(req.user?.id);
-    const commentFilter = { postId: req.params.postId };
+    const commentFilter = { postId: req.params.postId, autoHidden: { $ne: true } };
     if (blocked.length) commentFilter.userId = { $nin: blocked };
 
     const comments = await Comment.find(commentFilter)

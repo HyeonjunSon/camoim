@@ -33,6 +33,8 @@ const userSchema = new mongoose.Schema({
   },
   emailVerifyCode: { type: String, default: '' },
   emailVerifyExpires: { type: Date, default: null },
+  resetCode: { type: String, default: '' },
+  resetExpires: { type: Date, default: null },
   pushToken: {
     type: String,
     default: '',

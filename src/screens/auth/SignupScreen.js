@@ -141,9 +141,9 @@ export default function SignupScreen({ navigation }) {
     if (/[A-Z]/.test(pw)) score++;
     if (/[0-9]/.test(pw)) score++;
     if (/[^A-Za-z0-9]/.test(pw)) score++;
-    if (score <= 1) return { label: t('auth.pwWeak'), color: '#E53E3E', width: '33%' };
-    if (score <= 3) return { label: t('auth.pwMedium'), color: '#ED8936', width: '66%' };
-    return { label: t('auth.pwStrong'), color: '#2D9E5A', width: '100%' };
+    if (score <= 1) return { label: t('auth.pwWeak'), color: colors.danger, width: '33%' };
+    if (score <= 3) return { label: t('auth.pwMedium'), color: colors.warning, width: '66%' };
+    return { label: t('auth.pwStrong'), color: colors.success, width: '100%' };
   };
   const pwStrength = getPasswordStrength(password);
   const pwMismatch = passwordConfirm.length > 0 && password !== passwordConfirm;
@@ -246,7 +246,7 @@ export default function SignupScreen({ navigation }) {
             editable={!emailVerified}
           />
           {emailVerified ? (
-            <View style={[styles.checkBtn, { backgroundColor: '#2D9E5A' }]}>
+            <View style={[styles.checkBtn, { backgroundColor: colors.success }]}>
               <Ionicons name="checkmark-circle" size={18} color={colors.white} />
             </View>
           ) : (

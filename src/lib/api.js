@@ -73,6 +73,12 @@ export const checkNickname = (nickname) =>
   request('GET', `/auth/check-nickname?nickname=${encodeURIComponent(nickname)}`);
 export const sendEmailCode = (email) =>
   request('POST', '/auth/send-code', { email });
+
+export const sendPasswordResetCode = (email) =>
+  request('POST', '/auth/forgot-password', { email });
+
+export const resetPassword = (email, code, newPassword) =>
+  request('POST', '/auth/reset-password', { email, code, newPassword });
 export const checkEmailCode = (email, code) =>
   request('POST', '/auth/check-code', { email, code });
 

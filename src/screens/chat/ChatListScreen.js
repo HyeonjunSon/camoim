@@ -275,8 +275,8 @@ const createStyles = (colors) => StyleSheet.create({
   emptyText: { fontSize: 15, color: colors.textSecondary, fontWeight: '600', marginTop: 20 },
   emptySubText: { fontSize: 13, color: colors.textSecondary, marginTop: 6 },
   swipeDelete: {
-    backgroundColor: '#E53935', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center',
     width: 80, gap: 4,
   },
-  swipeDeleteText: { fontSize: 11, color: '#fff', fontWeight: '600' },
+  swipeDeleteText: { fontSize: 11, color: colors.white, fontWeight: '600' },
 });

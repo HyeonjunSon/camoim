@@ -7,7 +7,7 @@ const Board = require('../models/Board');
 const { requireAuth } = require('../middleware/auth');
 const { ROLES } = require('../constants/roles');
 const { UNIVERSITIES, findUniversityByEmail } = require('../constants/universities');
-const { generateCode, sendVerificationEmail } = require('../utils/mailer');
+const { generateCode, sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer');
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -29,6 +29,13 @@ const registerLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many signup attempts. Please try again later.' },
+});
+const resetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many password reset attempts. Please try again later.' },
 });
 
 // 학교 인증 시 생성할 게시판 4종 템플릿
@@ -118,6 +125,74 @@ router.post('/check-code', codeLimiter, async (req, res) => {
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/auth/forgot-password — 가입된 이메일에 재설정 코드 전송
+router.post('/forgot-password', resetLimiter, async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ success: false, message: 'Please enter your email.' });
+    }
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    // user enumeration 방어 — 가입 여부와 무관하게 동일 응답
+    if (user) {
+      const code = generateCode();
+      user.resetCode = code;
+      user.resetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15분
+      await user.save();
+      try {
+        await sendPasswordResetEmail(user.email, code);
+      } catch (mailErr) {
+        console.error('[api] reset mail send failed:', mailErr);
+      }
+    }
+    res.json({
+      success: true,
+      message: 'If an account exists for that email, a reset code has been sent.',
+    });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
+// POST /api/auth/reset-password — 코드 검증 + 비밀번호 변경
+router.post('/reset-password', resetLimiter, async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body || {};
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, code and new password are required.' });
+    }
+    if (typeof newPassword !== 'string' || newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+    }
+    const user = await User.findOne({ email: String(email).toLowerCase() });
+    if (!user || !user.resetCode || !user.resetExpires) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired code.' });
+    }
+    if (user.resetExpires.getTime() < Date.now()) {
+      user.resetCode = '';
+      user.resetExpires = null;
+      await user.save();
+      return res.status(400).json({ success: false, message: 'Code expired. Please request a new one.' });
+    }
+    if (user.resetCode !== String(code).trim()) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired code.' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = passwordHash;
+    user.resetCode = '';
+    user.resetExpires = null;
+    await user.save();
+
+    res.json({ success: true, message: 'Password has been reset. Please log in with your new password.' });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: 'Server error.' });
   }
 });
 

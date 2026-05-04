@@ -1,5 +1,7 @@
 const express = require('express');
 const Report = require('../models/Report');
+const Post = require('../models/Post');
+const Comment = require('../models/Comment');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -11,6 +13,25 @@ const REASON_LABELS = {
   adult: '음란물',
   etc: '기타',
 };
+
+// N건 이상 신고 누적 시 자동 숨김 (Apple UGC 가이드라인 1.2 대응)
+const AUTO_HIDE_THRESHOLD = 3;
+
+async function maybeAutoHide(targetType, targetId) {
+  const count = await Report.countDocuments({ targetId, status: { $ne: 'dismissed' } });
+  if (count < AUTO_HIDE_THRESHOLD) {
+    if (targetType === 'post') await Post.updateOne({ _id: targetId }, { $set: { reportCount: count } });
+    else if (targetType === 'comment') await Comment.updateOne({ _id: targetId }, { $set: { reportCount: count } });
+    return false;
+  }
+  if (targetType === 'post') {
+    await Post.updateOne({ _id: targetId }, { $set: { autoHidden: true, reportCount: count } });
+  } else if (targetType === 'comment') {
+    await Comment.updateOne({ _id: targetId }, { $set: { autoHidden: true, reportCount: count } });
+  }
+  // user 신고는 별도 워크플로 (admin이 검토) — 자동 차단은 위험
+  return true;
+}
 
 // POST /api/reports — 게시글 또는 댓글 신고
 router.post('/', requireAuth, async (req, res) => {
@@ -44,8 +65,15 @@ router.post('/', requireAuth, async (req, res) => {
       targetId,
       postId: postId || null,
       reason,
-      detail: detail?.trim() || '',
+      detail: String(detail || '').slice(0, 1000).trim(),
     });
+
+    // 자동 숨김 트리거
+    try {
+      await maybeAutoHide(targetType, targetId);
+    } catch (hideErr) {
+      console.error('[reports] auto-hide failed:', hideErr);
+    }
 
     res.status(201).json({ success: true, data: { message: '신고가 접수됐어요. 검토 후 조치할게요.' } });
   } catch (err) {

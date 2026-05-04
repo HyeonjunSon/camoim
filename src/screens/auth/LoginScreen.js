@@ -104,6 +104,12 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.forgotLinkArea}>
+          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} hitSlop={8}>
+            <Text style={styles.forgotLink}>{t('auth.forgotPassword')}</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.signupLinkArea}>
           <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
             <Text style={styles.signupLink}>{t('auth.goSignup')}</Text>
@@ -145,4 +151,6 @@ const createStyles = (colors) => StyleSheet.create({
   loginButtonText: { color: colors.white, fontSize: 16, fontWeight: '700' },
   signupLinkArea: { marginTop: 20, alignItems: 'center' },
   signupLink: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+  forgotLinkArea: { marginTop: 12, alignItems: 'center' },
+  forgotLink: { color: colors.textSecondary, fontSize: 13 },
 });

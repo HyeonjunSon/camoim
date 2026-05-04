@@ -15,6 +15,9 @@ const postSchema = new mongoose.Schema({
   // 관리자 모더레이션
   hidden:     { type: Boolean, default: false, index: true }, // 관리자가 숨김 처리
   hiddenReason: { type: String, default: '' },
+  // 자동 숨김 (신고 누적)
+  autoHidden:   { type: Boolean, default: false, index: true },
+  reportCount:  { type: Number, default: 0 },
   pinned:     { type: Boolean, default: false }, // 게시판 상단 고정
 }, { timestamps: true });
 

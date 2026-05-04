@@ -54,24 +54,31 @@ function getPreview(content) {
     .trim();
 }
 
-// 게시판 slug별 색상·아이콘 (label은 i18n에서 가져옴)
-const BOARD_META = {
-  free:           { bg: '#EEF2FF', text: '#6366F1', icon: '💬' },
-  anonymous:      { bg: '#F5F3FF', text: '#8B5CF6', icon: '🎭' },
-  meetup:         { bg: '#FFF4ED', text: '#FB923C', icon: '🤝' },
-  immigration:    { bg: '#ECFEFF', text: '#0891B2', icon: '🛂' },
-  study:          { bg: '#EFF6FF', text: '#3B82F6', icon: '📚' },
-  workingholiday: { bg: '#FEF3C7', text: '#D97706', icon: '✈️' },
-  market:         { bg: '#FFF7ED', text: '#F97316', icon: '🛍️' },
-  car:            { bg: '#F1F5F9', text: '#475569', icon: '🚗' },
-  giveaway:       { bg: '#ECFDF5', text: '#10B981', icon: '🎁' },
-  jobs:           { bg: '#ECFDF5', text: '#10B981', icon: '💼' },
-  realestate:     { bg: '#FFF1F2', text: '#F43F5E', icon: '🏠' },
-  roomrent:       { bg: '#FEF2F2', text: '#EF4444', icon: '🛏️' },
-  exchange:       { bg: '#FEFCE8', text: '#CA8A04', icon: '💱' },
-  university:     { bg: '#EFF6FF', text: '#3B82F6', icon: '🎓' },
+// 게시판 slug별 컬러·아이콘 — bg는 text 색상에 알파 적용해서 라이트/다크 둘 다 동작
+const BOARD_COLORS = {
+  free:           { text: '#6366F1', icon: '💬' },
+  anonymous:      { text: '#8B5CF6', icon: '🎭' },
+  meetup:         { text: '#FB923C', icon: '🤝' },
+  immigration:    { text: '#0891B2', icon: '🛂' },
+  study:          { text: '#3B82F6', icon: '📚' },
+  workingholiday: { text: '#D97706', icon: '✈️' },
+  market:         { text: '#F97316', icon: '🛍️' },
+  car:            { text: '#94A3B8', icon: '🚗' },
+  giveaway:       { text: '#10B981', icon: '🎁' },
+  jobs:           { text: '#10B981', icon: '💼' },
+  realestate:     { text: '#F43F5E', icon: '🏠' },
+  roomrent:       { text: '#EF4444', icon: '🛏️' },
+  exchange:       { text: '#CA8A04', icon: '💱' },
+  university:     { text: '#3B82F6', icon: '🎓' },
 };
-const DEFAULT_META = { bg: '#F3F4F6', text: '#6B7280', icon: '📋' };
+const DEFAULT_COLOR = { text: '#9CA3AF', icon: '📋' };
+const BOARD_BG_ALPHA = '22'; // ~13% — 라이트/다크 둘 다 자연스럽게 깔림
+const getBoardMeta = (slug) => {
+  const c = BOARD_COLORS[slug] || DEFAULT_COLOR;
+  return { bg: c.text + BOARD_BG_ALPHA, text: c.text, icon: c.icon };
+};
+const BOARD_META = new Proxy({}, { get: (_, key) => getBoardMeta(key) });
+const DEFAULT_META = getBoardMeta('__default__');
 
 const MARKET_CARD_WIDTH = SCREEN_WIDTH * 0.42;
 
@@ -676,7 +683,7 @@ const createStyles = (colors) => StyleSheet.create({
   jobRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 },
   jobRowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   jobIconBox: {
-    width: 40, height: 40, borderRadius: 10, backgroundColor: '#ECFDF5',
+    width: 40, height: 40, borderRadius: 10, backgroundColor: colors.successSoft,
     alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
   jobIcon: { fontSize: 18 },

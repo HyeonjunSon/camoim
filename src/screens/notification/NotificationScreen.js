@@ -21,14 +21,15 @@ import {
 import { useLang } from '../../context/LangContext';
 import { formatTime } from '../../lib/time';
 
-const TYPE_META = {
-  comment: { icon: '💬', labelKey: 'notif.catComment', color: '#6366F1', bg: '#EEF2FF' },
-  like:    { icon: '❤️', labelKey: 'notif.catLike',    color: '#EF4444', bg: '#FEF2F2' },
-  chat:    { icon: '✉️', labelKey: 'notif.catChat',    color: '#8B5CF6', bg: '#F5F3FF' },
-};
+const buildTypeMeta = (colors) => ({
+  comment: { icon: '💬', labelKey: 'notif.catComment', color: colors.info,    bg: colors.infoSoft },
+  like:    { icon: '❤️', labelKey: 'notif.catLike',    color: colors.danger,  bg: colors.dangerSoft },
+  chat:    { icon: '✉️', labelKey: 'notif.catChat',    color: colors.accent,  bg: colors.accentSoft },
+});
 
-function NotificationCard({ item, onPress, t, styles }) {
-  const meta = TYPE_META[item.type] ?? { icon: '🔔', labelKey: 'notif.catDefault', color: '#6B7280', bg: '#F3F4F6' };
+function NotificationCard({ item, onPress, t, styles, colors }) {
+  const TYPE_META = buildTypeMeta(colors);
+  const meta = TYPE_META[item.type] ?? { icon: '🔔', labelKey: 'notif.catDefault', color: colors.textSecondary, bg: colors.inputBg };
 
   return (
     <TouchableOpacity
@@ -163,7 +164,7 @@ export default function NotificationScreen() {
         <FlatList
           data={filtered}
           keyExtractor={item => String(item.id)}
-          renderItem={({ item }) => <NotificationCard item={item} onPress={handlePress} t={t} styles={styles} />}
+          renderItem={({ item }) => <NotificationCard item={item} onPress={handlePress} t={t} styles={styles} colors={colors} />}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => loadNotifications(true)} tintColor={colors.primary} />
           }
