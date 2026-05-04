@@ -41,6 +41,9 @@ server/.env
 # IDE
 .vscode/
 
+# session handoff (local notes — not committed)
+HANDOFF.md
+
 # temp
 .text
 
