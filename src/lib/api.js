@@ -191,9 +191,7 @@ export const markNotificationRead = (id) =>
 export const markAllNotificationsRead = () =>
   request('PUT', '/notifications/read-all');
 
-// 학교 인증 API (기존 이메일 방식 - 레거시)
-export const verifyStudent = (universityEmail) =>
-  request('POST', '/auth/verify-student', { universityEmail });
+// 학교 리스트
 export const getUniversities = () => request('GET', '/auth/universities');
 
 // 서류 인증 신청 API (multipart/form-data)
