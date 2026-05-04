@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Text, TextInput } from '../../components/StyledText';
 import {
   View,
@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { getMyPosts, updateProfile, checkNickname, uploadAvatar } from '../../lib/api';
+import { getMyPosts, updateProfile, checkNickname, uploadAvatar, getUniversities } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -35,17 +35,7 @@ const CITIES = [
   'London', 'Quebec',
 ];
 
-// 학교 목록 (VerifyStudentScreen과 동일)
-const UNIVERSITIES = [
-  'University of Toronto (UofT)', 'University of British Columbia (UBC)', 'McGill University',
-  'University of Alberta (UAlberta)', 'University of Waterloo (UW)',
-  'Western University', "Queen's University", 'Simon Fraser University (SFU)',
-  'University of Calgary (UCalgary)', 'University of Ottawa (uOttawa)',
-  'York University', 'University of Victoria (UVic)', 'Dalhousie University (Dal)',
-  'University of Manitoba (UManitoba)',
-  'British Columbia Institute of Technology (BCIT)', 'Seneca College', 'George Brown College',
-  'Humber College', 'Southern Alberta Institute of Technology (SAIT)', 'Langara College',
-];
+// 학교 리스트는 백엔드 /auth/universities 에서 fetch — useState로 관리
 
 // 마이페이지 화면 — 프로필 + 통계 + 메뉴
 export default function MyPageScreen({ navigation }) {
@@ -65,6 +55,21 @@ export default function MyPageScreen({ navigation }) {
   });
   const [cityModalOpen, setCityModalOpen] = useState(false);
   const [schoolModalOpen, setSchoolModalOpen] = useState(false);
+  const [universityList, setUniversityList] = useState([]);
+
+  // 학교 리스트 1회 로드 (백엔드)
+  useEffect(() => {
+    let mounted = true;
+    getUniversities()
+      .then((res) => {
+        if (!mounted) return;
+        if (res?.success && Array.isArray(res.data)) {
+          setUniversityList(res.data.map(u => u.shortName).filter(Boolean));
+        }
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [nickChecked, setNickChecked] = useState(false);
@@ -638,7 +643,7 @@ export default function MyPageScreen({ navigation }) {
                 </Text>
               </TouchableOpacity>
               <FlatList
-                data={UNIVERSITIES}
+                data={universityList}
                 keyExtractor={item => item}
                 renderItem={({ item: u }) => (
                   <TouchableOpacity

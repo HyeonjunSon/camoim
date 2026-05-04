@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Text } from '../../components/StyledText';
 import {
   View,
@@ -15,23 +15,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
-import { applyVerify, getVerifyStatus } from '../../lib/api';
+import { applyVerify, getVerifyStatus, getUniversities } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import AuthLangToggle from '../../components/AuthLangToggle';
 
-// 지원 대학교 목록 (서버 shortName과 일치해야 함)
-const UNIVERSITIES = [
-  'University of Toronto (UofT)', 'University of British Columbia (UBC)', 'McGill University',
-  'University of Alberta (UAlberta)', 'University of Waterloo (UW)',
-  'Western University', "Queen's University", 'Simon Fraser University (SFU)',
-  'University of Calgary (UCalgary)', 'University of Ottawa (uOttawa)',
-  'York University', 'University of Victoria (UVic)', 'Dalhousie University (Dal)',
-  'University of Manitoba (UManitoba)',
-  'British Columbia Institute of Technology (BCIT)', 'Seneca College', 'George Brown College',
-  'Humber College', 'Southern Alberta Institute of Technology (SAIT)', 'Langara College',
-];
-
+// 학교 리스트는 백엔드 /auth/universities 에서 fetch (한 곳에서 관리)
 const CURRENT_YEAR = new Date().getFullYear();
 const GRADUATION_YEARS = Array.from({ length: 15 }, (_, i) => CURRENT_YEAR - i);
 
@@ -52,6 +41,7 @@ export default function VerifyStudentScreen({ navigation }) {
   const [existingRequest, setExistingRequest] = useState(undefined); // undefined = 로딩 전
   const [statusLoading, setStatusLoading] = useState(true);
 
+  const [universityList, setUniversityList] = useState([]); // 서버에서 받아온 학교 shortName 배열
   const [university, setUniversity] = useState('');
   const [studentType, setStudentType] = useState('current');
   const [graduationYear, setGraduationYear] = useState(String(CURRENT_YEAR - 1));
@@ -67,6 +57,20 @@ export default function VerifyStudentScreen({ navigation }) {
       checkStatus();
     }, [])
   );
+
+  // 학교 리스트 1회 로드
+  useEffect(() => {
+    let mounted = true;
+    getUniversities()
+      .then((res) => {
+        if (!mounted) return;
+        if (res?.success && Array.isArray(res.data)) {
+          setUniversityList(res.data.map(u => u.shortName).filter(Boolean));
+        }
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   async function checkStatus() {
     setStatusLoading(true);
@@ -255,7 +259,7 @@ export default function VerifyStudentScreen({ navigation }) {
         </TouchableOpacity>
         {showUnivPicker && (
           <ScrollView style={styles.pickerList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-            {UNIVERSITIES.map(u => (
+            {universityList.map(u => (
               <TouchableOpacity
                 key={u}
                 style={[styles.pickerItem, university === u && styles.pickerItemSelected]}
