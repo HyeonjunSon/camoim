@@ -6,13 +6,14 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { useLang } from '../../context/LangContext';
 
-// 그룹 → 질문 ID 매핑
+// 그룹 → 질문 ID 매핑 (질문 ID는 i18n faq.qN / faq.aN 와 매칭)
 const GROUPS = [
-  { key: 'g_account', items: ['1', '2', '3'] },
-  { key: 'g_post',    items: ['4', '5'] },
-  { key: 'g_block',   items: ['6', '7', '8'] },
-  { key: 'g_chat',    items: ['9'] },
-  { key: 'g_verify',  items: ['10'] },
+  { key: 'g_account', items: ['1', '11', '12', '2', '13', '3'] },
+  { key: 'g_post',    items: ['4', '14', '15', '16', '5'] },
+  { key: 'g_block',   items: ['6', '7', '8', '17'] },
+  { key: 'g_chat',    items: ['18', '19', '9'] },
+  { key: 'g_verify',  items: ['10', '20', '21', '22', '23'] },
+  { key: 'g_app',     items: ['24', '25', '26', '27'] },
 ];
 
 export default function FAQScreen({ navigation }) {
