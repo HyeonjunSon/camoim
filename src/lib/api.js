@@ -54,6 +54,7 @@ async function request(method, path, body) {
     handleResponseCode(data);
     const err = new Error(data.message || rt('common.requestFailed'));
     err.code = data.code;
+    err.debug = data.debug; // 디버그 정보 (서버가 제공한 경우)
     throw err;
   }
 

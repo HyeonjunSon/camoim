@@ -105,7 +105,8 @@
       "eas": {
         "projectId": "fa0d6f5e-1203-42d3-bd79-b853010f189b"
       },
-      "googleWebClientId": "599256893701-cpg5it6dlss6j5b4dfcddlrr9tbcplvq.apps.googleusercontent.com"
+      "googleWebClientId": "599256893701-cpg5it6dlss6j5b4dfcddlrr9tbcplvq.apps.googleusercontent.com",
+      "googleIosClientId": "599256893701-02af8na9prs8abuh8cgpvv7addjm8u46.apps.googleusercontent.com"
     },
     "owner": "hyeonjun122"
   }

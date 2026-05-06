@@ -25,13 +25,21 @@ const GOOGLE_WEB_CLIENT_ID =
   Constants.expoConfig?.extra?.googleWebClientId ||
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
   '';
+const GOOGLE_IOS_CLIENT_ID =
+  Constants.expoConfig?.extra?.googleIosClientId ||
+  process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ||
+  '';
 
 let googleConfigured = false;
 function ensureGoogleConfigured() {
   if (googleConfigured) return;
-  if (!GOOGLE_WEB_CLIENT_ID) return;
+  if (!GOOGLE_IOS_CLIENT_ID) return; // iOS Client ID는 필수
   try {
-    GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID, offlineAccess: false });
+    GoogleSignin.configure({
+      webClientId: GOOGLE_WEB_CLIENT_ID || undefined,
+      iosClientId: GOOGLE_IOS_CLIENT_ID,
+      offlineAccess: false,
+    });
     googleConfigured = true;
   } catch (e) {
     console.warn('[LoginScreen] GoogleSignin configure failed:', e?.message);
@@ -97,7 +105,8 @@ export default function LoginScreen({ navigation }) {
       if (e?.code === 'ERR_REQUEST_CANCELED') {
         // 사용자가 취소 — 에러 표시 안 함
       } else {
-        setError(e.message || t('auth.appleLoginFailed'));
+        const base = e.message || t('auth.appleLoginFailed');
+        setError(e.debug ? `${base}\n[debug] ${e.debug}` : base);
       }
     } finally {
       setSocialBusy(null);
@@ -109,7 +118,7 @@ export default function LoginScreen({ navigation }) {
     setSocialBusy('google');
     try {
       ensureGoogleConfigured();
-      if (!GOOGLE_WEB_CLIENT_ID) {
+      if (!GOOGLE_IOS_CLIENT_ID) {
         Alert.alert('', 'Google Sign-In is not configured yet. Please try Apple or email login.');
         return;
       }
@@ -131,7 +140,8 @@ export default function LoginScreen({ navigation }) {
       } else if (e?.code === statusCodes?.IN_PROGRESS) {
         // skip
       } else {
-        setError(e.message || t('auth.googleLoginFailed'));
+        const base = e.message || t('auth.googleLoginFailed');
+        setError(e.debug ? `${base}\n[debug] ${e.debug}` : base);
       }
     } finally {
       setSocialBusy(null);

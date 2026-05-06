@@ -660,8 +660,16 @@ router.post('/apple', socialLimiter, async (req, res) => {
       data: { needsOnboarding: true, preRegToken, provider: 'apple', email: email || '' },
     });
   } catch (err) {
-    console.error('[auth] apple login error:', err.message);
-    res.status(401).json({ success: false, message: 'Apple 로그인 검증에 실패했어요.' });
+    console.error('[auth] apple login error:', {
+      message: err.message,
+      hasClientId: !!process.env.APPLE_CLIENT_ID,
+      clientId: process.env.APPLE_CLIENT_ID,
+    });
+    res.status(401).json({
+      success: false,
+      message: 'Apple 로그인 검증에 실패했어요.',
+      debug: err.message || 'unknown',
+    });
   }
 });
 
@@ -685,8 +693,16 @@ router.post('/google', socialLimiter, async (req, res) => {
       data: { needsOnboarding: true, preRegToken, provider: 'google', email: email || '' },
     });
   } catch (err) {
-    console.error('[auth] google login error:', err.message);
-    res.status(401).json({ success: false, message: 'Google 로그인 검증에 실패했어요.' });
+    console.error('[auth] google login error:', {
+      message: err.message,
+      hasIosId: !!process.env.GOOGLE_IOS_CLIENT_ID,
+      hasWebId: !!process.env.GOOGLE_WEB_CLIENT_ID,
+    });
+    res.status(401).json({
+      success: false,
+      message: 'Google 로그인 검증에 실패했어요.',
+      debug: err.message || 'unknown',
+    });
   }
 });
 
