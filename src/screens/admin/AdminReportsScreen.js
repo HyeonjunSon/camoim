@@ -83,10 +83,43 @@ export default function AdminReportsScreen({ navigation }) {
           ListEmptyComponent={<Text style={styles.empty}>{t('admin.rpNoReports')}</Text>}
           renderItem={({ item }) => (
             <View style={styles.card}>
-              <Text style={styles.target} numberOfLines={2}>{item.targetPreview}</Text>
+              <Text style={styles.target} numberOfLines={2}>{item.targetText || item.targetPreview}</Text>
+
+              {/* 작성자 정보 — 익명이어도 admin은 실제 닉네임 확인, 탈퇴 시도 명시 */}
+              {item.targetAuthor ? (
+                <TouchableOpacity
+                  style={styles.authorRow}
+                  onPress={() => {
+                    if (item.targetAuthor.userId && !item.targetAuthor.isDeleted) {
+                      navigation.navigate('AdminUserDetail', { userId: String(item.targetAuthor.userId) });
+                    }
+                  }}
+                  disabled={!item.targetAuthor.userId || item.targetAuthor.isDeleted}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.authorLabel}>작성자: </Text>
+                  <Text style={[
+                    styles.authorName,
+                    (!item.targetAuthor.userId || item.targetAuthor.isDeleted) && styles.authorNameDeleted,
+                  ]}>
+                    {item.targetAuthor.nickname || '(알 수 없음)'}
+                  </Text>
+                  {item.targetAuthor.isAnonymous && (
+                    <View style={[styles.badge, styles.badgeAnon]}>
+                      <Text style={styles.badgeText}>익명</Text>
+                    </View>
+                  )}
+                  {item.targetAuthor.isDeleted && (
+                    <View style={[styles.badge, styles.badgeDeleted]}>
+                      <Text style={styles.badgeText}>탈퇴</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ) : null}
+
               <Text style={styles.reason}>{item.reason}</Text>
               {!!item.detail && <Text style={styles.detail}>"{item.detail}"</Text>}
-              <Text style={styles.meta}>{item.reporterNickname} · {new Date(item.createdAt).toLocaleDateString()}</Text>
+              <Text style={styles.meta}>신고자: {item.reporterNickname} · {new Date(item.createdAt).toLocaleDateString()}</Text>
               {item.status === 'pending' && (
                 <View style={styles.actions}>
                   <TouchableOpacity style={styles.delBtn} onPress={() => onResolve(item.id)}>
@@ -122,6 +155,23 @@ const createStyles = (colors) => StyleSheet.create({
   reason: { fontSize: 13, color: colors.primary, fontWeight: '600', marginTop: 6 },
   detail: { fontSize: 12, color: colors.textSecondary, fontStyle: 'italic', marginTop: 4 },
   meta: { fontSize: 11, color: colors.textSecondary, marginTop: 6 },
+  authorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: 6,
+    gap: 6,
+  },
+  authorLabel: { fontSize: 12, color: colors.textSecondary },
+  authorName: { fontSize: 12, fontWeight: '700', color: colors.primary, textDecorationLine: 'underline' },
+  authorNameDeleted: { color: colors.textSecondary, textDecorationLine: 'line-through' },
+  badge: {
+    paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: 6, marginLeft: 4,
+  },
+  badgeAnon: { backgroundColor: colors.warningSoft || '#FEF3C7' },
+  badgeDeleted: { backgroundColor: colors.danger + '20' },
+  badgeText: { fontSize: 10, fontWeight: '700', color: colors.text },
   actions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   delBtn: { paddingHorizontal: 14, paddingVertical: 8, backgroundColor: colors.danger + '15', borderRadius: 8 },
   delText: { fontSize: 12, fontWeight: '600', color: '#EF4444' },

@@ -143,14 +143,44 @@ router.get('/reports', async (req, res) => {
       .populate('reporterId', 'nickname email');
 
     const formatted = await Promise.all(reports.map(async (r) => {
-      let targetPreview = '';
+      let targetText = '';        // 본문/제목 등 신고 대상 콘텐츠
+      let liveAuthor = null;      // 현재 살아있는 작성자 (탈퇴 안 했으면)
+      let liveIsAnonymous = !!r.targetIsAnonymous;
+
       if (r.targetType === 'post') {
-        const post = await Post.findById(r.targetId).select('title userId').populate('userId', 'nickname');
-        targetPreview = post ? `[글] ${post.title} — by ${post.userId?.nickname ?? '?'}` : '(삭제됨)';
-      } else {
-        const comment = await Comment.findById(r.targetId).select('content userId').populate('userId', 'nickname');
-        targetPreview = comment ? `[댓글] ${comment.content.slice(0, 40)} — by ${comment.userId?.nickname ?? '?'}` : '(삭제됨)';
+        const post = await Post.findById(r.targetId).select('title userId isAnonymous').populate('userId', 'nickname email');
+        if (post) {
+          targetText = `[글] ${post.title}`;
+          liveAuthor = post.userId || null;
+          liveIsAnonymous = !!post.isAnonymous;
+        } else {
+          targetText = '(삭제됨)';
+        }
+      } else if (r.targetType === 'comment') {
+        const comment = await Comment.findById(r.targetId).select('content userId isAnonymous').populate('userId', 'nickname email');
+        if (comment) {
+          targetText = `[댓글] ${comment.content.slice(0, 60)}`;
+          liveAuthor = comment.userId || null;
+          liveIsAnonymous = !!comment.isAnonymous;
+        } else {
+          targetText = '(삭제됨)';
+        }
+      } else if (r.targetType === 'user') {
+        targetText = '[사용자]';
+        const u = r.targetAuthorId ? await User.findById(r.targetAuthorId).select('nickname email').lean() : null;
+        liveAuthor = u || null;
       }
+
+      // 작성자 정보: 라이브 우선, 없으면(탈퇴) 신고 시점 스냅샷 사용
+      const isDeleted = !liveAuthor && !!r.targetAuthorId; // 신고 시엔 있었지만 지금은 없음 → 탈퇴
+      const targetAuthor = {
+        userId: liveAuthor?._id || r.targetAuthorId || null,
+        nickname: liveAuthor?.nickname || r.targetAuthorNickname || '',
+        email: liveAuthor?.email || null,
+        isAnonymous: liveIsAnonymous,
+        isDeleted,
+      };
+
       return {
         id: r._id,
         reporterNickname: r.reporterId?.nickname,
@@ -160,7 +190,13 @@ router.get('/reports', async (req, res) => {
         postId: r.postId,
         reason: REASON_LABELS[r.reason] ?? r.reason,
         detail: r.detail,
-        targetPreview,
+        targetText,
+        targetAuthor,
+        // legacy field — 기존 클라이언트 호환
+        targetPreview: targetText
+          + (targetAuthor.nickname
+              ? ` — by ${targetAuthor.nickname}${targetAuthor.isAnonymous ? ' (익명)' : ''}${isDeleted ? ' (탈퇴)' : ''}`
+              : ''),
         status: r.status,
         createdAt: r.createdAt,
       };

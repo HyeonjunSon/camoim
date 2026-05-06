@@ -2,6 +2,7 @@ const express = require('express');
 const Report = require('../models/Report');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
+const User = require('../models/User');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -59,11 +60,42 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(409).json({ success: false, message: '이미 신고한 대상입니다.' });
     }
 
+    // 신고 시점 작성자 스냅샷 캡처 — 추후 탈퇴해도 admin이 누가 썼는지 확인 가능
+    let targetAuthorId = null;
+    let targetAuthorNickname = '';
+    let targetIsAnonymous = false;
+    try {
+      if (targetType === 'post') {
+        const post = await Post.findById(targetId).select('userId isAnonymous').lean();
+        if (post) {
+          targetAuthorId = post.userId || null;
+          targetIsAnonymous = !!post.isAnonymous;
+        }
+      } else if (targetType === 'comment') {
+        const comment = await Comment.findById(targetId).select('userId isAnonymous').lean();
+        if (comment) {
+          targetAuthorId = comment.userId || null;
+          targetIsAnonymous = !!comment.isAnonymous;
+        }
+      } else if (targetType === 'user') {
+        targetAuthorId = targetId;
+      }
+      if (targetAuthorId) {
+        const u = await User.findById(targetAuthorId).select('nickname').lean();
+        if (u) targetAuthorNickname = u.nickname || '';
+      }
+    } catch (snapErr) {
+      console.error('[reports] author snapshot failed:', snapErr);
+    }
+
     await Report.create({
       reporterId: req.user.id,
       targetType,
       targetId,
       postId: postId || null,
+      targetAuthorId,
+      targetAuthorNickname,
+      targetIsAnonymous,
       reason,
       detail: String(detail || '').slice(0, 1000).trim(),
     });
