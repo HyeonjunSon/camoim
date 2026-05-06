@@ -8,9 +8,9 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
-  Image,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
@@ -30,10 +30,13 @@ const GOOGLE_IOS_CLIENT_ID =
   process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ||
   '';
 
+// Google brand "G" logo PNG (공식 호스팅, 캐시 가능)
+const GOOGLE_G_LOGO = 'https://developers.google.com/identity/images/g-logo.png';
+
 let googleConfigured = false;
 function ensureGoogleConfigured() {
   if (googleConfigured) return;
-  if (!GOOGLE_IOS_CLIENT_ID) return; // iOS Client ID는 필수
+  if (!GOOGLE_IOS_CLIENT_ID) return;
   try {
     GoogleSignin.configure({
       webClientId: GOOGLE_WEB_CLIENT_ID || undefined,
@@ -59,7 +62,7 @@ export default function LoginScreen({ navigation }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
-  const [socialBusy, setSocialBusy] = useState(null); // 'apple' | 'google' | null
+  const [socialBusy, setSocialBusy] = useState(null);
 
   useEffect(() => {
     AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => {});
@@ -103,7 +106,7 @@ export default function LoginScreen({ navigation }) {
       }
     } catch (e) {
       if (e?.code === 'ERR_REQUEST_CANCELED') {
-        // 사용자가 취소 — 에러 표시 안 함
+        // 사용자 취소
       } else {
         const base = e.message || t('auth.appleLoginFailed');
         setError(e.debug ? `${base}\n[debug] ${e.debug}` : base);
@@ -135,9 +138,7 @@ export default function LoginScreen({ navigation }) {
         });
       }
     } catch (e) {
-      if (e?.code === statusCodes?.SIGN_IN_CANCELLED) {
-        // skip
-      } else if (e?.code === statusCodes?.IN_PROGRESS) {
+      if (e?.code === statusCodes?.SIGN_IN_CANCELLED || e?.code === statusCodes?.IN_PROGRESS) {
         // skip
       } else {
         const base = e.message || t('auth.googleLoginFailed');
@@ -164,7 +165,76 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.tagline}>{t('auth.welcome')}</Text>
         </View>
 
-        {/* 소셜 로그인 */}
+        {/* 이메일 로그인 폼 (위) */}
+        <View style={styles.formArea}>
+          <Text style={styles.fieldLabel}>{t('auth.email')}</Text>
+          <View style={styles.inputWrap}>
+            <Ionicons name="mail-outline" size={18} color={colors.textSecondary} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder={t('auth.emailPlaceholder')}
+              placeholderTextColor={colors.textSecondary}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <Text style={[styles.fieldLabel, { marginTop: 12 }]}>{t('auth.password')}</Text>
+          <View style={styles.inputWrap}>
+            <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} style={styles.inputIcon} />
+            <TextInput
+              style={[styles.input, { flex: 1 }]}
+              placeholder={t('auth.password')}
+              placeholderTextColor={colors.textSecondary}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity
+              style={styles.eyeBtn}
+              onPress={() => setShowPassword(v => !v)}
+              hitSlop={12}
+              accessibilityLabel={t('a11y.togglePassword')}
+              accessibilityRole="button"
+            >
+              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+          <TouchableOpacity
+            style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            {loading
+              ? <ActivityIndicator color={colors.white} />
+              : <Text style={styles.loginButtonText}>{t('auth.loginBtn')}</Text>}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.forgotLinkArea}
+            onPress={() => navigation.navigate('ForgotPassword')}
+            hitSlop={8}
+          >
+            <Text style={styles.forgotLink}>{t('auth.forgotPassword')}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 또는 구분선 */}
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>{t('auth.orDivider')}</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* 소셜 로그인 (아래) */}
         <View style={styles.socialArea}>
           {appleAvailable && (
             <TouchableOpacity
@@ -196,74 +266,15 @@ export default function LoginScreen({ navigation }) {
             ) : (
               <>
                 <Image
-                  source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg' }}
-                  style={{ width: 18, height: 18, marginRight: 10 }}
+                  source={GOOGLE_G_LOGO}
+                  style={styles.googleLogo}
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                  transition={0}
                 />
                 <Text style={styles.googleBtnText}>{t('auth.continueWithGoogle')}</Text>
               </>
             )}
-          </TouchableOpacity>
-        </View>
-
-        {/* 또는 구분선 */}
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>{t('auth.orDivider')}</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* 이메일 폼 */}
-        <View style={styles.formArea}>
-          <TextInput
-            style={styles.input}
-            placeholder={t('auth.email')}
-            placeholderTextColor={colors.textSecondary}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          <View style={styles.passwordWrap}>
-            <TextInput
-              style={[styles.input, { flex: 1, marginTop: 0, backgroundColor: 'transparent' }]}
-              placeholder={t('auth.password')}
-              placeholderTextColor={colors.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity
-              style={styles.eyeBtn}
-              onPress={() => setShowPassword(v => !v)}
-              hitSlop={12}
-              accessibilityLabel={t('a11y.togglePassword')}
-              accessibilityRole="button"
-            >
-              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-          <TouchableOpacity
-            style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-            onPress={handleLogin}
-            disabled={loading}
-            activeOpacity={0.85}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.loginButtonText}>{t('auth.loginBtn')}</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.forgotLinkArea}>
-          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} hitSlop={8}>
-            <Text style={styles.forgotLink}>{t('auth.forgotPassword')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -280,14 +291,47 @@ export default function LoginScreen({ navigation }) {
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scrollContent: {
-    flexGrow: 1, justifyContent: 'center', padding: 24, paddingBottom: 40,
+    flexGrow: 1, justifyContent: 'center', padding: 24, paddingBottom: 40, paddingTop: 80,
   },
-  logoArea: { alignItems: 'center', marginBottom: 32 },
+  logoArea: { alignItems: 'center', marginBottom: 28 },
   logoText: { fontSize: 36, fontWeight: '800', color: colors.primary },
   tagline: { fontSize: 14, color: colors.textSecondary, marginTop: 6 },
 
-  // 소셜 버튼
-  socialArea: { gap: 10, marginBottom: 18 },
+  // 폼
+  formArea: {},
+  fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 6 },
+  inputWrap: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.inputBg, borderRadius: 12,
+    paddingHorizontal: 12,
+  },
+  inputIcon: { marginRight: 6 },
+  input: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 15, color: colors.text,
+    backgroundColor: 'transparent',
+  },
+  eyeBtn: { paddingHorizontal: 6, paddingVertical: 14 },
+  errorText: {
+    fontSize: 13, color: colors.danger, textAlign: 'center', marginTop: 10,
+  },
+  loginButton: {
+    backgroundColor: colors.primary, borderRadius: 12, padding: 16,
+    alignItems: 'center', marginTop: 16,
+  },
+  loginButtonDisabled: { opacity: 0.6 },
+  loginButtonText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  forgotLinkArea: { marginTop: 12, alignItems: 'center' },
+  forgotLink: { color: colors.textSecondary, fontSize: 13 },
+
+  // 구분선
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 22, marginBottom: 18 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { fontSize: 12, color: colors.textSecondary, marginHorizontal: 12 },
+
+  // 소셜
+  socialArea: { gap: 10 },
   appleBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#000000', borderRadius: 12,
@@ -300,37 +344,10 @@ const createStyles = (colors) => StyleSheet.create({
     paddingVertical: 14, height: 50,
     borderWidth: 1, borderColor: '#DADCE0',
   },
+  googleLogo: { width: 18, height: 18, marginRight: 10 },
   googleBtnText: { color: '#1F1F1F', fontSize: 15, fontWeight: '600' },
 
-  // 구분선
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  dividerText: { fontSize: 12, color: colors.textSecondary, marginHorizontal: 12 },
-
-  // 이메일 폼
-  formArea: { gap: 12 },
-  input: {
-    backgroundColor: colors.inputBg, borderRadius: 12, padding: 14,
-    fontSize: 15, color: colors.text,
-  },
-  passwordWrap: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.inputBg, borderRadius: 12,
-  },
-  eyeBtn: {
-    paddingHorizontal: 12, paddingVertical: 14,
-  },
-  errorText: {
-    fontSize: 13, color: colors.danger, textAlign: 'center', marginTop: 4,
-  },
-  loginButton: {
-    backgroundColor: colors.primary, borderRadius: 12, padding: 16,
-    alignItems: 'center', marginTop: 8,
-  },
-  loginButtonDisabled: { opacity: 0.6 },
-  loginButtonText: { color: colors.white, fontSize: 16, fontWeight: '700' },
-  signupLinkArea: { marginTop: 20, alignItems: 'center' },
+  // 회원가입 링크
+  signupLinkArea: { marginTop: 22, alignItems: 'center' },
   signupLink: { color: colors.primary, fontSize: 14, fontWeight: '600' },
-  forgotLinkArea: { marginTop: 12, alignItems: 'center' },
-  forgotLink: { color: colors.textSecondary, fontSize: 13 },
 });
