@@ -154,14 +154,22 @@ export default function OnboardingScreen({ route, navigation }) {
             maxLength={20}
           />
           <TouchableOpacity
-            style={[styles.checkBtn, (nickname.trim().length < 2 || nickChecking) && styles.checkBtnDisabled]}
+            style={[
+              styles.checkBtn,
+              (nickname.trim().length < 2 || nickChecking) && styles.checkBtnDisabled,
+              nickChecked && styles.checkBtnDone,
+            ]}
             onPress={handleCheck}
-            disabled={nickname.trim().length < 2 || nickChecking}
+            disabled={nickname.trim().length < 2 || nickChecking || nickChecked}
             activeOpacity={0.85}
           >
             {nickChecking
               ? <ActivityIndicator color={colors.white} size="small" />
-              : <Text style={styles.checkBtnText}>{t('auth.check')}</Text>}
+              : (
+                <Text style={styles.checkBtnText}>
+                  {nickChecked ? t('auth.checkDone') : t('auth.checkNickname')}
+                </Text>
+              )}
           </TouchableOpacity>
         </View>
         {nickMsg ? (
@@ -323,7 +331,7 @@ export default function OnboardingScreen({ route, navigation }) {
 
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 24, paddingTop: 60, paddingBottom: 60 },
+  content: { padding: 24, paddingTop: 100, paddingBottom: 60 },
   title: { fontSize: 26, fontWeight: '800', color: colors.text, marginBottom: 8 },
   desc: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginBottom: 16 },
   emailBadge: {
@@ -349,6 +357,7 @@ const createStyles = (colors) => StyleSheet.create({
     minWidth: 80, alignItems: 'center', justifyContent: 'center',
   },
   checkBtnDisabled: { opacity: 0.4 },
+  checkBtnDone: { backgroundColor: colors.textSecondary },
   checkBtnText: { color: colors.white, fontSize: 14, fontWeight: '700' },
   statusText: { fontSize: 12, fontWeight: '600', marginTop: 6 },
 
