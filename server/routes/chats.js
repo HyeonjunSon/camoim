@@ -3,6 +3,7 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const ChatRoom = require('../models/ChatRoom');
 const Message = require('../models/Message');
+const Notification = require('../models/Notification');
 const User = require('../models/User');
 const { isChatBlocked, getBlockedUserIds } = require('../utils/blocks');
 
@@ -80,11 +81,47 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(403).json({ success: false, message: '차단된 사용자와는 채팅할 수 없어요.' });
     }
 
-    // 기존 방 찾기
+    // 1) 둘 다 active한 기존 방 찾기
     let room = await ChatRoom.findOne({
       participants: { $all: [req.user.id, targetUserId], $size: 2 },
     });
 
+    // 2) 한 명이 나간 orphan room이 있으면 재활성화 (메시지는 클리어)
+    //    - 같은 roomId 유지 → 데이터 정리 + DB 비대 방지
+    //    - 옛 대화 내역은 삭제 (프라이버시 + 신선한 시작)
+    if (!room) {
+      const orphan = await ChatRoom.findOne({
+        $or: [
+          { participants: req.user.id, 'otherSnapshot.id': targetUserId },
+          { participants: targetUserId, 'otherSnapshot.id': req.user.id },
+        ],
+      });
+      if (orphan) {
+        // 옛 메시지 + 알림 모두 삭제
+        await Promise.all([
+          Message.deleteMany({ roomId: orphan._id }),
+          Notification.deleteMany({ roomId: orphan._id }),
+        ]);
+        // 빠진 참여자 다시 추가
+        if (!orphan.participants.some(p => String(p) === String(req.user.id))) {
+          orphan.participants.push(req.user.id);
+        }
+        if (!orphan.participants.some(p => String(p) === String(targetUserId))) {
+          orphan.participants.push(targetUserId);
+        }
+        // 새 요청 사이클 시작 — pending, 내가 요청자
+        orphan.status = 'pending';
+        orphan.requesterId = req.user.id;
+        orphan.otherSnapshot = undefined;
+        orphan.lastMessage = '';
+        orphan.lastMessageAt = new Date();
+        orphan.unreadCount = new Map();
+        await orphan.save();
+        room = orphan;
+      }
+    }
+
+    // 3) 그래도 없으면 새 방 생성
     if (!room) {
       room = await ChatRoom.create({
         participants: [req.user.id, targetUserId],
