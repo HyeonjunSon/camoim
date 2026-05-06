@@ -186,6 +186,9 @@ export const TRANSLATIONS = {
       otherLeft: '상대방이 채팅방을 나갔습니다.',
       otherLeftHint: '채팅을 다시 하려면 새로 요청해주세요.',
       requestAgain: '채팅 요청하기',
+      deletedUser: '(탈퇴한 사용자)',
+      otherDeleted: '상대방이 탈퇴했어요.',
+      otherDeletedHint: '더 이상 채팅을 보낼 수 없습니다.',
     },
     support: {
       title: '고객센터 · 문의',
@@ -787,6 +790,9 @@ export const TRANSLATIONS = {
       otherLeft: 'The other person has left the chat.',
       otherLeftHint: 'Send a new request to chat again.',
       requestAgain: 'Request Chat',
+      deletedUser: '(Deleted User)',
+      otherDeleted: 'This user has deleted their account.',
+      otherDeletedHint: 'You can no longer send messages here.',
     },
     support: {
       title: 'Help & Support',

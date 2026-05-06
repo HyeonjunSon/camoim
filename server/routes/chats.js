@@ -26,26 +26,35 @@ router.get('/', requireAuth, async (req, res) => {
 
     const result = rooms
       .filter(room => {
-        const other = room.participants.find(p => String(p._id) !== String(me));
-        // 상대가 나간 방(other 없음)은 필터하지 않고 유지
-        if (!other) return true;
+        // populate에서 null이 섞여있어도 안전하게 다른 참여자 찾기
+        const other = room.participants.find(p => p && String(p._id) !== String(me));
+        if (!other) return true; // 상대가 나간/탈퇴한 방도 유지
         return !chatBlocked.has(String(other._id));
       })
       .map(room => {
-      const other = room.participants.find(p => String(p._id) !== String(me));
-      const otherLeft = !other; // 상대가 participants에서 빠졌으면 나간 것
-      return {
-        id: room._id,
-        other: other ? { id: other._id, nickname: other.nickname, avatarUrl: other.avatarUrl } : (room.otherSnapshot ?? null),
-        lastMessage: room.lastMessage,
-        lastMessageAt: room.lastMessageAt,
-        unreadCount: room.unreadCount?.get(String(me)) ?? 0,
-        status: room.status,
-        requesterId: room.requesterId,
-        isRequester: String(room.requesterId) === String(me),
-        otherLeft,
-      };
-    });
+        // 상대 식별: populate된 다른 사용자
+        const other = room.participants.find(p => p && String(p._id) !== String(me));
+        // null 참여자가 섞여있으면 → 상대가 계정 탈퇴
+        const hasNullParticipant = room.participants.some(p => p === null);
+        const otherDeleted = !other && hasNullParticipant;
+        // null도 없고 상대도 없으면 → 상대가 채팅방 나감
+        const otherLeft = !other && !hasNullParticipant;
+
+        return {
+          id: room._id,
+          other: other
+            ? { id: other._id, nickname: other.nickname, avatarUrl: other.avatarUrl }
+            : (room.otherSnapshot ?? null),
+          lastMessage: room.lastMessage,
+          lastMessageAt: room.lastMessageAt,
+          unreadCount: room.unreadCount?.get(String(me)) ?? 0,
+          status: room.status,
+          requesterId: room.requesterId,
+          isRequester: String(room.requesterId) === String(me),
+          otherLeft,
+          otherDeleted,
+        };
+      });
 
     res.json({ success: true, data: result });
   } catch (err) {
@@ -140,10 +149,22 @@ router.get('/:roomId/messages', requireAuth, async (req, res) => {
       createdAt: m.createdAt,
     }));
 
-    // 상대방이 아직 채팅방에 있는지 확인
-    const otherLeft = room.participants.length < 2;
+    // 상대방 상태 확인:
+    // - participants가 1명만 남음 → 상대 자발적 나감 (otherLeft)
+    // - 2명 다 있지만 한 명의 User 문서가 없음 → 상대 계정 탈퇴 (otherDeleted)
+    let otherLeft = false;
+    let otherDeleted = false;
+    if (room.participants.length < 2) {
+      otherLeft = true;
+    } else {
+      const otherId = room.participants.find(p => String(p) !== String(req.user.id));
+      if (otherId) {
+        const otherUser = await User.findById(otherId).select('_id').lean();
+        if (!otherUser) otherDeleted = true;
+      }
+    }
 
-    res.json({ success: true, data: formatted, otherLeft });
+    res.json({ success: true, data: formatted, otherLeft, otherDeleted });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });

@@ -36,24 +36,27 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [status, setStatus] = useState(route.params?.status ?? 'accepted');
   const [isRequester, setIsRequester] = useState(route.params?.isRequester ?? false);
   const [otherLeft, setOtherLeft] = useState(route.params?.otherLeft ?? false);
+  const [otherDeleted, setOtherDeleted] = useState(route.params?.otherDeleted ?? false);
   const { on, off, emit, joinRoom, leaveRoom, setActiveRoom } = useSocket();
   const flatListRef = useRef(null);
 
-  // 헤더 — 상대방 이름 + 프로필 버튼
+  // 헤더 — 상대방 이름 + 프로필 버튼 (탈퇴면 프로필 비활성)
   useEffect(() => {
     navigation.setOptions({
-      title: other?.nickname ?? t('chat.tabChats'),
+      title: otherDeleted ? t('chat.deletedUser') : (other?.nickname ?? t('chat.tabChats')),
       headerRight: () => (
-        <TouchableOpacity
-          onPress={() => navigation.push('UserProfile', { userId: other?.id })}
-          activeOpacity={0.7}
-          style={{ marginRight: 4 }}
-        >
-          <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>{t('chat.profile')}</Text>
-        </TouchableOpacity>
+        otherDeleted || !other?.id ? null : (
+          <TouchableOpacity
+            onPress={() => navigation.push('UserProfile', { userId: other?.id })}
+            activeOpacity={0.7}
+            style={{ marginRight: 4 }}
+          >
+            <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>{t('chat.profile')}</Text>
+          </TouchableOpacity>
+        )
       ),
     });
-  }, [other]);
+  }, [other, otherDeleted]);
 
   // 메시지 불러오기 + 글로벌 소켓 이벤트 등록
   useEffect(() => {
@@ -67,6 +70,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         if (data.success) {
           setMessages(data.data);
           if (data.otherLeft) setOtherLeft(true);
+          if (data.otherDeleted) setOtherDeleted(true);
         }
       } catch {}
       finally { setLoading(false); }
@@ -299,8 +303,14 @@ export default function ChatRoomScreen({ route, navigation }) {
             </View>
           </View>
         )
+      ) : otherDeleted ? (
+        // 상대방이 계정 탈퇴한 경우 — 재요청 불가
+        <View style={styles.leftBar}>
+          <Text style={styles.leftText}>{t('chat.otherDeleted')}</Text>
+          <Text style={styles.leftHint}>{t('chat.otherDeletedHint')}</Text>
+        </View>
       ) : otherLeft ? (
-        // 상대방이 나간 경우
+        // 상대방이 채팅방에서 나간 경우 — 재요청 가능
         <View style={styles.leftBar}>
           <Text style={styles.leftText}>{t('chat.otherLeft')}</Text>
           <Text style={styles.leftHint}>{t('chat.otherLeftHint')}</Text>

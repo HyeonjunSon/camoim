@@ -162,28 +162,39 @@ export default function ChatListScreen({ navigation }) {
       >
         <TouchableOpacity
           style={styles.roomCard}
-          onPress={() => navigation.navigate('ChatRoom', { roomId: item.id, other: item.other, status: item.status, isRequester: item.isRequester, otherLeft: item.otherLeft })}
+          onPress={() => navigation.navigate('ChatRoom', { roomId: item.id, other: item.other, status: item.status, isRequester: item.isRequester, otherLeft: item.otherLeft, otherDeleted: item.otherDeleted })}
           activeOpacity={0.8}
         >
           <TouchableOpacity
-            onPress={() => navigation.navigate('UserProfile', { userId: item.other?.id })}
+            onPress={() => {
+              // 탈퇴한 사용자는 프로필 이동 비활성
+              if (item.otherDeleted || !item.other?.id) return;
+              navigation.navigate('UserProfile', { userId: item.other.id });
+            }}
             activeOpacity={0.8}
             hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            disabled={item.otherDeleted || !item.other?.id}
           >
             <Avatar nickname={item.other?.nickname ?? '?'} uri={item.other?.avatarUrl} size={46} showLetter />
           </TouchableOpacity>
           <View style={styles.roomInfo}>
             <View style={styles.roomTop}>
-              <Text style={styles.roomNick}>{item.other?.nickname ?? t('common.notFound')}</Text>
+              <Text style={[styles.roomNick, (item.otherDeleted || item.otherLeft) && { color: colors.textSecondary }]}>
+                {item.otherDeleted
+                  ? t('chat.deletedUser')
+                  : (item.other?.nickname ?? t('chat.deletedUser'))}
+              </Text>
               <Text style={styles.roomTime}>{formatTime(item.lastMessageAt)}</Text>
             </View>
             <View style={styles.roomBottom}>
-              <Text style={[styles.roomLast, item.otherLeft && { color: colors.danger ?? '#E64545' }]} numberOfLines={1}>
-                {item.otherLeft
-                  ? t('chat.otherLeft')
-                  : item.status === 'pending' && item.isRequester
-                    ? t('chat.waitingAccept')
-                    : (item.lastMessage || t('chat.startConv'))}
+              <Text style={[styles.roomLast, (item.otherLeft || item.otherDeleted) && { color: colors.danger ?? '#E64545' }]} numberOfLines={1}>
+                {item.otherDeleted
+                  ? t('chat.otherDeleted')
+                  : item.otherLeft
+                    ? t('chat.otherLeft')
+                    : item.status === 'pending' && item.isRequester
+                      ? t('chat.waitingAccept')
+                      : (item.lastMessage || t('chat.startConv'))}
               </Text>
               {item.unreadCount > 0 && (
                 <View style={styles.unreadBadge}>
