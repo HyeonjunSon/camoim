@@ -5,7 +5,10 @@ const Message = require('./models/Message');
 const Notification = require('./models/Notification');
 const { isChatBlocked } = require('./utils/blocks');
 
-// 네이티브 앱(Origin 헤더 없음)은 항상 허용, 웹 origin은 환경변수 화이트리스트만 허용
+// 네이티브 모바일 앱 전용 — 브라우저 CORS 검증은 의미 없음.
+// 일부 RN WebSocket 구현이 origin 헤더를 비어있지 않게 보내는 경우 락다운이
+// 연결을 차단해서 실시간 메시지/알림이 끊김. 따라서 origin은 허용.
+// 추후 웹 클라이언트 추가 시 SOCKET_CORS_ORIGINS env 화이트리스트로 다시 좁힘.
 const SOCKET_ORIGINS = (process.env.SOCKET_CORS_ORIGINS || '')
   .split(',')
   .map((s) => s.trim())
@@ -15,7 +18,11 @@ function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
       origin: (origin, callback) => {
+        // 1) Origin 없는 요청 (대부분의 native 클라이언트) → 항상 허용
         if (!origin) return callback(null, true);
+        // 2) 화이트리스트가 비어 있으면 (env 미설정) → 모든 origin 허용 (native-only 가정)
+        if (SOCKET_ORIGINS.length === 0) return callback(null, true);
+        // 3) 화이트리스트가 있으면 거기에 있는 origin만 허용
         if (SOCKET_ORIGINS.includes(origin)) return callback(null, true);
         callback(new Error('Origin not allowed by Socket.io CORS'));
       },
