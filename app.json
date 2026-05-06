@@ -97,14 +97,15 @@
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_YOUR_REVERSED_IOS_CLIENT_ID"
+          "iosUrlScheme": "com.googleusercontent.apps.599256893701-02af8na9prs8abuh8cgpvv7addjm8u46"
         }
       ]
     ],
     "extra": {
       "eas": {
         "projectId": "fa0d6f5e-1203-42d3-bd79-b853010f189b"
-      }
+      },
+      "googleWebClientId": "599256893701-cpg5it6dlss6j5b4dfcddlrr9tbcplvq.apps.googleusercontent.com"
     },
     "owner": "hyeonjun122"
   }
