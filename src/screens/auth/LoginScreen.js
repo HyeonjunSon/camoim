@@ -13,8 +13,19 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import Constants from 'expo-constants';
+
+// Google Sign-In은 Expo Go에 네이티브 모듈이 없어 require가 실패함.
+// 정식 빌드(EAS)에서만 동작하도록 안전하게 lazy load.
+let GoogleSignin = null;
+let statusCodes = null;
+try {
+  const mod = require('@react-native-google-signin/google-signin');
+  GoogleSignin = mod.GoogleSignin;
+  statusCodes = mod.statusCodes;
+} catch (e) {
+  if (__DEV__) console.warn('[GoogleSignin] native module unavailable (Expo Go). Google 로그인 버튼이 숨겨집니다.');
+}
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -36,6 +47,7 @@ const GOOGLE_G_LOGO = 'https://developers.google.com/identity/images/g-logo.png'
 let googleConfigured = false;
 function ensureGoogleConfigured() {
   if (googleConfigured) return;
+  if (!GoogleSignin) return; // Expo Go 등 네이티브 미탑재
   if (!GOOGLE_IOS_CLIENT_ID) return;
   try {
     GoogleSignin.configure({
@@ -48,6 +60,8 @@ function ensureGoogleConfigured() {
     console.warn('[LoginScreen] GoogleSignin configure failed:', e?.message);
   }
 }
+
+const googleAvailable = !!GoogleSignin;
 
 export default function LoginScreen({ navigation }) {
   const { colors } = useTheme();
@@ -120,6 +134,10 @@ export default function LoginScreen({ navigation }) {
     setError('');
     setSocialBusy('google');
     try {
+      if (!GoogleSignin) {
+        Alert.alert('', 'Google 로그인은 정식 빌드(TestFlight/App Store)에서만 작동해요. Expo Go에서는 사용 불가.');
+        return;
+      }
       ensureGoogleConfigured();
       if (!GOOGLE_IOS_CLIENT_ID) {
         Alert.alert('', 'Google Sign-In is not configured yet. Please try Apple or email login.');
@@ -254,28 +272,30 @@ export default function LoginScreen({ navigation }) {
               )}
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            style={styles.googleBtn}
-            onPress={handleGoogle}
-            disabled={!!socialBusy}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-          >
-            {socialBusy === 'google' ? (
-              <ActivityIndicator color="#1F1F1F" />
-            ) : (
-              <>
-                <Image
-                  source={GOOGLE_G_LOGO}
-                  style={styles.googleLogo}
-                  contentFit="contain"
-                  cachePolicy="memory-disk"
-                  transition={0}
-                />
-                <Text style={styles.googleBtnText}>{t('auth.continueWithGoogle')}</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {googleAvailable && (
+            <TouchableOpacity
+              style={styles.googleBtn}
+              onPress={handleGoogle}
+              disabled={!!socialBusy}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              {socialBusy === 'google' ? (
+                <ActivityIndicator color="#1F1F1F" />
+              ) : (
+                <>
+                  <Image
+                    source={GOOGLE_G_LOGO}
+                    style={styles.googleLogo}
+                    contentFit="contain"
+                    cachePolicy="memory-disk"
+                    transition={0}
+                  />
+                  <Text style={styles.googleBtnText}>{t('auth.continueWithGoogle')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.signupLinkArea}>
