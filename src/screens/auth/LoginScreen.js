@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Text, TextInput } from '../../components/StyledText';
 import {
   View,
@@ -8,20 +8,41 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import Constants from 'expo-constants';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { useTheme } from '../../context/ThemeContext';
-import { colors } from '../../constants/colors'
+import { colors } from '../../constants/colors';
 import AuthLangToggle from '../../components/AuthLangToggle';
 
-// 로그인 화면
+const GOOGLE_WEB_CLIENT_ID =
+  Constants.expoConfig?.extra?.googleWebClientId ||
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
+  '';
+
+let googleConfigured = false;
+function ensureGoogleConfigured() {
+  if (googleConfigured) return;
+  if (!GOOGLE_WEB_CLIENT_ID) return;
+  try {
+    GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID, offlineAccess: false });
+    googleConfigured = true;
+  } catch (e) {
+    console.warn('[LoginScreen] GoogleSignin configure failed:', e?.message);
+  }
+}
+
 export default function LoginScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
-  const { login } = useAuth();
+  const { login, loginWithApple, loginWithGoogle } = useAuth();
   const { t } = useLang();
 
   const [email, setEmail] = useState('');
@@ -29,6 +50,13 @@ export default function LoginScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  const [socialBusy, setSocialBusy] = useState(null); // 'apple' | 'google' | null
+
+  useEffect(() => {
+    AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => {});
+    ensureGoogleConfigured();
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -43,6 +71,70 @@ export default function LoginScreen({ navigation }) {
       setError(e.message || t('auth.loginFailed'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApple = async () => {
+    setError('');
+    setSocialBusy('apple');
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) throw new Error('No identityToken from Apple');
+      const result = await loginWithApple(credential.identityToken);
+      if (result?.needsOnboarding) {
+        navigation.navigate('Onboarding', {
+          preRegToken: result.preRegToken,
+          provider: 'apple',
+          email: result.email || '',
+        });
+      }
+    } catch (e) {
+      if (e?.code === 'ERR_REQUEST_CANCELED') {
+        // 사용자가 취소 — 에러 표시 안 함
+      } else {
+        setError(e.message || t('auth.appleLoginFailed'));
+      }
+    } finally {
+      setSocialBusy(null);
+    }
+  };
+
+  const handleGoogle = async () => {
+    setError('');
+    setSocialBusy('google');
+    try {
+      ensureGoogleConfigured();
+      if (!GOOGLE_WEB_CLIENT_ID) {
+        Alert.alert('', 'Google Sign-In is not configured yet. Please try Apple or email login.');
+        return;
+      }
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo?.data?.idToken || userInfo?.idToken;
+      if (!idToken) throw new Error('No idToken from Google');
+      const result = await loginWithGoogle(idToken);
+      if (result?.needsOnboarding) {
+        navigation.navigate('Onboarding', {
+          preRegToken: result.preRegToken,
+          provider: 'google',
+          email: result.email || '',
+        });
+      }
+    } catch (e) {
+      if (e?.code === statusCodes?.SIGN_IN_CANCELLED) {
+        // skip
+      } else if (e?.code === statusCodes?.IN_PROGRESS) {
+        // skip
+      } else {
+        setError(e.message || t('auth.googleLoginFailed'));
+      }
+    } finally {
+      setSocialBusy(null);
     }
   };
 
@@ -62,6 +154,55 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.tagline}>{t('auth.welcome')}</Text>
         </View>
 
+        {/* 소셜 로그인 */}
+        <View style={styles.socialArea}>
+          {appleAvailable && (
+            <TouchableOpacity
+              style={styles.appleBtn}
+              onPress={handleApple}
+              disabled={!!socialBusy}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              {socialBusy === 'apple' ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="logo-apple" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Text style={styles.appleBtnText}>{t('auth.continueWithApple')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.googleBtn}
+            onPress={handleGoogle}
+            disabled={!!socialBusy}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
+            {socialBusy === 'google' ? (
+              <ActivityIndicator color="#1F1F1F" />
+            ) : (
+              <>
+                <Image
+                  source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg' }}
+                  style={{ width: 18, height: 18, marginRight: 10 }}
+                />
+                <Text style={styles.googleBtnText}>{t('auth.continueWithGoogle')}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* 또는 구분선 */}
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>{t('auth.orDivider')}</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* 이메일 폼 */}
         <View style={styles.formArea}>
           <TextInput
             style={styles.input}
@@ -131,9 +272,32 @@ const createStyles = (colors) => StyleSheet.create({
   scrollContent: {
     flexGrow: 1, justifyContent: 'center', padding: 24, paddingBottom: 40,
   },
-  logoArea: { alignItems: 'center', marginBottom: 40 },
+  logoArea: { alignItems: 'center', marginBottom: 32 },
   logoText: { fontSize: 36, fontWeight: '800', color: colors.primary },
   tagline: { fontSize: 14, color: colors.textSecondary, marginTop: 6 },
+
+  // 소셜 버튼
+  socialArea: { gap: 10, marginBottom: 18 },
+  appleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#000000', borderRadius: 12,
+    paddingVertical: 14, height: 50,
+  },
+  appleBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
+  googleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FFFFFF', borderRadius: 12,
+    paddingVertical: 14, height: 50,
+    borderWidth: 1, borderColor: '#DADCE0',
+  },
+  googleBtnText: { color: '#1F1F1F', fontSize: 15, fontWeight: '600' },
+
+  // 구분선
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { fontSize: 12, color: colors.textSecondary, marginHorizontal: 12 },
+
+  // 이메일 폼
   formArea: { gap: 12 },
   input: {
     backgroundColor: colors.inputBg, borderRadius: 12, padding: 14,

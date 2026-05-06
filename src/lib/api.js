@@ -83,6 +83,18 @@ export const verifyResetCode = (email, code) =>
 
 export const resetPassword = (email, code, newPassword) =>
   request('POST', '/auth/reset-password', { email, code, newPassword });
+
+// 소셜 로그인 — Apple
+export const appleLogin = (identityToken) =>
+  request('POST', '/auth/apple', { identityToken });
+
+// 소셜 로그인 — Google
+export const googleLogin = (idToken) =>
+  request('POST', '/auth/google', { idToken });
+
+// 소셜 가입 onboarding 완료
+export const socialComplete = (preRegToken, nickname, role, city) =>
+  request('POST', '/auth/social-complete', { preRegToken, nickname, role, city });
 export const checkEmailCode = (email, code) =>
   request('POST', '/auth/check-code', { email, code });
 

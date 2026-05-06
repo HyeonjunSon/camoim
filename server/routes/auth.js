@@ -7,6 +7,7 @@ const { requireAuth } = require('../middleware/auth');
 const { ROLES } = require('../constants/roles');
 const { UNIVERSITIES } = require('../constants/universities');
 const { generateCode, sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer');
+const { verifyAppleIdToken, verifyGoogleIdToken } = require('../utils/socialAuth');
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -325,6 +326,16 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ success: false, message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
     }
 
+    // 소셜 로그인 전용 계정 (비밀번호 없음) — 비번 로그인 차단
+    if (!user.passwordHash) {
+      const provider = user.appleSub ? 'Apple' : (user.googleSub ? 'Google' : '소셜');
+      return res.status(401).json({
+        success: false,
+        code: 'SOCIAL_ONLY',
+        message: `이 계정은 ${provider} 로그인을 사용해주세요.`,
+      });
+    }
+
     // 잠금 상태 확인 — 잠긴 시간이 지났으면 자동 해제
     if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
       const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
@@ -549,6 +560,210 @@ router.delete('/me', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[auth] delete account error:', err);
     res.status(500).json({ success: false, message: '회원탈퇴 처리 중 오류가 발생했습니다.' });
+  }
+});
+
+// ── 소셜 로그인 ─────────────────────────────────────────
+// 공통 흐름:
+//   1) 클라이언트가 Apple/Google idToken 보냄
+//   2) 서버가 검증 → { sub, email } 추출
+//   3) 기존 사용자 매칭:
+//      - appleSub/googleSub로 찾기
+//      - 그 다음 email로 찾기 (자동 연결)
+//   4) 매칭되면 → JWT 발급 (로그인 완료)
+//   5) 매칭 안 되면 → preReg JWT 발급 (Onboarding 화면용)
+
+const socialLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const PREREG_TTL_SEC = 30 * 60; // 30분
+
+function makeAccessToken(user) {
+  return jwt.sign(
+    { id: user._id, email: user.email, nickname: user.nickname, v: user.tokenVersion || 0 },
+    process.env.JWT_SECRET,
+    { expiresIn: '30d' }
+  );
+}
+
+function makePreRegToken(provider, sub, email) {
+  return jwt.sign(
+    { kind: 'preReg', provider, sub, email },
+    process.env.JWT_SECRET,
+    { expiresIn: `${PREREG_TTL_SEC}s` }
+  );
+}
+
+function userResponse(user) {
+  return {
+    id: user._id,
+    email: user.email,
+    nickname: user.nickname,
+    location: user.location,
+    school: user.school,
+    bio: user.bio,
+    role: user.role,
+    verified: user.verified,
+    university: user.university,
+    city: user.city,
+    avatarUrl: user.avatarUrl,
+    emailVerified: user.emailVerified ?? false,
+  };
+}
+
+async function findOrPreReg(provider, sub, email) {
+  // provider sub로 우선 매칭
+  const subQuery = provider === 'apple' ? { appleSub: sub } : { googleSub: sub };
+  let user = await User.findOne(subQuery);
+  if (user) return { user };
+
+  // email로 매칭 (auto-link)
+  if (email) {
+    user = await User.findOne({ email: email.toLowerCase() });
+    if (user) {
+      // 기존 계정에 소셜 sub 연결
+      if (provider === 'apple' && !user.appleSub) user.appleSub = sub;
+      if (provider === 'google' && !user.googleSub) user.googleSub = sub;
+      // 소셜은 이미 검증됐으니 emailVerified 자동 설정
+      user.emailVerified = true;
+      await user.save();
+      return { user, linked: true };
+    }
+  }
+
+  // 매칭 없음 → onboarding 필요
+  return { user: null };
+}
+
+// POST /api/auth/apple
+router.post('/apple', socialLimiter, async (req, res) => {
+  try {
+    const { identityToken } = req.body || {};
+    if (!identityToken) return res.status(400).json({ success: false, message: 'identityToken 필요' });
+
+    const { sub, email } = await verifyAppleIdToken(identityToken);
+    const { user, linked } = await findOrPreReg('apple', sub, email);
+
+    if (user) {
+      const token = makeAccessToken(user);
+      return res.json({ success: true, data: { token, user: userResponse(user), linked: !!linked } });
+    }
+
+    // 신규 → preReg 토큰 발급, 클라이언트는 Onboarding 화면으로 이동
+    const preRegToken = makePreRegToken('apple', sub, email || '');
+    res.json({
+      success: true,
+      data: { needsOnboarding: true, preRegToken, provider: 'apple', email: email || '' },
+    });
+  } catch (err) {
+    console.error('[auth] apple login error:', err.message);
+    res.status(401).json({ success: false, message: 'Apple 로그인 검증에 실패했어요.' });
+  }
+});
+
+// POST /api/auth/google
+router.post('/google', socialLimiter, async (req, res) => {
+  try {
+    const { idToken } = req.body || {};
+    if (!idToken) return res.status(400).json({ success: false, message: 'idToken 필요' });
+
+    const { sub, email } = await verifyGoogleIdToken(idToken);
+    const { user, linked } = await findOrPreReg('google', sub, email);
+
+    if (user) {
+      const token = makeAccessToken(user);
+      return res.json({ success: true, data: { token, user: userResponse(user), linked: !!linked } });
+    }
+
+    const preRegToken = makePreRegToken('google', sub, email || '');
+    res.json({
+      success: true,
+      data: { needsOnboarding: true, preRegToken, provider: 'google', email: email || '' },
+    });
+  } catch (err) {
+    console.error('[auth] google login error:', err.message);
+    res.status(401).json({ success: false, message: 'Google 로그인 검증에 실패했어요.' });
+  }
+});
+
+// POST /api/auth/social-complete
+// preReg 토큰 + 추가 정보(닉네임/유형/도시/약관)로 회원가입 완료
+router.post('/social-complete', socialLimiter, async (req, res) => {
+  try {
+    const { preRegToken, nickname, role, city } = req.body || {};
+    if (!preRegToken || !nickname || !role) {
+      return res.status(400).json({ success: false, message: '필수 항목이 누락됐어요.' });
+    }
+    if (!ALLOWED_SIGNUP_ROLES.includes(role)) {
+      return res.status(400).json({ success: false, message: '올바른 유형을 선택해주세요.' });
+    }
+    const cleanNickname = String(nickname).trim();
+    if (cleanNickname.length < 2 || cleanNickname.length > 20) {
+      return res.status(400).json({ success: false, message: '닉네임은 2~20자로 입력해주세요.' });
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(preRegToken, process.env.JWT_SECRET);
+    } catch {
+      return res.status(401).json({ success: false, message: '인증이 만료됐어요. 다시 로그인해주세요.' });
+    }
+    if (payload?.kind !== 'preReg' || !payload.provider || !payload.sub) {
+      return res.status(401).json({ success: false, message: '잘못된 인증 토큰이에요.' });
+    }
+
+    // 닉네임 중복 확인
+    const dup = await User.findOne({ nickname: cleanNickname });
+    if (dup) return res.status(409).json({ success: false, message: '이미 사용 중인 닉네임입니다.' });
+
+    // 동시간 race로 같은 sub로 이미 만들어졌는지 다시 확인
+    const subQuery = payload.provider === 'apple' ? { appleSub: payload.sub } : { googleSub: payload.sub };
+    const existing = await User.findOne(subQuery);
+    if (existing) {
+      const token = makeAccessToken(existing);
+      return res.json({ success: true, data: { token, user: userResponse(existing) } });
+    }
+
+    // 이메일도 한번 더 확인 (race or 다른 경로 가입)
+    const email = String(payload.email || '').toLowerCase();
+    if (email) {
+      const byEmail = await User.findOne({ email });
+      if (byEmail) {
+        if (payload.provider === 'apple' && !byEmail.appleSub) byEmail.appleSub = payload.sub;
+        if (payload.provider === 'google' && !byEmail.googleSub) byEmail.googleSub = payload.sub;
+        byEmail.emailVerified = true;
+        await byEmail.save();
+        const token = makeAccessToken(byEmail);
+        return res.json({ success: true, data: { token, user: userResponse(byEmail), linked: true } });
+      }
+    }
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: '이메일이 필요한 가입이에요. 다시 시도해주세요.' });
+    }
+
+    const user = await User.create({
+      email,
+      nickname: cleanNickname,
+      role,
+      city: city ? String(city).trim() : '',
+      emailVerified: true,
+      passwordHash: null, // 소셜 전용
+      ...(payload.provider === 'apple' ? { appleSub: payload.sub } : { googleSub: payload.sub }),
+    });
+
+    const token = makeAccessToken(user);
+    res.status(201).json({ success: true, data: { token, user: userResponse(user) } });
+  } catch (err) {
+    if (err && err.code === 11000) {
+      return res.status(409).json({ success: false, message: '이미 가입된 계정이에요.' });
+    }
+    console.error('[auth] social-complete error:', err);
+    res.status(500).json({ success: false, message: '서버 오류가 발생했어요.' });
   }
 });
 

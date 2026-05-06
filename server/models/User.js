@@ -2,7 +2,11 @@ const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, maxlength: 200 },
-  passwordHash: { type: String, required: true },
+  // 소셜 가입자는 비밀번호 없을 수 있음 (Apple/Google 로그인)
+  passwordHash: { type: String, default: null },
+  // 소셜 로그인 식별자 (auto-link by email)
+  appleSub:  { type: String, default: null, sparse: true, index: true },
+  googleSub: { type: String, default: null, sparse: true, index: true },
   nickname: { type: String, required: true, unique: true, maxlength: 30 },
   location: { type: String, default: '', maxlength: 100 },
   school: { type: String, default: '', maxlength: 200 },
