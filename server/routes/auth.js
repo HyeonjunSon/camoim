@@ -486,15 +486,58 @@ router.delete('/me', requireAuth, async (req, res) => {
     const Notification = require('../models/Notification');
     const Inquiry = require('../models/Inquiry');
     const Bookmark = require('../models/Bookmark');
+    const Message = require('../models/Message');
 
-    // 작성 콘텐츠의 userId를 null로 설정 (클라이언트에서 '탈퇴한 회원' 표시)
-    // 좋아요 배열에서도 제거
-    await Post.updateMany({ likedBy: userId }, { $pull: { likedBy: userId }, $inc: { likeCount: -1 } });
+    // 1. 본인 좋아요 회수 (다른 사람 글에서)
+    await Post.updateMany(
+      { likedBy: userId },
+      { $pull: { likedBy: userId }, $inc: { likeCount: -1 } }
+    );
+
+    // 2. 본인 게시글 hard delete + 그 글에 달린 모든 댓글/북마크/신고 cascade
+    const userPostIds = await Post.find({ userId }).distinct('_id');
+    if (userPostIds.length) {
+      await Promise.all([
+        Comment.deleteMany({ postId: { $in: userPostIds } }),
+        Bookmark.deleteMany({ postId: { $in: userPostIds } }),
+        Report.deleteMany({ targetType: 'post', targetId: { $in: userPostIds } }),
+        Post.deleteMany({ _id: { $in: userPostIds } }),
+      ]);
+    }
+
+    // 3. 본인이 다른 사람 글에 단 댓글 hard delete
+    //    - 부모 글의 commentCount 감소
+    //    - 댓글 대상 신고 삭제
+    const userComments = await Comment.find({ userId }).select('_id postId').lean();
+    if (userComments.length) {
+      const commentIds = userComments.map(c => c._id);
+      // postId별 카운트 집계 (자기 글은 이미 위에서 통째로 삭제됐으므로 자연스럽게 빠짐)
+      const countByPost = new Map();
+      for (const c of userComments) {
+        if (!c.postId) continue;
+        countByPost.set(String(c.postId), (countByPost.get(String(c.postId)) || 0) + 1);
+      }
+      const decrementOps = [];
+      for (const [postId, count] of countByPost) {
+        decrementOps.push(Post.findByIdAndUpdate(postId, { $inc: { commentCount: -count } }));
+      }
+      await Promise.all([
+        ...decrementOps,
+        Report.deleteMany({ targetType: 'comment', targetId: { $in: commentIds } }),
+        Comment.deleteMany({ _id: { $in: commentIds } }),
+      ]);
+    }
+
+    // 4. 채팅 메시지 — 내용 마스킹 + 발신자 null (상대방 채팅 흐름은 유지)
+    await Message.updateMany(
+      { senderId: userId },
+      { $set: { senderId: null, content: '(탈퇴한 사용자가 보낸 메시지)' } }
+    );
+
+    // 5. 그 외 본인 데이터 hard delete
     await Promise.all([
-      Post.updateMany({ userId }, { $set: { userId: null, isAnonymous: true } }),
-      Comment.updateMany({ userId }, { $set: { userId: null, isAnonymous: true } }),
       Block.deleteMany({ $or: [{ blockerId: userId }, { blockedId: userId }] }),
-      Report.deleteMany({ reporterId: userId }),
+      Report.deleteMany({ reporterId: userId }), // 본인이 한 신고
       VerifyRequest.deleteMany({ userId }),
       Notification.deleteMany({ userId }),
       Inquiry.deleteMany({ userId }),
