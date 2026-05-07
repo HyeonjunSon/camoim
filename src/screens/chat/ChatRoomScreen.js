@@ -47,6 +47,7 @@ export default function ChatRoomScreen({ route, navigation }) {
     if (isGroupChat) {
       navigation.setOptions({
         title: group?.name || t('chat.tabChats'),
+        headerTitleAlign: 'center',
         headerRight: () => (
           group?.id ? (
             <TouchableOpacity
