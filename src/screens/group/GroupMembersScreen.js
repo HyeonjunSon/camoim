@@ -229,8 +229,8 @@ export default function GroupMembersScreen({ route, navigation }) {
               ) : (
                 <TouchableOpacity
                   style={styles.row}
-                  activeOpacity={canManage && m.role !== 'owner' ? 0.7 : 1}
-                  onPress={() => canManage && m.role !== 'owner' ? setActionTarget(m) : null}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.push('UserProfile', { userId: m.id })}
                 >
                   {m.avatarUrl ? (
                     <Image source={{ uri: m.avatarUrl }} style={styles.avatar} contentFit="cover" />
@@ -249,7 +249,15 @@ export default function GroupMembersScreen({ route, navigation }) {
                     </Text>
                   </View>
                   {canManage && m.role !== 'owner' && (
-                    <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+                    <TouchableOpacity
+                      onPress={(e) => { e.stopPropagation?.(); setActionTarget(m); }}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={styles.moreBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel="멤버 관리"
+                    >
+                      <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+                    </TouchableOpacity>
                   )}
                 </TouchableOpacity>
               )}
@@ -347,6 +355,7 @@ const createStyles = (colors) => StyleSheet.create({
   emptyBox: { padding: 40, alignItems: 'center' },
   emptyText: { color: colors.textSecondary, fontSize: 14 },
 
+  moreBtn: { padding: 4 },
   pendingActions: { flexDirection: 'row', gap: 6 },
   pendingBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
   pendingBtnReject: { backgroundColor: colors.danger + '15', borderWidth: 1, borderColor: colors.danger + '40' },

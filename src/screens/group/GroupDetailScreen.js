@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
-  View, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, StyleSheet,
+  View, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, StyleSheet, Modal, Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -9,7 +9,6 @@ import { Text } from '../../components/StyledText';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
-import { Switch } from 'react-native';
 import {
   getGroup, joinGroup, leaveGroup, closeGroup, getGroupPosts, getGroupChat,
   setGroupNotifications,
@@ -33,6 +32,7 @@ export default function GroupDetailScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -54,6 +54,25 @@ export default function GroupDetailScreen({ route, navigation }) {
   }, [groupId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // 멤버에게만 헤더 우측에 ⋯ 메뉴 노출 — 알림 설정 모달 진입
+  const isActiveMember = group?.myMembership?.status === 'active';
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        isActiveMember ? (
+          <TouchableOpacity
+            onPress={() => setSettingsOpen(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="모임 설정"
+          >
+            <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
+          </TouchableOpacity>
+        ) : null
+      ),
+    });
+  }, [navigation, isActiveMember, colors.text]);
 
   const onJoin = async () => {
     setBusy(true);
@@ -334,46 +353,6 @@ export default function GroupDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* 알림 설정 — 멤버 전용. Optimistic update — UI 즉시 반영 후 API 호출 */}
-      {isMember && my && (
-        <View style={styles.notifSection}>
-          <View style={styles.notifRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.notifLabel}>{t('group.notifyPosts')}</Text>
-              <Text style={styles.notifHint}>새 글이 올라오면 알려줘요</Text>
-            </View>
-            <Switch
-              value={!!my.notifyPosts}
-              onValueChange={(val) => {
-                // 1) UI 즉시 반영
-                setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyPosts: val } } : g);
-                // 2) 백엔드는 비동기로 — 실패 시 원복
-                setGroupNotifications(groupId, { notifyPosts: val }).catch(() => {
-                  setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyPosts: !val } } : g);
-                });
-              }}
-              trackColor={{ false: colors.border, true: colors.primary }}
-            />
-          </View>
-          <View style={styles.notifRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.notifLabel}>{t('group.notifyChat')}</Text>
-              <Text style={styles.notifHint}>그룹 채팅 메시지를 알려줘요</Text>
-            </View>
-            <Switch
-              value={my.notifyChat !== false}
-              onValueChange={(val) => {
-                setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyChat: val } } : g);
-                setGroupNotifications(groupId, { notifyChat: val }).catch(() => {
-                  setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyChat: !val } } : g);
-                });
-              }}
-              trackColor={{ false: colors.border, true: colors.primary }}
-            />
-          </View>
-        </View>
-      )}
-
       {/* 소유자: 정보 수정 + 폐쇄 */}
       {isOwner && (
         <View style={{ paddingHorizontal: 16, marginTop: 16, gap: 8 }}>
@@ -408,6 +387,71 @@ export default function GroupDetailScreen({ route, navigation }) {
         <Ionicons name="create-outline" size={22} color={colors.white} />
       </TouchableOpacity>
     )}
+
+    {/* 설정 바텀시트 — 알림 등 */}
+    <Modal
+      visible={settingsOpen}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setSettingsOpen(false)}
+    >
+      <View style={styles.sheetOverlay}>
+        <TouchableOpacity
+          style={styles.sheetBg}
+          activeOpacity={1}
+          onPress={() => setSettingsOpen(false)}
+        />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          <Text style={styles.sheetTitle}>알림 설정</Text>
+
+          {my && (
+            <>
+              <View style={styles.sheetRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sheetItemLabel}>{t('group.notifyPosts')}</Text>
+                  <Text style={styles.sheetItemHint}>새 글이 올라오면 알려줘요</Text>
+                </View>
+                <Switch
+                  value={!!my.notifyPosts}
+                  onValueChange={(val) => {
+                    setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyPosts: val } } : g);
+                    setGroupNotifications(groupId, { notifyPosts: val }).catch(() => {
+                      setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyPosts: !val } } : g);
+                    });
+                  }}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                />
+              </View>
+              <View style={styles.sheetRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sheetItemLabel}>{t('group.notifyChat')}</Text>
+                  <Text style={styles.sheetItemHint}>그룹 채팅 메시지를 알려줘요</Text>
+                </View>
+                <Switch
+                  value={my.notifyChat !== false}
+                  onValueChange={(val) => {
+                    setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyChat: val } } : g);
+                    setGroupNotifications(groupId, { notifyChat: val }).catch(() => {
+                      setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyChat: !val } } : g);
+                    });
+                  }}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                />
+              </View>
+            </>
+          )}
+
+          <TouchableOpacity
+            style={styles.sheetCloseBtn}
+            onPress={() => setSettingsOpen(false)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.sheetCloseText}>닫기</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
     </View>
   );
 }
@@ -459,17 +503,34 @@ const createStyles = (colors) => StyleSheet.create({
   },
   editBtnText: { fontSize: 13, fontWeight: '700', color: colors.text },
 
-  notifSection: {
-    backgroundColor: colors.surface, marginHorizontal: 14, marginTop: 12,
-    borderRadius: 14, paddingHorizontal: 18,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+  // 설정 바텀시트
+  sheetOverlay: { flex: 1, justifyContent: 'flex-end' },
+  sheetBg: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  sheet: {
+    backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingBottom: 30, paddingTop: 12,
   },
-  notifRow: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 14,
+  sheetHandle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: colors.border, alignSelf: 'center', marginBottom: 16,
+  },
+  sheetTitle: {
+    fontSize: 13, fontWeight: '700', color: colors.textSecondary,
+    textTransform: 'uppercase', letterSpacing: 0.6,
+    paddingHorizontal: 20, marginBottom: 8,
+  },
+  sheetRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 20, paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
   },
-  notifLabel: { fontSize: 14, fontWeight: '600', color: colors.text },
-  notifHint: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
+  sheetItemLabel: { fontSize: 15, fontWeight: '600', color: colors.text },
+  sheetItemHint: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  sheetCloseBtn: {
+    marginTop: 12, marginHorizontal: 20, paddingVertical: 14, alignItems: 'center',
+    backgroundColor: colors.inputBg, borderRadius: 12,
+  },
+  sheetCloseText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
 
   // 게시판 섹션
   postsSection: { marginTop: 4 },
