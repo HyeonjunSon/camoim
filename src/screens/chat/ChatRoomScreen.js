@@ -45,23 +45,9 @@ export default function ChatRoomScreen({ route, navigation }) {
   // 헤더 — DM은 상대방 이름, 그룹은 모임명
   useEffect(() => {
     if (isGroupChat) {
-      navigation.setOptions({
-        title: group?.name || t('chat.tabChats'),
-        headerTitleAlign: 'center',
-        headerRight: () => (
-          group?.id ? (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
-              activeOpacity={0.6}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel="그룹 정보 보기"
-            >
-              <Text style={{ fontSize: 15, color: colors.primary, fontWeight: '600' }}>그룹</Text>
-            </TouchableOpacity>
-          ) : null
-        ),
-      });
+      // 그룹 채팅은 커스텀 헤더 사용 — iOS native bar는 좌/우 버튼 너비
+      // 차이 때문에 제목을 정확히 정중앙에 두지 못함
+      navigation.setOptions({ headerShown: false });
     } else {
       navigation.setOptions({
         title: otherDeleted ? t('chat.deletedUser') : (other?.nickname ?? t('chat.tabChats')),
@@ -255,12 +241,43 @@ export default function ChatRoomScreen({ route, navigation }) {
     return <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>;
   }
 
+  // 그룹 채팅 전용 커스텀 헤더 — 제목이 항상 정중앙
+  const CustomGroupHeader = () => (
+    <View style={[styles.customHeader, { paddingTop: insets.top }]}>
+      <View style={styles.customHeaderRow}>
+        <TouchableOpacity
+          style={styles.customHeaderSide}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.6}
+        >
+          <Ionicons name="chevron-back" size={26} color={colors.primary} />
+        </TouchableOpacity>
+        <View style={styles.customHeaderTitleWrap} pointerEvents="none">
+          <Text style={styles.customHeaderTitle} numberOfLines={1}>
+            {group?.name || t('chat.tabChats')}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.customHeaderSide, { alignItems: 'flex-end' }]}
+          onPress={() => group?.id && navigation.navigate('GroupDetail', { groupId: group.id })}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.6}
+          disabled={!group?.id}
+        >
+          <Text style={styles.customHeaderRight}>그룹</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 + insets.bottom : 0}
     >
+      {isGroupChat && <CustomGroupHeader />}
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -398,6 +415,40 @@ const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { padding: 12, gap: 6, paddingBottom: 8 },
+
+  // 커스텀 헤더 (그룹 채팅 전용) — 좌/우 절대 위치, 제목은 화면 정중앙
+  customHeader: {
+    backgroundColor: colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  customHeaderRow: {
+    height: 48,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  customHeaderSide: {
+    width: 60,
+    height: '100%',
+    justifyContent: 'center',
+  },
+  customHeaderTitleWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 76, // 좌우 60 버튼 + 여유 16
+  },
+  customHeaderTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  customHeaderRight: {
+    fontSize: 15,
+    color: colors.primary,
+    fontWeight: '600',
+  },
 
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginVertical: 2 },
   msgRowRight: { justifyContent: 'flex-end' },
