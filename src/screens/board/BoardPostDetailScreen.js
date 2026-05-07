@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import CustomHeader from '../../components/CustomHeader';
 import RenderHTML from 'react-native-render-html';
 
 const isHtmlContent = (s) => typeof s === 'string' && /<\w+/.test(s);
@@ -490,28 +491,13 @@ export default function BoardPostDetailScreen({ route, navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={0}
     >
-      {/* 커스텀 헤더 (PostDetailScreen과 동일) */}
-      <View style={[styles.customHeader, { paddingTop: insets.top }]}>
-        <TouchableOpacity
-          style={styles.headerCircle}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.text} />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>{t('post.postTitle')}</Text>
-
-        <View style={{ flex: 1 }} />
-
-        <Pressable style={styles.headerCircleMore} onPress={handleMore} hitSlop={8}>
-          <View style={styles.headerDotsGroup}>
-            <View style={styles.headerDot} />
-            <View style={styles.headerDot} />
-            <View style={styles.headerDot} />
-          </View>
-        </Pressable>
-      </View>
+      <CustomHeader
+        navigation={navigation}
+        title={t('post.postTitle')}
+        rightActions={[
+          { icon: 'ellipsis-horizontal', onPress: handleMore, label: t('post.moreActions') },
+        ]}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -850,41 +836,4 @@ const createStyles = (colors) => StyleSheet.create({
   barSendText: { fontSize: 13, fontWeight: '700', color: colors.white },
   barIcon: { padding: 8 },
 
-  // 커스텀 헤더 (PostDetailScreen과 동일 스타일)
-  customHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    paddingHorizontal: 12,
-    paddingBottom: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  headerCircle: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(118,118,128,0.12)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerCircleMore: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(118,118,128,0.12)',
-    alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  headerDotsGroup: {
-    width: 18, height: 4,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  headerDot: {
-    width: 4, height: 4, borderRadius: 2,
-    backgroundColor: colors.text,
-  },
-  headerTitle: {
-    position: 'absolute',
-    left: 0, right: 0, bottom: 10,
-    textAlign: 'center',
-    fontSize: 16, fontWeight: '700', color: colors.text,
-    pointerEvents: 'none',
-  },
 });

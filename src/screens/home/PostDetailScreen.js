@@ -17,6 +17,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import CustomHeader from '../../components/CustomHeader';
 import RenderHTML from 'react-native-render-html';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -519,28 +520,13 @@ export default function PostDetailScreen({ route, navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={0}
     >
-      {/* 커스텀 헤더 */}
-      <View style={[styles.customHeader, { paddingTop: insets.top }]}>
-        <TouchableOpacity
-          style={styles.headerCircle}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.text} />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>{t('post.postTitle')}</Text>
-
-        <View style={{ flex: 1 }} />
-
-        <Pressable style={styles.headerCircleMore} onPress={handleMore} hitSlop={8}>
-          <View style={styles.headerDotsGroup}>
-            <View style={styles.headerDot} />
-            <View style={styles.headerDot} />
-            <View style={styles.headerDot} />
-          </View>
-        </Pressable>
-      </View>
+      <CustomHeader
+        navigation={navigation}
+        title={t('post.postTitle')}
+        rightActions={[
+          { icon: 'ellipsis-horizontal', onPress: handleMore, label: t('post.moreActions') },
+        ]}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -774,48 +760,6 @@ const createStyles = (colors) => StyleSheet.create({
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   errorText: { fontSize: 15, color: colors.textSecondary },
 
-  // 커스텀 헤더
-  customHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    paddingHorizontal: 12,
-    paddingBottom: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  headerCircle: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(118,118,128,0.12)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  // ⋯ 메뉴: 36×36 원 안에 18px 도트 그룹을 flex center
-  // 3 dots × 4 + 2 gaps × 3 = 18px wide group
-  headerCircleMore: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(118,118,128,0.12)',
-    alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  headerDotsGroup: {
-    width: 18, height: 4,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  headerDot: {
-    width: 4, height: 4, borderRadius: 2,
-    backgroundColor: colors.text,
-  },
-  headerTitle: {
-    position: 'absolute',
-    left: 0, right: 0, bottom: 10,
-    textAlign: 'center',
-    fontSize: 16, fontWeight: '700', color: colors.text,
-    pointerEvents: 'none',
-  },
-  headerActions: {
-    flexDirection: 'row', gap: 8, marginLeft: 'auto',
-  },
 
   // ── 게시글 카드
   postCard: {

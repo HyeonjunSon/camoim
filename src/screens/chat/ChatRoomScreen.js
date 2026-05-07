@@ -21,6 +21,7 @@ import { useSocket } from '../../context/SocketContext';
 import { getToken } from '../../lib/storage';
 import { API_BASE_URL } from '../../lib/config';
 import Avatar from '../../components/common/Avatar';
+import CustomHeader from '../../components/CustomHeader';
 
 export default function ChatRoomScreen({ route, navigation }) {
   const { colors } = useTheme();
@@ -254,40 +255,13 @@ export default function ChatRoomScreen({ route, navigation }) {
   };
 
   const CustomChatHeader = () => (
-    <View style={[styles.customHeader, { paddingTop: insets.top }]}>
-      <View style={styles.customHeaderRow}>
-        <TouchableOpacity
-          style={styles.customHeaderBackBtn}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          activeOpacity={0.6}
-          accessibilityRole="button"
-          accessibilityLabel="뒤로가기"
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.customHeaderTitleWrap} pointerEvents="none">
-          <Text style={styles.customHeaderTitle} numberOfLines={1}>
-            {headerTitle}
-          </Text>
-        </View>
-        {showRightAction ? (
-          <TouchableOpacity
-            style={styles.customHeaderRightBtn}
-            onPress={onRightPress}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            activeOpacity={0.6}
-            accessibilityRole="button"
-            accessibilityLabel={rightLabel}
-          >
-            <Text style={styles.customHeaderRight}>{rightLabel}</Text>
-          </TouchableOpacity>
-        ) : (
-          // 우측 액션이 없을 때도 좌/우 균형 유지
-          <View style={styles.customHeaderBackBtn} />
-        )}
-      </View>
-    </View>
+    <CustomHeader
+      navigation={navigation}
+      title={headerTitle}
+      rightActions={showRightAction ? [
+        { text: rightLabel, onPress: onRightPress, label: rightLabel },
+      ] : []}
+    />
   );
 
   return (
@@ -436,54 +410,6 @@ const createStyles = (colors) => StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { padding: 12, gap: 6, paddingBottom: 8 },
 
-  // 커스텀 헤더 (그룹 채팅 전용) — 좌/우 절대 위치, 제목은 화면 정중앙
-  customHeader: {
-    backgroundColor: colors.background,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  customHeaderRow: {
-    height: 52,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  // 통일된 헤더 캡슐 — iOS tertiarySystemFill rgba(118,118,128,0.12)
-  // BoardPostDetail/PostDetail의 headerCircle과 동일한 36x36 사이즈
-  customHeaderBackBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(118,118,128,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  customHeaderRightBtn: {
-    minWidth: 52,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(118,118,128,0.12)',
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  customHeaderTitleWrap: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 84, // 좌우 버튼 + 여유
-  },
-  customHeaderTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  customHeaderRight: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '700',
-  },
 
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginVertical: 2 },
   msgRowRight: { justifyContent: 'flex-end' },

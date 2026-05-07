@@ -9,6 +9,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../components/StyledText';
+import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
@@ -194,40 +195,13 @@ export default function GroupDetailScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-    {/* 커스텀 헤더 — 제목 항상 정중앙 */}
-    <View style={[styles.customHeader, { paddingTop: insets.top }]}>
-      <View style={styles.customHeaderRow}>
-        <TouchableOpacity
-          style={styles.customHeaderBtn}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          activeOpacity={0.6}
-          accessibilityRole="button"
-          accessibilityLabel="뒤로가기"
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.customHeaderTitleWrap} pointerEvents="none">
-          <Text style={styles.customHeaderTitle} numberOfLines={1}>
-            {group?.name || t('nav.groupDetail')}
-          </Text>
-        </View>
-        {isActiveMember ? (
-          <TouchableOpacity
-            style={styles.customHeaderBtn}
-            onPress={() => setSettingsOpen(true)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            activeOpacity={0.6}
-            accessibilityRole="button"
-            accessibilityLabel="모임 설정"
-          >
-            <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.customHeaderBtn} />
-        )}
-      </View>
-    </View>
+    <CustomHeader
+      navigation={navigation}
+      title={group?.name || t('nav.groupDetail')}
+      rightActions={isActiveMember ? [
+        { icon: 'ellipsis-horizontal', onPress: () => setSettingsOpen(true), label: '모임 설정' },
+      ] : []}
+    />
 
     <ScrollView
       contentContainerStyle={{ paddingBottom: 100 }}
@@ -541,39 +515,6 @@ export default function GroupDetailScreen({ route, navigation }) {
 
 const createStyles = (colors) => StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  // 커스텀 헤더 — 제목 절대 정중앙
-  customHeader: {
-    backgroundColor: colors.background,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  customHeaderRow: {
-    height: 52,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  customHeaderBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(118,118,128,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  customHeaderTitleWrap: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 84,
-  },
-  customHeaderTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
-  },
-
   header: { backgroundColor: colors.surface, marginBottom: 12 },
   cover: { width: '100%', height: 180 },
   coverEditBadge: {

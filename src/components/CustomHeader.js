@@ -9,7 +9,9 @@ import { useTheme } from '../context/ThemeContext';
 // - 중앙: 제목 (절대 위치, 항상 정중앙)
 // - 우측: 액션 버튼 N개 (각각 캡슐로 감쌈)
 //
-// rightActions 형식: [{ icon: 'search', onPress, color?, iconSize?, label? }]
+// rightActions 형식:
+//   - 아이콘 버튼: { icon: 'search', onPress, color?, iconSize?, label? }
+//   - 텍스트 버튼: { text: '그룹', onPress, color?, label? }
 // rightContent: 직접 React 노드 넣고 싶을 때 (rightActions 대신)
 // onBack 안 주면 navigation.goBack() 호출
 export default function CustomHeader({
@@ -57,7 +59,7 @@ export default function CustomHeader({
             rightActions.map((a, i) => (
               <TouchableOpacity
                 key={i}
-                style={styles.btn}
+                style={a.text ? styles.btnText : styles.btn}
                 onPress={a.onPress}
                 disabled={a.disabled}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -65,11 +67,17 @@ export default function CustomHeader({
                 accessibilityRole="button"
                 accessibilityLabel={a.label}
               >
-                <Ionicons
-                  name={a.icon}
-                  size={a.iconSize || 20}
-                  color={a.color || colors.text}
-                />
+                {a.text ? (
+                  <Text style={[styles.btnTextLabel, { color: a.color || colors.primary }]}>
+                    {a.text}
+                  </Text>
+                ) : (
+                  <Ionicons
+                    name={a.icon}
+                    size={a.iconSize || 20}
+                    color={a.color || colors.text}
+                  />
+                )}
               </TouchableOpacity>
             ))
           ) : (
@@ -99,6 +107,13 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: 'rgba(118,118,128,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
+  btnText: {
+    minWidth: 52, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(118,118,128,0.12)',
+    paddingHorizontal: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  btnTextLabel: { fontSize: 14, fontWeight: '700' },
   titleWrap: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center', justifyContent: 'center',
