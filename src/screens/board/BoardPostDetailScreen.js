@@ -446,10 +446,11 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     ]);
   };
 
-  // 모임 글 + 그룹장/부그룹장이면 고정/삭제 권한 추가
+  // 모임 글 + 그룹장/부그룹장이면 모더레이션 권한 추가
+  // 단, 작성자 본인일 땐 본인 글에 대해서는 글 수정/삭제만 가능 (고정은 모더레이션 행동)
   const isGroupMod = post?.myGroupRole === 'owner' || post?.myGroupRole === 'manager';
   const canDelete = isPostAuthor || isGroupMod;
-  const canPin = !!post?.groupId && isGroupMod;
+  const canPin = !!post?.groupId && isGroupMod && !isPostAuthor;
 
   const togglePin = async () => {
     try {
