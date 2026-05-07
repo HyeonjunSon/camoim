@@ -54,7 +54,7 @@ export default function AdminGroupsScreen() {
         text: '승인',
         onPress: async () => {
           try {
-            const res = await adminApproveGroup(g._id);
+            const res = await adminApproveGroup(g.id);
             if (res.success) load();
             else Alert.alert('', res.message || t('common.serverError'));
           } catch (e) {
@@ -68,7 +68,7 @@ export default function AdminGroupsScreen() {
   const onReject = async () => {
     if (!rejectTarget) return;
     try {
-      const res = await adminRejectGroup(rejectTarget._id, rejectReason);
+      const res = await adminRejectGroup(rejectTarget.id, rejectReason);
       if (res.success) {
         setRejectTarget(null);
         setRejectReason('');
@@ -89,7 +89,7 @@ export default function AdminGroupsScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            const res = await adminCloseGroup(g._id);
+            const res = await adminCloseGroup(g.id);
             if (res.success) load();
             else Alert.alert('', res.message || t('common.serverError'));
           } catch (e) {
@@ -134,7 +134,7 @@ export default function AdminGroupsScreen() {
             </View>
           ) : (
             list.map(g => (
-              <View key={String(g._id)} style={styles.card}>
+              <View key={String(g.id)} style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.name}>{g.name}</Text>
                   <View style={styles.tag}>

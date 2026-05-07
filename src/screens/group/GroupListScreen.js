@@ -63,10 +63,10 @@ export default function GroupListScreen({ navigation, embedded = false }) {
     const meta = CATEGORY_META[g.category] || CATEGORY_META.general;
     return (
       <TouchableOpacity
-        key={String(g._id)}
+        key={String(g.id)}
         style={styles.row}
         activeOpacity={0.75}
-        onPress={() => navigation.navigate('GroupDetail', { groupId: g._id })}
+        onPress={() => navigation.navigate('GroupDetail', { groupId: g.id })}
       >
         {g.coverImage ? (
           <Image source={{ uri: g.coverImage }} style={styles.cover} contentFit="cover" />
@@ -161,7 +161,7 @@ export default function GroupListScreen({ navigation, embedded = false }) {
           {groups.length > 0 ? (
             <View style={styles.listCard}>
               {groups.map((g, idx) => (
-                <View key={String(g._id)}>
+                <View key={String(g.id)}>
                   {renderRow(g)}
                   {idx < groups.length - 1 && <View style={styles.rowDivider} />}
                 </View>
