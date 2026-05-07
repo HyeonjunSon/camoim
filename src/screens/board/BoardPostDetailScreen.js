@@ -49,7 +49,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
-import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, pinPost } from '../../lib/api';
+import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, pinPost, setBlock } from '../../lib/api';
 import { formatTime } from '../../lib/time';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
@@ -462,6 +462,38 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     }
   };
 
+  // 작성자 차단 (익명 글이거나 본인 글이면 비활성)
+  const canBlockAuthor = !post?.isAnonymous && !!post?.userId && !isPostAuthor;
+  const confirmBlockAuthor = () => {
+    if (!canBlockAuthor) return;
+    const nick = post.nickname || '이 사용자';
+    Alert.alert(
+      `${nick}님을 차단할까요?`,
+      '차단하면 이 사용자의 글과 채팅이 더 이상 보이지 않아요.',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: '차단',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await setBlock(post.userId, { blockChat: true, hideContent: true });
+              if (res.success) {
+                Alert.alert('', '차단되었어요.', [
+                  { text: 'OK', onPress: () => navigation.goBack() },
+                ]);
+              } else {
+                Alert.alert(t('common.error'), res.message ?? t('common.serverError'));
+              }
+            } catch (e) {
+              Alert.alert(t('common.error'), e.message ?? t('common.serverError'));
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleMore = () => {
     const L = {
       edit: t('post.editPostMenu'),
@@ -469,6 +501,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
       unpin: '📌 고정 해제',
       del: t('common.delete'),
       report: t('common.report'),
+      block: '작성자 차단',
       cancel: t('common.cancel'),
     };
     // 옵션 동적 구성
@@ -476,7 +509,8 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     if (isPostAuthor) opts.push(L.edit);
     if (canPin) opts.push(post.pinned ? L.unpin : L.pin);
     if (canDelete) opts.push(L.del);
-    if (!isPostAuthor) opts.push(L.report); // 본인 글은 신고 불필요
+    if (!isPostAuthor) opts.push(L.report);     // 본인 글은 신고 불필요
+    if (canBlockAuthor) opts.push(L.block);     // 익명/본인 아닌 경우만
     opts.push(L.cancel);
     const cancelIdx = opts.length - 1;
     const delIdx = opts.indexOf(L.del);
@@ -487,6 +521,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
       else if (action === L.pin || action === L.unpin) togglePin();
       else if (action === L.del) confirmDeletePost();
       else if (action === L.report) showReportSheet();
+      else if (action === L.block) confirmBlockAuthor();
     };
 
     if (Platform.OS === 'ios') {
