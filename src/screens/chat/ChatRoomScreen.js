@@ -241,17 +241,19 @@ export default function ChatRoomScreen({ route, navigation }) {
     return <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>;
   }
 
-  // 그룹 채팅 전용 커스텀 헤더 — 제목이 항상 정중앙
+  // 그룹 채팅 전용 커스텀 헤더 — 제목이 항상 정중앙, 좌/우 버튼은 iOS 26 스타일 캡슐
   const CustomGroupHeader = () => (
     <View style={[styles.customHeader, { paddingTop: insets.top }]}>
       <View style={styles.customHeaderRow}>
         <TouchableOpacity
-          style={styles.customHeaderSide}
+          style={styles.customHeaderBackBtn}
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           activeOpacity={0.6}
+          accessibilityRole="button"
+          accessibilityLabel="뒤로가기"
         >
-          <Ionicons name="chevron-back" size={26} color={colors.primary} />
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.customHeaderTitleWrap} pointerEvents="none">
           <Text style={styles.customHeaderTitle} numberOfLines={1}>
@@ -259,11 +261,13 @@ export default function ChatRoomScreen({ route, navigation }) {
           </Text>
         </View>
         <TouchableOpacity
-          style={[styles.customHeaderSide, { alignItems: 'flex-end' }]}
+          style={styles.customHeaderRightBtn}
           onPress={() => group?.id && navigation.navigate('GroupDetail', { groupId: group.id })}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           activeOpacity={0.6}
           disabled={!group?.id}
+          accessibilityRole="button"
+          accessibilityLabel="그룹 정보 보기"
         >
           <Text style={styles.customHeaderRight}>그룹</Text>
         </TouchableOpacity>
@@ -423,22 +427,45 @@ const createStyles = (colors) => StyleSheet.create({
     borderBottomColor: colors.border,
   },
   customHeaderRow: {
-    height: 48,
+    height: 52,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  customHeaderSide: {
-    width: 60,
-    height: '100%',
+  // iOS 26 Liquid Glass 느낌 — 부드러운 회색 배경 + 살짝 그림자
+  customHeaderBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.inputBg,
+    alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  customHeaderRightBtn: {
+    minWidth: 56,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.inputBg,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   customHeaderTitleWrap: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 76, // 좌우 60 버튼 + 여유 16
+    paddingHorizontal: 84, // 좌우 버튼 + 여유
   },
   customHeaderTitle: {
     fontSize: 17,
@@ -446,9 +473,9 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.text,
   },
   customHeaderRight: {
-    fontSize: 15,
+    fontSize: 14,
     color: colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginVertical: 2 },
