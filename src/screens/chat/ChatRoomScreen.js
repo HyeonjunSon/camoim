@@ -10,6 +10,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
@@ -51,9 +52,21 @@ export default function ChatRoomScreen({ route, navigation }) {
             <TouchableOpacity
               onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
               activeOpacity={0.7}
-              style={{ marginRight: 4 }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: colors.primary + '15',
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 14,
+                marginRight: 4,
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="모임 정보 보기"
             >
-              <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>모임</Text>
+              <Ionicons name="people" size={13} color={colors.primary} />
+              <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '700' }}>모임</Text>
             </TouchableOpacity>
           ) : null
         ),
