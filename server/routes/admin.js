@@ -8,6 +8,8 @@ const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const Group = require('../models/Group');
 const GroupMembership = require('../models/GroupMembership');
+const ChatRoom = require('../models/ChatRoom');
+const Message = require('../models/Message');
 const Notification = require('../models/Notification');
 const AdminLog = require('../models/AdminLog');
 const SystemSetting = require('../models/SystemSetting');
@@ -821,6 +823,24 @@ router.put('/groups/:id/approve', async (req, res) => {
     group.reviewedAt = new Date();
     await group.save();
 
+    // 그룹 채팅방 자동 생성 — 활성 멤버 전부 참여
+    try {
+      const existing = await ChatRoom.findOne({ groupId: group._id, kind: 'group' });
+      if (!existing) {
+        const activeMembers = await GroupMembership.find({
+          groupId: group._id, status: 'active',
+        }).distinct('userId');
+        await ChatRoom.create({
+          kind: 'group',
+          groupId: group._id,
+          groupName: group.name,
+          groupCoverImage: group.coverImage || '',
+          participants: activeMembers,
+          status: 'accepted',
+        });
+      }
+    } catch (e) { console.error('group chat create failed:', e.message); }
+
     try {
       await Notification.create({
         userId: group.ownerId,
@@ -876,6 +896,15 @@ router.delete('/groups/:id', async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    // 그룹 채팅방 삭제 (메시지·알림까지)
+    const chatRoom = await ChatRoom.findOne({ groupId: group._id, kind: 'group' });
+    if (chatRoom) {
+      await Promise.all([
+        Message.deleteMany({ roomId: chatRoom._id }),
+        Notification.deleteMany({ roomId: chatRoom._id }),
+        chatRoom.deleteOne(),
+      ]);
+    }
     await Promise.all([
       Post.deleteMany({ groupId: group._id }),
       GroupMembership.deleteMany({ groupId: group._id }),

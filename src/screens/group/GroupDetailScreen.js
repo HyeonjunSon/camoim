@@ -10,7 +10,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
 import {
-  getGroup, joinGroup, leaveGroup, closeGroup, getGroupPosts,
+  getGroup, joinGroup, leaveGroup, closeGroup, getGroupPosts, getGroupChat,
 } from '../../lib/api';
 import { formatTime } from '../../lib/time';
 
@@ -213,6 +213,36 @@ export default function GroupDetailScreen({ route, navigation }) {
         {isMember && !isOwner && (
           <TouchableOpacity style={[styles.actionBtn, styles.outlineBtn]} onPress={onLeave} disabled={busy} activeOpacity={0.85}>
             <Text style={styles.outlineBtnText}>{t('group.leave')}</Text>
+          </TouchableOpacity>
+        )}
+        {isMember && (
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.primaryBtn]}
+            onPress={async () => {
+              try {
+                const res = await getGroupChat(groupId);
+                if (res.success) {
+                  navigation.navigate('ChatRoom', {
+                    roomId: res.data.id,
+                    kind: 'group',
+                    group: {
+                      id: res.data.groupId,
+                      name: res.data.groupName,
+                      coverImage: res.data.groupCoverImage,
+                      memberCount: res.data.participantCount,
+                    },
+                  });
+                } else {
+                  Alert.alert('', res.message || t('common.serverError'));
+                }
+              } catch (e) {
+                Alert.alert('', e?.message || t('common.serverError'));
+              }
+            }}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="chatbubbles" size={16} color={colors.white} />
+            <Text style={styles.primaryBtnText}>그룹 채팅 입장</Text>
           </TouchableOpacity>
         )}
         {(isOwner || isManager) && (

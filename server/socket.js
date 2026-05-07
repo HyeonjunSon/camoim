@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const ChatRoom = require('./models/ChatRoom');
 const Message = require('./models/Message');
 const Notification = require('./models/Notification');
+const GroupMembership = require('./models/GroupMembership');
 const { isChatBlocked } = require('./utils/blocks');
 
 // 네이티브 모바일 앱 전용 — 브라우저 CORS 검증은 의미 없음.
@@ -62,32 +63,35 @@ function initSocket(httpServer) {
       socket.leave(roomId);
     });
 
-    // 메시지 전송
+    // 메시지 전송 (DM + 그룹 채팅 모두)
     socket.on('send_message', async ({ roomId, content }) => {
       try {
         if (!content?.trim()) return;
+        const trimmed = content.trim();
 
         const room = await ChatRoom.findById(roomId);
         if (!room) return;
         if (!room.participants.some(p => String(p) === String(userId))) return;
 
-        // 차단 체크 (양방향)
-        const otherIdEarly = room.participants.find(p => String(p) !== String(userId));
-        if (otherIdEarly && await isChatBlocked(userId, otherIdEarly)) {
-          socket.emit('send_error', { message: '차단된 사용자와는 채팅할 수 없어요.' });
-          return;
-        }
+        const isGroup = room.kind === 'group';
 
-        // 채팅 요청 단계: 요청자만 1통, 수신자는 수락 전 발송 불가
-        if (room.status === 'pending') {
-          if (String(room.requesterId) !== String(userId)) {
-            socket.emit('send_error', { message: '아직 수락되지 않은 채팅이에요.' });
+        // DM: 차단 체크 + 요청 단계 1통 제한
+        if (!isGroup) {
+          const otherIdEarly = room.participants.find(p => String(p) !== String(userId));
+          if (otherIdEarly && await isChatBlocked(userId, otherIdEarly)) {
+            socket.emit('send_error', { message: '차단된 사용자와는 채팅할 수 없어요.' });
             return;
           }
-          const already = await Message.countDocuments({ roomId, senderId: userId });
-          if (already >= 1) {
-            socket.emit('send_error', { message: '상대가 수락하기 전에는 메시지를 한 통만 보낼 수 있어요.' });
-            return;
+          if (room.status === 'pending') {
+            if (String(room.requesterId) !== String(userId)) {
+              socket.emit('send_error', { message: '아직 수락되지 않은 채팅이에요.' });
+              return;
+            }
+            const already = await Message.countDocuments({ roomId, senderId: userId });
+            if (already >= 1) {
+              socket.emit('send_error', { message: '상대가 수락하기 전에는 메시지를 한 통만 보낼 수 있어요.' });
+              return;
+            }
           }
         }
 
@@ -95,20 +99,22 @@ function initSocket(httpServer) {
         const message = await Message.create({
           roomId,
           senderId: userId,
-          content: content.trim(),
+          content: trimmed,
           readBy: [userId],
         });
 
-        // 상대방 unread +1
-        const otherId = room.participants.find(p => String(p) !== String(userId));
-        if (otherId) {
-          const currentUnread = room.unreadCount?.get(String(otherId)) ?? 0;
-          await ChatRoom.findByIdAndUpdate(roomId, {
-            lastMessage: content.trim(),
-            lastMessageAt: new Date(),
-            $set: { [`unreadCount.${otherId}`]: currentUnread + 1 },
-          });
+        // 다른 참여자(들)의 unread +1
+        const otherIds = room.participants
+          .map(p => String(p))
+          .filter(id => id !== String(userId));
+
+        const update = { lastMessage: trimmed, lastMessageAt: new Date() };
+        const incs = {};
+        for (const oid of otherIds) {
+          const cur = room.unreadCount?.get(oid) ?? 0;
+          incs[`unreadCount.${oid}`] = cur + 1;
         }
+        await ChatRoom.findByIdAndUpdate(roomId, { ...update, $set: incs });
 
         const payload = {
           id: message._id,
@@ -118,26 +124,49 @@ function initSocket(httpServer) {
           content: message.content,
           readBy: message.readBy,
           createdAt: message.createdAt,
+          kind: room.kind,
         };
 
         // 방 안의 모든 사람에게 전송
         io.to(roomId).emit('new_message', payload);
 
-        // 상대방 알림 저장 + 실시간 이벤트
-        const preview = content.trim().length > 30 ? content.trim().slice(0, 30) + '…' : content.trim();
-        await Notification.create({
-          userId: otherId,
-          type: 'chat',
-          roomId,
-          message: `${socket.user.nickname}: ${preview}`,
-          isRead: false,
-        });
+        // 알림 저장 + 실시간 이벤트
+        const preview = trimmed.length > 30 ? trimmed.slice(0, 30) + '…' : trimmed;
+        const notifTitle = isGroup
+          ? `${room.groupName} · ${socket.user.nickname}: ${preview}`
+          : `${socket.user.nickname}: ${preview}`;
 
-        io.to(`user_${otherId}`).emit('chat_notification', {
-          roomId,
-          senderNickname: socket.user.nickname,
-          content: content.trim(),
-        });
+        // 그룹 채팅: notifyChat=true인 멤버에게만 알림
+        let recipients = otherIds;
+        if (isGroup) {
+          const enabledMembers = await GroupMembership.find({
+            groupId: room.groupId,
+            userId: { $in: otherIds },
+            status: 'active',
+            notifyChat: true,
+          }).distinct('userId');
+          recipients = enabledMembers.map(String);
+        }
+
+        await Promise.all(recipients.map(rid =>
+          Notification.create({
+            userId: rid,
+            type: isGroup ? 'group_chat' : 'chat',
+            roomId,
+            message: notifTitle,
+            isRead: false,
+          }).catch(() => {})
+        ));
+
+        for (const rid of recipients) {
+          io.to(`user_${rid}`).emit('chat_notification', {
+            roomId,
+            kind: room.kind,
+            senderNickname: socket.user.nickname,
+            content: trimmed,
+            groupName: isGroup ? room.groupName : undefined,
+          });
+        }
       } catch (err) {
         console.error('메시지 전송 오류:', err);
       }

@@ -24,7 +24,8 @@ export default function ChatRoomScreen({ route, navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
-  const { roomId, other } = route.params;
+  const { roomId, other, group } = route.params;
+  const isGroupChat = route.params?.kind === 'group' || !!group;
   const { user: me } = useAuth();
   const { t } = useLang();
   const insets = useSafeAreaInsets();
@@ -33,30 +34,47 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [status, setStatus] = useState(route.params?.status ?? 'accepted');
+  const [status, setStatus] = useState(isGroupChat ? 'accepted' : (route.params?.status ?? 'accepted'));
   const [isRequester, setIsRequester] = useState(route.params?.isRequester ?? false);
   const [otherLeft, setOtherLeft] = useState(route.params?.otherLeft ?? false);
   const [otherDeleted, setOtherDeleted] = useState(route.params?.otherDeleted ?? false);
   const { on, off, emit, joinRoom, leaveRoom, setActiveRoom } = useSocket();
   const flatListRef = useRef(null);
 
-  // 헤더 — 상대방 이름 + 프로필 버튼 (탈퇴면 프로필 비활성)
+  // 헤더 — DM은 상대방 이름, 그룹은 모임명
   useEffect(() => {
-    navigation.setOptions({
-      title: otherDeleted ? t('chat.deletedUser') : (other?.nickname ?? t('chat.tabChats')),
-      headerRight: () => (
-        otherDeleted || !other?.id ? null : (
-          <TouchableOpacity
-            onPress={() => navigation.push('UserProfile', { userId: other?.id })}
-            activeOpacity={0.7}
-            style={{ marginRight: 4 }}
-          >
-            <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>{t('chat.profile')}</Text>
-          </TouchableOpacity>
-        )
-      ),
-    });
-  }, [other, otherDeleted]);
+    if (isGroupChat) {
+      navigation.setOptions({
+        title: group?.name || t('chat.tabChats'),
+        headerRight: () => (
+          group?.id ? (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
+              activeOpacity={0.7}
+              style={{ marginRight: 4 }}
+            >
+              <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>모임</Text>
+            </TouchableOpacity>
+          ) : null
+        ),
+      });
+    } else {
+      navigation.setOptions({
+        title: otherDeleted ? t('chat.deletedUser') : (other?.nickname ?? t('chat.tabChats')),
+        headerRight: () => (
+          otherDeleted || !other?.id ? null : (
+            <TouchableOpacity
+              onPress={() => navigation.push('UserProfile', { userId: other?.id })}
+              activeOpacity={0.7}
+              style={{ marginRight: 4 }}
+            >
+              <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>{t('chat.profile')}</Text>
+            </TouchableOpacity>
+          )
+        ),
+      });
+    }
+  }, [other, otherDeleted, group, isGroupChat]);
 
   // 메시지 불러오기 + 글로벌 소켓 이벤트 등록
   useEffect(() => {
@@ -200,16 +218,17 @@ export default function ChatRoomScreen({ route, navigation }) {
     const isMine = String(item.senderId) === String(me?.id);
     const prevItem = messages[index - 1];
     const showAvatar = !isMine && String(prevItem?.senderId) !== String(item.senderId);
-    // 1:1 채팅에서 상대가 아직 안 읽었으면 "1" 표시
-    const unreadCount = isMine && item.readBy
+    // 1:1 채팅에서 상대가 아직 안 읽었으면 "1" 표시 (그룹은 표시 안 함)
+    const unreadCount = (!isGroupChat && isMine && item.readBy)
       ? (item.readBy.some(id => String(id) === String(other?.id)) ? 0 : 1)
       : 0;
+    const senderName = item.senderNickname || (other?.nickname ?? '');
 
     return (
       <View style={[styles.msgRow, isMine ? styles.msgRowRight : styles.msgRowLeft]}>
         {!isMine && (
           showAvatar
-            ? <Avatar nickname={other?.nickname ?? '?'} uri={other?.avatarUrl} size={30} showLetter />
+            ? <Avatar nickname={senderName || '?'} uri={isGroupChat ? null : other?.avatarUrl} size={30} showLetter />
             : <View style={styles.avatarSpacer} />
         )}
         {isMine && unreadCount > 0 && (
@@ -217,7 +236,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         )}
         <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleOther]}>
           {!isMine && showAvatar && (
-            <Text style={styles.bubbleSender}>{item.senderNickname}</Text>
+            <Text style={styles.bubbleSender}>{senderName}</Text>
           )}
           <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{item.content}</Text>
           <Text style={[styles.bubbleTime, isMine && styles.bubbleTimeMine]}>
@@ -249,7 +268,31 @@ export default function ChatRoomScreen({ route, navigation }) {
       />
 
       {/* 하단 영역: 상태에 따라 다름 */}
-      {status === 'pending' && !isRequester ? (
+      {isGroupChat ? (
+        // 그룹 채팅 — 항상 입력 바
+        <View style={styles.inputBar}>
+          <TextInput
+            style={styles.input}
+            placeholder={t('chat.placeholder')}
+            placeholderTextColor={colors.textSecondary}
+            value={text}
+            onChangeText={setText}
+            multiline
+            maxLength={2000}
+            returnKeyType="send"
+            onSubmitEditing={sendMessage}
+            blurOnSubmit={false}
+          />
+          <TouchableOpacity
+            style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
+            onPress={sendMessage}
+            disabled={!text.trim() || sending}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.sendBtnText}>{t('common.send')}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : status === 'pending' && !isRequester ? (
         // 수신자: 수락/거절 버튼
         <View style={styles.requestBar}>
           <Text style={styles.requestNotice}>

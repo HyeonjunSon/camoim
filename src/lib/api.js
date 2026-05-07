@@ -361,6 +361,7 @@ export const setGroupNotifications = (groupId, { notifyPosts, notifyChat }) =>
   request('PUT', `/groups/${groupId}/notifications`, { notifyPosts, notifyChat });
 export const getGroupPosts = (groupId, { page = 1, limit = 20 } = {}) =>
   request('GET', `/groups/${groupId}/posts?page=${page}&limit=${limit}`);
+export const getGroupChat = (groupId) => request('GET', `/groups/${groupId}/chat`);
 
 // 관리자 — 모임 승인
 export const adminGetGroups = (status = 'pending_review') =>

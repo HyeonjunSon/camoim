@@ -154,6 +154,41 @@ export default function ChatListScreen({ navigation }) {
   }
 
   function renderRoom({ item }) {
+    // 그룹 채팅
+    if (item.kind === 'group') {
+      const g = item.group || {};
+      return (
+        <TouchableOpacity
+          style={styles.roomCard}
+          onPress={() => navigation.navigate('ChatRoom', {
+            roomId: item.id, kind: 'group', group: g,
+          })}
+          activeOpacity={0.8}
+        >
+          <View style={styles.groupAvatar}>
+            <Text style={styles.groupAvatarEmoji}>👥</Text>
+          </View>
+          <View style={styles.roomInfo}>
+            <View style={styles.roomTop}>
+              <Text style={styles.roomNick} numberOfLines={1}>{g.name || '모임 채팅'}</Text>
+              <Text style={styles.roomTime}>{formatTime(item.lastMessageAt)}</Text>
+            </View>
+            <View style={styles.roomBottom}>
+              <Text style={styles.roomLast} numberOfLines={1}>
+                {item.lastMessage || `${g.memberCount || 0}명의 모임 채팅방`}
+              </Text>
+              {item.unreadCount > 0 && (
+                <View style={styles.unreadBadge}>
+                  <Text style={styles.unreadText}>{item.unreadCount > 99 ? '99+' : item.unreadCount}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    // DM
     return (
       <Swipeable
         ref={ref => { swipeableRefs.current[item.id] = ref; }}
@@ -167,7 +202,6 @@ export default function ChatListScreen({ navigation }) {
         >
           <TouchableOpacity
             onPress={() => {
-              // 탈퇴한 사용자는 프로필 이동 비활성
               if (item.otherDeleted || !item.other?.id) return;
               navigation.navigate('UserProfile', { userId: item.other.id });
             }}
@@ -295,4 +329,10 @@ const createStyles = (colors) => StyleSheet.create({
     width: 80, gap: 4,
   },
   swipeDeleteText: { fontSize: 11, color: colors.white, fontWeight: '600' },
+  groupAvatar: {
+    width: 46, height: 46, borderRadius: 23,
+    backgroundColor: colors.primary + '20',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  groupAvatarEmoji: { fontSize: 22 },
 });

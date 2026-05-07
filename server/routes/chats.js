@@ -7,7 +7,7 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const { isChatBlocked, getBlockedUserIds } = require('../utils/blocks');
 
-// GET /api/chats — 내 채팅방 목록
+// GET /api/chats — 내 채팅방 목록 (DM + 그룹 채팅 통합)
 // ?box=accepted (기본) | requests (내가 받은 요청만) | sent (내가 보낸 대기중)
 router.get('/', requireAuth, async (req, res) => {
   try {
@@ -15,34 +15,50 @@ router.get('/', requireAuth, async (req, res) => {
     const me = req.user.id;
     let filter = { participants: me };
     if (box === 'accepted') filter.status = 'accepted';
-    else if (box === 'requests') filter = { participants: me, status: 'pending', requesterId: { $ne: me } };
-    else if (box === 'sent') filter = { participants: me, status: 'pending', requesterId: me };
+    else if (box === 'requests') filter = { participants: me, status: 'pending', requesterId: { $ne: me }, kind: 'dm' };
+    else if (box === 'sent') filter = { participants: me, status: 'pending', requesterId: me, kind: 'dm' };
 
     const rooms = await ChatRoom.find(filter)
       .populate('participants', 'nickname avatarUrl')
       .sort({ lastMessageAt: -1 });
 
-    // chat 차단된 상대와의 방은 숨김
+    // chat 차단된 상대와의 방은 숨김 (DM만)
     const chatBlocked = new Set(await getBlockedUserIds(me, 'blockChat'));
 
     const result = rooms
       .filter(room => {
-        // populate에서 null이 섞여있어도 안전하게 다른 참여자 찾기
+        if (room.kind === 'group') return true;
         const other = room.participants.find(p => p && String(p._id) !== String(me));
-        if (!other) return true; // 상대가 나간/탈퇴한 방도 유지
+        if (!other) return true;
         return !chatBlocked.has(String(other._id));
       })
       .map(room => {
-        // 상대 식별: populate된 다른 사용자
+        // 그룹 채팅 — 모임 정보 노출
+        if (room.kind === 'group') {
+          return {
+            id: room._id,
+            kind: 'group',
+            group: {
+              id: room.groupId,
+              name: room.groupName,
+              coverImage: room.groupCoverImage,
+              memberCount: room.participants.length,
+            },
+            lastMessage: room.lastMessage,
+            lastMessageAt: room.lastMessageAt,
+            unreadCount: room.unreadCount?.get(String(me)) ?? 0,
+            status: 'accepted',
+          };
+        }
+        // DM — 기존 형식
         const other = room.participants.find(p => p && String(p._id) !== String(me));
-        // null 참여자가 섞여있으면 → 상대가 계정 탈퇴
         const hasNullParticipant = room.participants.some(p => p === null);
         const otherDeleted = !other && hasNullParticipant;
-        // null도 없고 상대도 없으면 → 상대가 채팅방 나감
         const otherLeft = !other && !hasNullParticipant;
 
         return {
           id: room._id,
+          kind: 'dm',
           other: other
             ? { id: other._id, nickname: other.nickname, avatarUrl: other.avatarUrl }
             : (room.otherSnapshot ?? null),
@@ -186,22 +202,34 @@ router.get('/:roomId/messages', requireAuth, async (req, res) => {
       createdAt: m.createdAt,
     }));
 
-    // 상대방 상태 확인:
-    // - participants가 1명만 남음 → 상대 자발적 나감 (otherLeft)
-    // - 2명 다 있지만 한 명의 User 문서가 없음 → 상대 계정 탈퇴 (otherDeleted)
+    // 그룹 채팅은 otherLeft/otherDeleted 개념 없음
     let otherLeft = false;
     let otherDeleted = false;
-    if (room.participants.length < 2) {
-      otherLeft = true;
-    } else {
-      const otherId = room.participants.find(p => String(p) !== String(req.user.id));
-      if (otherId) {
-        const otherUser = await User.findById(otherId).select('_id').lean();
-        if (!otherUser) otherDeleted = true;
+    if (room.kind !== 'group') {
+      if (room.participants.length < 2) {
+        otherLeft = true;
+      } else {
+        const otherId = room.participants.find(p => String(p) !== String(req.user.id));
+        if (otherId) {
+          const otherUser = await User.findById(otherId).select('_id').lean();
+          if (!otherUser) otherDeleted = true;
+        }
       }
     }
 
-    res.json({ success: true, data: formatted, otherLeft, otherDeleted });
+    res.json({
+      success: true,
+      data: formatted,
+      otherLeft,
+      otherDeleted,
+      kind: room.kind,
+      group: room.kind === 'group' ? {
+        id: room.groupId,
+        name: room.groupName,
+        coverImage: room.groupCoverImage,
+        memberCount: room.participants.length,
+      } : undefined,
+    });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
@@ -239,6 +267,13 @@ router.delete('/:roomId', requireAuth, async (req, res) => {
     if (!room) return res.status(404).json({ success: false, message: '채팅방을 찾을 수 없어요.' });
     if (!room.participants.some(p => String(p) === String(req.user.id))) {
       return res.status(403).json({ success: false, message: '권한이 없어요.' });
+    }
+    // 그룹 채팅방은 모임에서 나가야 함
+    if (room.kind === 'group') {
+      return res.status(400).json({
+        success: false,
+        message: '그룹 채팅방은 모임에서 나가야 떠날 수 있어요.',
+      });
     }
 
     // 나가기 전에 상대방 ID 확보

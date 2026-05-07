@@ -7,6 +7,8 @@ const GroupMembership = require('../models/GroupMembership');
 const Post = require('../models/Post');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const ChatRoom = require('../models/ChatRoom');
+const Message = require('../models/Message');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -198,6 +200,15 @@ router.delete('/:id', requireAuth, async (req, res) => {
     const my = await getMyMembership(group._id, req.user.id);
     if (!isOwner(my)) return res.status(403).json({ success: false, message: '그룹장만 폐쇄할 수 있어요.' });
 
+    // 그룹 채팅방 삭제 (메시지·알림까지)
+    const chatRoom = await ChatRoom.findOne({ groupId: group._id, kind: 'group' });
+    if (chatRoom) {
+      await Promise.all([
+        Message.deleteMany({ roomId: chatRoom._id }),
+        Notification.deleteMany({ roomId: chatRoom._id }),
+        chatRoom.deleteOne(),
+      ]);
+    }
     // cascade: 글 삭제 + 멤버십 삭제 + 그룹 status='closed' (소프트)
     await Promise.all([
       Post.deleteMany({ groupId: group._id }),
@@ -239,6 +250,11 @@ router.post('/:id/join', requireAuth, async (req, res) => {
     await GroupMembership.create({ groupId: group._id, userId: req.user.id, role: 'member', status });
     if (status === 'active') {
       await Group.findByIdAndUpdate(group._id, { $inc: { memberCount: 1 } });
+      // 그룹 채팅방에 참여자 추가
+      ChatRoom.findOneAndUpdate(
+        { groupId: group._id, kind: 'group' },
+        { $addToSet: { participants: req.user.id } }
+      ).catch(() => {});
     } else {
       // 승인 대기 알림 → 그룹장에게
       try {
@@ -272,6 +288,11 @@ router.delete('/:id/leave', requireAuth, async (req, res) => {
     await my.deleteOne();
     if (my.status === 'active') {
       await Group.findByIdAndUpdate(group._id, { $inc: { memberCount: -1 } });
+      // 그룹 채팅방에서도 제거
+      ChatRoom.findOneAndUpdate(
+        { groupId: group._id, kind: 'group' },
+        { $pull: { participants: req.user.id } }
+      ).catch(() => {});
     }
     res.json({ success: true, data: { message: '모임에서 나갔어요.' } });
   } catch (err) {
@@ -333,6 +354,11 @@ router.delete('/:id/members/:userId', requireAuth, async (req, res) => {
     }
     if (wasActive) {
       await Group.findByIdAndUpdate(group._id, { $inc: { memberCount: -1 } });
+      // 그룹 채팅방에서도 제거
+      ChatRoom.findOneAndUpdate(
+        { groupId: group._id, kind: 'group' },
+        { $pull: { participants: req.params.userId } }
+      ).catch(() => {});
     }
 
     // 추방당한 사람에게 알림
@@ -403,6 +429,56 @@ router.post('/:id/transfer', requireAuth, async (req, res) => {
     await group.save();
 
     res.json({ success: true, data: { message: '그룹장이 양도되었어요.' } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── GET /api/groups/:id/chat — 모임 채팅방 정보 (멤버 전용) ──
+router.get('/:id/chat', requireAuth, async (req, res) => {
+  try {
+    const groupId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(groupId)) {
+      return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    }
+    const membership = await GroupMembership.findOne({
+      groupId, userId: req.user.id, status: 'active',
+    }).lean();
+    if (!membership) {
+      return res.status(403).json({ success: false, message: '모임 멤버만 입장할 수 있어요.' });
+    }
+
+    let room = await ChatRoom.findOne({ groupId, kind: 'group' });
+    // 옛 모임 (Phase 2A 이전 승인됨)인데 채팅방이 없으면 lazy create
+    if (!room) {
+      const group = await Group.findById(groupId).lean();
+      if (!group || group.status !== 'active') {
+        return res.status(404).json({ success: false, message: '활성 모임이 아니에요.' });
+      }
+      const activeMembers = await GroupMembership.find({
+        groupId, status: 'active',
+      }).distinct('userId');
+      room = await ChatRoom.create({
+        kind: 'group',
+        groupId,
+        groupName: group.name,
+        groupCoverImage: group.coverImage || '',
+        participants: activeMembers,
+        status: 'accepted',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: room._id,
+        groupId,
+        groupName: room.groupName,
+        groupCoverImage: room.groupCoverImage,
+        participantCount: room.participants.length,
+      },
+    });
   } catch (err) {
     console.error('[api]', req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
