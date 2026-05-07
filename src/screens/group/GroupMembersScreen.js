@@ -45,6 +45,15 @@ export default function GroupMembersScreen({ route, navigation }) {
     }
   }, [groupId, tab, canManage]);
 
+  // 탭 변경 시 즉시 옛 데이터 비우고 로딩 표시 — stale 데이터가 새 탭 UI에 잠깐
+  // 렌더되는 깜빡임 방지
+  const switchTab = (next) => {
+    if (next === tab) return;
+    setMembers([]);
+    setLoading(true);
+    setTab(next);
+  };
+
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onKick = (userId, ban = false) => {
@@ -155,14 +164,14 @@ export default function GroupMembersScreen({ route, navigation }) {
         <View style={styles.tabBar}>
           <TouchableOpacity
             style={[styles.tab, tab === 'active' && styles.tabActive]}
-            onPress={() => setTab('active')}
+            onPress={() => switchTab('active')}
             activeOpacity={0.75}
           >
             <Text style={[styles.tabText, tab === 'active' && styles.tabTextActive]}>활성 멤버</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, tab === 'pending' && styles.tabActive]}
-            onPress={() => setTab('pending')}
+            onPress={() => switchTab('pending')}
             activeOpacity={0.75}
           >
             <Text style={[styles.tabText, tab === 'pending' && styles.tabTextActive]}>
