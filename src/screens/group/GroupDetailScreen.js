@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../components/StyledText';
 import { useTheme } from '../../context/ThemeContext';
@@ -27,6 +28,7 @@ export default function GroupDetailScreen({ route, navigation }) {
   const { colors } = useTheme();
   const { t } = useLang();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
 
   const [group, setGroup] = useState(null);
@@ -58,24 +60,12 @@ export default function GroupDetailScreen({ route, navigation }) {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // 멤버에게만 헤더 우측에 ⋯ 메뉴 노출 — 알림 설정 모달 진입
+  // 커스텀 헤더 사용 — native bar의 좌/우 너비 차이로 제목이 중앙에서
+  // 밀려나는 문제 회피
   const isActiveMember = group?.myMembership?.status === 'active';
   useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        isActiveMember ? (
-          <TouchableOpacity
-            onPress={() => setSettingsOpen(true)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="모임 설정"
-          >
-            <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
-          </TouchableOpacity>
-        ) : null
-      ),
-    });
-  }, [navigation, isActiveMember, colors.text]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const onJoin = async () => {
     setBusy(true);
@@ -204,6 +194,41 @@ export default function GroupDetailScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+    {/* 커스텀 헤더 — 제목 항상 정중앙 */}
+    <View style={[styles.customHeader, { paddingTop: insets.top }]}>
+      <View style={styles.customHeaderRow}>
+        <TouchableOpacity
+          style={styles.customHeaderBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.6}
+          accessibilityRole="button"
+          accessibilityLabel="뒤로가기"
+        >
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
+        </TouchableOpacity>
+        <View style={styles.customHeaderTitleWrap} pointerEvents="none">
+          <Text style={styles.customHeaderTitle} numberOfLines={1}>
+            {group?.name || t('nav.groupDetail')}
+          </Text>
+        </View>
+        {isActiveMember ? (
+          <TouchableOpacity
+            style={styles.customHeaderBtn}
+            onPress={() => setSettingsOpen(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.6}
+            accessibilityRole="button"
+            accessibilityLabel="모임 설정"
+          >
+            <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.customHeaderBtn} />
+        )}
+      </View>
+    </View>
+
     <ScrollView
       contentContainerStyle={{ paddingBottom: 100 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
@@ -516,6 +541,39 @@ export default function GroupDetailScreen({ route, navigation }) {
 
 const createStyles = (colors) => StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+  // 커스텀 헤더 — 제목 절대 정중앙
+  customHeader: {
+    backgroundColor: colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  customHeaderRow: {
+    height: 52,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  customHeaderBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(118,118,128,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customHeaderTitleWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 84,
+  },
+  customHeaderTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+  },
+
   header: { backgroundColor: colors.surface, marginBottom: 12 },
   cover: { width: '100%', height: 180 },
   coverEditBadge: {
