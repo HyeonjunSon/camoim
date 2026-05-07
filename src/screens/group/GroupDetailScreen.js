@@ -334,7 +334,7 @@ export default function GroupDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* 알림 설정 — 멤버 전용 */}
+      {/* 알림 설정 — 멤버 전용. Optimistic update — UI 즉시 반영 후 API 호출 */}
       {isMember && my && (
         <View style={styles.notifSection}>
           <View style={styles.notifRow}>
@@ -344,11 +344,13 @@ export default function GroupDetailScreen({ route, navigation }) {
             </View>
             <Switch
               value={!!my.notifyPosts}
-              onValueChange={async (val) => {
-                try {
-                  await setGroupNotifications(groupId, { notifyPosts: val });
-                  setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyPosts: val } } : g);
-                } catch {}
+              onValueChange={(val) => {
+                // 1) UI 즉시 반영
+                setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyPosts: val } } : g);
+                // 2) 백엔드는 비동기로 — 실패 시 원복
+                setGroupNotifications(groupId, { notifyPosts: val }).catch(() => {
+                  setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyPosts: !val } } : g);
+                });
               }}
               trackColor={{ false: colors.border, true: colors.primary }}
             />
@@ -360,11 +362,11 @@ export default function GroupDetailScreen({ route, navigation }) {
             </View>
             <Switch
               value={my.notifyChat !== false}
-              onValueChange={async (val) => {
-                try {
-                  await setGroupNotifications(groupId, { notifyChat: val });
-                  setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyChat: val } } : g);
-                } catch {}
+              onValueChange={(val) => {
+                setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyChat: val } } : g);
+                setGroupNotifications(groupId, { notifyChat: val }).catch(() => {
+                  setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyChat: !val } } : g);
+                });
               }}
               trackColor={{ false: colors.border, true: colors.primary }}
             />
