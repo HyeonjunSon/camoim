@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
@@ -157,6 +159,21 @@ export default function ChatListScreen({ navigation }) {
     // 그룹 채팅
     if (item.kind === 'group') {
       const g = item.group || {};
+      // 모임 이름의 첫 글자로 이니셜 — 커버 없을 때 폴백
+      const initial = (g.name || '').trim().charAt(0).toUpperCase() || '👥';
+      // 모임 이름 기반 안정적 색상 그라데이션 (같은 모임은 항상 같은 색)
+      const palettes = [
+        ['#A78BFA', '#7C3AED'], // purple
+        ['#60A5FA', '#2563EB'], // blue
+        ['#34D399', '#059669'], // emerald
+        ['#FB7185', '#E11D48'], // rose
+        ['#FBBF24', '#D97706'], // amber
+        ['#F472B6', '#DB2777'], // pink
+        ['#22D3EE', '#0891B2'], // cyan
+      ];
+      const hash = (g.name || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+      const gradient = palettes[hash % palettes.length];
+
       return (
         <TouchableOpacity
           style={styles.roomCard}
@@ -165,8 +182,23 @@ export default function ChatListScreen({ navigation }) {
           })}
           activeOpacity={0.8}
         >
-          <View style={styles.groupAvatar}>
-            <Text style={styles.groupAvatarEmoji}>👥</Text>
+          <View style={styles.groupAvatarWrap}>
+            {g.coverImage ? (
+              <Image source={{ uri: g.coverImage }} style={styles.groupAvatarImg} contentFit="cover" />
+            ) : (
+              <LinearGradient
+                colors={gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.groupAvatarGradient}
+              >
+                <Text style={styles.groupAvatarInitial}>{initial}</Text>
+              </LinearGradient>
+            )}
+            {/* 그룹 표시 작은 뱃지 */}
+            <View style={styles.groupAvatarBadge}>
+              <Ionicons name="people" size={9} color="#fff" />
+            </View>
           </View>
           <View style={styles.roomInfo}>
             <View style={styles.roomTop}>
@@ -329,10 +361,31 @@ const createStyles = (colors) => StyleSheet.create({
     width: 80, gap: 4,
   },
   swipeDeleteText: { fontSize: 11, color: colors.white, fontWeight: '600' },
-  groupAvatar: {
-    width: 46, height: 46, borderRadius: 23,
-    backgroundColor: colors.primary + '20',
-    alignItems: 'center', justifyContent: 'center',
+  groupAvatarWrap: {
+    width: 46, height: 46, position: 'relative',
   },
-  groupAvatarEmoji: { fontSize: 22 },
+  groupAvatarImg: {
+    width: 46, height: 46, borderRadius: 23,
+    backgroundColor: colors.inputBg,
+  },
+  groupAvatarGradient: {
+    width: 46, height: 46, borderRadius: 23,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  groupAvatarInitial: {
+    fontSize: 18, fontWeight: '800', color: '#fff',
+    letterSpacing: -0.4,
+  },
+  groupAvatarBadge: {
+    position: 'absolute', right: -2, bottom: -2,
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: colors.background,
+  },
 });
