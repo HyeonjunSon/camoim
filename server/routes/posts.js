@@ -398,6 +398,8 @@ router.get('/:postId', optionalAuth, async (req, res) => {
       if (!membership) {
         return res.status(403).json({ success: false, message: '모임 멤버만 볼 수 있어요.' });
       }
+      // 응답에 사용자의 모임 역할 포함 (프론트에서 owner/manager 판단)
+      req._myGroupRole = membership.role;
     }
 
     // 자동 숨김 게시글: 작성자 본인 외에는 접근 불가 (admin은 별도 라우트)
@@ -429,6 +431,8 @@ router.get('/:postId', optionalAuth, async (req, res) => {
         boardId: post.boardId?._id,
         groupId: post.groupId?._id,
         groupName: post.groupId?.name,
+        myGroupRole: req._myGroupRole || null,
+        pinned: !!post.pinned,
         city: post.city ?? '',
         userId: post.isAnonymous ? null : post.userId?._id,
         nickname: post.isAnonymous ? '익명' : (post.userId?.nickname ?? '탈퇴한 회원'),
@@ -555,7 +559,18 @@ router.delete('/:postId', requireAuth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId);
     if (!post) return res.status(404).json({ success: false, message: '게시글을 찾을 수 없습니다.' });
-    if (String(post.userId) !== String(req.user.id)) {
+
+    const isAuthor = String(post.userId) === String(req.user.id);
+    // 모임 글이면 owner/manager도 삭제 가능
+    let isGroupMod = false;
+    if (post.groupId) {
+      const m = await GroupMembership.findOne({
+        groupId: post.groupId, userId: req.user.id, status: 'active',
+      }).lean();
+      isGroupMod = m && (m.role === 'owner' || m.role === 'manager');
+    }
+
+    if (!isAuthor && !isGroupMod) {
       return res.status(403).json({ success: false, message: '삭제 권한이 없습니다.' });
     }
 
@@ -565,6 +580,30 @@ router.delete('/:postId', requireAuth, async (req, res) => {
       Group.findByIdAndUpdate(wasGroup, { $inc: { postCount: -1 } }).catch(() => {});
     }
     res.json({ success: true, data: { message: '삭제되었습니다.' } });
+  } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// PUT /api/posts/:postId/pin { pinned } — 모임 글 고정 (owner/manager 전용)
+router.put('/:postId/pin', requireAuth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+    if (!post) return res.status(404).json({ success: false, message: '게시글을 찾을 수 없습니다.' });
+    if (!post.groupId) {
+      return res.status(400).json({ success: false, message: '모임 글만 고정할 수 있어요.' });
+    }
+    const m = await GroupMembership.findOne({
+      groupId: post.groupId, userId: req.user.id, status: 'active',
+    }).lean();
+    if (!m || (m.role !== 'owner' && m.role !== 'manager')) {
+      return res.status(403).json({ success: false, message: '권한이 없어요.' });
+    }
+    const pinned = !!req.body?.pinned;
+    post.pinned = pinned;
+    await post.save();
+    res.json({ success: true, data: { pinned } });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });

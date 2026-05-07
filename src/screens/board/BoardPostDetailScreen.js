@@ -49,7 +49,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
-import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost } from '../../lib/api';
+import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, pinPost } from '../../lib/api';
 import { formatTime } from '../../lib/time';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
@@ -446,34 +446,62 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     ]);
   };
 
+  // 모임 글 + 그룹장/부그룹장이면 고정/삭제 권한 추가
+  const isGroupMod = post?.myGroupRole === 'owner' || post?.myGroupRole === 'manager';
+  const canDelete = isPostAuthor || isGroupMod;
+  const canPin = !!post?.groupId && isGroupMod;
+
+  const togglePin = async () => {
+    try {
+      const next = !post.pinned;
+      const res = await pinPost(post.id, next);
+      if (res.success) setPost(prev => ({ ...prev, pinned: next }));
+      else Alert.alert(t('common.error'), res.message ?? t('post.pinFailed'));
+    } catch (e) {
+      Alert.alert(t('common.error'), e.message ?? t('post.pinFailed'));
+    }
+  };
+
   const handleMore = () => {
-    const L = { edit: t('post.editPostMenu'), del: t('common.delete'), report: t('common.report'), cancel: t('common.cancel') };
-    const opts = isPostAuthor ? [L.edit, L.del, L.report, L.cancel] : [L.report, L.cancel];
+    const L = {
+      edit: t('post.editPostMenu'),
+      pin: '📌 고정',
+      unpin: '📌 고정 해제',
+      del: t('common.delete'),
+      report: t('common.report'),
+      cancel: t('common.cancel'),
+    };
+    // 옵션 동적 구성
+    const opts = [];
+    if (isPostAuthor) opts.push(L.edit);
+    if (canPin) opts.push(post.pinned ? L.unpin : L.pin);
+    if (canDelete) opts.push(L.del);
+    if (!isPostAuthor) opts.push(L.report); // 본인 글은 신고 불필요
+    opts.push(L.cancel);
     const cancelIdx = opts.length - 1;
+    const delIdx = opts.indexOf(L.del);
+
+    const handle = (idx) => {
+      const action = opts[idx];
+      if (action === L.edit) navigation.navigate('EditPost', { editPost: post });
+      else if (action === L.pin || action === L.unpin) togglePin();
+      else if (action === L.del) confirmDeletePost();
+      else if (action === L.report) showReportSheet();
+    };
+
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options: opts, cancelButtonIndex: cancelIdx, destructiveButtonIndex: isPostAuthor ? 1 : undefined },
-        (idx) => {
-          if (isPostAuthor) {
-            if (idx === 0) navigation.navigate('EditPost', { editPost: post });
-            else if (idx === 1) confirmDeletePost();
-            else if (idx === 2) showReportSheet();
-          } else {
-            if (idx === 0) showReportSheet();
-          }
-        }
+        { options: opts, cancelButtonIndex: cancelIdx, destructiveButtonIndex: delIdx >= 0 ? delIdx : undefined, title: t('post.moreActions') },
+        handle
       );
-    } else {
-      const items = isPostAuthor
-        ? [
-            { text: L.edit, onPress: () => navigation.navigate('EditPost', { editPost: post }) },
-            { text: L.del, style: 'destructive', onPress: confirmDeletePost },
-            { text: L.report, onPress: showReportSheet },
-            { text: L.cancel, style: 'cancel' },
-          ]
-        : [{ text: L.report, onPress: showReportSheet }, { text: L.cancel, style: 'cancel' }];
-      Alert.alert('', '', items);
+      return;
     }
+    // Android fallback
+    Alert.alert(t('post.moreActions'), '', opts.filter(o => o !== L.cancel).map(o => ({
+      text: o,
+      style: o === L.del ? 'destructive' : 'default',
+      onPress: () => handle(opts.indexOf(o)),
+    })).concat([{ text: L.cancel, style: 'cancel' }]));
   };
 
   useLayoutEffect(() => {
