@@ -10,8 +10,9 @@ import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
 import {
-  getGroup, joinGroup, leaveGroup, closeGroup,
+  getGroup, joinGroup, leaveGroup, closeGroup, getGroupPosts,
 } from '../../lib/api';
+import { formatTime } from '../../lib/time';
 
 const CATEGORY_LABEL = {
   hobby: 'group.catHobby', study: 'group.catStudy', local: 'group.catLocal',
@@ -26,6 +27,7 @@ export default function GroupDetailScreen({ route, navigation }) {
   const styles = createStyles(colors);
 
   const [group, setGroup] = useState(null);
+  const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -33,7 +35,16 @@ export default function GroupDetailScreen({ route, navigation }) {
   const load = useCallback(async () => {
     try {
       const res = await getGroup(groupId);
-      if (res.success) setGroup(res.data);
+      if (res.success) {
+        setGroup(res.data);
+        // 멤버일 때만 게시글 로드
+        if (res.data.myMembership?.status === 'active') {
+          try {
+            const pr = await getGroupPosts(groupId, { page: 1, limit: 30 });
+            if (pr.success) setPosts(pr.data?.posts || []);
+          } catch {}
+        }
+      }
     } catch {} finally {
       setLoading(false);
       setRefreshing(false);
@@ -131,9 +142,9 @@ export default function GroupDetailScreen({ route, navigation }) {
   const isBanned = my?.status === 'banned';
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingBottom: 40 }}
+      contentContainerStyle={{ paddingBottom: 100 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
     >
       {/* 커버 + 헤더 */}
@@ -231,6 +242,66 @@ export default function GroupDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       )}
 
+      {/* 모임 게시판 — 멤버 전용 */}
+      {isMember && (
+        <View style={styles.postsSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t('group.tabPosts')}</Text>
+            <Text style={styles.sectionCount}>{group.postCount || 0}</Text>
+          </View>
+          {posts.length === 0 ? (
+            <View style={styles.emptyPosts}>
+              <Text style={styles.emptyPostsText}>아직 글이 없어요</Text>
+              <Text style={styles.emptyPostsHint}>첫 글을 작성해보세요!</Text>
+            </View>
+          ) : (
+            <View style={styles.postsCard}>
+              {posts.map((p, idx) => (
+                <View key={String(p.id)}>
+                  <TouchableOpacity
+                    style={styles.postRow}
+                    onPress={() => navigation.navigate('BoardPostDetail', { postId: p.id })}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.postTitle} numberOfLines={1}>
+                        {p.pinned ? '📌 ' : ''}{p.title}
+                      </Text>
+                      {!!p.content && (
+                        <Text style={styles.postPreview} numberOfLines={1}>{p.content}</Text>
+                      )}
+                      <View style={styles.postMeta}>
+                        <Text style={styles.postMetaText}>{p.nickname}</Text>
+                        <Text style={styles.postMetaDot}>·</Text>
+                        <Text style={styles.postMetaText}>{formatTime(p.createdAt, t)}</Text>
+                        {p.commentCount > 0 && (
+                          <>
+                            <Text style={styles.postMetaDot}>·</Text>
+                            <Ionicons name="chatbubble-outline" size={11} color={colors.textSecondary} />
+                            <Text style={styles.postMetaText}>{p.commentCount}</Text>
+                          </>
+                        )}
+                        {p.likeCount > 0 && (
+                          <>
+                            <Text style={styles.postMetaDot}>·</Text>
+                            <Ionicons name="heart-outline" size={11} color={colors.textSecondary} />
+                            <Text style={styles.postMetaText}>{p.likeCount}</Text>
+                          </>
+                        )}
+                      </View>
+                    </View>
+                    {p.thumbnail && (
+                      <Image source={{ uri: p.thumbnail }} style={styles.postThumb} contentFit="cover" />
+                    )}
+                  </TouchableOpacity>
+                  {idx < posts.length - 1 && <View style={styles.postDivider} />}
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
       {/* 소유자 폐쇄 */}
       {isOwner && (
         <TouchableOpacity style={styles.dangerBtn} onPress={onClose} disabled={busy} activeOpacity={0.85}>
@@ -239,6 +310,23 @@ export default function GroupDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       )}
     </ScrollView>
+
+    {/* 글쓰기 FAB — 멤버 전용 */}
+    {isMember && (
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('CreatePost', {
+          groupId,
+          groupName: group.name,
+        })}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="글쓰기"
+      >
+        <Ionicons name="create-outline" size={22} color={colors.white} />
+      </TouchableOpacity>
+    )}
+    </View>
   );
 }
 
@@ -282,4 +370,41 @@ const createStyles = (colors) => StyleSheet.create({
     borderWidth: 1, borderColor: colors.danger + '50',
   },
   dangerText: { fontSize: 13, fontWeight: '700', color: colors.danger },
+
+  // 게시판 섹션
+  postsSection: { marginTop: 4 },
+  sectionHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 18, paddingVertical: 8,
+  },
+  sectionTitle: { fontSize: 14, fontWeight: '800', color: colors.text },
+  sectionCount: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
+  emptyPosts: {
+    backgroundColor: colors.surface, marginHorizontal: 14, borderRadius: 14,
+    paddingVertical: 32, alignItems: 'center',
+  },
+  emptyPostsText: { fontSize: 14, fontWeight: '700', color: colors.text },
+  emptyPostsHint: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
+  postsCard: {
+    backgroundColor: colors.surface, marginHorizontal: 14, borderRadius: 14, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+  },
+  postRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  postTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  postPreview: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  postMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  postMetaText: { fontSize: 11, color: colors.textSecondary },
+  postMetaDot: { fontSize: 11, color: colors.textSecondary },
+  postThumb: { width: 56, height: 56, borderRadius: 8 },
+  postDivider: { height: 1, backgroundColor: colors.border, marginLeft: 14 },
+
+  fab: {
+    position: 'absolute', right: 20, bottom: 28,
+    width: 54, height: 54, borderRadius: 27,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 6, elevation: 6,
+  },
 });

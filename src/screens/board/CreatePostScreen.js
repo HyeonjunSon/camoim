@@ -88,6 +88,10 @@ export default function CreatePostScreen({ route, navigation }) {
   const boardId = routeParams.boardId ?? editPost?.boardId;
   const boardSlug = routeParams.boardSlug ?? editPost?.boardSlug;
   const boardName = routeParams.boardName ?? editPost?.boardName;
+  // 모임 게시판 글: groupId가 있으면 board 로직 우회
+  const groupId = routeParams.groupId ?? editPost?.groupId;
+  const groupName = routeParams.groupName ?? editPost?.groupName;
+  const isGroupPost = !!groupId;
   const insets = useSafeAreaInsets();
   const { t } = useLang();
   const { user } = useAuth();
@@ -351,13 +355,17 @@ export default function CreatePostScreen({ route, navigation }) {
     setSubmitting(true);
     try {
       const token = await getToken();
-      const body = JSON.stringify({
-        boardId,
-        title: trimmedTitle,
-        content: html,
-        isAnonymous: isAnonymousBoard,
-        ...(isLocalBoard ? { city: selectedCity || '' } : {}),
-      });
+      const body = JSON.stringify(
+        isGroupPost
+          ? { groupId, title: trimmedTitle, content: html }
+          : {
+              boardId,
+              title: trimmedTitle,
+              content: html,
+              isAnonymous: isAnonymousBoard,
+              ...(isLocalBoard ? { city: selectedCity || '' } : {}),
+            }
+      );
       const url = isEditMode ? `${BASE_URL}/posts/${editPost.id}` : `${BASE_URL}/posts`;
       const res = await fetch(url, {
         method: isEditMode ? 'PUT' : 'POST',
@@ -417,12 +425,14 @@ export default function CreatePostScreen({ route, navigation }) {
       </View>
 
       {/* 게시판 + 도시 선택 (작성/수정 모두) */}
-      {boardName && (
+      {(boardName || groupName) && (
         <View style={styles.boardRow}>
           <View style={styles.boardSelect}>
-            <Text style={styles.boardSelectText}>{boardName}</Text>
+            <Text style={styles.boardSelectText}>
+              {isGroupPost ? `👥 ${groupName}` : boardName}
+            </Text>
           </View>
-          {isLocalBoard && (
+          {isLocalBoard && !isGroupPost && (
             <TouchableOpacity style={styles.citySelect} onPress={() => setCityModalOpen(true)} activeOpacity={0.7}>
               <Ionicons name="location" size={14} color={selectedCity ? colors.primary : colors.textSecondary} />
               <Text style={[styles.citySelectText, selectedCity && { color: colors.primary }]}>

@@ -409,6 +409,57 @@ router.post('/:id/transfer', requireAuth, async (req, res) => {
   }
 });
 
+// ── GET /api/groups/:id/posts — 모임 게시판 글 목록 (멤버 전용) ──
+router.get('/:id/posts', requireAuth, async (req, res) => {
+  try {
+    const groupId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(groupId)) {
+      return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    }
+    const membership = await GroupMembership.findOne({
+      groupId, userId: req.user.id, status: 'active',
+    }).lean();
+    if (!membership) {
+      return res.status(403).json({ success: false, message: '모임 멤버만 볼 수 있어요.' });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const skip = (page - 1) * limit;
+
+    const filter = { groupId, hidden: { $ne: true }, autoHidden: { $ne: true } };
+    const [posts, total] = await Promise.all([
+      Post.find(filter)
+        .sort({ pinned: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('userId', 'nickname avatarUrl')
+        .lean(),
+      Post.countDocuments(filter),
+    ]);
+
+    const formatted = posts.map(p => ({
+      id: p._id,
+      title: p.title,
+      content: (p.content || '').replace(/<[^>]+>/g, '').slice(0, 200),
+      likeCount: p.likeCount,
+      commentCount: p.commentCount,
+      viewCount: p.viewCount || 0,
+      createdAt: p.createdAt,
+      pinned: p.pinned,
+      thumbnail: p.images?.[0] || null,
+      nickname: p.userId?.nickname || '탈퇴한 회원',
+      avatarUrl: p.userId?.avatarUrl || null,
+      userId: p.userId?._id,
+    }));
+
+    res.json({ success: true, data: { posts: formatted, total } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
 // ── PUT /api/groups/:id/notifications — 내 알림 설정 ───
 router.put('/:id/notifications', requireAuth, async (req, res) => {
   try {

@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 
 const postSchema = new mongoose.Schema({
-  boardId: { type: mongoose.Schema.Types.ObjectId, ref: 'Board', required: true },
+  // 일반 게시판 글이면 채워짐. 모임 글은 null.
+  boardId: { type: mongoose.Schema.Types.ObjectId, ref: 'Board', default: null },
   // 모임 게시판 글이면 채워짐. 일반 게시판은 null.
   groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', default: null, index: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -22,6 +23,14 @@ const postSchema = new mongoose.Schema({
   reportCount:  { type: Number, default: 0 },
   pinned:     { type: Boolean, default: false }, // 게시판 상단 고정
 }, { timestamps: true });
+
+// boardId 또는 groupId 중 하나는 반드시 있어야 함
+postSchema.pre('validate', function (next) {
+  if (!this.boardId && !this.groupId) {
+    return next(new Error('boardId 또는 groupId 중 하나는 필요합니다.'));
+  }
+  next();
+});
 
 // 핫 쿼리용 복합 인덱스 — 게시판 목록/내 글/홈 피드 전부 이 인덱스로 빨라짐
 postSchema.index({ boardId: 1, createdAt: -1 });

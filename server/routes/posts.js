@@ -6,6 +6,8 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const Board = require('../models/Board');
+const Group = require('../models/Group');
+const GroupMembership = require('../models/GroupMembership');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const Bookmark = require('../models/Bookmark');
@@ -63,6 +65,7 @@ router.get('/', optionalAuth, async (req, res) => {
     const regex = new RegExp(search.trim(), 'i');
     const posts = await Post.find({
       $or: [{ title: regex }, { content: regex }],
+      groupId: null,
       ...(uniBoardIds.length ? { boardId: { $nin: uniBoardIds } } : {}),
       ...(blocked.length ? { userId: { $nin: blocked } } : {}),
     })
@@ -103,7 +106,7 @@ router.get('/feed', optionalAuth, async (req, res) => {
 
     const blocked = await getBlockedUserIds(req.user?.id);
     const city = req.query.city?.trim() || '';
-    const filter = { hidden: { $ne: true }, autoHidden: { $ne: true } };
+    const filter = { hidden: { $ne: true }, autoHidden: { $ne: true }, groupId: null };
     if (uniBoardIds.length) filter.boardId = { $nin: uniBoardIds };
     if (blocked.length) filter.userId = { $nin: blocked };
     const cities = expandCity(city);
@@ -315,6 +318,7 @@ router.get('/hot', optionalAuth, async (req, res) => {
       createdAt: { $gte: since },
       hidden: { $ne: true },
       autoHidden: { $ne: true },
+      groupId: null,
       ...(uniBoardIds.length ? { boardId: { $nin: uniBoardIds } } : {}),
       ...(blockedOids.length ? { userId: { $nin: blockedOids } } : {}),
       ...(expandCity(city) ? { city: { $in: expandCity(city) } } : {}),
@@ -378,9 +382,23 @@ router.get('/:postId', optionalAuth, async (req, res) => {
       { new: true }
     )
       .populate('userId', 'nickname avatarUrl role')
-      .populate('boardId', 'name slug');
+      .populate('boardId', 'name slug')
+      .populate('groupId', 'name');
 
     if (!post) return res.status(404).json({ success: false, message: '게시글을 찾을 수 없습니다.' });
+
+    // 모임 글: 멤버만 열람 가능
+    if (post.groupId) {
+      if (!req.user) {
+        return res.status(401).json({ success: false, message: '모임 멤버만 볼 수 있어요.' });
+      }
+      const membership = await GroupMembership.findOne({
+        groupId: post.groupId._id, userId: req.user.id, status: 'active',
+      }).lean();
+      if (!membership) {
+        return res.status(403).json({ success: false, message: '모임 멤버만 볼 수 있어요.' });
+      }
+    }
 
     // 자동 숨김 게시글: 작성자 본인 외에는 접근 불가 (admin은 별도 라우트)
     if (post.autoHidden) {
@@ -409,6 +427,8 @@ router.get('/:postId', optionalAuth, async (req, res) => {
         boardName: post.boardId?.name,
         boardSlug: post.boardId?.slug,
         boardId: post.boardId?._id,
+        groupId: post.groupId?._id,
+        groupName: post.groupId?.name,
         city: post.city ?? '',
         userId: post.isAnonymous ? null : post.userId?._id,
         nickname: post.isAnonymous ? '익명' : (post.userId?.nickname ?? '탈퇴한 회원'),
@@ -439,9 +459,9 @@ router.post('/upload-image', requireAuth, uploadImages.single('image'), async (r
 // POST /api/posts (multipart/form-data — 이미지 최대 4장)
 router.post('/', requireAuth, uploadImages.array('images', 5), async (req, res) => {
   try {
-    const { boardId, title, content, isAnonymous } = req.body;
-    if (!boardId || !title || !content) {
-      return res.status(400).json({ success: false, message: '게시판, 제목, 내용을 모두 입력해주세요.' });
+    const { boardId, groupId, title, content } = req.body;
+    if ((!boardId && !groupId) || !title || !content) {
+      return res.status(400).json({ success: false, message: '게시판 또는 모임, 제목, 내용을 모두 입력해주세요.' });
     }
 
     const banned = await containsBannedWord(`${title} ${content}`);
@@ -454,22 +474,38 @@ router.post('/', requireAuth, uploadImages.array('images', 5), async (req, res) 
     const htmlImageUrls = /<img/i.test(content) ? extractImagesFromHtml(content) : [];
     const imageUrls = [...uploadedImageUrls, ...htmlImageUrls].slice(0, 10);
 
-    // 보드 정보 로드 (도시·익명 규칙 판별용)
-    const board = await Board.findById(boardId).select('slug isAnonymousAllowed').lean();
-    const isLocalBoard = board && LOCAL_BOARD_SLUGS.includes(board.slug);
-    const postCity = isLocalBoard ? (req.body.city?.trim() || '') : '';
-    // 익명은 보드 설정이 결정 (클라 조작 방어): 익명 보드면 항상 true, 아니면 항상 false
-    const enforcedIsAnonymous = !!board?.isAnonymousAllowed;
-
-    const post = await Post.create({
-      boardId,
+    let postData = {
       userId: req.user.id,
       title,
       content,
-      isAnonymous: enforcedIsAnonymous,
       images: imageUrls,
-      city: postCity,
-    });
+    };
+
+    if (groupId) {
+      // 모임 글: 멤버십 확인
+      const membership = await GroupMembership.findOne({
+        groupId, userId: req.user.id, status: 'active',
+      }).lean();
+      if (!membership) {
+        return res.status(403).json({ success: false, message: '모임 멤버만 글을 쓸 수 있어요.' });
+      }
+      postData.groupId = groupId;
+      postData.isAnonymous = false; // 모임 글은 실명
+    } else {
+      // 일반 게시판 글
+      const board = await Board.findById(boardId).select('slug isAnonymousAllowed').lean();
+      const isLocalBoard = board && LOCAL_BOARD_SLUGS.includes(board.slug);
+      postData.boardId = boardId;
+      postData.city = isLocalBoard ? (req.body.city?.trim() || '') : '';
+      // 익명은 보드 설정이 결정 (클라 조작 방어): 익명 보드면 항상 true, 아니면 항상 false
+      postData.isAnonymous = !!board?.isAnonymousAllowed;
+    }
+
+    const post = await Post.create(postData);
+
+    if (groupId) {
+      Group.findByIdAndUpdate(groupId, { $inc: { postCount: 1 } }).catch(() => {});
+    }
 
     res.status(201).json({ success: true, data: { id: post._id, title: post.title } });
   } catch (err) {
@@ -523,7 +559,11 @@ router.delete('/:postId', requireAuth, async (req, res) => {
       return res.status(403).json({ success: false, message: '삭제 권한이 없습니다.' });
     }
 
+    const wasGroup = post.groupId;
     await post.deleteOne();
+    if (wasGroup) {
+      Group.findByIdAndUpdate(wasGroup, { $inc: { postCount: -1 } }).catch(() => {});
+    }
     res.json({ success: true, data: { message: '삭제되었습니다.' } });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
