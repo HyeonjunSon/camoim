@@ -42,40 +42,11 @@ export default function ChatRoomScreen({ route, navigation }) {
   const { on, off, emit, joinRoom, leaveRoom, setActiveRoom } = useSocket();
   const flatListRef = useRef(null);
 
-  // 헤더 — DM은 상대방 이름, 그룹은 모임명
+  // 헤더 — DM/그룹 모두 native 끄고 커스텀 헤더 사용 (iOS native bar의
+  // 좌/우 버튼 자동 캡슐 래핑이 우리 캡슐과 충돌해 이중 동그라미가 보였음)
   useEffect(() => {
-    if (isGroupChat) {
-      // 그룹 채팅은 커스텀 헤더 사용 — iOS native bar는 좌/우 버튼 너비
-      // 차이 때문에 제목을 정확히 정중앙에 두지 못함
-      navigation.setOptions({ headerShown: false });
-    } else {
-      navigation.setOptions({
-        title: otherDeleted ? t('chat.deletedUser') : (other?.nickname ?? t('chat.tabChats')),
-        headerRight: () => (
-          otherDeleted || !other?.id ? null : (
-            <TouchableOpacity
-              onPress={() => navigation.push('UserProfile', { userId: other?.id })}
-              activeOpacity={0.6}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{
-                minWidth: 52,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: 'rgba(118,118,128,0.12)',
-                paddingHorizontal: 12,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={t('chat.profile')}
-            >
-              <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '700' }}>{t('chat.profile')}</Text>
-            </TouchableOpacity>
-          )
-        ),
-      });
-    }
-  }, [other, otherDeleted, group, isGroupChat]);
+    navigation.setOptions({ headerShown: false });
+  }, []);
 
   // 메시지 불러오기 + 글로벌 소켓 이벤트 등록
   useEffect(() => {
@@ -252,8 +223,23 @@ export default function ChatRoomScreen({ route, navigation }) {
     return <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>;
   }
 
-  // 그룹 채팅 전용 커스텀 헤더 — 제목이 항상 정중앙, 좌/우 버튼은 iOS 26 스타일 캡슐
-  const CustomGroupHeader = () => (
+  // 커스텀 채팅 헤더 — DM/그룹 모두 동일 디자인 (정중앙 제목 + iOS 26 글래스 캡슐)
+  const headerTitle = isGroupChat
+    ? (group?.name || t('chat.tabChats'))
+    : (otherDeleted ? t('chat.deletedUser') : (other?.nickname ?? t('chat.tabChats')));
+  const showRightAction = isGroupChat
+    ? !!group?.id
+    : !otherDeleted && !!other?.id;
+  const rightLabel = isGroupChat ? '그룹' : t('chat.profile');
+  const onRightPress = () => {
+    if (isGroupChat && group?.id) {
+      navigation.navigate('GroupDetail', { groupId: group.id });
+    } else if (!isGroupChat && other?.id) {
+      navigation.push('UserProfile', { userId: other.id });
+    }
+  };
+
+  const CustomChatHeader = () => (
     <View style={[styles.customHeader, { paddingTop: insets.top }]}>
       <View style={styles.customHeaderRow}>
         <TouchableOpacity
@@ -268,20 +254,24 @@ export default function ChatRoomScreen({ route, navigation }) {
         </TouchableOpacity>
         <View style={styles.customHeaderTitleWrap} pointerEvents="none">
           <Text style={styles.customHeaderTitle} numberOfLines={1}>
-            {group?.name || t('chat.tabChats')}
+            {headerTitle}
           </Text>
         </View>
-        <TouchableOpacity
-          style={styles.customHeaderRightBtn}
-          onPress={() => group?.id && navigation.navigate('GroupDetail', { groupId: group.id })}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          activeOpacity={0.6}
-          disabled={!group?.id}
-          accessibilityRole="button"
-          accessibilityLabel="그룹 정보 보기"
-        >
-          <Text style={styles.customHeaderRight}>그룹</Text>
-        </TouchableOpacity>
+        {showRightAction ? (
+          <TouchableOpacity
+            style={styles.customHeaderRightBtn}
+            onPress={onRightPress}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.6}
+            accessibilityRole="button"
+            accessibilityLabel={rightLabel}
+          >
+            <Text style={styles.customHeaderRight}>{rightLabel}</Text>
+          </TouchableOpacity>
+        ) : (
+          // 우측 액션이 없을 때도 좌/우 균형 유지
+          <View style={styles.customHeaderBackBtn} />
+        )}
       </View>
     </View>
   );
@@ -290,10 +280,10 @@ export default function ChatRoomScreen({ route, navigation }) {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      // 그룹 채팅은 커스텀 헤더가 화면 내부에 있어 native 헤더 오프셋 불필요
-      keyboardVerticalOffset={Platform.OS === 'ios' ? (isGroupChat ? 0 : 90 + insets.bottom) : 0}
+      // 모든 채팅이 커스텀 헤더 사용 — native 헤더 오프셋 불필요
+      keyboardVerticalOffset={0}
     >
-      {isGroupChat && <CustomGroupHeader />}
+      <CustomChatHeader />
       <FlatList
         ref={flatListRef}
         data={messages}
