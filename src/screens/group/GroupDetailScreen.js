@@ -323,19 +323,9 @@ export default function GroupDetailScreen({ route, navigation }) {
             <Text style={styles.primaryBtnText}>그룹 채팅 입장</Text>
           </TouchableOpacity>
         )}
-        {(isOwner || isManager) && (
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.outlineBtn]}
-            onPress={() => navigation.navigate('GroupMembers', { groupId, isOwner, isManager })}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="people" size={16} color={colors.text} />
-            <Text style={styles.outlineBtnText}>{t('group.manageMembers')}</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
-      {/* 멤버 보기 (모든 가입자) */}
+      {/* 회원 보기 — 모든 가입자 동일. owner/manager는 들어가서 관리 가능. */}
       {isMember && (
         <TouchableOpacity
           style={styles.linkRow}
@@ -410,23 +400,7 @@ export default function GroupDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* 소유자: 정보 수정 + 폐쇄 */}
-      {isOwner && (
-        <View style={{ paddingHorizontal: 16, marginTop: 16, gap: 8 }}>
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => navigation.navigate('GroupEdit', { groupId })}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="create-outline" size={16} color={colors.text} />
-            <Text style={styles.editBtnText}>{t('group.editGroup')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.dangerBtn} onPress={onClose} disabled={busy} activeOpacity={0.85}>
-            <Ionicons name="trash-outline" size={16} color={colors.danger} />
-            <Text style={styles.dangerText}>{t('group.closeGroup')}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* 그룹장: 정보 수정 / 폐쇄는 헤더의 ⋯ 메뉴로 이동 (settings sheet) */}
     </ScrollView>
 
     {/* 글쓰기 FAB — 멤버 전용 */}
@@ -499,6 +473,39 @@ export default function GroupDetailScreen({ route, navigation }) {
             </>
           )}
 
+          {/* 그룹장 전용 — 정보 수정 / 폐쇄 */}
+          {isOwner && (
+            <>
+              <Text style={[styles.sheetTitle, { marginTop: 12 }]}>모임 관리</Text>
+              <TouchableOpacity
+                style={styles.sheetActionRow}
+                onPress={() => {
+                  setSettingsOpen(false);
+                  navigation.navigate('GroupEdit', { groupId });
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="create-outline" size={20} color={colors.text} />
+                <Text style={styles.sheetActionText}>{t('group.editGroup')}</Text>
+                <View style={{ flex: 1 }} />
+                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.sheetActionRow}
+                onPress={() => {
+                  setSettingsOpen(false);
+                  // 다음 프레임에서 폐쇄 다이얼로그 — 모달 닫힘과 충돌 방지
+                  setTimeout(() => onClose(), 250);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                <Text style={[styles.sheetActionText, { color: colors.danger }]}>{t('group.closeGroup')}</Text>
+                <View style={{ flex: 1 }} />
+              </TouchableOpacity>
+            </>
+          )}
+
           <TouchableOpacity
             style={styles.sheetCloseBtn}
             onPress={() => setSettingsOpen(false)}
@@ -560,18 +567,11 @@ const createStyles = (colors) => StyleSheet.create({
   linkText: { fontSize: 14, fontWeight: '600', color: colors.text },
   linkCount: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
 
-  dangerBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 12, borderRadius: 10,
-    borderWidth: 1, borderColor: colors.danger + '50',
+  sheetActionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 20, paddingVertical: 14,
   },
-  dangerText: { fontSize: 13, fontWeight: '700', color: colors.danger },
-  editBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 12, borderRadius: 10,
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-  },
-  editBtnText: { fontSize: 13, fontWeight: '700', color: colors.text },
+  sheetActionText: { fontSize: 15, color: colors.text, fontWeight: '500' },
 
   // 설정 바텀시트
   sheetOverlay: { flex: 1, justifyContent: 'flex-end' },

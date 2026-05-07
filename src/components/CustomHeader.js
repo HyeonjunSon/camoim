@@ -80,9 +80,7 @@ export default function CustomHeader({
                 )}
               </TouchableOpacity>
             ))
-          ) : (
-            <View style={styles.btn} />
-          )}
+          ) : null /* 우측 액션 없으면 빈 자리 — 제목은 absoluteFill로 정중앙 유지 */}
         </View>
       </View>
     </View>
