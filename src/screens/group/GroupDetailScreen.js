@@ -9,8 +9,10 @@ import { Text } from '../../components/StyledText';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
+import { Switch } from 'react-native';
 import {
   getGroup, joinGroup, leaveGroup, closeGroup, getGroupPosts, getGroupChat,
+  setGroupNotifications,
 } from '../../lib/api';
 import { formatTime } from '../../lib/time';
 
@@ -332,12 +334,60 @@ export default function GroupDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* 소유자 폐쇄 */}
+      {/* 알림 설정 — 멤버 전용 */}
+      {isMember && my && (
+        <View style={styles.notifSection}>
+          <View style={styles.notifRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.notifLabel}>{t('group.notifyPosts')}</Text>
+              <Text style={styles.notifHint}>새 글이 올라오면 알려줘요</Text>
+            </View>
+            <Switch
+              value={!!my.notifyPosts}
+              onValueChange={async (val) => {
+                try {
+                  await setGroupNotifications(groupId, { notifyPosts: val });
+                  setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyPosts: val } } : g);
+                } catch {}
+              }}
+              trackColor={{ false: colors.border, true: colors.primary }}
+            />
+          </View>
+          <View style={styles.notifRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.notifLabel}>{t('group.notifyChat')}</Text>
+              <Text style={styles.notifHint}>그룹 채팅 메시지를 알려줘요</Text>
+            </View>
+            <Switch
+              value={my.notifyChat !== false}
+              onValueChange={async (val) => {
+                try {
+                  await setGroupNotifications(groupId, { notifyChat: val });
+                  setGroup(g => g ? { ...g, myMembership: { ...g.myMembership, notifyChat: val } } : g);
+                } catch {}
+              }}
+              trackColor={{ false: colors.border, true: colors.primary }}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* 소유자: 정보 수정 + 폐쇄 */}
       {isOwner && (
-        <TouchableOpacity style={styles.dangerBtn} onPress={onClose} disabled={busy} activeOpacity={0.85}>
-          <Ionicons name="trash-outline" size={16} color={colors.danger} />
-          <Text style={styles.dangerText}>{t('group.closeGroup')}</Text>
-        </TouchableOpacity>
+        <View style={{ paddingHorizontal: 16, marginTop: 16, gap: 8 }}>
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => navigation.navigate('GroupEdit', { groupId })}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="create-outline" size={16} color={colors.text} />
+            <Text style={styles.editBtnText}>{t('group.editGroup')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.dangerBtn} onPress={onClose} disabled={busy} activeOpacity={0.85}>
+            <Ionicons name="trash-outline" size={16} color={colors.danger} />
+            <Text style={styles.dangerText}>{t('group.closeGroup')}</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </ScrollView>
 
@@ -396,10 +446,28 @@ const createStyles = (colors) => StyleSheet.create({
 
   dangerBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginHorizontal: 16, marginTop: 12, paddingVertical: 12, borderRadius: 10,
+    paddingVertical: 12, borderRadius: 10,
     borderWidth: 1, borderColor: colors.danger + '50',
   },
   dangerText: { fontSize: 13, fontWeight: '700', color: colors.danger },
+  editBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 12, borderRadius: 10,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+  },
+  editBtnText: { fontSize: 13, fontWeight: '700', color: colors.text },
+
+  notifSection: {
+    backgroundColor: colors.surface, marginHorizontal: 14, marginTop: 12,
+    borderRadius: 14, paddingHorizontal: 18,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+  },
+  notifRow: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+  },
+  notifLabel: { fontSize: 14, fontWeight: '600', color: colors.text },
+  notifHint: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
 
   // 게시판 섹션
   postsSection: { marginTop: 4 },

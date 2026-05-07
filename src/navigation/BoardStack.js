@@ -10,6 +10,7 @@ import ChatRoomScreen from '../screens/chat/ChatRoomScreen';
 import GroupCreateScreen from '../screens/group/GroupCreateScreen';
 import GroupDetailScreen from '../screens/group/GroupDetailScreen';
 import GroupMembersScreen from '../screens/group/GroupMembersScreen';
+import GroupEditScreen from '../screens/group/GroupEditScreen';
 import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LangContext';
 import { colors } from '../constants/colors'
@@ -43,6 +44,7 @@ export default function BoardStack() {
       <Stack.Screen name="GroupCreate"   component={GroupCreateScreen}     options={{ title: t('nav.groupCreate') }} />
       <Stack.Screen name="GroupDetail"   component={GroupDetailScreen}     options={{ title: t('nav.groupDetail') }} />
       <Stack.Screen name="GroupMembers"  component={GroupMembersScreen}    options={{ title: t('nav.groupMembers') }} />
+      <Stack.Screen name="GroupEdit"     component={GroupEditScreen}       options={{ title: '모임 정보 수정' }} />
     </Stack.Navigator>
   );
 }

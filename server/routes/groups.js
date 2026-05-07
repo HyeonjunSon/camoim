@@ -2,6 +2,9 @@
 // 모임 = 게시판 + (Phase 2) 그룹 채팅 + 멤버십
 const express = require('express');
 const mongoose = require('mongoose');
+const multer = require('multer');
+const { v2: cloudinary } = require('cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const Group = require('../models/Group');
 const GroupMembership = require('../models/GroupMembership');
 const Post = require('../models/Post');
@@ -12,6 +15,22 @@ const Message = require('../models/Message');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Cloudinary 모임 커버 업로드
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+const coverStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'camoim/groups',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'heic', 'heif', 'webp'],
+    transformation: [{ width: 1200, height: 600, crop: 'fill', quality: 'auto', fetch_format: 'auto' }],
+  },
+});
+const uploadCover = multer({ storage: coverStorage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 const VALID_CATEGORIES = ['hobby', 'study', 'local', 'job', 'workinghol', 'general'];
 
@@ -177,13 +196,24 @@ router.put('/:id', requireAuth, async (req, res) => {
     if (!isOwner(my)) return res.status(403).json({ success: false, message: '그룹장만 수정할 수 있어요.' });
 
     const { description, coverImage, category, city, joinPolicy } = req.body || {};
+    let coverChanged = false;
     if (description !== undefined) group.description = String(description).slice(0, 500);
-    if (coverImage !== undefined) group.coverImage = String(coverImage).slice(0, 500);
+    if (coverImage !== undefined) {
+      group.coverImage = String(coverImage).slice(0, 500);
+      coverChanged = true;
+    }
     if (category !== undefined && VALID_CATEGORIES.includes(category)) group.category = category;
     if (city !== undefined) group.city = String(city).slice(0, 100);
     if (joinPolicy !== undefined && ['open', 'approval'].includes(joinPolicy)) group.joinPolicy = joinPolicy;
     // 이름 변경은 같은 이름 중복 방지를 위해 별도 검토 — 일단 비허용
     await group.save();
+    // 그룹 채팅방의 캐시된 커버 이미지도 동기화
+    if (coverChanged) {
+      ChatRoom.findOneAndUpdate(
+        { groupId: group._id, kind: 'group' },
+        { groupCoverImage: group.coverImage }
+      ).catch(() => {});
+    }
 
     res.json({ success: true, data: { message: '수정되었어요.' } });
   } catch (err) {
@@ -302,10 +332,20 @@ router.delete('/:id/leave', requireAuth, async (req, res) => {
 });
 
 // ── GET /api/groups/:id/members — 멤버 목록 ──────────────
-router.get('/:id/members', optionalAuth, async (req, res) => {
+// ?status=active (기본) | pending  (관리자/owner만 pending 조회 가능)
+router.get('/:id/members', requireAuth, async (req, res) => {
   try {
+    const status = req.query.status === 'pending' ? 'pending' : 'active';
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-    const members = await GroupMembership.find({ groupId: req.params.id, status: 'active' })
+
+    if (status === 'pending') {
+      const my = await getMyMembership(req.params.id, req.user.id);
+      if (!canManage(my)) {
+        return res.status(403).json({ success: false, message: '권한이 없어요.' });
+      }
+    }
+
+    const members = await GroupMembership.find({ groupId: req.params.id, status })
       .sort({ role: 1, joinedAt: 1 }) // owner > manager > member
       .limit(limit)
       .populate('userId', 'nickname avatarUrl verified university')
@@ -319,9 +359,101 @@ router.get('/:id/members', optionalAuth, async (req, res) => {
         verified: m.userId.verified,
         university: m.userId.university,
         role: m.role,
+        status: m.status,
         joinedAt: m.joinedAt,
       }));
     res.json({ success: true, data: formatted });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── PUT /api/groups/:id/members/:userId/approve — 가입 승인 (owner/manager) ──
+router.put('/:id/members/:userId/approve', requireAuth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    const my = await getMyMembership(group._id, req.user.id);
+    if (!canManage(my)) return res.status(403).json({ success: false, message: '권한이 없어요.' });
+    if (group.memberCount >= group.maxMembers) {
+      return res.status(409).json({ success: false, message: '모임 인원이 가득 찼어요.' });
+    }
+
+    const target = await GroupMembership.findOne({
+      groupId: group._id, userId: req.params.userId, status: 'pending',
+    });
+    if (!target) return res.status(404).json({ success: false, message: '승인 대기 중인 멤버가 아니에요.' });
+
+    target.status = 'active';
+    await target.save();
+    await Group.findByIdAndUpdate(group._id, { $inc: { memberCount: 1 } });
+    // 그룹 채팅방에도 추가
+    ChatRoom.findOneAndUpdate(
+      { groupId: group._id, kind: 'group' },
+      { $addToSet: { participants: req.params.userId } }
+    ).catch(() => {});
+
+    try {
+      await Notification.create({
+        userId: req.params.userId,
+        type: 'group_approved',
+        message: `'${group.name}' 모임 가입이 승인되었어요.`,
+      });
+    } catch {}
+    res.json({ success: true, data: { message: '승인되었어요.' } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── DELETE /api/groups/:id/members/:userId/reject — 가입 거절 (owner/manager) ──
+router.delete('/:id/members/:userId/reject', requireAuth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    const my = await getMyMembership(group._id, req.user.id);
+    if (!canManage(my)) return res.status(403).json({ success: false, message: '권한이 없어요.' });
+
+    const target = await GroupMembership.findOne({
+      groupId: group._id, userId: req.params.userId, status: 'pending',
+    });
+    if (!target) return res.status(404).json({ success: false, message: '승인 대기 중인 멤버가 아니에요.' });
+
+    await target.deleteOne();
+    try {
+      await Notification.create({
+        userId: req.params.userId,
+        type: 'group_rejected',
+        message: `'${group.name}' 모임 가입 신청이 거절되었어요.`,
+      });
+    } catch {}
+    res.json({ success: true, data: { message: '거절되었어요.' } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── POST /api/groups/:id/cover — 커버 이미지 업로드 (owner) ──
+router.post('/:id/cover', requireAuth, uploadCover.single('image'), async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    const my = await getMyMembership(group._id, req.user.id);
+    if (!isOwner(my)) return res.status(403).json({ success: false, message: '그룹장만 가능해요.' });
+    if (!req.file?.path) return res.status(400).json({ success: false, message: '이미지를 업로드하지 못했어요.' });
+
+    group.coverImage = req.file.path;
+    await group.save();
+    // 그룹 채팅방 캐시도 업데이트
+    ChatRoom.findOneAndUpdate(
+      { groupId: group._id, kind: 'group' },
+      { groupCoverImage: req.file.path }
+    ).catch(() => {});
+
+    res.json({ success: true, data: { coverImage: req.file.path } });
   } catch (err) {
     console.error('[api]', req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });

@@ -10,6 +10,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import {
   getGroupMembers, kickGroupMember, setGroupMemberRole, transferGroupOwner,
+  approveGroupMember, rejectGroupMember,
 } from '../../lib/api';
 
 export default function GroupMembersScreen({ route, navigation }) {
@@ -18,7 +19,9 @@ export default function GroupMembersScreen({ route, navigation }) {
   const { t } = useLang();
   const styles = createStyles(colors);
 
+  const [tab, setTab] = useState('active'); // active | pending
   const [members, setMembers] = useState([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionTarget, setActionTarget] = useState(null);
@@ -27,13 +30,20 @@ export default function GroupMembersScreen({ route, navigation }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await getGroupMembers(groupId);
+      const res = await getGroupMembers(groupId, tab);
       if (res.success) setMembers(res.data || []);
+      // pending 카운트 (관리자만)
+      if (canManage) {
+        try {
+          const pr = await getGroupMembers(groupId, 'pending');
+          if (pr.success) setPendingCount(pr.data?.length || 0);
+        } catch {}
+      }
     } catch {} finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [groupId]);
+  }, [groupId, tab, canManage]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -75,6 +85,35 @@ export default function GroupMembersScreen({ route, navigation }) {
     }
   };
 
+  const onApprovePending = async (userId) => {
+    try {
+      const res = await approveGroupMember(groupId, userId);
+      if (res.success) load();
+      else Alert.alert('', res.message || t('common.serverError'));
+    } catch (e) {
+      Alert.alert('', e?.message || t('common.serverError'));
+    }
+  };
+
+  const onRejectPending = (userId) => {
+    Alert.alert('', '가입 신청을 거절하시겠어요?', [
+      { text: t('common.cancel') || '취소', style: 'cancel' },
+      {
+        text: '거절',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const res = await rejectGroupMember(groupId, userId);
+            if (res.success) load();
+            else Alert.alert('', res.message || t('common.serverError'));
+          } catch (e) {
+            Alert.alert('', e?.message || t('common.serverError'));
+          }
+        },
+      },
+    ]);
+  };
+
   const onTransfer = (userId, nickname) => {
     Alert.alert('', `${nickname}${t('group.transferAsk')}`, [
       { text: t('common.cancel') || '취소', style: 'cancel' },
@@ -112,38 +151,99 @@ export default function GroupMembersScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {canManage && (
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[styles.tab, tab === 'active' && styles.tabActive]}
+            onPress={() => setTab('active')}
+            activeOpacity={0.75}
+          >
+            <Text style={[styles.tabText, tab === 'active' && styles.tabTextActive]}>활성 멤버</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, tab === 'pending' && styles.tabActive]}
+            onPress={() => setTab('pending')}
+            activeOpacity={0.75}
+          >
+            <Text style={[styles.tabText, tab === 'pending' && styles.tabTextActive]}>
+              승인 대기{pendingCount > 0 ? ` (${pendingCount})` : ''}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <ScrollView
         contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
       >
+        {members.length === 0 && tab === 'pending' && (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>승인 대기 중인 멤버가 없어요.</Text>
+          </View>
+        )}
         <View style={styles.list}>
           {members.map((m, idx) => (
             <View key={String(m.id)}>
-              <TouchableOpacity
-                style={styles.row}
-                activeOpacity={canManage && m.role !== 'owner' ? 0.7 : 1}
-                onPress={() => canManage && m.role !== 'owner' ? setActionTarget(m) : null}
-              >
-                {m.avatarUrl ? (
-                  <Image source={{ uri: m.avatarUrl }} style={styles.avatar} contentFit="cover" />
-                ) : (
-                  <View style={[styles.avatar, { backgroundColor: colors.inputBg, alignItems: 'center', justifyContent: 'center' }]}>
-                    <Ionicons name="person" size={20} color={colors.textSecondary} />
+              {tab === 'pending' ? (
+                <View style={styles.row}>
+                  {m.avatarUrl ? (
+                    <Image source={{ uri: m.avatarUrl }} style={styles.avatar} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.avatar, { backgroundColor: colors.inputBg, alignItems: 'center', justifyContent: 'center' }]}>
+                      <Ionicons name="person" size={20} color={colors.textSecondary} />
+                    </View>
+                  )}
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.name} numberOfLines={1}>{m.nickname || '—'}</Text>
+                      {m.verified && <Ionicons name="checkmark-circle" size={13} color={colors.primary} />}
+                    </View>
+                    <Text style={styles.role}>가입 신청</Text>
                   </View>
-                )}
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.name} numberOfLines={1}>{m.nickname || '—'}</Text>
-                    {m.verified && <Ionicons name="checkmark-circle" size={13} color={colors.primary} />}
+                  <View style={styles.pendingActions}>
+                    <TouchableOpacity
+                      style={[styles.pendingBtn, { backgroundColor: colors.primary }]}
+                      onPress={() => onApprovePending(m.id)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.pendingBtnText}>승인</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.pendingBtn, styles.pendingBtnReject]}
+                      onPress={() => onRejectPending(m.id)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={[styles.pendingBtnText, { color: colors.danger }]}>거절</Text>
+                    </TouchableOpacity>
                   </View>
-                  <Text style={[styles.role, { color: roleColor(m.role) }]}>
-                    {roleLabel(m.role)}
-                  </Text>
                 </View>
-                {canManage && m.role !== 'owner' && (
-                  <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
-                )}
-              </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.row}
+                  activeOpacity={canManage && m.role !== 'owner' ? 0.7 : 1}
+                  onPress={() => canManage && m.role !== 'owner' ? setActionTarget(m) : null}
+                >
+                  {m.avatarUrl ? (
+                    <Image source={{ uri: m.avatarUrl }} style={styles.avatar} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.avatar, { backgroundColor: colors.inputBg, alignItems: 'center', justifyContent: 'center' }]}>
+                      <Ionicons name="person" size={20} color={colors.textSecondary} />
+                    </View>
+                  )}
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.name} numberOfLines={1}>{m.nickname || '—'}</Text>
+                      {m.verified && <Ionicons name="checkmark-circle" size={13} color={colors.primary} />}
+                    </View>
+                    <Text style={[styles.role, { color: roleColor(m.role) }]}>
+                      {roleLabel(m.role)}
+                    </Text>
+                  </View>
+                  {canManage && m.role !== 'owner' && (
+                    <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+                  )}
+                </TouchableOpacity>
+              )}
               {idx < members.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
@@ -225,4 +325,21 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.inputBg, borderRadius: 12,
   },
   cancelText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+
+  tabBar: {
+    flexDirection: 'row', backgroundColor: colors.surface,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  tab: { flex: 1, paddingVertical: 14, alignItems: 'center' },
+  tabActive: { borderBottomWidth: 2, borderBottomColor: colors.primary },
+  tabText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
+  tabTextActive: { color: colors.primary, fontWeight: '700' },
+
+  emptyBox: { padding: 40, alignItems: 'center' },
+  emptyText: { color: colors.textSecondary, fontSize: 14 },
+
+  pendingActions: { flexDirection: 'row', gap: 6 },
+  pendingBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
+  pendingBtnReject: { backgroundColor: colors.danger + '15', borderWidth: 1, borderColor: colors.danger + '40' },
+  pendingBtnText: { color: colors.white, fontSize: 12, fontWeight: '700' },
 });

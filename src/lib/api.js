@@ -346,7 +346,12 @@ export const updateGroup = (groupId, data) => request('PUT', `/groups/${groupId}
 export const closeGroup = (groupId) => request('DELETE', `/groups/${groupId}`);
 export const joinGroup = (groupId) => request('POST', `/groups/${groupId}/join`);
 export const leaveGroup = (groupId) => request('DELETE', `/groups/${groupId}/leave`);
-export const getGroupMembers = (groupId) => request('GET', `/groups/${groupId}/members`);
+export const getGroupMembers = (groupId, status = 'active') =>
+  request('GET', `/groups/${groupId}/members?status=${status}`);
+export const approveGroupMember = (groupId, userId) =>
+  request('PUT', `/groups/${groupId}/members/${userId}/approve`);
+export const rejectGroupMember = (groupId, userId) =>
+  request('DELETE', `/groups/${groupId}/members/${userId}/reject`);
 export const kickGroupMember = (groupId, userId, { ban = false, reason } = {}) =>
   request(
     'DELETE',
@@ -362,6 +367,21 @@ export const setGroupNotifications = (groupId, { notifyPosts, notifyChat }) =>
 export const getGroupPosts = (groupId, { page = 1, limit = 20 } = {}) =>
   request('GET', `/groups/${groupId}/posts?page=${page}&limit=${limit}`);
 export const getGroupChat = (groupId) => request('GET', `/groups/${groupId}/chat`);
+
+export const uploadGroupCover = async (groupId, asset) => {
+  const token = await getToken();
+  const form = new FormData();
+  const filename = asset.uri.split('/').pop() || `cover_${Date.now()}.jpg`;
+  const ext = (filename.split('.').pop() || 'jpg').toLowerCase();
+  const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+  form.append('image', { uri: asset.uri, name: filename, type });
+  const res = await fetch(`${BASE_URL}/groups/${groupId}/cover`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  return toCamel(await res.json());
+};
 
 // 관리자 — 모임 승인
 export const adminGetGroups = (status = 'pending_review') =>
