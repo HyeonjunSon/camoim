@@ -8,6 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../components/StyledText';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   getGroupMembers, kickGroupMember, setGroupMemberRole, transferGroupOwner,
   approveGroupMember, rejectGroupMember,
@@ -17,7 +18,17 @@ export default function GroupMembersScreen({ route, navigation }) {
   const { groupId, isOwner, isManager } = route.params || {};
   const { colors } = useTheme();
   const { t } = useLang();
+  const { user: me } = useAuth();
   const styles = createStyles(colors);
+
+  // 자기 자신을 탭하면 마이페이지 탭으로, 아니면 그 멤버 프로필로
+  const goToMember = (memberId) => {
+    if (me?.id && String(memberId) === String(me.id)) {
+      navigation.getParent()?.navigate('MyPage');
+    } else {
+      navigation.push('UserProfile', { userId: memberId });
+    }
+  };
 
   const [tab, setTab] = useState('active'); // active | pending
   const [members, setMembers] = useState([]);
@@ -230,7 +241,7 @@ export default function GroupMembersScreen({ route, navigation }) {
                 <TouchableOpacity
                   style={styles.row}
                   activeOpacity={0.7}
-                  onPress={() => navigation.push('UserProfile', { userId: m.id })}
+                  onPress={() => goToMember(m.id)}
                 >
                   {m.avatarUrl ? (
                     <Image source={{ uri: m.avatarUrl }} style={styles.avatar} contentFit="cover" />

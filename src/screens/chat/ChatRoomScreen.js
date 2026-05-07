@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { Text, TextInput } from '../../components/StyledText';
 import {
   View,
@@ -48,22 +49,34 @@ export default function ChatRoomScreen({ route, navigation }) {
     navigation.setOptions({ headerShown: false });
   }, []);
 
-  // 메시지 불러오기 + 글로벌 소켓 이벤트 등록
-  useEffect(() => {
+  // 메시지 불러오기 + 소켓 — 포커스마다 재실행해 stale/empty 응답 자동 복구
+  useFocusEffect(useCallback(() => {
+    let mounted = true;
+
     async function loadMessages() {
       try {
         const token = await getToken();
         const res = await fetch(`${API_BASE_URL}/chats/${roomId}/messages`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const data = await res.json();
-        if (data.success) {
-          setMessages(data.data);
-          if (data.otherLeft) setOtherLeft(true);
-          if (data.otherDeleted) setOtherDeleted(true);
+        if (!res.ok) {
+          console.warn('[chat] messages fetch failed', res.status);
+          return;
         }
-      } catch {}
-      finally { setLoading(false); }
+        const data = await res.json();
+        if (!mounted) return;
+        if (data.success) {
+          setMessages(Array.isArray(data.data) ? data.data : []);
+          setOtherLeft(!!data.otherLeft);
+          setOtherDeleted(!!data.otherDeleted);
+        } else {
+          console.warn('[chat] messages response not success', data?.message);
+        }
+      } catch (e) {
+        console.warn('[chat] messages fetch error:', e?.message);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     }
 
     loadMessages();
@@ -106,6 +119,7 @@ export default function ChatRoomScreen({ route, navigation }) {
     });
 
     return () => {
+      mounted = false;
       leaveRoom(roomId);
       setActiveRoom(null);
       off('new_message', `chatRoom_${roomId}`);
@@ -113,7 +127,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       off('room_left', `chatRoom_${roomId}`);
       off('send_error', `chatRoom_${roomId}`);
     };
-  }, [roomId]);
+  }, [roomId]));
 
   function sendMessage() {
     const content = text.trim();
