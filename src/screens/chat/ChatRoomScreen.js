@@ -54,9 +54,9 @@ export default function ChatRoomScreen({ route, navigation }) {
               activeOpacity={0.6}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
-              accessibilityLabel="모임 정보 보기"
+              accessibilityLabel="그룹 정보 보기"
             >
-              <Ionicons name="information-circle-outline" size={26} color={colors.primary} />
+              <Text style={{ fontSize: 15, color: colors.primary, fontWeight: '600' }}>그룹</Text>
             </TouchableOpacity>
           ) : null
         ),
