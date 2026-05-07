@@ -433,33 +433,24 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  // iOS 26 Liquid Glass 느낌 — 부드러운 회색 배경 + 살짝 그림자
+  // iOS 26 Liquid Glass 느낌 — 시스템 필 색(반투명 회색)으로 라이트/다크 양쪽
+  // 모두 시각적 식별 가능. iOS systemFill secondary 값 (rgba(120,120,128,.18))
   customHeaderBackBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.inputBg,
+    backgroundColor: 'rgba(120,120,128,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
   customHeaderRightBtn: {
     minWidth: 56,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.inputBg,
+    backgroundColor: 'rgba(120,120,128,0.18)',
     paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
   customHeaderTitleWrap: {
     ...StyleSheet.absoluteFillObject,
