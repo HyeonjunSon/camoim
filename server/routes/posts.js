@@ -571,7 +571,8 @@ router.post('/:postId/like', requireAuth, async (req, res) => {
             postOwner.pushToken,
             '좋아요 ♥',
             `${likerName}님이 회원님의 글을 좋아해요`,
-            { type: 'like', postId: String(post._id) }
+            { type: 'like', postId: String(post._id) },
+            postOwner._id,
           );
         }
       }
@@ -757,7 +758,8 @@ router.post('/:postId/comments', requireAuth, async (req, res) => {
           postOwner.pushToken,
           '새 댓글 💬',
           `${commenterName}: ${content.slice(0, 50)}`,
-          { type: 'comment', postId: String(post._id) }
+          { type: 'comment', postId: String(post._id) },
+          postOwner._id,
         );
       }
     }

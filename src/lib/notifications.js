@@ -77,3 +77,15 @@ export function addNotificationResponseListener(onNavigate) {
     }
   });
 }
+
+/**
+ * iOS 앱 아이콘 뱃지 카운트 0으로 리셋
+ * 앱 시작 시 / 포그라운드 전환 시 / 알림 읽음 시 호출
+ */
+export async function clearAppBadge() {
+  try {
+    await Notifications.setBadgeCountAsync(0);
+  } catch (e) {
+    // 권한 없거나 시뮬레이터면 무시
+  }
+}

@@ -85,7 +85,8 @@ router.post('/', requireAuth, requireRole('admin'), async (req, res) => {
               u.pushToken,
               '📢 ' + notice.title,
               notice.content.slice(0, 80),
-              { type: 'notice', noticeId: String(notice._id) }
+              { type: 'notice', noticeId: String(notice._id) },
+              u._id,
             );
           }
         })

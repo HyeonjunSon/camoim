@@ -163,7 +163,8 @@ router.put('/admin/:id/answer', requireAuth, requireRole('admin'), async (req, r
           u.pushToken,
           '📩 문의에 답변이 도착했어요',
           inquiry.title.slice(0, 60),
-          { type: 'inquiry', inquiryId: String(inquiry._id) }
+          { type: 'inquiry', inquiryId: String(inquiry._id) },
+          inquiry.userId,
         );
       })
       .catch(() => {});

@@ -775,9 +775,9 @@ router.post('/push', async (req, res) => {
     if (target.university) filter.university = target.university;
     if (target.role) filter.role = target.role;
 
-    const users = await User.find(filter).select('pushToken').lean();
+    const users = await User.find(filter).select('_id pushToken').lean();
     const { sendPush } = require('../utils/push');
-    users.forEach(u => sendPush(u.pushToken, title, body, { type: 'admin_broadcast' }));
+    users.forEach(u => sendPush(u.pushToken, title, body, { type: 'admin_broadcast' }, u._id));
     logAdmin(req, 'push.broadcast', { targetType: 'system', meta: { count: users.length, target } });
     res.json({ success: true, data: { sent: users.length } });
   } catch (err) {

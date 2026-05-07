@@ -8,7 +8,7 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar, setStatusBarStyle } from 'expo-status-bar';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, AppState } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +19,7 @@ import { SocketProvider } from './src/context/SocketContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import AuthStack from './src/navigation/AuthStack';
 import { colors } from './src/constants/colors';
-import { registerForPushNotifications, addNotificationResponseListener } from './src/lib/notifications';
+import { registerForPushNotifications, addNotificationResponseListener, clearAppBadge } from './src/lib/notifications';
 import SystemStatusGate from './src/components/SystemStatusGate';
 import OnboardingScreen, { checkOnboardingDone } from './src/screens/onboarding/OnboardingScreen';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -41,8 +41,19 @@ function AppNavigator() {
       // 로그인 후 푸시 토큰 등록
       registerForPushNotifications();
 
+      // 앱 시작 시 iOS 아이콘 뱃지 0으로 (사용자가 앱 열었으니 알림 확인했다고 간주)
+      clearAppBadge();
+
+      // 포그라운드 전환 시 뱃지 다시 0으로
+      const appStateSub = AppState.addEventListener('change', (state) => {
+        if (state === 'active') {
+          clearAppBadge();
+        }
+      });
+
       // 알림 탭 시 해당 게시글로 이동
       const sub = addNotificationResponseListener((data) => {
+        clearAppBadge(); // 알림 탭 시 즉시 뱃지 정리
         if (!navigationRef.isReady()) return;
         if (data.noticeId) {
           navigationRef.navigate('MyPage', {
@@ -56,7 +67,10 @@ function AppNavigator() {
           });
         }
       });
-      return () => sub.remove();
+      return () => {
+        sub.remove();
+        appStateSub.remove();
+      };
     }
   }, [user]);
 
