@@ -433,22 +433,22 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  // iOS 26 Liquid Glass 느낌 — 시스템 필 색(반투명 회색)으로 라이트/다크 양쪽
-  // 모두 시각적 식별 가능. iOS systemFill secondary 값 (rgba(120,120,128,.18))
+  // 통일된 헤더 캡슐 — iOS tertiarySystemFill rgba(118,118,128,0.12)
+  // BoardPostDetail/PostDetail의 headerCircle과 동일한 36x36 사이즈
   customHeaderBackBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(120,120,128,0.18)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(118,118,128,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   customHeaderRightBtn: {
-    minWidth: 56,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(120,120,128,0.18)',
-    paddingHorizontal: 14,
+    minWidth: 52,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(118,118,128,0.12)',
+    paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },

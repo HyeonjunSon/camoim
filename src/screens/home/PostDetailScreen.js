@@ -786,14 +786,14 @@ const createStyles = (colors) => StyleSheet.create({
   },
   headerCircle: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.inputBg,
+    backgroundColor: 'rgba(118,118,128,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
   // ⋯ 메뉴: 36×36 원 안에 18px 도트 그룹을 flex center
   // 3 dots × 4 + 2 gaps × 3 = 18px wide group
   headerCircleMore: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.inputBg,
+    backgroundColor: 'rgba(118,118,128,0.12)',
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
   },

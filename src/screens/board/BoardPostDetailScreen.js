@@ -862,12 +862,12 @@ const createStyles = (colors) => StyleSheet.create({
   },
   headerCircle: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.inputBg,
+    backgroundColor: 'rgba(118,118,128,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
   headerCircleMore: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.inputBg,
+    backgroundColor: 'rgba(118,118,128,0.12)',
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
   },
