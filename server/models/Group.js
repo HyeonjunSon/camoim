@@ -1,0 +1,46 @@
+const mongoose = require('mongoose');
+
+// 사용자가 만드는 주제별 모임 (그룹)
+// admin 승인 후 활성화됨. 활성화되면 게시판 + 그룹 채팅이 자동으로 묶여서 운영됨.
+const groupSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true, maxlength: 50 },
+  description: { type: String, default: '', maxlength: 500 },
+  coverImage: { type: String, default: '', maxlength: 500 }, // Cloudinary URL
+  category: {
+    type: String,
+    enum: ['hobby', 'study', 'local', 'job', 'workinghol', 'general'],
+    default: 'general',
+    index: true,
+  },
+  city: { type: String, default: '', maxlength: 100, index: true }, // 지역 모임이면
+
+  // 그룹장 + 부그룹장
+  ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  managerIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+
+  // 캐시 카운트
+  memberCount: { type: Number, default: 1 },
+  postCount: { type: Number, default: 0 },
+
+  // 가입 정책
+  joinPolicy: { type: String, enum: ['open', 'approval'], default: 'open' },
+  maxMembers: { type: Number, default: 500 },
+
+  // Admin 승인 워크플로
+  status: {
+    type: String,
+    enum: ['pending_review', 'active', 'rejected', 'closed'],
+    default: 'pending_review',
+    index: true,
+  },
+  rejectReason: { type: String, default: '', maxlength: 500 },
+  reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  reviewedAt: { type: Date, default: null },
+  closedAt: { type: Date, default: null },
+}, { timestamps: true });
+
+groupSchema.index({ status: 1, category: 1, createdAt: -1 });
+groupSchema.index({ status: 1, memberCount: -1 });
+groupSchema.index({ name: 'text', description: 'text' });
+
+module.exports = mongoose.model('Group', groupSchema);

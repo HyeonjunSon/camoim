@@ -1,0 +1,429 @@
+// 모임 (Group) — 사용자 생성, admin 승인 후 활성화
+// 모임 = 게시판 + (Phase 2) 그룹 채팅 + 멤버십
+const express = require('express');
+const mongoose = require('mongoose');
+const Group = require('../models/Group');
+const GroupMembership = require('../models/GroupMembership');
+const Post = require('../models/Post');
+const User = require('../models/User');
+const Notification = require('../models/Notification');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
+
+const router = express.Router();
+
+const VALID_CATEGORIES = ['hobby', 'study', 'local', 'job', 'workinghol', 'general'];
+
+// 멤버 권한 확인
+async function getMyMembership(groupId, userId) {
+  if (!userId) return null;
+  return GroupMembership.findOne({ groupId, userId, status: { $in: ['active', 'pending'] } });
+}
+function canManage(membership) {
+  return membership && (membership.role === 'owner' || membership.role === 'manager') && membership.status === 'active';
+}
+function isOwner(membership) {
+  return membership && membership.role === 'owner' && membership.status === 'active';
+}
+
+// ── GET /api/groups — 모임 목록 (검색/필터) ─────────────
+// ?box=all (기본) | mine (가입한 모임만)
+// ?category=hobby&city=Toronto&q=keyword&sort=popular|recent
+router.get('/', optionalAuth, async (req, res) => {
+  try {
+    const { box = 'all', category, city, q, sort = 'popular' } = req.query;
+    const limit = Math.min(parseInt(req.query.limit) || 30, 100);
+    const skip = ((parseInt(req.query.page) || 1) - 1) * limit;
+
+    let filter = { status: 'active' };
+    if (category && VALID_CATEGORIES.includes(category)) filter.category = category;
+    if (city) filter.city = city;
+    if (q) {
+      const safe = String(q).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.name = { $regex: safe, $options: 'i' };
+    }
+
+    if (box === 'mine') {
+      if (!req.user) return res.json({ success: true, data: [] });
+      const my = await GroupMembership.find({ userId: req.user.id, status: 'active' }).distinct('groupId');
+      filter._id = { $in: my };
+    }
+
+    const sortObj = sort === 'recent'
+      ? { createdAt: -1 }
+      : { memberCount: -1, createdAt: -1 };
+
+    const groups = await Group.find(filter)
+      .sort(sortObj)
+      .skip(skip)
+      .limit(limit)
+      .select('name description coverImage category city ownerId memberCount postCount joinPolicy createdAt')
+      .lean();
+
+    res.json({ success: true, data: groups });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── POST /api/groups — 모임 신청 (pending_review) ─────────
+router.post('/', requireAuth, async (req, res) => {
+  try {
+    const { name, description, coverImage, category, city, joinPolicy } = req.body || {};
+    if (!name || String(name).trim().length < 2) {
+      return res.status(400).json({ success: false, message: '모임 이름을 2자 이상 입력해주세요.' });
+    }
+    if (!category || !VALID_CATEGORIES.includes(category)) {
+      return res.status(400).json({ success: false, message: '카테고리를 선택해주세요.' });
+    }
+    if (joinPolicy && !['open', 'approval'].includes(joinPolicy)) {
+      return res.status(400).json({ success: false, message: '잘못된 가입 정책이에요.' });
+    }
+
+    // 같은 이름 중복 방지 (active 또는 pending_review)
+    const dup = await Group.findOne({
+      name: String(name).trim(),
+      status: { $in: ['active', 'pending_review'] },
+    });
+    if (dup) return res.status(409).json({ success: false, message: '이미 같은 이름의 모임이 있어요.' });
+
+    const group = await Group.create({
+      name: String(name).trim(),
+      description: String(description || '').slice(0, 500),
+      coverImage: String(coverImage || '').slice(0, 500),
+      category,
+      city: String(city || '').slice(0, 100),
+      ownerId: req.user.id,
+      joinPolicy: joinPolicy || 'open',
+      status: 'pending_review',
+      memberCount: 1,
+    });
+
+    // 그룹장 본인 자동 멤버십 (pending_review 동안에도 본인은 active)
+    await GroupMembership.create({
+      groupId: group._id,
+      userId: req.user.id,
+      role: 'owner',
+      status: 'active',
+    });
+
+    res.status(201).json({ success: true, data: { id: group._id, status: group.status } });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ success: false, message: '이미 존재하는 모임 이름이에요.' });
+    }
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── GET /api/groups/:id — 모임 상세 ──────────────────────
+router.get('/:id', optionalAuth, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    }
+    const group = await Group.findById(req.params.id)
+      .populate('ownerId', 'nickname avatarUrl')
+      .lean();
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    if (group.status === 'rejected' && String(group.ownerId._id) !== String(req.user?.id)) {
+      return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    }
+
+    // 내 멤버십 정보
+    let myMembership = null;
+    if (req.user) {
+      const m = await GroupMembership.findOne({ groupId: group._id, userId: req.user.id }).lean();
+      if (m) {
+        myMembership = { role: m.role, status: m.status, notifyPosts: m.notifyPosts, notifyChat: m.notifyChat };
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: group._id,
+        name: group.name,
+        description: group.description,
+        coverImage: group.coverImage,
+        category: group.category,
+        city: group.city,
+        owner: { id: group.ownerId._id, nickname: group.ownerId.nickname, avatarUrl: group.ownerId.avatarUrl },
+        memberCount: group.memberCount,
+        postCount: group.postCount,
+        joinPolicy: group.joinPolicy,
+        maxMembers: group.maxMembers,
+        status: group.status,
+        rejectReason: group.rejectReason || undefined,
+        createdAt: group.createdAt,
+        myMembership,
+      },
+    });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── PUT /api/groups/:id — 모임 정보 수정 (owner) ──────────
+router.put('/:id', requireAuth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    const my = await getMyMembership(group._id, req.user.id);
+    if (!isOwner(my)) return res.status(403).json({ success: false, message: '그룹장만 수정할 수 있어요.' });
+
+    const { description, coverImage, category, city, joinPolicy } = req.body || {};
+    if (description !== undefined) group.description = String(description).slice(0, 500);
+    if (coverImage !== undefined) group.coverImage = String(coverImage).slice(0, 500);
+    if (category !== undefined && VALID_CATEGORIES.includes(category)) group.category = category;
+    if (city !== undefined) group.city = String(city).slice(0, 100);
+    if (joinPolicy !== undefined && ['open', 'approval'].includes(joinPolicy)) group.joinPolicy = joinPolicy;
+    // 이름 변경은 같은 이름 중복 방지를 위해 별도 검토 — 일단 비허용
+    await group.save();
+
+    res.json({ success: true, data: { message: '수정되었어요.' } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── DELETE /api/groups/:id — 모임 폐쇄 (owner) ────────────
+router.delete('/:id', requireAuth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    const my = await getMyMembership(group._id, req.user.id);
+    if (!isOwner(my)) return res.status(403).json({ success: false, message: '그룹장만 폐쇄할 수 있어요.' });
+
+    // cascade: 글 삭제 + 멤버십 삭제 + 그룹 status='closed' (소프트)
+    await Promise.all([
+      Post.deleteMany({ groupId: group._id }),
+      GroupMembership.deleteMany({ groupId: group._id }),
+    ]);
+    group.status = 'closed';
+    group.closedAt = new Date();
+    await group.save();
+
+    res.json({ success: true, data: { message: '모임이 폐쇄되었어요.' } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── POST /api/groups/:id/join — 가입 ─────────────────────
+router.post('/:id/join', requireAuth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group || group.status !== 'active') {
+      return res.status(404).json({ success: false, message: '가입할 수 있는 모임이 아니에요.' });
+    }
+    const existing = await GroupMembership.findOne({ groupId: group._id, userId: req.user.id });
+    if (existing && existing.status === 'banned') {
+      return res.status(403).json({ success: false, message: '이 모임에서 차단된 상태에요.' });
+    }
+    if (existing && existing.status === 'active') {
+      return res.json({ success: true, data: { status: 'active', message: '이미 가입되어 있어요.' } });
+    }
+    if (existing && existing.status === 'pending') {
+      return res.json({ success: true, data: { status: 'pending', message: '승인 대기 중이에요.' } });
+    }
+    if (group.memberCount >= group.maxMembers) {
+      return res.status(409).json({ success: false, message: '모임 인원이 가득 찼어요.' });
+    }
+
+    const status = group.joinPolicy === 'approval' ? 'pending' : 'active';
+    await GroupMembership.create({ groupId: group._id, userId: req.user.id, role: 'member', status });
+    if (status === 'active') {
+      await Group.findByIdAndUpdate(group._id, { $inc: { memberCount: 1 } });
+    } else {
+      // 승인 대기 알림 → 그룹장에게
+      try {
+        await Notification.create({
+          userId: group.ownerId,
+          type: 'group_join_request',
+          message: `'${group.name}' 모임 가입 요청이 있어요.`,
+        });
+      } catch {}
+    }
+    res.status(201).json({ success: true, data: { status } });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.json({ success: true, data: { message: '이미 가입되어 있어요.' } });
+    }
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── DELETE /api/groups/:id/leave — 탈퇴 ──────────────────
+router.delete('/:id/leave', requireAuth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    const my = await GroupMembership.findOne({ groupId: group._id, userId: req.user.id });
+    if (!my) return res.status(404).json({ success: false, message: '가입한 모임이 아니에요.' });
+    if (my.role === 'owner') {
+      return res.status(400).json({ success: false, message: '그룹장은 모임을 탈퇴할 수 없어요. 다른 멤버에게 그룹장을 양도하거나 모임을 폐쇄해주세요.' });
+    }
+    await my.deleteOne();
+    if (my.status === 'active') {
+      await Group.findByIdAndUpdate(group._id, { $inc: { memberCount: -1 } });
+    }
+    res.json({ success: true, data: { message: '모임에서 나갔어요.' } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── GET /api/groups/:id/members — 멤버 목록 ──────────────
+router.get('/:id/members', optionalAuth, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const members = await GroupMembership.find({ groupId: req.params.id, status: 'active' })
+      .sort({ role: 1, joinedAt: 1 }) // owner > manager > member
+      .limit(limit)
+      .populate('userId', 'nickname avatarUrl verified university')
+      .lean();
+    const formatted = members
+      .filter(m => m.userId) // 탈퇴한 사용자 제외
+      .map(m => ({
+        id: m.userId._id,
+        nickname: m.userId.nickname,
+        avatarUrl: m.userId.avatarUrl,
+        verified: m.userId.verified,
+        university: m.userId.university,
+        role: m.role,
+        joinedAt: m.joinedAt,
+      }));
+    res.json({ success: true, data: formatted });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── DELETE /api/groups/:id/members/:userId — 추방 (owner/manager) ──
+router.delete('/:id/members/:userId', requireAuth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    const my = await getMyMembership(group._id, req.user.id);
+    if (!canManage(my)) return res.status(403).json({ success: false, message: '권한이 없어요.' });
+
+    if (String(req.params.userId) === String(group.ownerId)) {
+      return res.status(400).json({ success: false, message: '그룹장은 추방할 수 없어요.' });
+    }
+
+    const target = await GroupMembership.findOne({ groupId: group._id, userId: req.params.userId });
+    if (!target) return res.status(404).json({ success: false, message: '해당 멤버를 찾을 수 없어요.' });
+
+    const wasActive = target.status === 'active';
+    // ban 옵션 (req.query.ban=true면 차단)
+    if (req.query.ban === 'true') {
+      target.status = 'banned';
+      target.bannedReason = String(req.body?.reason || '').slice(0, 500);
+      await target.save();
+    } else {
+      await target.deleteOne();
+    }
+    if (wasActive) {
+      await Group.findByIdAndUpdate(group._id, { $inc: { memberCount: -1 } });
+    }
+
+    // 추방당한 사람에게 알림
+    try {
+      await Notification.create({
+        userId: req.params.userId,
+        type: req.query.ban === 'true' ? 'group_banned' : 'group_kicked',
+        message: `'${group.name}' 모임에서 ${req.query.ban === 'true' ? '차단' : '추방'}되었어요.`,
+      });
+    } catch {}
+
+    res.json({ success: true, data: { message: '처리되었어요.' } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── PUT /api/groups/:id/members/:userId/role — 부그룹장 임명/해임 (owner) ──
+router.put('/:id/members/:userId/role', requireAuth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    const my = await getMyMembership(group._id, req.user.id);
+    if (!isOwner(my)) return res.status(403).json({ success: false, message: '그룹장만 가능해요.' });
+
+    const { role } = req.body || {};
+    if (!['manager', 'member'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'role은 manager 또는 member만 가능해요.' });
+    }
+
+    const target = await GroupMembership.findOne({ groupId: group._id, userId: req.params.userId, status: 'active' });
+    if (!target) return res.status(404).json({ success: false, message: '해당 멤버를 찾을 수 없어요.' });
+    if (target.role === 'owner') return res.status(400).json({ success: false, message: '그룹장은 변경할 수 없어요.' });
+
+    target.role = role;
+    await target.save();
+    res.json({ success: true, data: { role } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── POST /api/groups/:id/transfer — 그룹장 양도 (owner) ──
+router.post('/:id/transfer', requireAuth, async (req, res) => {
+  try {
+    const { newOwnerId } = req.body || {};
+    if (!newOwnerId) return res.status(400).json({ success: false, message: '새 그룹장 ID가 필요해요.' });
+
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    if (String(group.ownerId) !== String(req.user.id)) {
+      return res.status(403).json({ success: false, message: '그룹장만 가능해요.' });
+    }
+
+    const target = await GroupMembership.findOne({ groupId: group._id, userId: newOwnerId, status: 'active' });
+    if (!target) return res.status(404).json({ success: false, message: '대상이 모임 멤버가 아니에요.' });
+
+    // owner role 이동
+    await GroupMembership.findOneAndUpdate(
+      { groupId: group._id, userId: req.user.id },
+      { role: 'member' }
+    );
+    target.role = 'owner';
+    await target.save();
+    group.ownerId = newOwnerId;
+    await group.save();
+
+    res.json({ success: true, data: { message: '그룹장이 양도되었어요.' } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── PUT /api/groups/:id/notifications — 내 알림 설정 ───
+router.put('/:id/notifications', requireAuth, async (req, res) => {
+  try {
+    const my = await GroupMembership.findOne({ groupId: req.params.id, userId: req.user.id, status: 'active' });
+    if (!my) return res.status(404).json({ success: false, message: '가입한 모임이 아니에요.' });
+
+    const { notifyPosts, notifyChat } = req.body || {};
+    if (typeof notifyPosts === 'boolean') my.notifyPosts = notifyPosts;
+    if (typeof notifyChat === 'boolean') my.notifyChat = notifyChat;
+    await my.save();
+    res.json({ success: true, data: { notifyPosts: my.notifyPosts, notifyChat: my.notifyChat } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+module.exports = router;

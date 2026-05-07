@@ -6,6 +6,9 @@ const Board = require('../models/Board');
 const Report = require('../models/Report');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
+const Group = require('../models/Group');
+const GroupMembership = require('../models/GroupMembership');
+const Notification = require('../models/Notification');
 const AdminLog = require('../models/AdminLog');
 const SystemSetting = require('../models/SystemSetting');
 const { invalidate: invalidateSystemCache } = require('../middleware/systemGuard');
@@ -782,6 +785,107 @@ router.post('/push', async (req, res) => {
     res.json({ success: true, data: { sent: users.length } });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── 모임 (Group) 승인 ──────────────────────────────────
+// GET /api/admin/groups?status=pending_review|active|rejected|closed
+router.get('/groups', async (req, res) => {
+  try {
+    const { status = 'pending_review' } = req.query;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const groups = await Group.find({ status })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate('ownerId', 'nickname email avatarUrl verified')
+      .lean();
+    res.json({ success: true, data: groups });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// PUT /api/admin/groups/:id/approve — 승인
+router.put('/groups/:id/approve', async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    if (group.status !== 'pending_review') {
+      return res.status(400).json({ success: false, message: '승인 대기 상태가 아니에요.' });
+    }
+    group.status = 'active';
+    group.reviewedBy = req.user.id;
+    group.reviewedAt = new Date();
+    await group.save();
+
+    try {
+      await Notification.create({
+        userId: group.ownerId,
+        type: 'group_approved',
+        message: `'${group.name}' 모임이 승인되었어요.`,
+      });
+    } catch {}
+
+    logAdmin(req, 'group.approve', { targetType: 'group', targetId: group._id, meta: { name: group.name } });
+    res.json({ success: true, data: { id: group._id, status: group.status } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// PUT /api/admin/groups/:id/reject — 거절
+router.put('/groups/:id/reject', async (req, res) => {
+  try {
+    const { reason } = req.body || {};
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    if (group.status !== 'pending_review') {
+      return res.status(400).json({ success: false, message: '승인 대기 상태가 아니에요.' });
+    }
+    group.status = 'rejected';
+    group.rejectReason = String(reason || '').slice(0, 500);
+    group.reviewedBy = req.user.id;
+    group.reviewedAt = new Date();
+    await group.save();
+
+    // 신청자 본인 멤버십도 정리
+    await GroupMembership.deleteMany({ groupId: group._id });
+
+    try {
+      await Notification.create({
+        userId: group.ownerId,
+        type: 'group_rejected',
+        message: `'${group.name}' 모임 신청이 거절되었어요.${reason ? ` (사유: ${reason})` : ''}`,
+      });
+    } catch {}
+
+    logAdmin(req, 'group.reject', { targetType: 'group', targetId: group._id, meta: { name: group.name, reason } });
+    res.json({ success: true, data: { id: group._id, status: group.status } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// DELETE /api/admin/groups/:id — admin 강제 폐쇄 (cascade)
+router.delete('/groups/:id', async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    await Promise.all([
+      Post.deleteMany({ groupId: group._id }),
+      GroupMembership.deleteMany({ groupId: group._id }),
+    ]);
+    group.status = 'closed';
+    group.closedAt = new Date();
+    await group.save();
+    logAdmin(req, 'group.close', { targetType: 'group', targetId: group._id, meta: { name: group.name } });
+    res.json({ success: true, data: { id: group._id, status: 'closed' } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });

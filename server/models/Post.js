@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 
 const postSchema = new mongoose.Schema({
   boardId: { type: mongoose.Schema.Types.ObjectId, ref: 'Board', required: true },
+  // 모임 게시판 글이면 채워짐. 일반 게시판은 null.
+  groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', default: null, index: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   title: { type: String, required: true, maxlength: 500 },
   content: { type: String, required: true },
