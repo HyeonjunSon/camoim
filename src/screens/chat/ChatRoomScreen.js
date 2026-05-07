@@ -427,6 +427,7 @@ const createStyles = (colors) => StyleSheet.create({
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   customHeaderSide: {
     width: 60,
