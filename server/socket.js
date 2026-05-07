@@ -130,15 +130,11 @@ function initSocket(httpServer) {
         // 방 안의 모든 사람에게 전송
         io.to(roomId).emit('new_message', payload);
 
-        // 알림 저장 + 실시간 이벤트
-        const preview = trimmed.length > 30 ? trimmed.slice(0, 30) + '…' : trimmed;
-        const notifTitle = isGroup
-          ? `${room.groupName} · ${socket.user.nickname}: ${preview}`
-          : `${socket.user.nickname}: ${preview}`;
-
-        // 그룹 채팅: notifyChat=true인 멤버에게만 알림
+        // 채팅 메시지는 알림함(Notification)에 안 쌓음 — 채팅탭 unread 뱃지로
+        // 충분하고, 카톡/슬랙 등 표준 패턴. 실시간 chat_notification 이벤트만 발송
         let recipients = otherIds;
         if (isGroup) {
+          // 그룹 채팅: notifyChat=true인 멤버에게만 실시간 알림
           const enabledMembers = await GroupMembership.find({
             groupId: room.groupId,
             userId: { $in: otherIds },
@@ -147,16 +143,6 @@ function initSocket(httpServer) {
           }).distinct('userId');
           recipients = enabledMembers.map(String);
         }
-
-        await Promise.all(recipients.map(rid =>
-          Notification.create({
-            userId: rid,
-            type: isGroup ? 'group_chat' : 'chat',
-            roomId,
-            message: notifTitle,
-            isRead: false,
-          }).catch(() => {})
-        ));
 
         for (const rid of recipients) {
           io.to(`user_${rid}`).emit('chat_notification', {
@@ -184,11 +170,11 @@ function initSocket(httpServer) {
         await ChatRoom.findByIdAndUpdate(roomId, {
           $set: { [`unreadCount.${userId}`]: 0 },
         });
-        // 이 채팅방의 안 읽은 알림도 모두 읽음 처리
-        await Notification.updateMany(
-          { userId, type: 'chat', roomId, isRead: false },
-          { $set: { isRead: true } }
-        );
+        // 레거시 채팅 알림이 남아있을 수 있어 한 번만 정리
+        // (Option B 이후로는 채팅 알림 자체를 안 만들지만 옛 데이터 청소)
+        await Notification.deleteMany({
+          userId, roomId, type: { $in: ['chat', 'group_chat'] },
+        });
         // 룸 전체(본인 포함)에게 읽음 알림 전송 — 본인은 뱃지 갱신용
         io.to(roomId).emit('messages_read', { roomId, readerId: userId });
         // 본인 개인 룸에도 전송 (홈 알림 뱃지 갱신용, 채팅방 밖에 있을 때)

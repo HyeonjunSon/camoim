@@ -11,7 +11,12 @@ async function calculateUnreadBadge(userId) {
     const Notification = require('../models/Notification');
     const ChatRoom = require('../models/ChatRoom');
     const [notifCount, rooms] = await Promise.all([
-      Notification.countDocuments({ userId, isRead: false }),
+      // 채팅 알림은 알림함에서 제외 (채팅 unread로 카운트하므로 중복 방지)
+      Notification.countDocuments({
+        userId,
+        isRead: false,
+        type: { $nin: ['chat', 'group_chat'] },
+      }),
       ChatRoom.find({ participants: userId }).select('unreadCount').lean(),
     ]);
     let chatCount = 0;

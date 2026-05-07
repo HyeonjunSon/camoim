@@ -4,10 +4,15 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+// 채팅 메시지는 알림함에 안 보여줌 — 채팅탭 뱃지가 그 역할 (Option B)
+const NOTIFICATION_FILTER = { type: { $nin: ['chat', 'group_chat'] } };
+
 // GET /api/notifications/unread-count
 router.get('/unread-count', requireAuth, async (req, res) => {
   try {
-    const count = await Notification.countDocuments({ userId: req.user.id, isRead: false });
+    const count = await Notification.countDocuments({
+      userId: req.user.id, isRead: false, ...NOTIFICATION_FILTER,
+    });
     res.json({ success: true, data: { count } });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
@@ -18,7 +23,7 @@ router.get('/unread-count', requireAuth, async (req, res) => {
 // GET /api/notifications
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const notifications = await Notification.find({ userId: req.user.id })
+    const notifications = await Notification.find({ userId: req.user.id, ...NOTIFICATION_FILTER })
       .sort({ isRead: 1, createdAt: -1 })
       .limit(50);
 
@@ -42,7 +47,10 @@ router.get('/', requireAuth, async (req, res) => {
 // PUT /api/notifications/read-all
 router.put('/read-all', requireAuth, async (req, res) => {
   try {
-    await Notification.updateMany({ userId: req.user.id, isRead: false }, { isRead: true });
+    await Notification.updateMany(
+      { userId: req.user.id, isRead: false, ...NOTIFICATION_FILTER },
+      { isRead: true }
+    );
     res.json({ success: true });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
