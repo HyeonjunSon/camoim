@@ -55,10 +55,21 @@ export default function ChatRoomScreen({ route, navigation }) {
           otherDeleted || !other?.id ? null : (
             <TouchableOpacity
               onPress={() => navigation.push('UserProfile', { userId: other?.id })}
-              activeOpacity={0.7}
-              style={{ marginRight: 4 }}
+              activeOpacity={0.6}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{
+                minWidth: 52,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: 'rgba(118,118,128,0.12)',
+                paddingHorizontal: 12,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t('chat.profile')}
             >
-              <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>{t('chat.profile')}</Text>
+              <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '700' }}>{t('chat.profile')}</Text>
             </TouchableOpacity>
           )
         ),
