@@ -4,6 +4,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../components/StyledText';
 import { useTheme } from '../../context/ThemeContext';
@@ -11,7 +13,7 @@ import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
 import {
   getGroup, joinGroup, leaveGroup, closeGroup, getGroupPosts, getGroupChat,
-  setGroupNotifications,
+  setGroupNotifications, uploadGroupCover,
 } from '../../lib/api';
 import { formatTime } from '../../lib/time';
 
@@ -33,6 +35,7 @@ export default function GroupDetailScreen({ route, navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -115,6 +118,43 @@ export default function GroupDetailScreen({ route, navigation }) {
     ]);
   };
 
+  // 모임 커버 사진 변경 — 그룹장 전용. 채팅방의 캐시된 cover도 서버에서 함께 동기화됨
+  const onChangeCover = async () => {
+    if (uploadingCover) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(t('post.permRequired'), t('post.permPhotoMsg'));
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [2, 1],
+      quality: 1,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setUploadingCover(true);
+    try {
+      const manipulated = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: 1600 } }],
+        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      const res = await uploadGroupCover(groupId, { uri: manipulated.uri });
+      if (res.success) {
+        // 즉시 화면 반영
+        setGroup(g => g ? { ...g, coverImage: res.data.coverImage } : g);
+      } else {
+        Alert.alert('', res.message || t('common.serverError'));
+      }
+    } catch (e) {
+      Alert.alert('', e?.message || t('common.serverError'));
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
   const onClose = () => {
     Alert.alert('', t('group.closeConfirm'), [
       { text: t('common.cancel') || '취소', style: 'cancel' },
@@ -168,15 +208,33 @@ export default function GroupDetailScreen({ route, navigation }) {
       contentContainerStyle={{ paddingBottom: 100 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
     >
-      {/* 커버 + 헤더 */}
+      {/* 커버 + 헤더 — 그룹장은 사진 탭으로 변경 가능 */}
       <View style={styles.header}>
-        {group.coverImage ? (
-          <Image source={{ uri: group.coverImage }} style={styles.cover} contentFit="cover" />
-        ) : (
-          <View style={[styles.cover, { backgroundColor: colors.primary + '20', alignItems: 'center', justifyContent: 'center' }]}>
-            <Text style={{ fontSize: 56 }}>👥</Text>
-          </View>
-        )}
+        <TouchableOpacity
+          activeOpacity={isOwner ? 0.85 : 1}
+          onPress={isOwner ? onChangeCover : undefined}
+          disabled={!isOwner || uploadingCover}
+        >
+          {group.coverImage ? (
+            <Image source={{ uri: group.coverImage }} style={styles.cover} contentFit="cover" />
+          ) : (
+            <View style={[styles.cover, { backgroundColor: colors.primary + '20', alignItems: 'center', justifyContent: 'center' }]}>
+              <Text style={{ fontSize: 56 }}>👥</Text>
+            </View>
+          )}
+          {isOwner && (
+            <View style={styles.coverEditBadge}>
+              {uploadingCover ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <>
+                  <Ionicons name="camera" size={13} color={colors.white} />
+                  <Text style={styles.coverEditBadgeText}>변경</Text>
+                </>
+              )}
+            </View>
+          )}
+        </TouchableOpacity>
         <View style={styles.headerBody}>
           <Text style={styles.name}>{group.name}</Text>
           <View style={styles.metaRow}>
@@ -460,6 +518,19 @@ const createStyles = (colors) => StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   header: { backgroundColor: colors.surface, marginBottom: 12 },
   cover: { width: '100%', height: 180 },
+  coverEditBadge: {
+    position: 'absolute',
+    right: 12,
+    bottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  coverEditBadgeText: { fontSize: 11, fontWeight: '700', color: colors.white },
   headerBody: { padding: 18 },
   name: { fontSize: 22, fontWeight: '800', color: colors.text },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
