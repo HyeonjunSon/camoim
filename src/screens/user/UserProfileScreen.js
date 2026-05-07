@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
+import CustomHeader from '../../components/CustomHeader';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { getToken } from '../../lib/storage';
@@ -159,15 +160,10 @@ export default function UserProfileScreen({ route, navigation }) {
     }
   };
 
+  // 커스텀 헤더 사용 — 모든 화면 통일된 스타일
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: isSelf ? undefined : () => (
-        <TouchableOpacity onPress={showMoreMenu} hitSlop={10} style={{ paddingHorizontal: 6 }}>
-          <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, isSelf, blockStatus]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const applyBlock = async () => {
     setBlockSaving(true);
@@ -218,6 +214,14 @@ export default function UserProfileScreen({ route, navigation }) {
   }
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <CustomHeader
+      navigation={navigation}
+      title={t('nav.profile')}
+      rightActions={isSelf ? [] : [
+        { icon: 'ellipsis-horizontal', onPress: showMoreMenu, label: t('post.moreActions') },
+      ]}
+    />
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* 프로필 헤더 */}
       <View style={styles.header}>
@@ -395,6 +399,7 @@ export default function UserProfileScreen({ route, navigation }) {
         </View>
       </Modal>
     </ScrollView>
+    </View>
   );
 }
 

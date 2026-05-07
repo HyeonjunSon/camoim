@@ -15,6 +15,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
+import CustomHeader from '../../components/CustomHeader';
 import { getNotices } from '../../lib/api';
 
 function formatDate(str) {
@@ -48,29 +49,36 @@ export default function NoticesScreen({ navigation }) {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: isAdmin ? () => (
-        <TouchableOpacity
-          onPress={() => navigation.navigate('NoticeEdit', {})}
-          hitSlop={10}
-          style={{ paddingHorizontal: 6 }}
-        >
-          <Ionicons name="create-outline" size={22} color={colors.primary} />
-        </TouchableOpacity>
-      ) : undefined,
-    });
-  }, [navigation, isAdmin]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const isNew = (createdAt) => {
     const diff = Date.now() - new Date(createdAt).getTime();
     return diff < 7 * 24 * 60 * 60 * 1000;
   };
 
+  const headerEl = (
+    <CustomHeader
+      navigation={navigation}
+      title={t('notice.title')}
+      rightActions={isAdmin ? [
+        { icon: 'create-outline', onPress: () => navigation.navigate('NoticeEdit', {}), color: colors.primary, label: t('notice.writeBtn') },
+      ] : []}
+    />
+  );
+
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator color={colors.primary} size="large" /></View>;
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        {headerEl}
+        <View style={styles.center}><ActivityIndicator color={colors.primary} size="large" /></View>
+      </View>
+    );
   }
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    {headerEl}
     <FlatList
       style={styles.container}
       data={notices}
@@ -94,6 +102,7 @@ export default function NoticesScreen({ navigation }) {
         </TouchableOpacity>
       )}
     />
+    </View>
   );
 }
 

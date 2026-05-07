@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { getBoardPosts } from '../../lib/api';
 import PostCard from '../../components/PostCard';
+import CustomHeader from '../../components/CustomHeader';
 import { useLang } from '../../context/LangContext';
 
 const SORT_OPTIONS = [
@@ -64,27 +65,10 @@ export default function BoardFeedScreen({ route, navigation }) {
   // 정렬 상태
   const [sortBy, setSortBy] = useState('latest');
 
-  // 헤더 설정
+  // 커스텀 헤더 사용 — 게시판/모임/채팅 등과 통일된 스타일
   useLayoutEffect(() => {
-    navigation.setOptions({
-      title: boardName || '',
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={toggleSearch}
-          hitSlop={12}
-          style={{ paddingHorizontal: 8 }}
-          accessibilityLabel={searchOpen ? t('a11y.close') : t('a11y.search')}
-          accessibilityRole="button"
-        >
-          <Ionicons
-            name={searchOpen ? 'close' : 'search'}
-            size={22}
-            color={colors.text}
-          />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, boardName, searchOpen, colors]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const toggleSearch = () => {
     if (searchOpen) {
@@ -310,6 +294,17 @@ export default function BoardFeedScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
+      <CustomHeader
+        navigation={navigation}
+        title={boardName || ''}
+        rightActions={[
+          {
+            icon: searchOpen ? 'close' : 'search',
+            onPress: toggleSearch,
+            label: searchOpen ? t('a11y.close') : t('a11y.search'),
+          },
+        ]}
+      />
       {/* 검색바 — FlatList 밖에 고정 (포커스 유지) */}
       <Animated.View style={[styles.searchBarWrap, { height: searchBarHeight, opacity: searchAnim }]}>
         <View style={styles.searchBar}>

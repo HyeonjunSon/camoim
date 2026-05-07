@@ -13,6 +13,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
+import CustomHeader from '../../components/CustomHeader';
 import { getNotice, deleteNotice } from '../../lib/api';
 
 function formatDateTime(str) {
@@ -73,26 +74,33 @@ export default function NoticeDetailScreen({ route, navigation }) {
   const isInAdminStack = navState?.routes?.some(r => r.name?.startsWith('Admin'));
 
   useLayoutEffect(() => {
-    if (!isAdmin || !notice || !isInAdminStack) return;
-    navigation.setOptions({
-      headerRight: () => (
-        <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 6 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('NoticeEdit', { notice })} hitSlop={10}>
-            <Ionicons name="create-outline" size={22} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleDelete} hitSlop={10}>
-            <Ionicons name="trash-outline" size={22} color={colors.danger ?? '#E64545'} />
-          </TouchableOpacity>
-        </View>
-      ),
-    });
-  }, [navigation, isAdmin, notice, isInAdminStack]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+  const showAdminActions = isAdmin && notice && isInAdminStack;
+  const headerEl = (
+    <CustomHeader
+      navigation={navigation}
+      title={t('nav.noticeDetail')}
+      rightActions={showAdminActions ? [
+        { icon: 'create-outline', onPress: () => navigation.navigate('NoticeEdit', { notice }), color: colors.primary, label: t('common.edit') },
+        { icon: 'trash-outline', onPress: handleDelete, color: colors.danger ?? '#E64545', label: t('common.delete') },
+      ] : []}
+    />
+  );
 
   if (loading || !notice) {
-    return <View style={styles.center}><ActivityIndicator color={colors.primary} size="large" /></View>;
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        {headerEl}
+        <View style={styles.center}><ActivityIndicator color={colors.primary} size="large" /></View>
+      </View>
+    );
   }
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    {headerEl}
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {notice.pinned && <Text style={styles.pinTag}>{t('notice.pinned')}</Text>}
       <Text style={styles.title}>{notice.title}</Text>
@@ -100,6 +108,7 @@ export default function NoticeDetailScreen({ route, navigation }) {
       <View style={styles.divider} />
       <Text style={styles.body}>{notice.content}</Text>
     </ScrollView>
+    </View>
   );
 }
 
