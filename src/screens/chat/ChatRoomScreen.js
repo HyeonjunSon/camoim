@@ -279,7 +279,8 @@ export default function ChatRoomScreen({ route, navigation }) {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 + insets.bottom : 0}
+      // 그룹 채팅은 커스텀 헤더가 화면 내부에 있어 native 헤더 오프셋 불필요
+      keyboardVerticalOffset={Platform.OS === 'ios' ? (isGroupChat ? 0 : 90 + insets.bottom) : 0}
     >
       {isGroupChat && <CustomGroupHeader />}
       <FlatList
