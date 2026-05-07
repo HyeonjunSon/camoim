@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import {
   View, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator,
   StyleSheet, KeyboardAvoidingView, Platform,
@@ -8,6 +8,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Text } from '../../components/StyledText';
+import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { getGroup, updateGroup, uploadGroupCover } from '../../lib/api';
@@ -36,6 +37,10 @@ export default function GroupEditScreen({ route, navigation }) {
   const [city, setCity] = useState('');
   const [joinPolicy, setJoinPolicy] = useState('open');
   const [name, setName] = useState('');
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useEffect(() => {
     (async () => {
@@ -111,8 +116,11 @@ export default function GroupEditScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <CustomHeader navigation={navigation} title="모임 정보 수정" />
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
       </View>
     );
   }
@@ -122,6 +130,7 @@ export default function GroupEditScreen({ route, navigation }) {
       style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <CustomHeader navigation={navigation} title="모임 정보 수정" />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* 커버 이미지 */}
         <Text style={styles.label}>커버 이미지</Text>

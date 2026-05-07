@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useLayoutEffect } from 'react';
 import {
   View, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, StyleSheet, Modal,
 } from 'react-native';
@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../components/StyledText';
+import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
@@ -66,6 +67,10 @@ export default function GroupMembersScreen({ route, navigation }) {
   };
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const onKick = (userId, ban = false) => {
     Alert.alert('', ban ? t('group.banConfirm') : t('group.kickConfirm'), [
@@ -159,8 +164,11 @@ export default function GroupMembersScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <CustomHeader navigation={navigation} title={t('nav.groupMembers')} />
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
       </View>
     );
   }
@@ -171,6 +179,7 @@ export default function GroupMembersScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <CustomHeader navigation={navigation} title={t('nav.groupMembers')} />
       {canManage && (
         <View style={styles.tabBar}>
           <TouchableOpacity

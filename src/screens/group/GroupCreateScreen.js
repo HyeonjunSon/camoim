@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useLayoutEffect } from 'react';
 import {
   View, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '../../components/StyledText';
+import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { createGroup } from '../../lib/api';
@@ -28,6 +29,10 @@ export default function GroupCreateScreen({ navigation }) {
   const [city, setCity] = useState('');
   const [joinPolicy, setJoinPolicy] = useState('open');
   const [submitting, setSubmitting] = useState(false);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const onSubmit = async () => {
     if (!name.trim() || name.trim().length < 2) {
@@ -71,6 +76,7 @@ export default function GroupCreateScreen({ navigation }) {
       style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <CustomHeader navigation={navigation} title={t('group.createTitle')} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* 안내 */}
         <View style={styles.notice}>
