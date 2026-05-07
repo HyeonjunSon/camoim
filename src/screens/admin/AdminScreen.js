@@ -101,6 +101,13 @@ export default function AdminScreen({ navigation }) {
           color="#3B82F6"
           onPress={() => navigation.navigate('AdminInquiries')}
         />
+        <Tile
+          icon="people-circle"
+          label="모임 승인"
+          badge={stats?.pending?.groups}
+          color="#10B981"
+          onPress={() => navigation.navigate('AdminGroups')}
+        />
       </View>
 
       {/* 사용자/콘텐츠 */}

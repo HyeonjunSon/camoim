@@ -647,7 +647,7 @@ router.get('/stats', async (req, res) => {
       totalPosts, totalComments, totalReportsPending,
       newUsers24h, newUsers7d, newUsers30d,
       newPosts24h, newPosts7d,
-      verifyPending, inquiryOpen,
+      verifyPending, inquiryOpen, groupsPending,
     ] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ status: 'active' }),
@@ -663,6 +663,7 @@ router.get('/stats', async (req, res) => {
       Post.countDocuments({ createdAt: { $gte: weekAgo } }),
       VerifyRequest.countDocuments({ status: 'pending' }),
       mongoose.model('Inquiry').countDocuments({ status: 'open' }).catch(() => 0),
+      Group.countDocuments({ status: 'pending_review' }).catch(() => 0),
     ]);
 
     // 최근 7일 일별 신규 가입 추이
@@ -680,7 +681,7 @@ router.get('/stats', async (req, res) => {
       data: {
         users: { total: totalUsers, active: activeUsers, suspended: suspendedUsers, banned: bannedUsers },
         content: { posts: totalPosts, comments: totalComments },
-        pending: { reports: totalReportsPending, verify: verifyPending, inquiry: inquiryOpen },
+        pending: { reports: totalReportsPending, verify: verifyPending, inquiry: inquiryOpen, groups: groupsPending },
         signups: { d1: newUsers24h, d7: newUsers7d, d30: newUsers30d },
         posts: { d1: newPosts24h, d7: newPosts7d },
         signupTrend,

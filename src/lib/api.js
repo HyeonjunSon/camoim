@@ -331,3 +331,41 @@ export const setBlock = (userId, { blockChat, hideContent }) =>
   request('PUT', `/users/${userId}/block`, { blockChat, hideContent });
 export const unblockUser = (userId) =>
   request('DELETE', `/users/${userId}/block`);
+
+// 모임 (Groups)
+export const getGroups = ({ box = 'all', category, city, q, sort = 'popular', page = 1 } = {}) => {
+  const params = new URLSearchParams({ box, sort, page: String(page) });
+  if (category) params.set('category', category);
+  if (city) params.set('city', city);
+  if (q) params.set('q', q);
+  return request('GET', `/groups?${params.toString()}`);
+};
+export const getGroup = (groupId) => request('GET', `/groups/${groupId}`);
+export const createGroup = (data) => request('POST', '/groups', data);
+export const updateGroup = (groupId, data) => request('PUT', `/groups/${groupId}`, data);
+export const closeGroup = (groupId) => request('DELETE', `/groups/${groupId}`);
+export const joinGroup = (groupId) => request('POST', `/groups/${groupId}/join`);
+export const leaveGroup = (groupId) => request('DELETE', `/groups/${groupId}/leave`);
+export const getGroupMembers = (groupId) => request('GET', `/groups/${groupId}/members`);
+export const kickGroupMember = (groupId, userId, { ban = false, reason } = {}) =>
+  request(
+    'DELETE',
+    `/groups/${groupId}/members/${userId}${ban ? '?ban=true' : ''}`,
+    ban && reason ? { reason } : undefined
+  );
+export const setGroupMemberRole = (groupId, userId, role) =>
+  request('PUT', `/groups/${groupId}/members/${userId}/role`, { role });
+export const transferGroupOwner = (groupId, newOwnerId) =>
+  request('POST', `/groups/${groupId}/transfer`, { newOwnerId });
+export const setGroupNotifications = (groupId, { notifyPosts, notifyChat }) =>
+  request('PUT', `/groups/${groupId}/notifications`, { notifyPosts, notifyChat });
+
+// 관리자 — 모임 승인
+export const adminGetGroups = (status = 'pending_review') =>
+  request('GET', `/admin/groups?status=${encodeURIComponent(status)}`);
+export const adminApproveGroup = (groupId) =>
+  request('PUT', `/admin/groups/${groupId}/approve`);
+export const adminRejectGroup = (groupId, reason) =>
+  request('PUT', `/admin/groups/${groupId}/reject`, { reason });
+export const adminCloseGroup = (groupId) =>
+  request('DELETE', `/admin/groups/${groupId}`);

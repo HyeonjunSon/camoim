@@ -21,6 +21,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { getBoardName } from '../../lib/i18n';
 import { toShortUniversityName } from '../../lib/university';
+import GroupListScreen from '../group/GroupListScreen';
 
 const PINNED_KEY = '@camoim_pinned_boards';
 
@@ -59,6 +60,7 @@ export default function BoardListScreen({ navigation }) {
   const { user } = useAuth();
   const { t } = useLang();
   const FILTERS = FILTER_DEFS.map(f => ({ ...f, label: t(f.labelKey) }));
+  const [mode, setMode] = useState('boards'); // boards | groups
   const [boards, setBoards] = useState([]);
   const [latestMap, setLatestMap] = useState({});
   const [pinned, setPinned] = useState([]); // pinned board IDs
@@ -258,8 +260,46 @@ export default function BoardListScreen({ navigation }) {
     );
   }
 
+  // ── 상단 [게시판 | 모임] 토글
+  const ModeToggle = () => (
+    <View style={styles.modeToggleBar}>
+      <TouchableOpacity
+        style={[styles.modeBtn, mode === 'boards' && styles.modeBtnActive]}
+        onPress={() => setMode('boards')}
+        activeOpacity={0.75}
+        accessibilityRole="button"
+        accessibilityState={{ selected: mode === 'boards' }}
+      >
+        <Text style={[styles.modeText, mode === 'boards' && styles.modeTextActive]}>
+          {t('board.tabBoards')}
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.modeBtn, mode === 'groups' && styles.modeBtnActive]}
+        onPress={() => setMode('groups')}
+        activeOpacity={0.75}
+        accessibilityRole="button"
+        accessibilityState={{ selected: mode === 'groups' }}
+      >
+        <Text style={[styles.modeText, mode === 'groups' && styles.modeTextActive]}>
+          {t('board.tabGroups')}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  if (mode === 'groups') {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <ModeToggle />
+        <GroupListScreen navigation={navigation} embedded />
+      </View>
+    );
+  }
+
   return (
     <>
+      <ModeToggle />
       {/* ── 필터 칩 (고정 헤더) */}
       <View style={styles.filterBar}>
         <ScrollView
@@ -409,6 +449,35 @@ const createStyles = (colors) => StyleSheet.create({
   container:     { flex: 1, backgroundColor: colors.background },
   scrollContent: { paddingBottom: 100, paddingTop: 4 },
   centered:      { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+
+  // ── 게시판/모임 토글
+  modeToggleBar: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
+    gap: 8,
+  },
+  modeBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: colors.inputBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  modeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  modeTextActive: {
+    color: colors.white,
+  },
 
   // ── 필터 칩
   filterBar: {
