@@ -51,22 +51,12 @@ export default function ChatRoomScreen({ route, navigation }) {
           group?.id ? (
             <TouchableOpacity
               onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
-              activeOpacity={0.7}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 4,
-                backgroundColor: colors.primary + '15',
-                paddingHorizontal: 10,
-                paddingVertical: 6,
-                borderRadius: 14,
-                marginRight: 4,
-              }}
+              activeOpacity={0.6}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
               accessibilityLabel="모임 정보 보기"
             >
-              <Ionicons name="people" size={13} color={colors.primary} />
-              <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '700' }}>모임</Text>
+              <Ionicons name="information-circle-outline" size={26} color={colors.primary} />
             </TouchableOpacity>
           ) : null
         ),
