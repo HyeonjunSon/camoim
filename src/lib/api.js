@@ -115,6 +115,8 @@ export const getPost = (postId) => request('GET', `/posts/${postId}`);
 export const deletePost = (postId) => request('DELETE', `/posts/${postId}`);
 export const pinPost = (postId, pinned) =>
   request('PUT', `/posts/${postId}/pin`, { pinned });
+export const setTradeStatus = (postId, status) =>
+  request('PUT', `/posts/${postId}/trade-status`, { status });
 export const likePost = (postId) => request('POST', `/posts/${postId}/like`);
 export const bookmarkPost = (postId) => request('POST', `/posts/${postId}/bookmark`);
 

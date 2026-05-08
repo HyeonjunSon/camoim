@@ -152,6 +152,8 @@ router.get('/:boardId/posts', async (req, res) => {
       nickname: p.isAnonymous ? '익명' : (p.userId?.nickname ?? '탈퇴한 회원'),
       thumbnail: p.images?.[0] ?? null,
       city: p.city || '',
+      tradeStatus: p.tradeStatus || 'selling',
+      boardSlug: p.boardId?.slug,
     }));
 
     res.json({ success: true, data: { posts: formatted, total } });

@@ -49,7 +49,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
-import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, pinPost, setBlock } from '../../lib/api';
+import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, pinPost, setBlock, setTradeStatus } from '../../lib/api';
+import { isTradeBoard, getTradeLabel } from '../../constants/boards';
 import { formatTime } from '../../lib/time';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
@@ -463,6 +464,25 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     }
   };
 
+  // 거래 상태 토글 — 작성자 전용 (마켓 류 게시판에서만)
+  const showTradeButton = isPostAuthor && isTradeBoard(post?.boardSlug);
+  const isSold = post?.tradeStatus === 'sold';
+  const toggleTradeStatus = async () => {
+    const next = isSold ? 'selling' : 'sold';
+    // Optimistic
+    setPost(prev => ({ ...prev, tradeStatus: next }));
+    try {
+      const res = await setTradeStatus(post.id, next);
+      if (!res.success) {
+        setPost(prev => ({ ...prev, tradeStatus: isSold ? 'sold' : 'selling' }));
+        Alert.alert(t('common.error'), res.message ?? t('common.serverError'));
+      }
+    } catch (e) {
+      setPost(prev => ({ ...prev, tradeStatus: isSold ? 'sold' : 'selling' }));
+      Alert.alert(t('common.error'), e.message ?? t('common.serverError'));
+    }
+  };
+
   // 작성자 차단 (익명 글이거나 본인 글이면 비활성)
   const canBlockAuthor = !post?.isAnonymous && !!post?.userId && !isPostAuthor;
   const confirmBlockAuthor = () => {
@@ -574,11 +594,41 @@ export default function BoardPostDetailScreen({ route, navigation }) {
         {/* ── 게시글 카드 */}
         <View style={styles.postCard}>
 
-          {/* 게시판 태그 */}
-          {post.boardName && <Text style={styles.boardTag}>{post.boardName}</Text>}
+          {/* 게시판 태그 + 거래 상태 (마켓 류 게시판) */}
+          <View style={styles.tagRow}>
+            {post.boardName && <Text style={styles.boardTag}>{post.boardName}</Text>}
+            {isTradeBoard(post.boardSlug) && (
+              <View style={[styles.tradeStatusChip, isSold ? styles.tradeStatusChipSold : styles.tradeStatusChipSelling]}>
+                <Text style={[styles.tradeStatusChipText, isSold ? styles.tradeStatusChipTextSold : styles.tradeStatusChipTextSelling]}>
+                  {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling')}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* 작성자 전용 — 거래 상태 토글 버튼 */}
+          {showTradeButton && (
+            <TouchableOpacity
+              style={[styles.tradeToggleBtn, isSold ? styles.tradeToggleBtnSold : styles.tradeToggleBtnSelling]}
+              onPress={toggleTradeStatus}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              <Ionicons
+                name={isSold ? 'refresh' : 'checkmark-circle'}
+                size={16}
+                color={isSold ? colors.text : colors.white}
+              />
+              <Text style={[styles.tradeToggleBtnText, isSold ? { color: colors.text } : { color: colors.white }]}>
+                {isSold
+                  ? `${getTradeLabel(post.boardSlug, 'selling')}으로 되돌리기`
+                  : `${getTradeLabel(post.boardSlug, 'sold')}로 변경`}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* 제목 */}
-          <Text style={styles.title}>{post.title}</Text>
+          <Text style={[styles.title, isSold && { color: colors.textSecondary }]}>{post.title}</Text>
 
           {/* 작성자 행 */}
           <TouchableOpacity
@@ -800,6 +850,47 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.border,
     marginVertical: 13,
   },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  tradeStatusChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  tradeStatusChipSelling: { backgroundColor: '#FEE2E2' },
+  tradeStatusChipSold: { backgroundColor: colors.inputBg },
+  tradeStatusChipText: { fontSize: 11, fontWeight: '800', letterSpacing: -0.2 },
+  tradeStatusChipTextSelling: { color: '#DC2626' },
+  tradeStatusChipTextSold: { color: colors.textSecondary },
+
+  tradeToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 11,
+    borderRadius: 12,
+  },
+  tradeToggleBtnSelling: {
+    backgroundColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  tradeToggleBtnSold: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tradeToggleBtnText: { fontSize: 13, fontWeight: '700' },
+
   boardTag: {
     alignSelf: 'flex-start', fontSize: 11, fontWeight: '700', color: colors.primary,
     backgroundColor: colors.primary + '12', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,

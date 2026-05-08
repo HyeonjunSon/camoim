@@ -18,7 +18,7 @@ const { containsBannedWord } = require('../middleware/systemGuard');
 const mongoose = require('mongoose');
 
 const { expandCity } = require('../utils/metro');
-const { LOCAL_BOARD_SLUGS } = require('../constants/boards');
+const { LOCAL_BOARD_SLUGS, TRADE_BOARD_SLUGS } = require('../constants/boards');
 const { toContentPreview } = require('../utils/contentPreview');
 
 const router = express.Router();
@@ -137,6 +137,7 @@ router.get('/feed', optionalAuth, async (req, res) => {
       nickname: p.isAnonymous ? '익명' : (p.userId?.nickname ?? '탈퇴한 회원'),
       thumbnail: p.images?.[0] ?? null, // 첫 번째 이미지
       city: p.city || '',
+      tradeStatus: p.tradeStatus || 'selling',
     }));
 
     res.json({ success: true, data: { posts: formatted, total } });
@@ -433,6 +434,7 @@ router.get('/:postId', optionalAuth, async (req, res) => {
         groupName: post.groupId?.name,
         myGroupRole: req._myGroupRole || null,
         pinned: !!post.pinned,
+        tradeStatus: post.tradeStatus || 'selling',
         city: post.city ?? '',
         userId: post.isAnonymous ? null : post.userId?._id,
         nickname: post.isAnonymous ? '익명' : (post.userId?.nickname ?? '탈퇴한 회원'),
@@ -604,6 +606,38 @@ router.put('/:postId/pin', requireAuth, async (req, res) => {
     post.pinned = pinned;
     await post.save();
     res.json({ success: true, data: { pinned } });
+  } catch (err) {
+    console.error("[api]", req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// PUT /api/posts/:postId/trade-status { status: 'selling' | 'sold' }
+// 마켓 류 게시판(market/giveaway/car/roomrent) 작성자만 토글 가능 (admin도 가능)
+router.put('/:postId/trade-status', requireAuth, async (req, res) => {
+  try {
+    const { status } = req.body || {};
+    if (!['selling', 'sold'].includes(status)) {
+      return res.status(400).json({ success: false, message: '잘못된 상태에요.' });
+    }
+    const post = await Post.findById(req.params.postId).populate('boardId', 'slug');
+    if (!post) return res.status(404).json({ success: false, message: '게시글을 찾을 수 없습니다.' });
+
+    const isAuthor = String(post.userId) === String(req.user.id);
+    const me = await User.findById(req.user.id).select('role').lean();
+    const isAdmin = me?.role === 'admin';
+    if (!isAuthor && !isAdmin) {
+      return res.status(403).json({ success: false, message: '권한이 없어요.' });
+    }
+
+    const slug = post.boardId?.slug;
+    if (!slug || !TRADE_BOARD_SLUGS.includes(slug)) {
+      return res.status(400).json({ success: false, message: '거래 상태를 변경할 수 있는 게시판이 아니에요.' });
+    }
+
+    post.tradeStatus = status;
+    await post.save();
+    res.json({ success: true, data: { tradeStatus: status } });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });

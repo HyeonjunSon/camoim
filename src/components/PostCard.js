@@ -7,6 +7,7 @@ import { colors } from '../constants/colors'
 import { SERVER_HOST } from '../lib/config';
 import { formatTime } from '../lib/time';
 import { useLang } from '../context/LangContext';
+import { isTradeBoard, getTradeLabel } from '../constants/boards';
 
 // HTML 태그 + 레거시 마커 제거 후 본문 미리보기
 function getPreview(content) {
@@ -36,14 +37,29 @@ export default function PostCard({ post, onPress }) {
 
   const hasThumbnail = !!post.thumbnail;
   const preview = getPreview(post.content);
+  const showTrade = isTradeBoard(post.boardSlug);
+  const isSold = showTrade && post.tradeStatus === 'sold';
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.75}>
+    <TouchableOpacity
+      style={[styles.card, isSold && styles.cardSold]}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
       {/* 상단: 텍스트 + 썸네일 */}
       <View style={styles.cardTop}>
         <View style={[styles.cardText, hasThumbnail && { flex: 1, marginRight: 10 }]}>
-          {/* 제목 */}
-          <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
+          {/* 제목 — 거래 상태 알약 prefix */}
+          <View style={styles.titleRow}>
+            {showTrade && (
+              <View style={[styles.tradeBadge, isSold ? styles.tradeBadgeSold : styles.tradeBadgeSelling]}>
+                <Text style={[styles.tradeBadgeText, isSold ? styles.tradeBadgeTextSold : styles.tradeBadgeTextSelling]}>
+                  {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling')}
+                </Text>
+              </View>
+            )}
+            <Text style={[styles.title, { flex: 1 }]} numberOfLines={2}>{post.title}</Text>
+          </View>
           {/* 본문 미리보기 */}
           {preview.length > 0 && (
             <Text style={styles.preview} numberOfLines={2}>{preview}</Text>
@@ -92,11 +108,41 @@ const createStyles = (colors) => StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 3,
   },
+  cardSold: {
+    opacity: 0.55,
+  },
   cardTop: {
     flexDirection: 'row',
   },
   cardText: {
     flex: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  tradeBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  tradeBadgeSelling: {
+    backgroundColor: '#FEE2E2',
+  },
+  tradeBadgeSold: {
+    backgroundColor: colors.inputBg,
+  },
+  tradeBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  tradeBadgeTextSelling: {
+    color: '#DC2626',
+  },
+  tradeBadgeTextSold: {
+    color: colors.textSecondary,
   },
   title: {
     fontSize: 14,

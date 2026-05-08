@@ -22,6 +22,8 @@ const postSchema = new mongoose.Schema({
   autoHidden:   { type: Boolean, default: false, index: true },
   reportCount:  { type: Number, default: 0 },
   pinned:     { type: Boolean, default: false }, // 게시판 상단 고정
+  // 마켓 류 게시판 (사고팔고/나눔/자동차/룸렌트) 거래 상태
+  tradeStatus: { type: String, enum: ['selling', 'sold'], default: 'selling', index: true },
 }, { timestamps: true });
 
 // boardId 또는 groupId 중 하나는 반드시 있어야 함
