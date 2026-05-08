@@ -282,7 +282,14 @@ export default function ChatRoomScreen({ route, navigation }) {
         keyExtractor={(item, idx) => item.id ?? String(idx)}
         renderItem={renderMessage}
         contentContainerStyle={styles.listContent}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+        // 콘텐츠 크기 변할 때 + 다음 frame에서 한번 더 — 변동성 있는 bubble 높이로
+        // scrollToEnd가 layout 잡히기 전에 실행돼 마지막 메시지가 잘리는 문제 회피
+        onContentSizeChange={() => {
+          flatListRef.current?.scrollToEnd({ animated: false });
+          requestAnimationFrame(() => {
+            flatListRef.current?.scrollToEnd({ animated: false });
+          });
+        }}
         showsVerticalScrollIndicator={false}
       />
 
@@ -412,7 +419,8 @@ export default function ChatRoomScreen({ route, navigation }) {
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { padding: 12, gap: 6, paddingBottom: 8 },
+  // 마지막 메시지 잘림 방지 — 입력바 위에 충분한 여백
+  listContent: { padding: 12, gap: 6, paddingBottom: 20 },
 
 
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginVertical: 2 },
