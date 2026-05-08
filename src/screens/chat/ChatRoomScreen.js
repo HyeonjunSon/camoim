@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { useAuth } from '../../context/AuthContext';
@@ -33,6 +34,8 @@ export default function ChatRoomScreen({ route, navigation }) {
   const { user: me } = useAuth();
   const { t } = useLang();
   const insets = useSafeAreaInsets();
+  // 탭바가 하단을 차지하므로 KAV가 그만큼 보정해야 키보드가 채팅 화면 안 덮음
+  const tabBarHeight = useBottomTabBarHeight();
 
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
@@ -51,17 +54,6 @@ export default function ChatRoomScreen({ route, navigation }) {
     navigation.setOptions({ headerShown: false });
   }, []);
 
-  // 키보드 열리면 최신 메시지로 자동 스크롤 — 키보드가 마지막 메시지 가리지 않게
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const sub = Keyboard.addListener(showEvent, () => {
-      // 약간의 지연 — KeyboardAvoidingView가 padding 적용한 후 스크롤
-      requestAnimationFrame(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      });
-    });
-    return () => sub.remove();
-  }, []);
 
   // 메시지 불러오기 + 소켓 — 포커스마다 재실행해 stale/empty 응답 자동 복구
   useFocusEffect(useCallback(() => {
@@ -281,8 +273,8 @@ export default function ChatRoomScreen({ route, navigation }) {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      // 모든 채팅이 커스텀 헤더 사용 — native 헤더 오프셋 불필요
-      keyboardVerticalOffset={0}
+      // 화면 하단의 탭바 높이만큼 KAV가 더 밀어올려야 키보드가 채팅을 안 덮음
+      keyboardVerticalOffset={Platform.OS === 'ios' ? tabBarHeight : 0}
     >
       <CustomChatHeader />
       <FlatList
