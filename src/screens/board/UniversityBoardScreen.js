@@ -151,31 +151,47 @@ export default function UniversityBoardScreen({ navigation }) {
       contentContainerStyle={{ paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* ── 헤더 (프리미엄 배너, BoardListScreen과 통일) ── */}
-      <LinearGradient
-        colors={[colors.primary, colors.primary + 'D0']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.heroBanner}
-      >
-        <View style={styles.heroShine} pointerEvents="none" />
-        <View style={styles.heroIconBadge}>
-          <Text style={styles.heroIconEmoji}>{isAdmin ? '🛡️' : '🎓'}</Text>
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={styles.heroTitleRow}>
-            <Text style={styles.heroTitle} numberOfLines={1} ellipsizeMode="tail">
-              {isAdmin ? t('board.schoolAll') : (toShortUniversityName(user?.university) || t('mypage.school'))}
-            </Text>
-            {!isAdmin && (
-              <Ionicons name="checkmark-circle" size={16} color="#FFD66B" style={{ marginLeft: 5 }} />
-            )}
+      {/* ── Hero — 카드형 그라데이션 + 통계 칩 ── */}
+      <View style={styles.heroWrap}>
+        <LinearGradient
+          colors={[colors.primary, colors.primary + 'CC']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroBanner}
+        >
+          <View style={styles.heroShine} pointerEvents="none" />
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroIconBadge}>
+              <Text style={styles.heroIconEmoji}>{isAdmin ? '🛡️' : '🎓'}</Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={styles.heroTitleRow}>
+                <Text style={styles.heroTitle} numberOfLines={1} ellipsizeMode="tail">
+                  {isAdmin ? t('board.schoolAll') : (toShortUniversityName(user?.university) || t('mypage.school'))}
+                </Text>
+                {!isAdmin && (
+                  <Ionicons name="checkmark-circle" size={16} color="#FFD66B" style={{ marginLeft: 5 }} />
+                )}
+              </View>
+              <Text style={styles.heroSub} numberOfLines={1} ellipsizeMode="tail">
+                {isAdmin ? t('board.schoolBoardAdmin') : `Community · ${t('board.forStudents')}`}
+              </Text>
+            </View>
           </View>
-          <Text style={styles.heroSub} numberOfLines={1} ellipsizeMode="tail">
-            {isAdmin ? t('board.schoolBoardAdmin') : `Community · ${t('board.forStudents')}`}
-          </Text>
-        </View>
-      </LinearGradient>
+          {!isAdmin && (
+            <View style={styles.heroChipsRow}>
+              <View style={styles.heroChip}>
+                <Text style={styles.heroChipText}>📋 {boards.length}개 게시판</Text>
+              </View>
+              {schoolGroups.length > 0 && (
+                <View style={styles.heroChip}>
+                  <Text style={styles.heroChipText}>🎭 {schoolGroups.length}개 동아리</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </LinearGradient>
+      </View>
 
       {/* ── admin: 검색 + 학교별 접기/펼치기 ── */}
       {isAdmin && groupedByUniversity ? (
@@ -224,47 +240,65 @@ export default function UniversityBoardScreen({ navigation }) {
         </>
       ) : (
         /* ── 일반 유저: 내 학교 게시판 그리드 ── */
-        <View style={styles.gridWrapper}>
-          <View style={styles.grid}>{boards.map(renderBoardCard)}</View>
+        <View>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionAccent} />
+            <Text style={styles.sectionTitle}>게시판</Text>
+            <Text style={styles.sectionCount}>{boards.length}</Text>
+          </View>
+          <View style={styles.gridWrapper}>
+            <View style={styles.grid}>{boards.map(renderBoardCard)}</View>
+          </View>
         </View>
       )}
 
       {/* ── 우리 학교 동아리 (인증된 일반 유저만) ── */}
       {!isAdmin && user?.verified && user?.university && (
-        <View style={styles.clubsSection}>
-          <View style={styles.clubsHeader}>
-            <Text style={styles.clubsTitle}>🎭 우리 학교 동아리</Text>
+        <View>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionAccent} />
+            <Text style={styles.sectionTitle}>동아리</Text>
+            {schoolGroups.length > 0 && <Text style={styles.sectionCount}>{schoolGroups.length}</Text>}
+            <View style={{ flex: 1 }} />
             <TouchableOpacity
               onPress={() => navigation.navigate('GroupCreate')}
               activeOpacity={0.7}
-              style={styles.clubsAddBtn}
+              style={styles.sectionAction}
               accessibilityRole="button"
               accessibilityLabel="동아리 만들기"
             >
-              <Ionicons name="add" size={16} color={colors.primary} />
-              <Text style={styles.clubsAddText}>만들기</Text>
+              <Ionicons name="add" size={15} color={colors.primary} />
+              <Text style={styles.sectionActionText}>만들기</Text>
             </TouchableOpacity>
           </View>
+
           {schoolGroups.length === 0 ? (
             <View style={styles.clubsEmpty}>
+              <Text style={styles.clubsEmptyEmoji}>🎭</Text>
               <Text style={styles.clubsEmptyText}>아직 동아리가 없어요</Text>
-              <Text style={styles.clubsEmptyHint}>
-                첫 동아리를 만들어보세요! (모임 만들기 → "🎓 학교 한정" 토글)
-              </Text>
+              <Text style={styles.clubsEmptyHint}>같은 학교 친구들과 첫 동아리를 만들어보세요</Text>
+              <TouchableOpacity
+                style={styles.clubsEmptyCta}
+                onPress={() => navigation.navigate('GroupCreate')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="add" size={14} color={colors.white} />
+                <Text style={styles.clubsEmptyCtaText}>동아리 만들기</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.clubsList}>
-              {schoolGroups.map((g) => (
+              {schoolGroups.map((g, idx) => (
                 <TouchableOpacity
                   key={String(g.id)}
-                  style={styles.clubCard}
+                  style={[styles.clubCard, idx === schoolGroups.length - 1 && { borderBottomWidth: 0 }]}
                   activeOpacity={0.75}
                   onPress={() => navigation.navigate('GroupDetail', { groupId: g.id })}
                 >
                   {g.coverImage ? (
                     <Image source={{ uri: g.coverImage }} style={styles.clubCover} contentFit="cover" />
                   ) : (
-                    <View style={[styles.clubCover, { backgroundColor: colors.primary + '20', alignItems: 'center', justifyContent: 'center' }]}>
+                    <View style={[styles.clubCover, { backgroundColor: colors.primary + '15', alignItems: 'center', justifyContent: 'center' }]}>
                       <Text style={{ fontSize: 22 }}>👥</Text>
                     </View>
                   )}
@@ -279,11 +313,12 @@ export default function UniversityBoardScreen({ navigation }) {
                       {g.joinPolicy === 'approval' && (
                         <>
                           <Text style={styles.clubMetaDot}>·</Text>
-                          <Text style={[styles.clubMeta, { color: colors.primary }]}>승인 필요</Text>
+                          <Text style={[styles.clubMeta, { color: colors.primary, fontWeight: '700' }]}>승인 필요</Text>
                         </>
                       )}
                     </View>
                   </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -291,12 +326,18 @@ export default function UniversityBoardScreen({ navigation }) {
         </View>
       )}
 
-      {/* ── 인증 완료 배지 (일반 유저만) ── */}
+      {/* ── 인증 완료 카드 (일반 유저만) ── */}
       {!isAdmin && (
-        <View style={styles.verifiedRow}>
-          <Text style={styles.verifiedText}>
-            ✓ {user?.university} {t('board.verified')}
-          </Text>
+        <View style={styles.verifiedCard}>
+          <View style={styles.verifiedIconWrap}>
+            <Ionicons name="shield-checkmark" size={18} color="#10B981" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.verifiedTitle}>
+              {user?.university} {t('board.verified')}
+            </Text>
+            <Text style={styles.verifiedSub}>이 학교 게시판/동아리만 접근 가능</Text>
+          </View>
         </View>
       )}
     </ScrollView>
@@ -315,17 +356,23 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // ── 헤더 (프리미엄 배너, BoardListScreen과 통일)
-  heroBanner: {
-    paddingHorizontal: 18,
+  // ── Hero (카드형, 더 풍성한 느낌)
+  heroWrap: {
+    paddingHorizontal: 16,
     paddingTop: 14,
+    paddingBottom: 4,
+  },
+  heroBanner: {
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingTop: 16,
     paddingBottom: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     overflow: 'hidden',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 4,
   },
   heroShine: {
     position: 'absolute',
@@ -333,14 +380,19 @@ const createStyles = (colors) => StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.3)',
   },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   heroIconBadge: {
-    width: 38, height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    width: 44, height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroIconEmoji: { fontSize: 20 },
+  heroIconEmoji: { fontSize: 22 },
   heroTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -354,9 +406,72 @@ const createStyles = (colors) => StyleSheet.create({
   },
   heroSub: {
     fontSize: 12,
-    color: colors.white + 'B8',
+    color: 'rgba(255,255,255,0.78)',
     marginTop: 2,
     fontWeight: '500',
+  },
+  heroChipsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 14,
+    flexWrap: 'wrap',
+  },
+  heroChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  heroChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.white,
+  },
+
+  // ── 섹션 헤더 (게시판/동아리 공통)
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+    marginTop: 22,
+    marginBottom: 8,
+  },
+  sectionAccent: {
+    width: 3,
+    height: 16,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.2,
+  },
+  sectionCount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    backgroundColor: colors.inputBg,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  sectionAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: colors.primary + '15',
+  },
+  sectionActionText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '700',
   },
 
   // ── admin 검색바
@@ -392,7 +507,8 @@ const createStyles = (colors) => StyleSheet.create({
 
   // ── 카드 그리드 (2열)
   gridWrapper: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 4,
   },
   grid: {
     flexDirection: 'row',
@@ -402,14 +518,11 @@ const createStyles = (colors) => StyleSheet.create({
   card: {
     width: '47.5%',
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    // 카드 그림자
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 2,
   },
@@ -450,100 +563,99 @@ const createStyles = (colors) => StyleSheet.create({
     fontWeight: '600',
   },
 
-  // ── 인증 배지
-  // 동아리 섹션
-  clubsSection: {
-    paddingHorizontal: 16,
-    marginTop: 18,
-  },
-  clubsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    gap: 8,
-  },
-  clubsTitle: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  clubsAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
-    backgroundColor: colors.primary + '15',
-  },
-  clubsAddText: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '700',
-  },
+  // ── 동아리 빈 상태 / 카드 / 메타
   clubsEmpty: {
+    marginHorizontal: 16,
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingVertical: 22,
-    paddingHorizontal: 16,
+    borderRadius: 16,
+    paddingVertical: 30,
+    paddingHorizontal: 20,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
     borderStyle: 'dashed',
   },
+  clubsEmptyEmoji: { fontSize: 36, marginBottom: 8 },
   clubsEmptyText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: colors.text,
   },
   clubsEmptyHint: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.textSecondary,
     marginTop: 4,
     textAlign: 'center',
   },
+  clubsEmptyCta: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+  },
+  clubsEmptyCtaText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   clubsList: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    marginHorizontal: 16,
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   clubCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  clubCover: { width: 44, height: 44, borderRadius: 12 },
+  clubCover: { width: 46, height: 46, borderRadius: 12 },
   clubName: { fontSize: 14, fontWeight: '700', color: colors.text },
   clubDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   clubMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   clubMeta: { fontSize: 11, color: colors.textSecondary },
   clubMetaDot: { fontSize: 11, color: colors.textSecondary },
 
-  verifiedRow: {
+  // ── 인증 완료 풋터 카드
+  verifiedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     marginHorizontal: 16,
-    marginTop: 4,
+    marginTop: 22,
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#10B981' + '18',
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#B7EBD0',
+    borderColor: '#A7F3D0',
   },
-  verifiedText: {
+  verifiedIconWrap: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#10B981' + '20',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  verifiedTitle: {
     fontSize: 13,
-    color: '#2D9E5A',
-    fontWeight: '600',
-    textAlign: 'center',
+    color: '#065F46',
+    fontWeight: '800',
+  },
+  verifiedSub: {
+    fontSize: 11,
+    color: '#047857',
+    marginTop: 1,
+    fontWeight: '500',
   },
 
   // ── 에러
