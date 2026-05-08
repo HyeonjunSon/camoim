@@ -62,11 +62,23 @@ router.get('/', optionalAuth, async (req, res) => {
     if (city) filter.city = city;
     if (university) filter.university = university;
     else if (excludeUniversity === 'true') filter.university = '';
-    // 'mine'은 본인이 가입한 거면 학교 한정이라도 보여야 함 — 위 필터는 그대로 두고
-    // box='mine' 분기에서 별도 처리. 일반 'all'에서 university/excludeUniversity 미지정 시
-    // 기본으로 학교 한정 동아리 제외 (학교 페이지에서만 발견되도록)
+    // 'mine'이 아닌 'all' 기본 모드에서 university/excludeUniversity 미지정 시
+    // 사용자가 가입할 수 있는 모임만 노출:
+    //  - admin: 전부
+    //  - 인증 회원: 일반 모임 + 본인 학교 동아리
+    //  - 그 외 (미인증/비로그인): 일반 모임만
     if (!university && excludeUniversity !== 'true' && box !== 'mine') {
-      filter.university = '';
+      let me = null;
+      if (req.user) {
+        me = await User.findById(req.user.id).select('verified university role').lean();
+      }
+      if (me?.role === 'admin') {
+        // 필터 안 거는 — 전부
+      } else if (me?.verified && me?.university) {
+        filter.university = { $in: ['', me.university] };
+      } else {
+        filter.university = '';
+      }
     }
     if (q) {
       const safe = String(q).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

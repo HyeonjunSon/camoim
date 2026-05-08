@@ -311,7 +311,7 @@ export default function UniversityBoardScreen({ navigation }) {
 
           {schoolGroups.length === 0 ? (
             <View style={styles.clubsEmpty}>
-              <Text style={styles.clubsEmptyEmoji}>🎯</Text>
+              <Text style={styles.clubsEmptyEmoji}>🎪</Text>
               <Text style={styles.clubsEmptyText}>아직 동아리가 없어요</Text>
               <Text style={styles.clubsEmptyHint}>같은 학교 친구들과 첫 동아리를 만들어보세요</Text>
               <TouchableOpacity
