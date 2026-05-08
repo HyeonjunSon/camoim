@@ -13,6 +13,8 @@ const groupSchema = new mongoose.Schema({
     index: true,
   },
   city: { type: String, default: '', maxlength: 100, index: true }, // 지역 모임이면
+  // 학교 한정 동아리: 빈 문자열 = 누구나 가입, 값 있으면 인증된 해당 학교 회원만
+  university: { type: String, default: '', maxlength: 100, index: true },
 
   // 그룹장 + 부그룹장
   ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },

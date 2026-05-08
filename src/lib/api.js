@@ -335,11 +335,13 @@ export const unblockUser = (userId) =>
   request('DELETE', `/users/${userId}/block`);
 
 // 모임 (Groups)
-export const getGroups = ({ box = 'all', category, city, q, sort = 'popular', page = 1 } = {}) => {
+export const getGroups = ({ box = 'all', category, city, q, sort = 'popular', page = 1, university, excludeUniversity } = {}) => {
   const params = new URLSearchParams({ box, sort, page: String(page) });
   if (category) params.set('category', category);
   if (city) params.set('city', city);
   if (q) params.set('q', q);
+  if (university) params.set('university', university);
+  if (excludeUniversity) params.set('excludeUniversity', 'true');
   return request('GET', `/groups?${params.toString()}`);
 };
 export const getGroup = (groupId) => request('GET', `/groups/${groupId}`);

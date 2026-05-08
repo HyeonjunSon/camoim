@@ -49,15 +49,19 @@ function isOwner(membership) {
 // ── GET /api/groups — 모임 목록 (검색/필터) ─────────────
 // ?box=all (기본) | mine (가입한 모임만)
 // ?category=hobby&city=Toronto&q=keyword&sort=popular|recent
+// ?university=토론토 대학교 — 학교 한정 동아리만
+// ?excludeUniversity=true — 일반 모임 (학교 한정 제외)
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    const { box = 'all', category, city, q, sort = 'popular' } = req.query;
+    const { box = 'all', category, city, q, sort = 'popular', university, excludeUniversity } = req.query;
     const limit = Math.min(parseInt(req.query.limit) || 30, 100);
     const skip = ((parseInt(req.query.page) || 1) - 1) * limit;
 
     let filter = { status: 'active' };
     if (category && VALID_CATEGORIES.includes(category)) filter.category = category;
     if (city) filter.city = city;
+    if (university) filter.university = university;
+    else if (excludeUniversity === 'true') filter.university = '';
     if (q) {
       const safe = String(q).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.name = { $regex: safe, $options: 'i' };
@@ -77,7 +81,7 @@ router.get('/', optionalAuth, async (req, res) => {
       .sort(sortObj)
       .skip(skip)
       .limit(limit)
-      .select('name description coverImage category city ownerId memberCount postCount joinPolicy createdAt')
+      .select('name description coverImage category city university ownerId memberCount postCount joinPolicy createdAt')
       .lean();
 
     res.json({ success: true, data: groups });
@@ -90,7 +94,7 @@ router.get('/', optionalAuth, async (req, res) => {
 // ── POST /api/groups — 모임 신청 (pending_review) ─────────
 router.post('/', requireAuth, async (req, res) => {
   try {
-    const { name, description, coverImage, category, city, joinPolicy } = req.body || {};
+    const { name, description, coverImage, category, city, joinPolicy, schoolOnly } = req.body || {};
     if (!name || String(name).trim().length < 2) {
       return res.status(400).json({ success: false, message: '모임 이름을 2자 이상 입력해주세요.' });
     }
@@ -99,6 +103,16 @@ router.post('/', requireAuth, async (req, res) => {
     }
     if (joinPolicy && !['open', 'approval'].includes(joinPolicy)) {
       return res.status(400).json({ success: false, message: '잘못된 가입 정책이에요.' });
+    }
+
+    // 학교 한정 동아리 — 본인 학교 인증돼있어야 만들 수 있고, 그 학교명만 허용
+    let groupUniversity = '';
+    if (schoolOnly) {
+      const me = await User.findById(req.user.id).select('verified university').lean();
+      if (!me?.verified || !me?.university) {
+        return res.status(403).json({ success: false, message: '학교 인증이 필요해요.' });
+      }
+      groupUniversity = me.university;
     }
 
     // 같은 이름 중복 방지 (active 또는 pending_review)
@@ -114,6 +128,7 @@ router.post('/', requireAuth, async (req, res) => {
       coverImage: String(coverImage || '').slice(0, 500),
       category,
       city: String(city || '').slice(0, 100),
+      university: groupUniversity,
       ownerId: req.user.id,
       joinPolicy: joinPolicy || 'open',
       status: 'pending_review',
@@ -170,6 +185,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
         coverImage: group.coverImage,
         category: group.category,
         city: group.city,
+        university: group.university || '',
         owner: { id: group.ownerId._id, nickname: group.ownerId.nickname, avatarUrl: group.ownerId.avatarUrl },
         memberCount: group.memberCount,
         postCount: group.postCount,
@@ -261,6 +277,16 @@ router.post('/:id/join', requireAuth, async (req, res) => {
     const group = await Group.findById(req.params.id);
     if (!group || group.status !== 'active') {
       return res.status(404).json({ success: false, message: '가입할 수 있는 모임이 아니에요.' });
+    }
+    // 학교 한정 동아리: 인증된 같은 학교 회원만 가입 가능
+    if (group.university) {
+      const me = await User.findById(req.user.id).select('verified university').lean();
+      if (!me?.verified || me.university !== group.university) {
+        return res.status(403).json({
+          success: false,
+          message: `${group.university} 학교 인증 회원만 가입할 수 있어요.`,
+        });
+      }
     }
     const existing = await GroupMembership.findOne({ groupId: group._id, userId: req.user.id });
     if (existing && existing.status === 'banned') {

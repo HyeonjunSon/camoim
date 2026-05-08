@@ -11,7 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
-import { getUniversityBoards } from '../../lib/api';
+import { Image } from 'expo-image';
+import { getUniversityBoards, getGroups } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { getBoardName, getBoardDescription } from '../../lib/i18n';
@@ -40,6 +41,7 @@ export default function UniversityBoardScreen({ navigation }) {
   const isAdmin = user?.role === 'admin';
 
   const [boards, setBoards] = useState([]);
+  const [schoolGroups, setSchoolGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
@@ -47,6 +49,7 @@ export default function UniversityBoardScreen({ navigation }) {
 
   useEffect(() => {
     fetchBoards();
+    fetchSchoolGroups();
   }, []);
 
   async function fetchBoards() {
@@ -64,6 +67,18 @@ export default function UniversityBoardScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  // 학교 한정 동아리 — 인증 회원만 (admin은 전체 학교 다 보이는데 일단 본인 학교 또는 빈 배열)
+  async function fetchSchoolGroups() {
+    if (!user?.university || !user?.verified) {
+      setSchoolGroups([]);
+      return;
+    }
+    try {
+      const res = await getGroups({ university: user.university, sort: 'popular' });
+      if (res.success) setSchoolGroups(res.data || []);
+    } catch {}
   }
 
   // admin용: 학교별로 게시판 그룹핑 + 검색 필터
@@ -211,6 +226,68 @@ export default function UniversityBoardScreen({ navigation }) {
         /* ── 일반 유저: 내 학교 게시판 그리드 ── */
         <View style={styles.gridWrapper}>
           <View style={styles.grid}>{boards.map(renderBoardCard)}</View>
+        </View>
+      )}
+
+      {/* ── 우리 학교 동아리 (인증된 일반 유저만) ── */}
+      {!isAdmin && user?.verified && user?.university && (
+        <View style={styles.clubsSection}>
+          <View style={styles.clubsHeader}>
+            <Text style={styles.clubsTitle}>🎭 우리 학교 동아리</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('GroupCreate')}
+              activeOpacity={0.7}
+              style={styles.clubsAddBtn}
+              accessibilityRole="button"
+              accessibilityLabel="동아리 만들기"
+            >
+              <Ionicons name="add" size={16} color={colors.primary} />
+              <Text style={styles.clubsAddText}>만들기</Text>
+            </TouchableOpacity>
+          </View>
+          {schoolGroups.length === 0 ? (
+            <View style={styles.clubsEmpty}>
+              <Text style={styles.clubsEmptyText}>아직 동아리가 없어요</Text>
+              <Text style={styles.clubsEmptyHint}>
+                첫 동아리를 만들어보세요! (모임 만들기 → "🎓 학교 한정" 토글)
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.clubsList}>
+              {schoolGroups.map((g) => (
+                <TouchableOpacity
+                  key={String(g.id)}
+                  style={styles.clubCard}
+                  activeOpacity={0.75}
+                  onPress={() => navigation.navigate('GroupDetail', { groupId: g.id })}
+                >
+                  {g.coverImage ? (
+                    <Image source={{ uri: g.coverImage }} style={styles.clubCover} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.clubCover, { backgroundColor: colors.primary + '20', alignItems: 'center', justifyContent: 'center' }]}>
+                      <Text style={{ fontSize: 22 }}>👥</Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.clubName} numberOfLines={1}>{g.name}</Text>
+                    {!!g.description && (
+                      <Text style={styles.clubDesc} numberOfLines={1}>{g.description}</Text>
+                    )}
+                    <View style={styles.clubMetaRow}>
+                      <Ionicons name="people-outline" size={11} color={colors.textSecondary} />
+                      <Text style={styles.clubMeta}>{g.memberCount}명</Text>
+                      {g.joinPolicy === 'approval' && (
+                        <>
+                          <Text style={styles.clubMetaDot}>·</Text>
+                          <Text style={[styles.clubMeta, { color: colors.primary }]}>승인 필요</Text>
+                        </>
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
       )}
 
@@ -374,6 +451,84 @@ const createStyles = (colors) => StyleSheet.create({
   },
 
   // ── 인증 배지
+  // 동아리 섹션
+  clubsSection: {
+    paddingHorizontal: 16,
+    marginTop: 18,
+  },
+  clubsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
+  },
+  clubsTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  clubsAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: colors.primary + '15',
+  },
+  clubsAddText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  clubsEmpty: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingVertical: 22,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  clubsEmptyText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  clubsEmptyHint: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  clubsList: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  clubCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  clubCover: { width: 44, height: 44, borderRadius: 12 },
+  clubName: { fontSize: 14, fontWeight: '700', color: colors.text },
+  clubDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  clubMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  clubMeta: { fontSize: 11, color: colors.textSecondary },
+  clubMetaDot: { fontSize: 11, color: colors.textSecondary },
+
   verifiedRow: {
     marginHorizontal: 16,
     marginTop: 4,

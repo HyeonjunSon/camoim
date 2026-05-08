@@ -1,12 +1,13 @@
 import { useState, useLayoutEffect } from 'react';
 import {
-  View, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform,
+  View, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
+import { useAuth } from '../../context/AuthContext';
 import { createGroup } from '../../lib/api';
 
 const CATEGORIES = [
@@ -28,7 +29,10 @@ export default function GroupCreateScreen({ navigation }) {
   const [category, setCategory] = useState('');
   const [city, setCity] = useState('');
   const [joinPolicy, setJoinPolicy] = useState('open');
+  const [schoolOnly, setSchoolOnly] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuth();
+  const canSchoolRestrict = user?.verified === true && !!user?.university;
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -51,6 +55,7 @@ export default function GroupCreateScreen({ navigation }) {
         category,
         city: city.trim(),
         joinPolicy,
+        schoolOnly: canSchoolRestrict ? schoolOnly : false,
       });
       if (res.success) {
         Alert.alert('', t('group.submitOk'), [
@@ -160,6 +165,25 @@ export default function GroupCreateScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* 학교 한정 동아리 — 학교 인증된 사람만 토글 노출 */}
+        {canSchoolRestrict && (
+          <View style={styles.schoolToggleBox}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.schoolToggleLabel}>🎓 학교 한정 동아리</Text>
+              <Text style={styles.schoolToggleHint}>
+                {schoolOnly
+                  ? `${user.university} 인증 회원만 가입 가능`
+                  : '체크하면 본인 학교 인증 회원만 가입 가능'}
+              </Text>
+            </View>
+            <Switch
+              value={schoolOnly}
+              onValueChange={setSchoolOnly}
+              trackColor={{ false: colors.border, true: colors.primary }}
+            />
+          </View>
+        )}
+
         <TouchableOpacity
           style={[styles.submit, submitting && { opacity: 0.6 }]}
           onPress={onSubmit}
@@ -201,6 +225,14 @@ const createStyles = (colors) => StyleSheet.create({
   catText: { fontSize: 13, color: colors.text, fontWeight: '600' },
   catTextActive: { color: colors.white },
   policyRow: { flexDirection: 'row', gap: 8 },
+  schoolToggleBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginTop: 16, padding: 14, borderRadius: 12,
+    backgroundColor: colors.primary + '0F',
+    borderWidth: 1, borderColor: colors.primary + '30',
+  },
+  schoolToggleLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
+  schoolToggleHint: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
   policyBtn: {
     flex: 1, paddingVertical: 12, borderRadius: 10,
     backgroundColor: colors.inputBg, alignItems: 'center',
