@@ -63,10 +63,11 @@ router.get('/', optionalAuth, async (req, res) => {
     if (university) filter.university = university;
     else if (excludeUniversity === 'true') filter.university = '';
     // 'mine'이 아닌 'all' 기본 모드에서 university/excludeUniversity 미지정 시
-    // 사용자가 가입할 수 있는 모임만 노출:
+    // 사용자가 보고 가입할 수 있는 모임 + 이미 가입한 모임 노출:
     //  - admin: 전부
-    //  - 인증 회원: 일반 모임 + 본인 학교 동아리
-    //  - 그 외 (미인증/비로그인): 일반 모임만
+    //  - 인증 회원: 일반 모임 + 본인 학교 동아리 + 본인이 이미 가입한 그룹 (학교 무관)
+    //  - 그 외 (미인증/비로그인): 일반 모임 + 본인이 가입한 그룹
+    // (이미 가입한 그룹은 학교 무관하게 항상 보여야 함 — 안 그러면 '내 모임' ⊄ '전체'가 되어버림)
     if (!university && excludeUniversity !== 'true' && box !== 'mine') {
       let me = null;
       if (req.user) {
@@ -74,10 +75,23 @@ router.get('/', optionalAuth, async (req, res) => {
       }
       if (me?.role === 'admin') {
         // 필터 안 거는 — 전부
-      } else if (me?.verified && me?.university) {
-        filter.university = { $in: ['', me.university] };
       } else {
-        filter.university = '';
+        const universityClause = (me?.verified && me?.university)
+          ? { university: { $in: ['', me.university] } }
+          : { university: '' };
+
+        const myGroupIds = req.user
+          ? await GroupMembership.find({
+              userId: req.user.id,
+              status: 'active',
+            }).distinct('groupId')
+          : [];
+
+        if (myGroupIds.length > 0) {
+          filter.$or = [universityClause, { _id: { $in: myGroupIds } }];
+        } else {
+          Object.assign(filter, universityClause);
+        }
       }
     }
     if (q) {
