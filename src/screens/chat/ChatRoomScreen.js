@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { useAuth } from '../../context/AuthContext';
@@ -34,8 +33,6 @@ export default function ChatRoomScreen({ route, navigation }) {
   const { user: me } = useAuth();
   const { t } = useLang();
   const insets = useSafeAreaInsets();
-  // 탭바가 하단을 차지하므로 KAV가 그만큼 보정해야 키보드가 채팅 화면 안 덮음
-  const tabBarHeight = useBottomTabBarHeight();
 
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
@@ -53,6 +50,16 @@ export default function ChatRoomScreen({ route, navigation }) {
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, []);
+
+  // 채팅방 진입/이탈 시 하단 탭바 숨김/복원 — 카톡/일반 메신저 패턴
+  // 키보드 처리도 깔끔 (탭바 영역 신경 안 써도 됨)
+  useFocusEffect(useCallback(() => {
+    const parent = navigation.getParent();
+    parent?.setOptions({ tabBarStyle: { display: 'none' } });
+    return () => {
+      parent?.setOptions({ tabBarStyle: undefined });
+    };
+  }, [navigation]));
 
 
   // 메시지 불러오기 + 소켓 — 포커스마다 재실행해 stale/empty 응답 자동 복구
@@ -273,8 +280,7 @@ export default function ChatRoomScreen({ route, navigation }) {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      // 화면 하단의 탭바 높이만큼 KAV가 더 밀어올려야 키보드가 채팅을 안 덮음
-      keyboardVerticalOffset={Platform.OS === 'ios' ? tabBarHeight : 0}
+      keyboardVerticalOffset={0}
     >
       <CustomChatHeader />
       <FlatList
