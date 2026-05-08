@@ -305,7 +305,7 @@ export default function UniversityBoardScreen({ navigation }) {
             {schoolGroups.length > 0 && <Text style={styles.sectionCount}>{schoolGroups.length}</Text>}
             <View style={{ flex: 1 }} />
             <TouchableOpacity
-              onPress={() => navigation.navigate('GroupCreate')}
+              onPress={() => navigation.navigate('GroupCreate', { schoolOnly: true })}
               activeOpacity={0.7}
               style={styles.sectionAction}
               accessibilityRole="button"
@@ -323,7 +323,7 @@ export default function UniversityBoardScreen({ navigation }) {
               <Text style={styles.clubsEmptyHint}>같은 학교 친구들과 첫 동아리를 만들어보세요</Text>
               <TouchableOpacity
                 style={styles.clubsEmptyCta}
-                onPress={() => navigation.navigate('GroupCreate')}
+                onPress={() => navigation.navigate('GroupCreate', { schoolOnly: true })}
                 activeOpacity={0.85}
               >
                 <Ionicons name="add" size={14} color={colors.white} />

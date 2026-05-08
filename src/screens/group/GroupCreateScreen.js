@@ -19,7 +19,7 @@ const CATEGORIES = [
   { key: 'general', labelKey: 'group.catGeneral', emoji: '💬' },
 ];
 
-export default function GroupCreateScreen({ navigation }) {
+export default function GroupCreateScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { t } = useLang();
   const styles = createStyles(colors);
@@ -29,7 +29,8 @@ export default function GroupCreateScreen({ navigation }) {
   const [category, setCategory] = useState('');
   const [city, setCity] = useState('');
   const [joinPolicy, setJoinPolicy] = useState('open');
-  const [schoolOnly, setSchoolOnly] = useState(false);
+  // 학교 페이지에서 진입했으면 schoolOnly=true로 시작 (인증된 회원일 때만 의미 있음)
+  const [schoolOnly, setSchoolOnly] = useState(!!route?.params?.schoolOnly);
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
   const canSchoolRestrict = user?.verified === true && !!user?.university;
