@@ -102,11 +102,12 @@ export const checkEmailCode = (email, code) =>
 // 게시판 API
 export const getBoards = () => request('GET', '/boards');
 export const getUniversityBoards = () => request('GET', '/boards/university');
-export const getBoardPosts = (boardId, page = 1, { search, sort, city } = {}) => {
+export const getBoardPosts = (boardId, page = 1, { search, sort, city, tradeStatus } = {}) => {
   const params = new URLSearchParams({ page });
   if (search) params.append('search', search);
   if (sort) params.append('sort', sort);
   if (city) params.append('city', city);
+  if (tradeStatus) params.append('tradeStatus', tradeStatus);
   return request('GET', `/boards/${boardId}/posts?${params}`);
 };
 export const createPost = (boardId, data) =>

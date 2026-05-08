@@ -855,6 +855,7 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flexWrap: 'wrap',
+    marginBottom: 10,
   },
   tradeStatusChip: {
     paddingHorizontal: 8,
@@ -892,9 +893,8 @@ const createStyles = (colors) => StyleSheet.create({
   tradeToggleBtnText: { fontSize: 13, fontWeight: '700' },
 
   boardTag: {
-    alignSelf: 'flex-start', fontSize: 11, fontWeight: '700', color: colors.primary,
+    fontSize: 11, fontWeight: '700', color: colors.primary,
     backgroundColor: colors.primary + '12', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
-    marginBottom: 10,
   },
   title: { fontSize: 21, fontWeight: '800', color: colors.text, lineHeight: 28 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 13 },

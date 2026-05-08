@@ -16,6 +16,7 @@ import { getBoardPosts } from '../../lib/api';
 import PostCard from '../../components/PostCard';
 import CustomHeader from '../../components/CustomHeader';
 import { useLang } from '../../context/LangContext';
+import { isTradeBoard, getTradeLabel } from '../../constants/boards';
 
 const SORT_OPTIONS = [
   { key: 'latest', icon: 'time-outline' },
@@ -64,6 +65,9 @@ export default function BoardFeedScreen({ route, navigation }) {
 
   // 정렬 상태
   const [sortBy, setSortBy] = useState('latest');
+  // 거래 상태 필터 (마켓 류 게시판) — all | selling | sold
+  const [tradeFilter, setTradeFilter] = useState('all');
+  const showTradeFilter = isTradeBoard(boardSlug);
 
   // 커스텀 헤더 사용 — 게시판/모임/채팅 등과 통일된 스타일
   useLayoutEffect(() => {
@@ -109,6 +113,12 @@ export default function BoardFeedScreen({ route, navigation }) {
     loadPosts(1, true, activeSearch, newSort);
   };
 
+  const handleTradeFilterChange = (next) => {
+    if (next === tradeFilter) return;
+    setTradeFilter(next);
+    loadPosts(1, true, activeSearch, sortBy, cityFilter, next);
+  };
+
   // 최초 로드 + 도시 필터 변경 시
   useEffect(() => {
     loadPosts(1, true, '', 'latest', cityFilter);
@@ -128,7 +138,7 @@ export default function BoardFeedScreen({ route, navigation }) {
     return unsubscribe;
   }, [navigation, boardId]);
 
-  async function loadPosts(targetPage, reset = false, search = activeSearch, sort = sortBy, city = cityFilter) {
+  async function loadPosts(targetPage, reset = false, search = activeSearch, sort = sortBy, city = cityFilter, trade = tradeFilter) {
     if (reset) {
       setLoading(true);
       setError(null);
@@ -138,6 +148,7 @@ export default function BoardFeedScreen({ route, navigation }) {
         search: search || undefined,
         sort: sort !== 'latest' ? sort : undefined,
         city: city || undefined,
+        tradeStatus: trade !== 'all' ? trade : undefined,
       });
       if (result.success) {
         const newPosts = result.data.posts ?? [];
@@ -239,6 +250,31 @@ export default function BoardFeedScreen({ route, navigation }) {
               </TouchableOpacity>
             ))}
           </ScrollView>
+        </View>
+      )}
+
+      {/* 거래 상태 필터 (마켓 류 게시판만) */}
+      {showTradeFilter && (
+        <View style={styles.tradeFilterRow}>
+          {[
+            { key: 'all', label: '전체' },
+            { key: 'selling', label: getTradeLabel(boardSlug, 'selling') },
+            { key: 'sold', label: getTradeLabel(boardSlug, 'sold') },
+          ].map(opt => {
+            const active = tradeFilter === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                style={[styles.tradeFilterChip, active && styles.tradeFilterChipActive]}
+                onPress={() => handleTradeFilterChange(opt.key)}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.tradeFilterChipText, active && styles.tradeFilterChipTextActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
 
@@ -397,6 +433,33 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 14,
     color: colors.text,
     paddingVertical: 0,
+  },
+
+  // 거래 상태 필터 칩 (마켓 류 게시판)
+  tradeFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 2,
+    gap: 6,
+  },
+  tradeFilterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: colors.inputBg,
+  },
+  tradeFilterChipActive: {
+    backgroundColor: colors.primary,
+  },
+  tradeFilterChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  tradeFilterChipTextActive: {
+    color: colors.white,
   },
 
   // 정렬 칩

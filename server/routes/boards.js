@@ -122,6 +122,11 @@ router.get('/:boardId/posts', async (req, res) => {
       const regex = new RegExp(search, 'i');
       filter.$or = [{ title: regex }, { content: regex }];
     }
+    // 마켓 류 게시판 거래 상태 필터 — selling | sold | (none = all)
+    const tradeStatus = req.query.tradeStatus;
+    if (tradeStatus === 'selling' || tradeStatus === 'sold') {
+      filter.tradeStatus = tradeStatus;
+    }
 
     const sortMap = {
       popular: { likeCount: -1, createdAt: -1 },
