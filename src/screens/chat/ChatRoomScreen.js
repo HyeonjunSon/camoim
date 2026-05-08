@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   StyleSheet,
   ActivityIndicator,
@@ -48,6 +49,18 @@ export default function ChatRoomScreen({ route, navigation }) {
   // 좌/우 버튼 자동 캡슐 래핑이 우리 캡슐과 충돌해 이중 동그라미가 보였음)
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
+  }, []);
+
+  // 키보드 열리면 최신 메시지로 자동 스크롤 — 키보드가 마지막 메시지 가리지 않게
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const sub = Keyboard.addListener(showEvent, () => {
+      // 약간의 지연 — KeyboardAvoidingView가 padding 적용한 후 스크롤
+      requestAnimationFrame(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      });
+    });
+    return () => sub.remove();
   }, []);
 
   // 메시지 불러오기 + 소켓 — 포커스마다 재실행해 stale/empty 응답 자동 복구
