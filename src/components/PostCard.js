@@ -54,7 +54,7 @@ export default function PostCard({ post, onPress }) {
             {showTrade && (
               <View style={[styles.tradeBadge, isSold ? styles.tradeBadgeSold : styles.tradeBadgeSelling]}>
                 <Text style={[styles.tradeBadgeText, isSold ? styles.tradeBadgeTextSold : styles.tradeBadgeTextSelling]}>
-                  {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling')}
+                  {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling', t)}
                 </Text>
               </View>
             )}

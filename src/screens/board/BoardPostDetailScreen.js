@@ -50,7 +50,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, pinPost, setBlock, setTradeStatus } from '../../lib/api';
-import { isTradeBoard, getTradeLabel } from '../../constants/boards';
+import { isTradeBoard, getTradeLabel, getTradeChangeLabel } from '../../constants/boards';
 import { formatTime } from '../../lib/time';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
@@ -600,7 +600,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
             {isTradeBoard(post.boardSlug) && (
               <View style={[styles.tradeStatusChip, isSold ? styles.tradeStatusChipSold : styles.tradeStatusChipSelling]}>
                 <Text style={[styles.tradeStatusChipText, isSold ? styles.tradeStatusChipTextSold : styles.tradeStatusChipTextSelling]}>
-                  {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling')}
+                  {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling', t)}
                 </Text>
               </View>
             )}
@@ -618,9 +618,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
                   color={colors.primary}
                 />
                 <Text style={styles.tradeToggleInlineText}>
-                  {isSold
-                    ? `${getTradeLabel(post.boardSlug, 'selling')}으로`
-                    : `${getTradeLabel(post.boardSlug, 'sold')}로 변경`}
+                  {getTradeChangeLabel(post.boardSlug, isSold ? 'sold' : 'selling', t)}
                 </Text>
               </TouchableOpacity>
             )}

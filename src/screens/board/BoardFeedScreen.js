@@ -262,9 +262,9 @@ export default function BoardFeedScreen({ route, navigation }) {
         {showTradeFilter && (
           <>
             {[
-              { key: 'all', label: '전체' },
-              { key: 'selling', label: getTradeLabel(boardSlug, 'selling') },
-              { key: 'sold', label: getTradeLabel(boardSlug, 'sold') },
+              { key: 'all', label: t('board.tradeAll') },
+              { key: 'selling', label: getTradeLabel(boardSlug, 'selling', t) },
+              { key: 'sold', label: getTradeLabel(boardSlug, 'sold', t) },
             ].map(opt => {
               const active = tradeFilter === opt.key;
               return (

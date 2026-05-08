@@ -138,6 +138,10 @@ export const TRANSLATIONS = {
       sort_latest: '최신순', sort_popular: '인기순', sort_comments: '댓글순',
       other: '기타', searchSchool: '학교 이름 검색',
       tabBoards: '게시판', tabGroups: '모임',
+      tradeAll: '전체', tradeSelling: '판매중', tradeSold: '판매완료',
+      rentAvailable: '입주가능', rentTaken: '입주완료',
+      tradeChangeToSold: '판매완료로 변경', tradeChangeToSelling: '판매중으로',
+      rentChangeToTaken: '입주완료로 변경', rentChangeToAvailable: '입주가능으로',
     },
     group: {
       title: '모임', empty: '아직 모임이 없어요',
@@ -805,6 +809,10 @@ export const TRANSLATIONS = {
       sort_latest: 'Latest', sort_popular: 'Popular', sort_comments: 'Comments',
       other: 'Other', searchSchool: 'Search school name',
       tabBoards: 'Boards', tabGroups: 'Groups',
+      tradeAll: 'All', tradeSelling: 'For Sale', tradeSold: 'Sold',
+      rentAvailable: 'Available', rentTaken: 'Taken',
+      tradeChangeToSold: 'Mark as Sold', tradeChangeToSelling: 'Mark as For Sale',
+      rentChangeToTaken: 'Mark as Taken', rentChangeToAvailable: 'Mark as Available',
     },
     group: {
       title: 'Groups', empty: 'No groups yet',
