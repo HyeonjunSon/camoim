@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Alert,
   KeyboardAvoidingView,
-  Keyboard,
   Platform,
   StyleSheet,
   ActivityIndicator,
@@ -50,17 +49,6 @@ export default function ChatRoomScreen({ route, navigation }) {
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, []);
-
-  // 채팅방 진입/이탈 시 하단 탭바 숨김/복원 — 카톡/일반 메신저 패턴
-  // 키보드 처리도 깔끔 (탭바 영역 신경 안 써도 됨)
-  useFocusEffect(useCallback(() => {
-    const parent = navigation.getParent();
-    parent?.setOptions({ tabBarStyle: { display: 'none' } });
-    return () => {
-      parent?.setOptions({ tabBarStyle: undefined });
-    };
-  }, [navigation]));
-
 
   // 메시지 불러오기 + 소켓 — 포커스마다 재실행해 stale/empty 응답 자동 복구
   useFocusEffect(useCallback(() => {
