@@ -594,7 +594,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
         {/* ── 게시글 카드 */}
         <View style={styles.postCard}>
 
-          {/* 게시판 태그 + 거래 상태 (마켓 류 게시판) */}
+          {/* 게시판 태그 + 거래 상태 + (작성자) 토글 버튼 — 한 줄 */}
           <View style={styles.tagRow}>
             {post.boardName && <Text style={styles.boardTag}>{post.boardName}</Text>}
             {isTradeBoard(post.boardSlug) && (
@@ -604,28 +604,27 @@ export default function BoardPostDetailScreen({ route, navigation }) {
                 </Text>
               </View>
             )}
+            {showTradeButton && (
+              <TouchableOpacity
+                style={styles.tradeToggleInline}
+                onPress={toggleTradeStatus}
+                activeOpacity={0.6}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                accessibilityRole="button"
+              >
+                <Ionicons
+                  name={isSold ? 'refresh' : 'checkmark-circle-outline'}
+                  size={13}
+                  color={colors.primary}
+                />
+                <Text style={styles.tradeToggleInlineText}>
+                  {isSold
+                    ? `${getTradeLabel(post.boardSlug, 'selling')}으로`
+                    : `${getTradeLabel(post.boardSlug, 'sold')}로 변경`}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
-
-          {/* 작성자 전용 — 거래 상태 토글 버튼 */}
-          {showTradeButton && (
-            <TouchableOpacity
-              style={[styles.tradeToggleBtn, isSold ? styles.tradeToggleBtnSold : styles.tradeToggleBtnSelling]}
-              onPress={toggleTradeStatus}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-            >
-              <Ionicons
-                name={isSold ? 'refresh' : 'checkmark-circle'}
-                size={16}
-                color={isSold ? colors.text : colors.white}
-              />
-              <Text style={[styles.tradeToggleBtnText, isSold ? { color: colors.text } : { color: colors.white }]}>
-                {isSold
-                  ? `${getTradeLabel(post.boardSlug, 'selling')}으로 되돌리기`
-                  : `${getTradeLabel(post.boardSlug, 'sold')}로 변경`}
-              </Text>
-            </TouchableOpacity>
-          )}
 
           {/* 제목 */}
           <Text style={[styles.title, isSold && { color: colors.textSecondary }]}>{post.title}</Text>
@@ -868,29 +867,22 @@ const createStyles = (colors) => StyleSheet.create({
   tradeStatusChipTextSelling: { color: '#DC2626' },
   tradeStatusChipTextSold: { color: colors.textSecondary },
 
-  tradeToggleBtn: {
+  // 작성자 전용 — 인라인 작은 토글 ('판매중' 칩 옆)
+  tradeToggleInline: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingVertical: 11,
-    borderRadius: 12,
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: colors.primary + '12',
   },
-  tradeToggleBtnSelling: {
-    backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 2,
+  tradeToggleInlineText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: -0.2,
   },
-  tradeToggleBtnSold: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  tradeToggleBtnText: { fontSize: 13, fontWeight: '700' },
 
   boardTag: {
     fontSize: 11, fontWeight: '700', color: colors.primary,

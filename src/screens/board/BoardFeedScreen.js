@@ -253,32 +253,37 @@ export default function BoardFeedScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* 거래 상태 필터 (마켓 류 게시판만) */}
-      {showTradeFilter && (
-        <View style={styles.tradeFilterRow}>
-          {[
-            { key: 'all', label: '전체' },
-            { key: 'selling', label: getTradeLabel(boardSlug, 'selling') },
-            { key: 'sold', label: getTradeLabel(boardSlug, 'sold') },
-          ].map(opt => {
-            const active = tradeFilter === opt.key;
-            return (
-              <TouchableOpacity
-                key={opt.key}
-                style={[styles.tradeFilterChip, active && styles.tradeFilterChipActive]}
-                onPress={() => handleTradeFilterChange(opt.key)}
-                activeOpacity={0.75}
-              >
-                <Text style={[styles.tradeFilterChipText, active && styles.tradeFilterChipTextActive]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
+      {/* 필터 행 — (거래 상태 |) 정렬 한 줄 */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.sortRow}
+      >
+        {showTradeFilter && (
+          <>
+            {[
+              { key: 'all', label: '전체' },
+              { key: 'selling', label: getTradeLabel(boardSlug, 'selling') },
+              { key: 'sold', label: getTradeLabel(boardSlug, 'sold') },
+            ].map(opt => {
+              const active = tradeFilter === opt.key;
+              return (
+                <TouchableOpacity
+                  key={`trade-${opt.key}`}
+                  style={[styles.sortChip, active && styles.sortChipActive]}
+                  onPress={() => handleTradeFilterChange(opt.key)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.sortChipText, active && styles.sortChipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+            <View style={styles.filterDivider} />
+          </>
+        )}
 
-      <View style={styles.sortRow}>
         {SORT_OPTIONS.map(opt => {
           const active = sortBy === opt.key;
           return (
@@ -305,7 +310,7 @@ export default function BoardFeedScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
         ) : null}
-      </View>
+      </ScrollView>
     </View>
   );
 
@@ -435,31 +440,13 @@ const createStyles = (colors) => StyleSheet.create({
     paddingVertical: 0,
   },
 
-  // 거래 상태 필터 칩 (마켓 류 게시판)
-  tradeFilterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 2,
-    gap: 6,
-  },
-  tradeFilterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    backgroundColor: colors.inputBg,
-  },
-  tradeFilterChipActive: {
-    backgroundColor: colors.primary,
-  },
-  tradeFilterChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  tradeFilterChipTextActive: {
-    color: colors.white,
+  // 거래 / 정렬 사이 구분선
+  filterDivider: {
+    width: 1,
+    height: 18,
+    backgroundColor: colors.border,
+    marginHorizontal: 6,
+    alignSelf: 'center',
   },
 
   // 정렬 칩
