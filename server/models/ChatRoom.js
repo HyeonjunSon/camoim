@@ -1,12 +1,14 @@
 const mongoose = require('mongoose');
 
 const chatRoomSchema = new mongoose.Schema({
-  // dm: 1:1 대화 (기존), group: 모임 단체 채팅 (Phase 2B)
-  kind: { type: String, enum: ['dm', 'group'], default: 'dm', index: true },
+  // dm: 1:1, group: 모임 단체, school: 학교 전체 채팅
+  kind: { type: String, enum: ['dm', 'group', 'school'], default: 'dm', index: true },
   // 그룹 채팅이면 모임 ID + 캐시된 이름/커버 (목록 빠른 조회용)
   groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', default: null, index: true },
   groupName: { type: String, default: '' },
   groupCoverImage: { type: String, default: '' },
+  // 학교 전체 채팅이면 학교명 (groupId 대용 — 학교당 1개)
+  university: { type: String, default: '', index: true },
 
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }],
   lastMessage: { type: String, default: '' },

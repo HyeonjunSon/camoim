@@ -62,6 +62,12 @@ router.get('/', optionalAuth, async (req, res) => {
     if (city) filter.city = city;
     if (university) filter.university = university;
     else if (excludeUniversity === 'true') filter.university = '';
+    // 'mine'은 본인이 가입한 거면 학교 한정이라도 보여야 함 — 위 필터는 그대로 두고
+    // box='mine' 분기에서 별도 처리. 일반 'all'에서 university/excludeUniversity 미지정 시
+    // 기본으로 학교 한정 동아리 제외 (학교 페이지에서만 발견되도록)
+    if (!university && excludeUniversity !== 'true' && box !== 'mine') {
+      filter.university = '';
+    }
     if (q) {
       const safe = String(q).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.name = { $regex: safe, $options: 'i' };

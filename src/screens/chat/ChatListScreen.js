@@ -156,6 +156,52 @@ export default function ChatListScreen({ navigation }) {
   }
 
   function renderRoom({ item }) {
+    // 학교 전체 채팅
+    if (item.kind === 'school') {
+      const s = item.school || {};
+      return (
+        <TouchableOpacity
+          style={styles.roomCard}
+          onPress={() => navigation.navigate('ChatRoom', {
+            roomId: item.id,
+            kind: 'school',
+            group: { id: null, name: s.name, coverImage: '', memberCount: s.memberCount },
+          })}
+          activeOpacity={0.8}
+        >
+          <View style={styles.groupAvatarWrap}>
+            <LinearGradient
+              colors={['#7F77DD', '#5C52CC']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.groupAvatarGradient}
+            >
+              <Text style={{ fontSize: 22 }}>🎓</Text>
+            </LinearGradient>
+            <View style={styles.groupAvatarBadge}>
+              <Ionicons name="school" size={9} color="#fff" />
+            </View>
+          </View>
+          <View style={styles.roomInfo}>
+            <View style={styles.roomTop}>
+              <Text style={styles.roomNick} numberOfLines={1}>{s.name || '학교 채팅'}</Text>
+              <Text style={styles.roomTime}>{formatTime(item.lastMessageAt)}</Text>
+            </View>
+            <View style={styles.roomBottom}>
+              <Text style={styles.roomLast} numberOfLines={1}>
+                {item.lastMessage || `${s.memberCount || 0}명의 학교 채팅`}
+              </Text>
+              {item.unreadCount > 0 && (
+                <View style={styles.unreadBadge}>
+                  <Text style={styles.unreadText}>{item.unreadCount > 99 ? '99+' : item.unreadCount}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
     // 그룹 채팅
     if (item.kind === 'group') {
       const g = item.group || {};

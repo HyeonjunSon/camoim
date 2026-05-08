@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { Image } from 'expo-image';
-import { getUniversityBoards, getGroups } from '../../lib/api';
+import { getUniversityBoards, getGroups, getSchoolChat } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { getBoardName, getBoardDescription } from '../../lib/i18n';
@@ -30,6 +30,9 @@ const BOARD_META = {
 function getSuffix(slug = '') {
   return slug.split('-').pop();
 }
+
+// 학교 페이지에서 더 이상 노출하지 않는 게시판 (글로벌 모임/유학정보로 대체)
+const HIDDEN_SCHOOL_BOARD_SUFFIXES = new Set(['meetup', 'info']);
 
 // 학교 전용 게시판 홈 화면 (에브리타임 스타일)
 export default function UniversityBoardScreen({ navigation }) {
@@ -67,6 +70,27 @@ export default function UniversityBoardScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  // 학교 전체 채팅 진입 — 첫 진입 시 lazy create + 자동 참여
+  async function openSchoolChat() {
+    try {
+      const res = await getSchoolChat();
+      if (res.success) {
+        navigation.navigate('ChatRoom', {
+          roomId: res.data.id,
+          kind: 'school',
+          group: {
+            id: null,
+            name: res.data.groupName || res.data.university,
+            coverImage: '',
+            memberCount: res.data.participantCount,
+          },
+        });
+      } else {
+        // optional toast/Alert
+      }
+    } catch {}
   }
 
   // 학교 한정 동아리 — 인증 회원만 (admin은 전체 학교 다 보이는데 일단 본인 학교 또는 빈 배열)
@@ -178,20 +202,28 @@ export default function UniversityBoardScreen({ navigation }) {
               </Text>
             </View>
           </View>
-          {!isAdmin && (
-            <View style={styles.heroChipsRow}>
-              <View style={styles.heroChip}>
-                <Text style={styles.heroChipText}>📋 {boards.length}개 게시판</Text>
-              </View>
-              {schoolGroups.length > 0 && (
-                <View style={styles.heroChip}>
-                  <Text style={styles.heroChipText}>🎭 {schoolGroups.length}개 동아리</Text>
-                </View>
-              )}
-            </View>
-          )}
         </LinearGradient>
       </View>
+
+      {/* ── 학교 전체 채팅 진입 버튼 (인증 회원 전용) ── */}
+      {!isAdmin && user?.verified && user?.university && (
+        <TouchableOpacity
+          style={styles.chatEntryCard}
+          onPress={openSchoolChat}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="학교 전체 채팅 입장"
+        >
+          <View style={styles.chatEntryIcon}>
+            <Ionicons name="chatbubbles" size={20} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.chatEntryTitle}>학교 전체 채팅</Text>
+            <Text style={styles.chatEntrySub}>같은 학교 인증 회원과 대화</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+        </TouchableOpacity>
+      )}
 
       {/* ── admin: 검색 + 학교별 접기/펼치기 ── */}
       {isAdmin && groupedByUniversity ? (
@@ -239,17 +271,22 @@ export default function UniversityBoardScreen({ navigation }) {
           )}
         </>
       ) : (
-        /* ── 일반 유저: 내 학교 게시판 그리드 ── */
-        <View>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionAccent} />
-            <Text style={styles.sectionTitle}>게시판</Text>
-            <Text style={styles.sectionCount}>{boards.length}</Text>
-          </View>
-          <View style={styles.gridWrapper}>
-            <View style={styles.grid}>{boards.map(renderBoardCard)}</View>
-          </View>
-        </View>
+        /* ── 일반 유저: 내 학교 게시판 그리드 (모임/정보는 동아리/글로벌로 대체되어 숨김) ── */
+        (() => {
+          const visibleBoards = boards.filter(b => !HIDDEN_SCHOOL_BOARD_SUFFIXES.has(getSuffix(b.slug)));
+          return (
+            <View>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionAccent} />
+                <Text style={styles.sectionTitle}>게시판</Text>
+                <Text style={styles.sectionCount}>{visibleBoards.length}</Text>
+              </View>
+              <View style={styles.gridWrapper}>
+                <View style={styles.grid}>{visibleBoards.map(renderBoardCard)}</View>
+              </View>
+            </View>
+          );
+        })()
       )}
 
       {/* ── 우리 학교 동아리 (인증된 일반 유저만) ── */}
@@ -326,20 +363,6 @@ export default function UniversityBoardScreen({ navigation }) {
         </View>
       )}
 
-      {/* ── 인증 완료 카드 (일반 유저만) ── */}
-      {!isAdmin && (
-        <View style={styles.verifiedCard}>
-          <View style={styles.verifiedIconWrap}>
-            <Ionicons name="shield-checkmark" size={18} color="#10B981" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.verifiedTitle}>
-              {user?.university} {t('board.verified')}
-            </Text>
-            <Text style={styles.verifiedSub}>이 학교 게시판/동아리만 접근 가능</Text>
-          </View>
-        </View>
-      )}
     </ScrollView>
   );
 }
@@ -427,6 +450,31 @@ const createStyles = (colors) => StyleSheet.create({
     fontWeight: '700',
     color: colors.white,
   },
+
+  // ── 학교 전체 채팅 진입 카드
+  chatEntryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: 16,
+    marginTop: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  chatEntryIcon: {
+    width: 42, height: 42, borderRadius: 12,
+    backgroundColor: colors.primary + '15',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  chatEntryTitle: { fontSize: 14, fontWeight: '800', color: colors.text },
+  chatEntrySub: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
 
   // ── 섹션 헤더 (게시판/동아리 공통)
   sectionHeader: {

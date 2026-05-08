@@ -74,9 +74,12 @@ function initSocket(httpServer) {
         if (!room.participants.some(p => String(p) === String(userId))) return;
 
         const isGroup = room.kind === 'group';
+        const isSchool = room.kind === 'school';
+        // 그룹/학교 모두 N명 채팅이라 DM 전용 검사 (차단·승인 대기) 제외
+        const isMultiUser = isGroup || isSchool;
 
         // DM: 차단 체크 + 요청 단계 1통 제한
-        if (!isGroup) {
+        if (!isMultiUser) {
           const otherIdEarly = room.participants.find(p => String(p) !== String(userId));
           if (otherIdEarly && await isChatBlocked(userId, otherIdEarly)) {
             socket.emit('send_error', { message: '차단된 사용자와는 채팅할 수 없어요.' });
@@ -143,6 +146,7 @@ function initSocket(httpServer) {
           }).distinct('userId');
           recipients = enabledMembers.map(String);
         }
+        // 학교 채팅: 모든 참여자에게 실시간 (별도 토글 없음)
 
         for (const rid of recipients) {
           io.to(`user_${rid}`).emit('chat_notification', {
@@ -150,7 +154,7 @@ function initSocket(httpServer) {
             kind: room.kind,
             senderNickname: socket.user.nickname,
             content: trimmed,
-            groupName: isGroup ? room.groupName : undefined,
+            groupName: isMultiUser ? room.groupName : undefined,
           });
         }
       } catch (err) {

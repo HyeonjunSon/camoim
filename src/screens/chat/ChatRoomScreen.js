@@ -28,7 +28,9 @@ export default function ChatRoomScreen({ route, navigation }) {
   const styles = createStyles(colors);
 
   const { roomId, other, group } = route.params;
-  const isGroupChat = route.params?.kind === 'group' || !!group;
+  // group/school 모두 N명 채팅이라 동일 UI 패턴 사용
+  const isGroupChat = route.params?.kind === 'group' || route.params?.kind === 'school' || !!group;
+  const isSchoolChat = route.params?.kind === 'school';
   const { user: me } = useAuth();
   const { t } = useLang();
   const insets = useSafeAreaInsets();
@@ -242,9 +244,12 @@ export default function ChatRoomScreen({ route, navigation }) {
   const headerTitle = isGroupChat
     ? (group?.name || t('chat.tabChats'))
     : (otherDeleted ? t('chat.deletedUser') : (other?.nickname ?? t('chat.tabChats')));
-  const showRightAction = isGroupChat
-    ? !!group?.id
-    : !otherDeleted && !!other?.id;
+  // 학교 전체 채팅은 별도 detail 페이지 없음 → 우측 액션 숨김
+  const showRightAction = isSchoolChat
+    ? false
+    : isGroupChat
+      ? !!group?.id
+      : !otherDeleted && !!other?.id;
   const rightLabel = isGroupChat ? '그룹' : t('chat.profile');
   const onRightPress = () => {
     if (isGroupChat && group?.id) {

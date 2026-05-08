@@ -27,7 +27,7 @@ router.get('/', requireAuth, async (req, res) => {
 
     const result = rooms
       .filter(room => {
-        if (room.kind === 'group') return true;
+        if (room.kind === 'group' || room.kind === 'school') return true;
         const other = room.participants.find(p => p && String(p._id) !== String(me));
         if (!other) return true;
         return !chatBlocked.has(String(other._id));
@@ -42,6 +42,22 @@ router.get('/', requireAuth, async (req, res) => {
               id: room.groupId,
               name: room.groupName,
               coverImage: room.groupCoverImage,
+              memberCount: room.participants.length,
+            },
+            lastMessage: room.lastMessage,
+            lastMessageAt: room.lastMessageAt,
+            unreadCount: room.unreadCount?.get(String(me)) ?? 0,
+            status: 'accepted',
+          };
+        }
+        // 학교 전체 채팅
+        if (room.kind === 'school') {
+          return {
+            id: room._id,
+            kind: 'school',
+            school: {
+              university: room.university,
+              name: room.groupName || room.university,
               memberCount: room.participants.length,
             },
             lastMessage: room.lastMessage,
@@ -205,7 +221,8 @@ router.get('/:roomId/messages', requireAuth, async (req, res) => {
     // 그룹 채팅은 otherLeft/otherDeleted 개념 없음
     let otherLeft = false;
     let otherDeleted = false;
-    if (room.kind !== 'group') {
+    // DM에서만 상대 이탈/탈퇴 판정 (group/school은 N명이라 무의미)
+    if (room.kind === 'dm') {
       if (room.participants.length < 2) {
         otherLeft = true;
       } else {
@@ -227,6 +244,11 @@ router.get('/:roomId/messages', requireAuth, async (req, res) => {
         id: room.groupId,
         name: room.groupName,
         coverImage: room.groupCoverImage,
+        memberCount: room.participants.length,
+      } : undefined,
+      school: room.kind === 'school' ? {
+        university: room.university,
+        name: room.groupName || room.university,
         memberCount: room.participants.length,
       } : undefined,
     });
@@ -274,6 +296,12 @@ router.delete('/:roomId', requireAuth, async (req, res) => {
         success: false,
         message: '그룹 채팅방은 모임에서 나가야 떠날 수 있어요.',
       });
+    }
+    // 학교 전체 채팅: 참여자에서 본인 제거 (방은 유지)
+    if (room.kind === 'school') {
+      room.participants = room.participants.filter(p => String(p) !== String(req.user.id));
+      await room.save();
+      return res.json({ success: true, data: { message: '나갔어요.' } });
     }
 
     // 나가기 전에 상대방 ID 확보
