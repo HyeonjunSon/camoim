@@ -159,11 +159,10 @@ export default function GroupListScreen({ navigation, embedded = false }) {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         >
           {groups.length > 0 ? (
-            <View style={styles.listCard}>
-              {groups.map((g, idx) => (
-                <View key={String(g.id)}>
+            <View style={styles.listWrap}>
+              {groups.map((g) => (
+                <View key={String(g.id)} style={styles.cardSpacer}>
                   {renderRow(g)}
-                  {idx < groups.length - 1 && <View style={styles.rowDivider} />}
                 </View>
               ))}
             </View>
@@ -213,13 +212,25 @@ const createStyles = (colors) => StyleSheet.create({
   sortActive: { color: colors.text, fontWeight: '700' },
   sortDot: { color: colors.textSecondary, fontSize: 12 },
 
-  listCard: {
-    backgroundColor: colors.surface,
-    marginHorizontal: 14, marginTop: 10, borderRadius: 14, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+  // 각 모임 = 독립된 카드 (간격 + 둥근 모서리 + soft shadow)
+  listWrap: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    gap: 10,
   },
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, gap: 12 },
-  rowDivider: { height: 1, backgroundColor: colors.border, marginLeft: 70 },
+  cardSpacer: {},
+  row: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 14,
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   cover: { width: 48, height: 48, borderRadius: 12 },
   name: { fontSize: 14, fontWeight: '700', color: colors.text },
   desc: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },

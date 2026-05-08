@@ -205,7 +205,7 @@ export default function UniversityBoardScreen({ navigation }) {
         </LinearGradient>
       </View>
 
-      {/* ── 학교 전체 채팅 진입 버튼 (인증 회원 전용) ── */}
+      {/* ── 학교 전체 채팅 진입 카드 (인증 회원 전용) ── */}
       {!isAdmin && user?.verified && user?.university && (
         <TouchableOpacity
           style={styles.chatEntryCard}
@@ -215,13 +215,20 @@ export default function UniversityBoardScreen({ navigation }) {
           accessibilityLabel="학교 전체 채팅 입장"
         >
           <View style={styles.chatEntryIcon}>
-            <Ionicons name="chatbubbles" size={20} color={colors.primary} />
+            <Ionicons name="chatbubbles" size={22} color={colors.white} />
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.chatEntryTitle}>학교 전체 채팅</Text>
-            <Text style={styles.chatEntrySub}>같은 학교 인증 회원과 대화</Text>
+            <View style={styles.chatEntryTitleRow}>
+              <Text style={styles.chatEntryTitle}>학교 전체 채팅</Text>
+              <View style={styles.chatEntryLiveDot}>
+                <View style={styles.chatEntryLivePing} />
+                <View style={styles.chatEntryLiveCore} />
+              </View>
+              <Text style={styles.chatEntryLiveText}>LIVE</Text>
+            </View>
+            <Text style={styles.chatEntrySub}>같은 학교 인증 회원과 지금 바로 대화</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          <Ionicons name="chevron-forward" size={20} color={colors.primary} />
         </TouchableOpacity>
       )}
 
@@ -451,30 +458,55 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.white,
   },
 
-  // ── 학교 전체 채팅 진입 카드
+  // ── 학교 전체 채팅 진입 카드 — Hero(그라데이션)와 차별화: primary tint 채움 + 라이브 도트
   chatEntryCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     marginHorizontal: 16,
     marginTop: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    backgroundColor: colors.primary + '10',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.primary + '20',
   },
   chatEntryIcon: {
-    width: 42, height: 42, borderRadius: 12,
-    backgroundColor: colors.primary + '15',
+    width: 46, height: 46, borderRadius: 14,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  chatEntryTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  chatEntryTitle: { fontSize: 15, fontWeight: '800', color: colors.text },
+  chatEntryLiveDot: {
+    width: 8, height: 8,
     alignItems: 'center', justifyContent: 'center',
   },
-  chatEntryTitle: { fontSize: 14, fontWeight: '800', color: colors.text },
-  chatEntrySub: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
+  chatEntryLivePing: {
+    position: 'absolute',
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: '#EF4444',
+    opacity: 0.4,
+  },
+  chatEntryLiveCore: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: '#EF4444',
+  },
+  chatEntryLiveText: {
+    fontSize: 9, fontWeight: '900', color: '#EF4444',
+    letterSpacing: 0.5,
+  },
+  chatEntrySub: { fontSize: 12, color: colors.textSecondary, marginTop: 3, fontWeight: '500' },
 
   // ── 섹션 헤더 (게시판/동아리 공통)
   sectionHeader: {
