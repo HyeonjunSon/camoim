@@ -59,6 +59,11 @@ app.get(['/privacy', '/privacy-policy'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
 });
 
+// 계정 삭제 안내 · Account Deletion (Google Play 필수 URL)
+app.get(['/delete-account', '/account-deletion'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'delete-account.html'));
+});
+
 // 기본 게시판 데이터 시드 (없을 때만)
 async function seedBoards() {
   // 공식 글로벌 게시판 slug 목록 (이 외 일반 게시판은 삭제)
