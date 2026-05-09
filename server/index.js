@@ -64,6 +64,11 @@ app.get(['/delete-account', '/account-deletion'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'delete-account.html'));
 });
 
+// 아동 안전 정책 · Child Safety Standards (Google Play Social 카테고리 필수 URL)
+app.get(['/child-safety', '/child-safety-standards', '/csae'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'child-safety.html'));
+});
+
 // 기본 게시판 데이터 시드 (없을 때만)
 async function seedBoards() {
   // 공식 글로벌 게시판 slug 목록 (이 외 일반 게시판은 삭제)
