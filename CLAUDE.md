@@ -87,8 +87,9 @@ camoim/
 │   │   ├── auth/                # 로그인, 회원가입, 학교인증
 │   │   ├── home/                # 홈 피드, 포스트 상세
 │   │   ├── board/               # 게시판 목록/피드/글작성·수정
-│   │   ├── chat/                # 채팅
-│   │   ├── admin/               # 관리자
+│   │   ├── chat/                # 채팅 (DM + 그룹 + 학교 라운지)
+│   │   ├── group/               # 모임 — 생성/상세/멤버/수정/리스트
+│   │   ├── admin/               # 관리자 (모임 승인 포함)
 │   │   ├── mypage/              # 마이페이지
 │   │   └── ...
 │   ├── navigation/              # 네비게이션 설정
@@ -174,13 +175,55 @@ ipconfig getifaddr en0
 
 ---
 
+## 🧱 핵심 도메인 시스템 (1.0.2 기준)
+
+### 모임 (Groups)
+- `server/models/Group.js`, `GroupMembership.js`
+- 카테고리 6종 (hobby/study/local/job/workinghol/general), 가입 정책 open|approval, status: pending_review→active 흐름
+- 그룹 채팅: `ChatRoom.kind='group'` — 멤버십이 ChatRoom.participants와 자동 동기화
+- 그룹 게시판: `Post.groupId` 있으면 모임 글, `Post.boardId`/`groupId` 둘 중 하나 필수 (pre-validate)
+- 그룹장/부그룹장 권한: 회원 글 삭제 + pin, 멤버 추방/차단, 부그룹장 임명, 그룹장 양도
+
+### 학교 동아리 (Group.university 필드)
+- 비어있으면 일반 모임, 값 있으면 학교 한정
+- 가입: 인증된 회원 + `user.university === group.university` 일치
+- 일반 모임 목록(`box='all'`) 노출 규칙:
+  - admin → 전부
+  - 인증 회원 → 일반 + 내 학교 + 가입한 그룹(학교 무관)
+  - 미인증/비로그인 → 일반만
+
+### 학교 전체 채팅 (ChatRoom.kind='school')
+- 학교당 1개, `ChatRoom.university` 필드로 식별
+- `GET /api/universities/chat` — 본인 학교 채팅방 lazy-create + 자동 참여 (인증 회원 전용)
+
+### 마켓 거래 상태 (Post.tradeStatus)
+- enum `'selling'|'sold'`, default selling, indexed
+- 적용: `TRADE_BOARD_SLUGS` = [market, giveaway, car, roomrent] — realestate/jobs 제외
+- roomrent만 라벨이 `입주가능/입주완료` (`getTradeLabel`이 슬러그별로 분기)
+- 토글: `PUT /api/posts/:id/trade-status` — 작성자 또는 admin
+
+### 알림 정책 (Option B)
+- 채팅 메시지는 **Notification 레코드 안 만듦** (카톡 패턴)
+- 채팅탭 unread 뱃지 + 푸쉬만 사용
+- `/api/notifications` 응답에서 chat/group_chat 타입 자동 필터
+- `calculateUnreadBadge`도 chat/group_chat 알림 제외 (ChatRoom.unreadCount로 카운트되니 중복 방지)
+
+### UI 통일 — `CustomHeader` 공통 컴포넌트
+- `src/components/CustomHeader.js`
+- 좌측 back / 중앙 제목(absoluteFill 정중앙) / 우측 액션
+- iOS systemFill `rgba(118,118,128,0.12)` 캡슐
+- 11개 화면에 적용 — ChatRoom, GroupDetail/Edit/Members/Create, BoardPostDetail, PostDetail, BoardFeed, UserProfile, Notices/Detail
+- 탭 root는 적용 안 함 (back 버튼 없음)
+
+---
+
 ## 🚨 중요 결정·주의사항
 
 ### 1. 이미지 저장은 Cloudinary 전용
 - 과거 로컬 `server/uploads/` 디스크 저장은 **완전히 제거됨**
 - `multer.diskStorage` 쓰지 말고 **`CloudinaryStorage`** 사용
 - `server/index.js` 의 `/uploads` static serve는 **절대 재도입 금지** (학생증 public 노출 취약점)
-- 폴더 분리: `camoim/posts`, `camoim/avatars`, `camoim/verify`
+- 폴더 분리: `camoim/posts`, `camoim/avatars`, `camoim/verify`, `camoim/groups`
 
 ### 2. 이메일은 Resend (SMTP 금지)
 - Railway가 SMTP 포트(25/465/587) 차단 → Gmail Nodemailer는 `ETIMEDOUT`
@@ -206,6 +249,24 @@ ipconfig getifaddr en0
 
 ### 6. React Native Hermes 주의
 - `AbortSignal.timeout()` **미지원** → `AbortController` + `setTimeout` 사용
+
+### 7. api.js `toCamel`: `_id` → `id` 자동 변환
+- `request()` helper의 응답이 통과하는 `toCamel`이 `_id` 필드를 `id`로 바꿈
+- **프론트에서는 항상 `obj.id` 사용** — `obj._id`는 `undefined`
+- 백엔드가 명시적으로 `id: doc._id`로 보내든, list 응답에서 `.lean()` 결과를 그대로 보내든 결과적으로 클라에서는 `id`로 접근
+- 새 API 추가할 때 프론트 코드에서 `_id` 쓰면 100% 버그
+
+### 8. 채팅 ChatRoom.kind 3가지
+- `'dm'` — 1:1, 차단/요청 단계 로직 있음
+- `'group'` — 모임 단체 (groupId 필드, GroupMembership.notifyChat 토글로 푸쉬 제어)
+- `'school'` — 학교 라운지 (university 필드, 학교당 1개)
+- send_message 핸들러는 group/school을 모두 `isMultiUser`로 묶어 DM 전용 검사 우회
+- group/school 모두 `accepted` 상태로 시작 (pending 흐름 없음)
+
+### 9. 거래 상태 게시판 (TRADE_BOARD_SLUGS)
+- `server/constants/boards.js`, `src/constants/boards.js` 둘 다 동기화 유지
+- 현재: `['market', 'giveaway', 'car', 'roomrent']` — realestate/jobs는 의도적 제외
+- 새 거래 보드 추가하려면 양쪽 모두 업데이트
 
 ---
 
