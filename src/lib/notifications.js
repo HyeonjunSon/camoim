@@ -72,7 +72,7 @@ export async function registerForPushNotifications() {
 export function addNotificationResponseListener(onNavigate) {
   return Notifications.addNotificationResponseReceivedListener(response => {
     const data = response.notification.request.content.data;
-    if (data?.postId || data?.noticeId) {
+    if (data?.postId || data?.noticeId || data?.roomId) {
       onNavigate(data);
     }
   });

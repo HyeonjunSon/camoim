@@ -4,7 +4,9 @@ const ChatRoom = require('./models/ChatRoom');
 const Message = require('./models/Message');
 const Notification = require('./models/Notification');
 const GroupMembership = require('./models/GroupMembership');
+const User = require('./models/User');
 const { isChatBlocked } = require('./utils/blocks');
+const { sendPush } = require('./utils/push');
 
 // 네이티브 모바일 앱 전용 — 브라우저 CORS 검증은 의미 없음.
 // 일부 RN WebSocket 구현이 origin 헤더를 비어있지 않게 보내는 경우 락다운이
@@ -156,6 +158,36 @@ function initSocket(httpServer) {
             content: trimmed,
             groupName: isMultiUser ? room.groupName : undefined,
           });
+        }
+
+        // OS 푸시 알림 — 앱이 백그라운드/종료 상태일 때도 배너로 도착하게
+        // (소켓 chat_notification은 앱이 켜져있을 때만 작동)
+        try {
+          const recipientUsers = await User.find({
+            _id: { $in: recipients },
+          }).select('pushToken notificationSettings').lean();
+
+          const titleBase = isMultiUser
+            ? `${room.groupName} · ${socket.user.nickname}`
+            : socket.user.nickname;
+          const body = trimmed.length > 100 ? trimmed.slice(0, 100) + '…' : trimmed;
+
+          await Promise.all(recipientUsers.map(u => {
+            const ns = u.notificationSettings;
+            // 마스터 OFF 또는 chat OFF면 푸시 skip
+            if (!u.pushToken) return Promise.resolve();
+            if (ns?.enabled === false) return Promise.resolve();
+            if (ns?.chat === false) return Promise.resolve();
+            return sendPush(
+              u.pushToken,
+              titleBase,
+              body,
+              { type: 'chat', roomId: String(roomId), kind: room.kind },
+              u._id,
+            );
+          }));
+        } catch (pushErr) {
+          console.error('chat push error:', pushErr.message);
         }
       } catch (err) {
         console.error('메시지 전송 오류:', err);

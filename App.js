@@ -51,7 +51,7 @@ function AppNavigator() {
         }
       });
 
-      // 알림 탭 시 해당 게시글로 이동
+      // 알림 탭 시 해당 화면으로 이동
       const sub = addNotificationResponseListener((data) => {
         clearAppBadge(); // 알림 탭 시 즉시 뱃지 정리
         if (!navigationRef.isReady()) return;
@@ -64,6 +64,13 @@ function AppNavigator() {
           navigationRef.navigate('Home', {
             screen: 'PostDetail',
             params: { postId: data.postId },
+          });
+        } else if (data.roomId) {
+          // 채팅 알림 — 채팅탭의 채팅방으로 이동
+          // ChatRoom 진입에 필요한 group/other 정보는 화면 내부 fetch로 채워짐
+          navigationRef.navigate('Chat', {
+            screen: 'ChatRoom',
+            params: { roomId: data.roomId, kind: data.kind },
           });
         }
       });
