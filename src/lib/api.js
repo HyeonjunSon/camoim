@@ -69,8 +69,9 @@ export const login = (email, password) =>
   request('POST', '/auth/login', { email, password });
 export const logout = () => request('POST', '/auth/logout');
 export const getMe = () => request('GET', '/auth/me');
-export const deleteMyAccount = (password, reason) =>
-  request('DELETE', '/auth/me', { password, reason });
+// password (이메일 가입자) OR confirmText (소셜 전용 가입자가 닉네임 재입력)
+export const deleteMyAccount = ({ password, reason, confirmText } = {}) =>
+  request('DELETE', '/auth/me', { password, reason, confirmText });
 export const checkNickname = (nickname) =>
   request('GET', `/auth/check-nickname?nickname=${encodeURIComponent(nickname)}`);
 export const sendEmailCode = (email) =>

@@ -24,14 +24,18 @@ export default function DeleteAccountScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const { t } = useLang();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState(1);
   const [reason, setReason] = useState('');
   const [customReason, setCustomReason] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmText, setConfirmText] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // 소셜 전용 가입자(Apple/Google)는 비밀번호가 없음 — 닉네임 확인으로 분기
+  const isSocialOnly = user?.hasPassword === false;
 
   const reasons = [
     t('mypage.deleteReason1'),
@@ -51,7 +55,11 @@ export default function DeleteAccountScreen({ navigation }) {
 
   const canGoNext = () => {
     if (step === 2) return reason !== '';
-    if (step === 3) return password.length >= 1;
+    if (step === 3) {
+      return isSocialOnly
+        ? confirmText.trim() === (user?.nickname || '')
+        : password.length >= 1;
+    }
     return true;
   };
 
@@ -68,7 +76,11 @@ export default function DeleteAccountScreen({ navigation }) {
     setLoading(true);
     try {
       const finalReason = reason === t('mypage.deleteReason5') ? customReason : reason;
-      const res = await deleteMyAccount(password, finalReason);
+      const res = await deleteMyAccount(
+        isSocialOnly
+          ? { confirmText, reason: finalReason }
+          : { password, reason: finalReason }
+      );
       if (res?.success) {
         await logout().catch(() => {});
       } else {
@@ -80,6 +92,10 @@ export default function DeleteAccountScreen({ navigation }) {
         Alert.alert(t('common.error'), t('mypage.deleteWrongPassword'));
         setStep(3);
         setPassword('');
+      } else if (msg.includes('닉네임') || msg.includes('nickname')) {
+        Alert.alert(t('common.error'), t('mypage.deleteWrongNickname') || '닉네임이 일치하지 않습니다.');
+        setStep(3);
+        setConfirmText('');
       } else {
         Alert.alert(t('common.error'), msg);
       }
@@ -143,23 +159,52 @@ export default function DeleteAccountScreen({ navigation }) {
     </View>
   );
 
-  // 단계 3: 비밀번호 확인
-  const renderStep3 = () => (
-    <View style={styles.stepContent}>
-      <Ionicons name="lock-closed-outline" size={48} color={colors.primary} style={styles.stepIcon} />
-      <Text style={styles.stepTitle}>{t('mypage.deleteStep3Title')}</Text>
-      <Text style={styles.stepDesc}>{t('mypage.deleteStep3Desc')}</Text>
-      <TextInput
-        style={styles.passwordInput}
-        placeholder={t('mypage.deletePasswordPlaceholder')}
-        placeholderTextColor={colors.textSecondary}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoFocus
-      />
-    </View>
-  );
+  // 단계 3: 본인 확인 — 이메일 가입자는 비밀번호, 소셜 전용은 닉네임 재입력
+  const renderStep3 = () => {
+    if (isSocialOnly) {
+      return (
+        <View style={styles.stepContent}>
+          <Ionicons name="person-outline" size={48} color={colors.primary} style={styles.stepIcon} />
+          <Text style={styles.stepTitle}>{t('mypage.deleteStep3SocialTitle') || '본인 확인'}</Text>
+          <Text style={styles.stepDesc}>
+            {(t('mypage.deleteStep3SocialDesc') || 'Apple/Google 가입 회원은 비밀번호가 없어요.\n계속하려면 본인 닉네임을 정확히 입력해주세요.')}
+          </Text>
+          <View style={styles.nicknameBox}>
+            <Text style={styles.nicknameHint}>
+              {t('mypage.deleteNicknameHint') || '정확히 다음 닉네임을 입력하세요'}
+            </Text>
+            <Text style={styles.nicknameTarget}>{user?.nickname}</Text>
+          </View>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder={t('mypage.deleteNicknamePlaceholder') || '닉네임을 입력하세요'}
+            placeholderTextColor={colors.textSecondary}
+            value={confirmText}
+            onChangeText={setConfirmText}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoFocus
+          />
+        </View>
+      );
+    }
+    return (
+      <View style={styles.stepContent}>
+        <Ionicons name="lock-closed-outline" size={48} color={colors.primary} style={styles.stepIcon} />
+        <Text style={styles.stepTitle}>{t('mypage.deleteStep3Title')}</Text>
+        <Text style={styles.stepDesc}>{t('mypage.deleteStep3Desc')}</Text>
+        <TextInput
+          style={styles.passwordInput}
+          placeholder={t('mypage.deletePasswordPlaceholder')}
+          placeholderTextColor={colors.textSecondary}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoFocus
+        />
+      </View>
+    );
+  };
 
   // 단계 4: 최종 확인
   const renderStep4 = () => (
@@ -289,6 +334,27 @@ const createStyles = (colors) => StyleSheet.create({
     width: '100%', padding: 14,
     backgroundColor: colors.card, borderRadius: 10,
     fontSize: 16, color: colors.text, textAlign: 'center',
+  },
+  // 단계 3 (소셜) — 닉네임 안내 박스
+  nicknameBox: {
+    width: '100%',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: colors.inputBg,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  nicknameHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  nicknameTarget: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.2,
   },
   // 하단 버튼
   footer: {

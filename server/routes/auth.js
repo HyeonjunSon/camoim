@@ -416,7 +416,8 @@ router.post('/logout', requireAuth, async (req, res) => {
 // GET /api/auth/me
 router.get('/me', requireAuth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-passwordHash');
+    // passwordHash 존재 여부만 알면 됨 (값 자체는 응답에 노출 X)
+    const user = await User.findById(req.user.id).select('+passwordHash');
     if (!user) return res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     res.json({
       success: true,
@@ -433,6 +434,8 @@ router.get('/me', requireAuth, async (req, res) => {
         city: user.city,
         avatarUrl: user.avatarUrl,
         emailVerified: user.emailVerified ?? false,
+        // 소셜로만 가입한 사용자(Apple/Google) 식별용. 탈퇴 시 비밀번호 vs 닉네임 확인 분기에 사용
+        hasPassword: !!user.passwordHash,
       },
     });
   } catch (err) {
@@ -471,18 +474,29 @@ router.get('/universities', (req, res) => {
 });
 
 // DELETE /api/auth/me — 회원탈퇴
-// 비밀번호 확인 후 본인 계정 및 관련 데이터 정리
+// 본인 확인 후 계정 및 관련 데이터 정리
+// - 이메일 가입자: 비밀번호 입력
+// - 소셜(Apple/Google) 전용 가입자: passwordHash 없으므로 닉네임을 정확히 입력
 router.delete('/me', requireAuth, async (req, res) => {
   try {
-    const { password, reason } = req.body || {};
+    const { password, reason, confirmText } = req.body || {};
     const userId = req.user.id;
 
-    // 비밀번호 확인
-    const currentUser = await User.findById(userId);
+    const currentUser = await User.findById(userId).select('+passwordHash');
     if (!currentUser) return res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
-    if (!password) return res.status(400).json({ success: false, message: '비밀번호를 입력해주세요.' });
-    const isMatch = await bcrypt.compare(password, currentUser.passwordHash);
-    if (!isMatch) return res.status(401).json({ success: false, message: '비밀번호가 일치하지 않습니다.' });
+
+    if (currentUser.passwordHash) {
+      // 이메일 가입자: 비밀번호 검증
+      if (!password) return res.status(400).json({ success: false, message: '비밀번호를 입력해주세요.' });
+      const isMatch = await bcrypt.compare(password, currentUser.passwordHash);
+      if (!isMatch) return res.status(401).json({ success: false, message: '비밀번호가 일치하지 않습니다.' });
+    } else {
+      // 소셜 전용 가입자: 닉네임 일치 확인 (실수 방지 + 의도 확인)
+      if (!confirmText) return res.status(400).json({ success: false, message: '닉네임을 입력해주세요.' });
+      if (String(confirmText).trim() !== currentUser.nickname) {
+        return res.status(401).json({ success: false, message: '닉네임이 일치하지 않습니다.' });
+      }
+    }
 
     // 탈퇴 이유 로깅 (서비스 개선용)
     if (reason) {
