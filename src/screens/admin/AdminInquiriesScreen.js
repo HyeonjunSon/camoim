@@ -8,6 +8,9 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
@@ -119,31 +122,41 @@ export default function AdminInquiriesScreen() {
       )}
 
       <Modal visible={!!active} transparent animationType="slide" onRequestClose={() => setActive(null)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>{active?.title}</Text>
-            <Text style={styles.modalMeta}>
-              {active?.user?.nickname} · {active?.user?.email}
-            </Text>
-            <Text style={styles.modalMeta}>
-              {active?.appVersion} · {active?.platform} {active?.osVersion} · {active?.deviceModel}
-            </Text>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 8 }}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.modalTitle}>{active?.title}</Text>
+              <Text style={styles.modalMeta}>
+                {active?.user?.nickname} · {active?.user?.email}
+              </Text>
+              <Text style={styles.modalMeta}>
+                {active?.appVersion} · {active?.platform} {active?.osVersion} · {active?.deviceModel}
+              </Text>
 
-            <Text style={styles.lbl}>{t('admin.iqContent')}</Text>
-            <View style={styles.contentBox}>
-              <Text style={styles.contentText}>{active?.content}</Text>
-            </View>
+              <Text style={styles.lbl}>{t('admin.iqContent')}</Text>
+              <View style={styles.contentBox}>
+                <Text style={styles.contentText}>{active?.content}</Text>
+              </View>
 
-            <Text style={styles.lbl}>{t('admin.iqReply')}</Text>
-            <TextInput
-              style={[styles.input, { height: 120 }]}
-              value={answer}
-              onChangeText={setAnswer}
-              multiline
-              placeholder={t('admin.iqReplyPh')}
-              placeholderTextColor={colors.textSecondary}
-            />
+              <Text style={styles.lbl}>{t('admin.iqReply')}</Text>
+              <TextInput
+                style={[styles.input, { height: 120 }]}
+                value={answer}
+                onChangeText={setAnswer}
+                multiline
+                placeholder={t('admin.iqReplyPh')}
+                placeholderTextColor={colors.textSecondary}
+              />
+            </ScrollView>
 
+            {/* 키보드 올라와도 항상 보이도록 ScrollView 밖에 고정 */}
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setActive(null)}>
                 <Text style={{ color: colors.textSecondary }}>{t('common.close')}</Text>
@@ -153,7 +166,7 @@ export default function AdminInquiriesScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

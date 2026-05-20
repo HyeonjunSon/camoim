@@ -226,17 +226,15 @@ export default function UniversityBoardScreen({ navigation }) {
                 {isAdmin ? t('board.schoolBoardAdmin') : `Community · ${t('board.forStudents')}`}
               </Text>
             </View>
-          </View>
-          {!isAdmin && memberCount != null && (
-            <View style={styles.heroChipsRow}>
-              <View style={styles.heroChip}>
-                <Ionicons name="people" size={11} color={colors.white} />
-                <Text style={styles.heroChipText}>
-                  {t('board.verifiedMembers').replace('{count}', String(memberCount))}
-                </Text>
+            {/* 인증 회원수 카드 — 모임의 메타 칩처럼 hero 우측에 간결하게 */}
+            {!isAdmin && memberCount != null && (
+              <View style={styles.heroMemberBadge}>
+                <Ionicons name="people" size={12} color={colors.white} />
+                <Text style={styles.heroMemberCount}>{memberCount}</Text>
+                <Text style={styles.heroMemberLabel}>{t('group.member')}</Text>
               </View>
-            </View>
-          )}
+            )}
+          </View>
         </LinearGradient>
       </View>
 
@@ -549,25 +547,28 @@ const createStyles = (colors) => StyleSheet.create({
     marginTop: 2,
     fontWeight: '500',
   },
-  heroChipsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 14,
-    flexWrap: 'wrap',
-  },
-  heroChip: {
+  // 우측 회원수 배지 — 모임 metaTag 톤, 작고 컴팩트
+  heroMemberBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
+    gap: 3,
+    paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    marginLeft: 6,
   },
-  heroChipText: {
-    fontSize: 11,
-    fontWeight: '700',
+  heroMemberCount: {
+    fontSize: 13,
+    fontWeight: '900',
     color: colors.white,
+    letterSpacing: -0.2,
+  },
+  heroMemberLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.85)',
+    marginLeft: 1,
   },
 
   // ── 학교 전체 채팅 진입 카드 — Hero(그라데이션)와 차별화: primary tint 채움 + 라이브 도트
