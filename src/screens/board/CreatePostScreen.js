@@ -162,10 +162,8 @@ export default function CreatePostScreen({ route, navigation }) {
     } catch (e) { Alert.alert(t('common.error'), e.message || t('common.serverError')); }
   };
 
-  // 화면 닫을 때 호출 — 본문 있으면 임시저장 묻기
-  const onRequestClose = async () => {
-    if (!draftsEnabled) return navigation.goBack();
-    // 최신 HTML 가져오기
+  // 💾 임시저장 버튼 — 명시적 저장만, 자동 안 됨
+  const onSaveDraft = async () => {
     let html = currentHtml.current;
     try {
       const fetched = await richRef.current?.getContentHtml?.();
@@ -174,45 +172,30 @@ export default function CreatePostScreen({ route, navigation }) {
     const cleaned = normalizeHtmlForSave(html);
     const stripped = cleaned.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, '').trim();
     const hasContent = !!title.trim() || stripped.length > 0 || /<img/i.test(cleaned);
-
     if (!hasContent) {
-      // 빈 상태 — 기존 드래프트가 있었으면 같이 정리
-      if (currentDraftId) { try { await deleteDraft(currentDraftId); } catch {} }
-      return navigation.goBack();
+      Alert.alert('', t('draft.emptyContent'));
+      return;
     }
-
-    Alert.alert(
-      t('draft.saveAsk'),
-      t('draft.saveAskMsg'),
-      [
-        {
-          text: t('draft.discard'),
-          style: 'destructive',
-          onPress: async () => {
-            if (currentDraftId) { try { await deleteDraft(currentDraftId); } catch {} }
-            navigation.goBack();
-          },
-        },
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('draft.save'),
-          onPress: async () => {
-            try {
-              const payload = {
-                boardId: boardId || null,
-                title: title.trim(),
-                content: cleaned,
-                isAnonymous: isAnonymousBoard,
-                city: selectedCity || '',
-              };
-              if (currentDraftId) await updateDraft(currentDraftId, payload);
-              else await createDraft(payload);
-            } catch (e) { Alert.alert(t('common.error'), e.message || t('common.serverError')); }
-            navigation.goBack();
-          },
-        },
-      ]
-    );
+    try {
+      const payload = {
+        boardId: boardId || null,
+        title: title.trim(),
+        content: cleaned,
+        isAnonymous: isAnonymousBoard,
+        city: selectedCity || '',
+      };
+      if (currentDraftId) await updateDraft(currentDraftId, payload);
+      else {
+        const res = await createDraft(payload);
+        if (res.success && res.data) {
+          setCurrentDraftId(res.data.id ?? res.data._id);
+        }
+      }
+      await refreshDrafts();
+      Alert.alert('', t('draft.saved'));
+    } catch (e) {
+      Alert.alert(t('common.error'), e.message || t('common.serverError'));
+    }
   };
 
   useEffect(() => {
@@ -498,7 +481,7 @@ export default function CreatePostScreen({ route, navigation }) {
       {/* ── 상단 바 */}
       <View style={styles.topBar}>
         <TouchableOpacity
-          onPress={onRequestClose}
+          onPress={() => navigation.goBack()}
           activeOpacity={0.7}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={[styles.topBarSide, { alignItems: 'flex-start' }]}
@@ -506,23 +489,35 @@ export default function CreatePostScreen({ route, navigation }) {
           <Ionicons name="close" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{isEditMode ? t('post.editTitle') : t('post.writeTitle')}</Text>
-        <View style={[styles.topBarSide, { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'flex-end', minWidth: 110 }]}>
+        <View style={[styles.topBarSide, { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'flex-end', minWidth: 150 }]}>
           {draftsEnabled && (
-            <TouchableOpacity
-              onPress={() => setDraftsModalOpen(true)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={styles.draftBtn}
-              accessibilityRole="button"
-              accessibilityLabel={t('draft.openList')}
-            >
-              <Ionicons name="menu" size={22} color={colors.text} />
-              {drafts.length > 0 && (
-                <View style={styles.draftBadge}>
-                  <Text style={styles.draftBadgeText}>{drafts.length}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                onPress={() => setDraftsModalOpen(true)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.draftBtn}
+                accessibilityRole="button"
+                accessibilityLabel={t('draft.openList')}
+              >
+                <Ionicons name="menu" size={22} color={colors.text} />
+                {drafts.length > 0 && (
+                  <View style={styles.draftBadge}>
+                    <Text style={styles.draftBadgeText}>{drafts.length}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={onSaveDraft}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.draftSaveBtn}
+                accessibilityRole="button"
+                accessibilityLabel={t('draft.save')}
+              >
+                <Text style={styles.draftSaveText}>{t('draft.save')}</Text>
+              </TouchableOpacity>
+            </>
           )}
           <TouchableOpacity
             onPress={handleSubmit}
@@ -1124,6 +1119,15 @@ const createStyles = (colors) => StyleSheet.create({
     borderWidth: 1.5, borderColor: colors.surface,
   },
   draftBadgeText: { fontSize: 9, fontWeight: '800', color: '#fff' },
+  draftSaveBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  draftSaveText: { fontSize: 13, fontWeight: '700', color: colors.text },
   draftSheet: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: 18, borderTopRightRadius: 18,

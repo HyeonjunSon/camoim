@@ -173,7 +173,8 @@ export const TRANSLATIONS = {
     draft: {
       title: '임시저장 글', openList: '임시저장 목록', empty: '아직 임시저장한 글이 없어요',
       untitled: '(제목 없음)', save: '임시저장', discard: '버리기',
-      saveAsk: '작성 중인 글이 있어요', saveAskMsg: '임시저장 해두고 다음에 이어서 쓸까요?',
+      saved: '임시저장되었어요',
+      emptyContent: '저장할 내용이 없어요. 제목이나 본문을 입력해주세요.',
       deleteAsk: '이 임시저장 글을 삭제할까요?',
     },
     group: {
@@ -890,7 +891,8 @@ export const TRANSLATIONS = {
     draft: {
       title: 'Drafts', openList: 'Open draft list', empty: 'No drafts yet',
       untitled: '(Untitled)', save: 'Save draft', discard: 'Discard',
-      saveAsk: 'You have unsaved content', saveAskMsg: 'Save as a draft to continue later?',
+      saved: 'Saved as a draft',
+      emptyContent: 'Nothing to save — enter a title or body first.',
       deleteAsk: 'Delete this draft?',
     },
     group: {
