@@ -265,18 +265,26 @@ export default function AdminBoardsScreen() {
                   value={form.slug}
                   onChangeText={(v) => setForm({ ...form, slug: v })}
                   autoCapitalize="none"
-                  placeholder="예: free, anonymous"
+                  placeholder="free"
                   placeholderTextColor={colors.textSecondary}
                 />
               </>
             )}
             <Text style={styles.lbl}>{t('admin.boardName')}</Text>
-            <TextInput style={styles.input} value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} />
+            <TextInput
+              style={styles.input}
+              value={form.name}
+              onChangeText={(v) => setForm({ ...form, name: v })}
+              placeholder={t('admin.boardNamePh')}
+              placeholderTextColor={colors.textSecondary}
+            />
             <Text style={styles.lbl}>{t('admin.boardDesc')}</Text>
             <TextInput
               style={[styles.input, { height: 60 }]}
               value={form.description}
               onChangeText={(v) => setForm({ ...form, description: v })}
+              placeholder={t('admin.boardDescPh')}
+              placeholderTextColor={colors.textSecondary}
               multiline
             />
             <Text style={styles.lbl}>{t('admin.boardSort')}</Text>
@@ -285,6 +293,8 @@ export default function AdminBoardsScreen() {
               value={String(form.sortOrder)}
               onChangeText={(v) => setForm({ ...form, sortOrder: v })}
               keyboardType="number-pad"
+              placeholder="1"
+              placeholderTextColor={colors.textSecondary}
             />
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setModal(null)}>
