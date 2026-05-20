@@ -1,11 +1,27 @@
 // 학교 커뮤니티 전용 엔드포인트
 // - GET /api/universities/chat — 본인 학교 전체 채팅방 (lazy-create + 자동 입장)
+// - GET /api/universities/members/count — 본인 학교 인증 회원 수
 const express = require('express');
 const ChatRoom = require('../models/ChatRoom');
 const User = require('../models/User');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
+
+// GET /api/universities/members/count — 본인 학교 인증 회원 수
+router.get('/members/count', requireAuth, async (req, res) => {
+  try {
+    const me = await User.findById(req.user.id).select('verified university').lean();
+    if (!me?.verified || !me?.university) {
+      return res.status(403).json({ success: false, message: '학교 인증이 필요해요.' });
+    }
+    const count = await User.countDocuments({ verified: true, university: me.university });
+    res.json({ success: true, data: { count, university: me.university } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
 
 // GET /api/universities/chat — 학교 전체 채팅방 정보 (인증 회원 전용)
 // 첫 진입 시 채팅방 생성 + 본인 자동 추가

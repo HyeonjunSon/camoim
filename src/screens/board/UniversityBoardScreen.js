@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { Image } from 'expo-image';
-import { getUniversityBoards, getGroups, getSchoolChat } from '../../lib/api';
+import { getUniversityBoards, getGroups, getSchoolChat, getSchoolMemberCount } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { getBoardName, getBoardDescription } from '../../lib/i18n';
@@ -45,6 +45,7 @@ export default function UniversityBoardScreen({ navigation }) {
 
   const [boards, setBoards] = useState([]);
   const [schoolGroups, setSchoolGroups] = useState([]);
+  const [memberCount, setMemberCount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
@@ -53,7 +54,16 @@ export default function UniversityBoardScreen({ navigation }) {
   useEffect(() => {
     fetchBoards();
     fetchSchoolGroups();
+    fetchMemberCount();
   }, []);
+
+  async function fetchMemberCount() {
+    if (!user?.verified || !user?.university) return;
+    try {
+      const res = await getSchoolMemberCount();
+      if (res.success) setMemberCount(res.data?.count ?? null);
+    } catch {}
+  }
 
   async function fetchBoards() {
     setLoading(true);
@@ -202,6 +212,16 @@ export default function UniversityBoardScreen({ navigation }) {
               </Text>
             </View>
           </View>
+          {!isAdmin && memberCount != null && (
+            <View style={styles.heroChipsRow}>
+              <View style={styles.heroChip}>
+                <Ionicons name="people" size={11} color={colors.white} />
+                <Text style={styles.heroChipText}>
+                  {t('board.verifiedMembers').replace('{count}', String(memberCount))}
+                </Text>
+              </View>
+            </View>
+          )}
         </LinearGradient>
       </View>
 
@@ -447,6 +467,9 @@ const createStyles = (colors) => StyleSheet.create({
     flexWrap: 'wrap',
   },
   heroChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,

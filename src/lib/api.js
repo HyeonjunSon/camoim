@@ -376,6 +376,7 @@ export const getGroupPosts = (groupId, { page = 1, limit = 20 } = {}) =>
   request('GET', `/groups/${groupId}/posts?page=${page}&limit=${limit}`);
 export const getGroupChat = (groupId) => request('GET', `/groups/${groupId}/chat`);
 export const getSchoolChat = () => request('GET', '/universities/chat');
+export const getSchoolMemberCount = () => request('GET', '/universities/members/count');
 
 export const uploadGroupCover = async (groupId, asset) => {
   const token = await getToken();
