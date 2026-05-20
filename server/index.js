@@ -6,6 +6,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const connectDB = require('./db');
 const Board = require('./models/Board');
+const University = require('./models/University');
 const initSocket = require('./socket');
 
 const authRoutes = require('./routes/auth');
@@ -116,6 +117,26 @@ async function seedBoards() {
     );
   }
   console.log('✅ 기본 게시판 확인 완료');
+}
+
+// University 마스터 데이터 시드 — constants/universities.js의 풀 리스트를 DB에 upsert
+async function seedUniversities() {
+  const { UNIVERSITIES } = require('./constants/universities');
+  let added = 0;
+  for (let i = 0; i < UNIVERSITIES.length; i++) {
+    const u = UNIVERSITIES[i];
+    const r = await University.findOneAndUpdate(
+      { name: u.shortName },
+      {
+        $setOnInsert: { name: u.shortName, active: true },
+        $set: { fullName: u.name, sortOrder: i + 1 },
+      },
+      { upsert: true, new: false }
+    );
+    if (!r) added++;
+  }
+  if (added > 0) console.log(`✅ 학교 마스터 시드: 신규 ${added}개 추가`);
+  else console.log('✅ 학교 마스터 이미 최신 상태');
 }
 
 // 학교 게시판 시드/정리: 현재 템플릿은 free + anonymous 2종 (meetup/info는 1.0.5에서 제거)
@@ -279,6 +300,7 @@ const { startVerifyCleanupJob } = require('./utils/verifyCleanup');
 
 connectDB().then(async () => {
   await seedBoards();
+  await seedUniversities();
   await migrateUniversityBoards();
   await migrateUniversityNames();
   await cleanupLegacyMeetupInfoBoards();
