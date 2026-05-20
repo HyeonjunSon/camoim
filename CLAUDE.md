@@ -175,7 +175,7 @@ ipconfig getifaddr en0
 
 ---
 
-## 🧱 핵심 도메인 시스템 (1.0.2 기준)
+## 🧱 핵심 도메인 시스템 (1.0.5 기준)
 
 ### 모임 (Groups)
 - `server/models/Group.js`, `GroupMembership.js`
@@ -195,6 +195,32 @@ ipconfig getifaddr en0
 ### 학교 전체 채팅 (ChatRoom.kind='school')
 - 학교당 1개, `ChatRoom.university` 필드로 식별
 - `GET /api/universities/chat` — 본인 학교 채팅방 lazy-create + 자동 참여 (인증 회원 전용)
+- 메시지 응답에 `school.leaderUserId` 포함 → 클라가 sender와 비교해 ⭐ 학생회장 배지 표시
+
+### 학교 마스터 (University 모델, 1.0.5+)
+- `server/models/University.js` — 학교 단일 진실(source of truth)
+- 필드: `name` (표시명, Board.university·User.university와 동일 키), `fullName`, `sortOrder`, `active`, `leaderUserId`, `community`
+- startup `seedUniversities`로 `constants/universities.js` 풀 리스트를 idempotent upsert
+- `/auth/universities` + `/verify/apply`는 이제 DB 조회 (active=true만)
+- admin CRUD: `/api/admin/universities` (POST 시 자동으로 free + anonymous 보드 시드)
+- 학교 보드 템플릿은 free + anonymous 2종만 (meetup/info 1.0.5에 폐기)
+
+### 학생회장 (University.leaderUserId, 1.0.5+)
+- 학교당 1명, admin이 인증 회원을 임명 또는 현 학생회장이 인수인계
+- 자격: `user.verified === true && user.university === university.name`
+- 변경 경로:
+  - `PUT /api/admin/users/:id/university-leader { isLeader }` — admin 임명/해제
+  - `PUT /api/universities/leader/transfer { newUserId }` — 현 학생회장이 인수인계 (admin 거치지 않음)
+  - `DELETE /api/universities/leader` — 현 학생회장 사임
+- 자동 정리: 학생회장이 탈퇴 / unverified / 다른 학교로 이동하면 `GET /community`에서 lazy 검증으로 leaderUserId=null 처리
+- 알림: 임명·인수인계 시 `Notification` (`type='university_leader'`) + Expo push 발송
+- 배지: 학교 채팅 sender, 학교 게시판 글 작성자 옆에 ⭐ 표시 (`authorIsLeader` / `school.leaderUserId`)
+
+### 학교 커뮤니티 카드 (University.community, 1.0.5+)
+- 필드 5종: instagram / kakaoOpen / discord / homepage / notice
+- `GET /api/universities/community` — 본인 학교 회원 전용, `canEdit` / `isLeader` 플래그 반환
+- `PUT /api/universities/community` — 학생회장 또는 admin, 저장 시점에 URL 정규화 (`@handle` → `https://instagram.com/handle`)
+- UI: 학교 커뮤니티 페이지 hero 아래 카드. 학생회장만 우측 상단 ⭐꾸미기 펜슬. `SchoolCommunityEditScreen`에 인수인계/사임 섹션 포함 (학생회장 본인에게만 노출)
 
 ### 마켓 거래 상태 (Post.tradeStatus)
 - enum `'selling'|'sold'`, default selling, indexed
