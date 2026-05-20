@@ -5,6 +5,7 @@ const ChatRoom = require('../models/ChatRoom');
 const Message = require('../models/Message');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const University = require('../models/University');
 const { isChatBlocked, getBlockedUserIds } = require('../utils/blocks');
 
 // GET /api/chats — 내 채팅방 목록 (DM + 그룹 채팅 통합)
@@ -250,6 +251,10 @@ router.get('/:roomId/messages', requireAuth, async (req, res) => {
         university: room.university,
         name: room.groupName || room.university,
         memberCount: room.participants.length,
+        // 학교 학생회장 ID — 클라가 메시지 sender와 비교해 ⭐ 배지 노출
+        leaderUserId: await University.findOne({ name: room.university })
+          .select('leaderUserId').lean()
+          .then(u => u?.leaderUserId || null),
       } : undefined,
     });
   } catch (err) {

@@ -641,6 +641,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
             <View style={styles.authorInfo}>
               <View style={styles.authorNameRow}>
                 <Text style={styles.authorName}>{post.nickname || t('common.anonymous')}</Text>
+                {post.authorIsLeader && <Ionicons name="star" size={12} color={colors.primary} style={{ marginLeft: 2 }} />}
                 {post.role ? <RoleBadge role={post.role} size="small" /> : null}
               </View>
               <View style={styles.authorMeta}>

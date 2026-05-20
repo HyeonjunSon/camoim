@@ -6,6 +6,7 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const Board = require('../models/Board');
+const University = require('../models/University');
 const Group = require('../models/Group');
 const GroupMembership = require('../models/GroupMembership');
 const User = require('../models/User');
@@ -414,6 +415,18 @@ router.get('/:postId', optionalAuth, async (req, res) => {
     const liked = req.user ? post.likedBy.some(id => String(id) === String(req.user.id)) : false;
     const bookmarked = req.user ? !!(await Bookmark.findOne({ userId: req.user.id, postId: post._id })) : false;
 
+    // 학교 게시판 글이면 작성자가 학생회장인지 표시
+    let authorIsLeader = false;
+    if (post.boardId && !post.isAnonymous && post.userId) {
+      const boardDoc = await Board.findById(post.boardId._id).select('isUniversityBoard university').lean();
+      if (boardDoc?.isUniversityBoard && boardDoc.university) {
+        const uni = await University.findOne({ name: boardDoc.university }).select('leaderUserId').lean();
+        if (uni?.leaderUserId && String(uni.leaderUserId) === String(post.userId._id || post.userId)) {
+          authorIsLeader = true;
+        }
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -440,6 +453,7 @@ router.get('/:postId', optionalAuth, async (req, res) => {
         nickname: post.isAnonymous ? '익명' : (post.userId?.nickname ?? '탈퇴한 회원'),
         role: post.isAnonymous ? null : post.userId?.role,
         avatarUrl: post.isAnonymous ? null : post.userId?.avatarUrl,
+        authorIsLeader,
         images: post.images ?? [],
       },
     });

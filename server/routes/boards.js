@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const Board = require('../models/Board');
 const Post = require('../models/Post');
 const User = require('../models/User');
+const University = require('../models/University');
 
 const { expandCity } = require('../utils/metro');
 const { toContentPreview } = require('../utils/contentPreview');
@@ -145,6 +146,13 @@ router.get('/:boardId/posts', async (req, res) => {
       Post.countDocuments(filter),
     ]);
 
+    // 학교 게시판이면 학생회장 ID를 한 번 조회해 글마다 ⭐ 배지 플래그를 붙임
+    let leaderUserId = null;
+    if (board.isUniversityBoard && board.university) {
+      const uni = await University.findOne({ name: board.university }).select('leaderUserId').lean();
+      leaderUserId = uni?.leaderUserId ? String(uni.leaderUserId) : null;
+    }
+
     const formatted = posts.map(p => ({
       id: p._id,
       title: p.title,
@@ -159,6 +167,7 @@ router.get('/:boardId/posts', async (req, res) => {
       city: p.city || '',
       tradeStatus: p.tradeStatus || 'selling',
       boardSlug: p.boardId?.slug,
+      authorIsLeader: !!(leaderUserId && !p.isAnonymous && p.userId?._id && String(p.userId._id) === leaderUserId),
     }));
 
     res.json({ success: true, data: { posts: formatted, total } });

@@ -43,6 +43,7 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [isRequester, setIsRequester] = useState(route.params?.isRequester ?? false);
   const [otherLeft, setOtherLeft] = useState(route.params?.otherLeft ?? false);
   const [otherDeleted, setOtherDeleted] = useState(route.params?.otherDeleted ?? false);
+  const [schoolLeaderId, setSchoolLeaderId] = useState(null);
   const { on, off, emit, joinRoom, leaveRoom, setActiveRoom } = useSocket();
   const flatListRef = useRef(null);
 
@@ -72,6 +73,11 @@ export default function ChatRoomScreen({ route, navigation }) {
           setMessages(Array.isArray(data.data) ? data.data : []);
           setOtherLeft(!!data.otherLeft);
           setOtherDeleted(!!data.otherDeleted);
+          if (data.school?.leaderUserId) {
+            setSchoolLeaderId(String(data.school.leaderUserId));
+          } else {
+            setSchoolLeaderId(null);
+          }
         } else {
           console.warn('[chat] messages response not success', data?.message);
         }
@@ -217,6 +223,8 @@ export default function ChatRoomScreen({ route, navigation }) {
     const openSenderProfile = () => {
       if (canTapSender) navigation.push('UserProfile', { userId: String(item.senderId) });
     };
+    // 학교 채팅에서 발신자가 그 학교 학생회장이면 ⭐ 배지
+    const senderIsLeader = isSchoolChat && !!schoolLeaderId && String(item.senderId) === schoolLeaderId;
 
     return (
       <View style={[styles.msgRow, isMine ? styles.msgRowRight : styles.msgRowLeft]}>
@@ -236,9 +244,15 @@ export default function ChatRoomScreen({ route, navigation }) {
           {!isMine && showAvatar && (
             canTapSender
               ? <TouchableOpacity onPress={openSenderProfile} activeOpacity={0.7}>
-                  <Text style={styles.bubbleSender}>{senderName}</Text>
+                  <View style={styles.senderRow}>
+                    <Text style={styles.bubbleSender}>{senderName}</Text>
+                    {senderIsLeader && <Ionicons name="star" size={11} color={colors.primary} style={styles.senderLeader} />}
+                  </View>
                 </TouchableOpacity>
-              : <Text style={styles.bubbleSender}>{senderName}</Text>
+              : <View style={styles.senderRow}>
+                  <Text style={styles.bubbleSender}>{senderName}</Text>
+                  {senderIsLeader && <Ionicons name="star" size={11} color={colors.primary} style={styles.senderLeader} />}
+                </View>
           )}
           <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{item.content}</Text>
           <Text style={[styles.bubbleTime, isMine && styles.bubbleTimeMine]}>
@@ -458,6 +472,8 @@ const createStyles = (colors) => StyleSheet.create({
     borderBottomLeftRadius: 4,
   },
   bubbleSender: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },
+  senderRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 2 },
+  senderLeader: { marginLeft: 1 },
   bubbleText: { fontSize: 15, color: colors.text, lineHeight: 22 },
   bubbleTextMine: { color: colors.white },
   bubbleTime: { fontSize: 10, color: colors.textSecondary, alignSelf: 'flex-end' },

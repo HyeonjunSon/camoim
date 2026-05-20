@@ -81,6 +81,9 @@ export default function PostCard({ post, onPress }) {
       {/* 하단: 닉네임·시간·도시 + 통계 — 항상 같은 위치 */}
       <View style={styles.cardBottom}>
         <Text style={styles.nickname}>{post.nickname ?? t('common.anonymous')}</Text>
+        {post.authorIsLeader && (
+          <Ionicons name="star" size={10} color={colors.primary} style={{ marginLeft: 2 }} />
+        )}
         <Text style={styles.dot}>·</Text>
         <Text style={styles.time}>{formatTime(post.createdAt)}</Text>
         {post.city ? (
