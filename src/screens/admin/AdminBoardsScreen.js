@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Alert,
   Modal,
-  Switch,
   ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
@@ -200,7 +199,6 @@ export default function AdminBoardsScreen() {
               <Text style={styles.slug}>{item.slug}</Text>
               <Text style={styles.meta}>
                 {t('admin.boardPostCount')} {item.postCount} · {t('admin.boardSortLabel')} {item.sortOrder}
-                {item.isAnonymousAllowed && ` · ${t('admin.boardAnon')}`}
               </Text>
             </View>
             <TouchableOpacity onPress={() => openEdit(item)} style={styles.editBtn}>
@@ -288,13 +286,6 @@ export default function AdminBoardsScreen() {
               onChangeText={(v) => setForm({ ...form, sortOrder: v })}
               keyboardType="number-pad"
             />
-            <View style={styles.switchRow}>
-              <Text style={{ color: colors.text, fontSize: 14 }}>{t('admin.boardAnonAllow')}</Text>
-              <Switch
-                value={form.isAnonymousAllowed}
-                onValueChange={(v) => setForm({ ...form, isAnonymousAllowed: v })}
-              />
-            </View>
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setModal(null)}>
                 <Text style={{ color: colors.textSecondary }}>{t('common.cancel')}</Text>
