@@ -576,6 +576,8 @@ router.delete('/me', requireAuth, async (req, res) => {
       Notification.deleteMany({ userId }),
       Inquiry.deleteMany({ userId }),
       Bookmark.deleteMany({ userId }),
+      // 학교 학생회장 자리 정리 — 죽은 참조 방지
+      University.updateMany({ leaderUserId: userId }, { $set: { leaderUserId: null } }),
     ]);
 
     await User.findByIdAndDelete(userId);

@@ -482,6 +482,8 @@ router.delete('/users/:id', async (req, res) => {
       Notification.deleteMany({ userId }),
       Inquiry.deleteMany({ userId }),
       Bookmark.deleteMany({ userId }),
+      // 학교 학생회장 자리 정리 — 죽은 참조 방지
+      University.updateMany({ leaderUserId: userId }, { $set: { leaderUserId: null } }),
     ]);
 
     await User.findByIdAndDelete(userId);
@@ -685,6 +687,7 @@ router.get('/universities', async (req, res) => {
 });
 
 // POST /api/admin/universities
+// 신규 학교 추가 시 free/anonymous 학교 게시판도 자동 생성 (ensureUniversityBoards)
 router.post('/universities', async (req, res) => {
   try {
     const name = (req.body?.name || '').trim();
@@ -695,6 +698,8 @@ router.post('/universities', async (req, res) => {
     const exists = await University.findOne({ name });
     if (exists) return res.status(409).json({ success: false, message: '이미 존재하는 학교입니다.' });
     const u = await University.create({ name, fullName, sortOrder, active });
+    // 신규 학교 회원이 인증해도 곧바로 학교 게시판이 보이도록 같은 트랜잭션에서 보드 시드
+    await ensureUniversityBoards(name);
     logAdmin(req, 'university.create', { targetType: 'university', targetId: u._id, meta: { name } });
     res.json({ success: true, data: u });
   } catch (err) {

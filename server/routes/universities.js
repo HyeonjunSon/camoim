@@ -20,6 +20,26 @@ function emptyCommunity() {
   return { instagram: '', kakaoOpen: '', discord: '', homepage: '', notice: '' };
 }
 
+// 학생회장이 핸들·짧은 URL 입력해도 탭하면 외부 앱이 열리도록 저장 시점에 정규화
+// - instagram: "@uoft.korean" / "uoft.korean" → "https://instagram.com/uoft.korean"
+// - kakaoOpen / discord / homepage: scheme 없으면 "https://" prefix
+// - notice: 일반 텍스트 (URL 변환 없음)
+function normalizeCommunityField(field, raw) {
+  const s = String(raw || '').trim();
+  if (!s || field === 'notice') return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (field === 'instagram') {
+    const handle = s.replace(/^@/, '').replace(/^instagram\.com\//i, '').replace(/^www\.instagram\.com\//i, '');
+    // 핸들에 슬래시 없으면 instagram.com/{handle} 로
+    if (!handle.includes('/') && !handle.includes('.')) {
+      return `https://instagram.com/${handle}`;
+    }
+    return `https://${handle.replace(/^https?:\/\//, '')}`;
+  }
+  // 그 외는 https:// prefix만
+  return `https://${s.replace(/^\/+/, '')}`;
+}
+
 // GET /api/universities/members/count — 본인 학교 인증 회원 수
 router.get('/members/count', requireAuth, async (req, res) => {
   try {
@@ -78,6 +98,7 @@ router.get('/chat', requireAuth, async (req, res) => {
 
 // GET /api/universities/community — 본인 학교 커뮤니티 카드
 // canEdit = admin 또는 본인이 해당 학교 학생회장일 때 true
+// 학생회장 lazy 검증: 임명된 사람이 더 이상 verified=false / 다른 학교 / 탈퇴 상태면 자리 비움
 router.get('/community', requireAuth, async (req, res) => {
   try {
     const me = await User.findById(req.user.id).select('verified university role').lean();
@@ -85,7 +106,15 @@ router.get('/community', requireAuth, async (req, res) => {
     if (!me.verified || !me.university) {
       return res.status(403).json({ success: false, message: '학교 인증이 필요해요.' });
     }
-    const uni = await University.findOne({ name: me.university }).lean();
+    const uni = await University.findOne({ name: me.university });
+    if (uni && uni.leaderUserId) {
+      const leader = await User.findById(uni.leaderUserId).select('verified university').lean();
+      const stillValid = leader && leader.verified && leader.university === uni.name;
+      if (!stillValid) {
+        uni.leaderUserId = null;
+        await uni.save();
+      }
+    }
     const community = (uni && uni.community) || emptyCommunity();
     const isLeader = !!(uni && uni.leaderUserId && String(uni.leaderUserId) === String(req.user.id));
     const canEdit = me.role === 'admin' || isLeader;
@@ -124,7 +153,8 @@ router.put('/community', requireAuth, async (req, res) => {
     const patch = {};
     for (const f of COMMUNITY_FIELDS) {
       if (req.body?.[f] !== undefined) {
-        patch[`community.${f}`] = String(req.body[f]).trim().slice(0, f === 'notice' ? 500 : 300);
+        const normalized = normalizeCommunityField(f, req.body[f]);
+        patch[`community.${f}`] = normalized.slice(0, f === 'notice' ? 500 : 300);
       }
     }
     await University.findByIdAndUpdate(uni._id, { $set: patch });
