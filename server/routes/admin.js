@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const VerifyRequest = require('../models/VerifyRequest');
 const User = require('../models/User');
 const Board = require('../models/Board');
+const University = require('../models/University');
 const Report = require('../models/Report');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
@@ -626,6 +627,107 @@ router.delete('/boards/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ═══════════════════════════════════════════════════
+// 학교 관리 (University)
+// ═══════════════════════════════════════════════════
+
+// GET /api/admin/universities
+router.get('/universities', async (req, res) => {
+  try {
+    const list = await University.find().sort({ sortOrder: 1, name: 1 }).lean();
+    res.json({ success: true, data: list });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// POST /api/admin/universities
+router.post('/universities', async (req, res) => {
+  try {
+    const name = (req.body?.name || '').trim();
+    const fullName = (req.body?.fullName || '').trim() || name;
+    const sortOrder = Number(req.body?.sortOrder) || 0;
+    const active = req.body?.active !== false;
+    if (!name) return res.status(400).json({ success: false, message: '학교 이름이 필요합니다.' });
+    const exists = await University.findOne({ name });
+    if (exists) return res.status(409).json({ success: false, message: '이미 존재하는 학교입니다.' });
+    const u = await University.create({ name, fullName, sortOrder, active });
+    logAdmin(req, 'university.create', { targetType: 'university', targetId: u._id, meta: { name } });
+    res.json({ success: true, data: u });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// PUT /api/admin/universities/:id
+// name 변경 시 Board.university / User.university도 함께 갱신
+router.put('/universities/:id', async (req, res) => {
+  try {
+    const u = await University.findById(req.params.id);
+    if (!u) return res.status(404).json({ success: false, message: '학교를 찾을 수 없어요.' });
+
+    const patch = {};
+    const oldName = u.name;
+    let renamed = false;
+    if (req.body?.name !== undefined) {
+      const newName = String(req.body.name).trim();
+      if (!newName) return res.status(400).json({ success: false, message: '학교 이름이 필요합니다.' });
+      if (newName !== oldName) {
+        const dup = await University.findOne({ name: newName, _id: { $ne: u._id } });
+        if (dup) return res.status(409).json({ success: false, message: '이미 존재하는 학교 이름입니다.' });
+        patch.name = newName;
+        renamed = true;
+      }
+    }
+    if (req.body?.fullName !== undefined) patch.fullName = String(req.body.fullName).trim();
+    if (req.body?.sortOrder !== undefined) patch.sortOrder = Number(req.body.sortOrder) || 0;
+    if (req.body?.active !== undefined) patch.active = !!req.body.active;
+
+    await University.findByIdAndUpdate(u._id, patch);
+
+    // name 변경 시 참조하는 컬렉션도 함께 마이그레이션
+    if (renamed) {
+      const VerifyRequest = require('../models/VerifyRequest');
+      await Board.updateMany({ university: oldName }, { $set: { university: patch.name } });
+      await User.updateMany({ university: oldName }, { $set: { university: patch.name } });
+      await VerifyRequest.updateMany({ university: oldName }, { $set: { university: patch.name } });
+    }
+
+    logAdmin(req, 'university.update', { targetType: 'university', targetId: u._id, meta: { patch, renamedFrom: renamed ? oldName : undefined } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// DELETE /api/admin/universities/:id
+// 인증된 회원·게시판이 참조 중이면 거부 (active=false로 비활성화 유도)
+router.delete('/universities/:id', async (req, res) => {
+  try {
+    const u = await University.findById(req.params.id);
+    if (!u) return res.status(404).json({ success: false, message: '학교를 찾을 수 없어요.' });
+
+    const userCount = await User.countDocuments({ university: u.name });
+    const boardCount = await Board.countDocuments({ university: u.name });
+    if (userCount > 0 || boardCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `참조 중인 데이터가 있어 삭제 불가 (회원 ${userCount}명, 게시판 ${boardCount}개). 비활성화로 처리해 주세요.`,
+      });
+    }
+
+    await u.deleteOne();
+    logAdmin(req, 'university.delete', { targetType: 'university', targetId: u._id, meta: { name: u.name } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });

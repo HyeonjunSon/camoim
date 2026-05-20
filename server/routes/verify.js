@@ -5,7 +5,7 @@ const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const VerifyRequest = require('../models/VerifyRequest');
 const { requireAuth } = require('../middleware/auth');
-const { UNIVERSITIES } = require('../constants/universities');
+const University = require('../models/University');
 
 const router = express.Router();
 
@@ -50,7 +50,10 @@ router.post('/apply', requireAuth, upload.single('file'), async (req, res) => {
       return res.status(400).json({ success: false, message: '학교와 재학/졸업 구분을 선택해주세요.' });
     }
 
-    const validUniversity = UNIVERSITIES.find(u => u.shortName === university || u.name === university);
+    const validUniversity = await University.findOne({
+      active: true,
+      $or: [{ name: university }, { fullName: university }],
+    }).lean();
     if (!validUniversity) {
       return res.status(400).json({ success: false, message: '지원하지 않는 학교입니다.' });
     }

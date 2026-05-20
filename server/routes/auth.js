@@ -5,7 +5,7 @@ const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const { requireAuth } = require('../middleware/auth');
 const { ROLES } = require('../constants/roles');
-const { UNIVERSITIES } = require('../constants/universities');
+const University = require('../models/University');
 const { generateCode, sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer');
 const { verifyAppleIdToken, verifyGoogleIdToken } = require('../utils/socialAuth');
 
@@ -468,9 +468,18 @@ router.get('/check-nickname', async (req, res) => {
   }
 });
 
-// GET /api/auth/universities
-router.get('/universities', (req, res) => {
-  res.json({ success: true, data: UNIVERSITIES.map(u => ({ name: u.name, shortName: u.shortName })) });
+// GET /api/auth/universities — 활성화된 학교만 정렬해서 반환
+router.get('/universities', async (req, res) => {
+  try {
+    const list = await University.find({ active: true })
+      .sort({ sortOrder: 1, name: 1 })
+      .select('name fullName')
+      .lean();
+    res.json({ success: true, data: list.map(u => ({ name: u.fullName, shortName: u.name })) });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
 });
 
 // DELETE /api/auth/me — 회원탈퇴

@@ -281,6 +281,11 @@ export const adminCreateBoard = (data) => request('POST', '/admin/boards', data)
 export const adminUpdateBoard = (id, data) => request('PUT', `/admin/boards/${id}`, data);
 export const adminDeleteBoard = (id) => request('DELETE', `/admin/boards/${id}`);
 
+export const adminListUniversities = () => request('GET', '/admin/universities');
+export const adminCreateUniversity = (data) => request('POST', '/admin/universities', data);
+export const adminUpdateUniversity = (id, data) => request('PUT', `/admin/universities/${id}`, data);
+export const adminDeleteUniversity = (id) => request('DELETE', `/admin/universities/${id}`);
+
 // 관리자 - 통계 / 시스템 / 로그 / 푸시
 export const adminGetStats = () => request('GET', '/admin/stats');
 export const adminGetSettings = () => request('GET', '/admin/settings');

@@ -116,6 +116,7 @@ export default function AdminScreen({ navigation }) {
         <Tile icon="people" label="유저 관리" onPress={() => navigation.navigate('AdminUsers')} />
         <Tile icon="document-text" label="게시글 관리" onPress={() => navigation.navigate('AdminPosts')} />
         <Tile icon="grid" label="게시판 관리" onPress={() => navigation.navigate('AdminBoards')} />
+        <Tile icon="school" label="학교 관리" onPress={() => navigation.navigate('AdminUniversities')} />
       </View>
 
       {/* 운영 */}

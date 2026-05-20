@@ -7,6 +7,7 @@ import AdminUsersScreen from '../screens/admin/AdminUsersScreen';
 import AdminUserDetailScreen from '../screens/admin/AdminUserDetailScreen';
 import AdminPostsScreen from '../screens/admin/AdminPostsScreen';
 import AdminBoardsScreen from '../screens/admin/AdminBoardsScreen';
+import AdminUniversitiesScreen from '../screens/admin/AdminUniversitiesScreen';
 import AdminBroadcastScreen from '../screens/admin/AdminBroadcastScreen';
 import AdminSystemScreen from '../screens/admin/AdminSystemScreen';
 import AdminLogsScreen from '../screens/admin/AdminLogsScreen';
@@ -40,6 +41,7 @@ export default function AdminStack() {
       <Stack.Screen name="AdminUserDetail" component={AdminUserDetailScreen} options={{ title: t('nav.adminUserDetail') }} />
       <Stack.Screen name="AdminPosts"   component={AdminPostsScreen}   options={{ title: t('nav.adminPosts') }} />
       <Stack.Screen name="AdminBoards"  component={AdminBoardsScreen}  options={{ title: t('nav.adminBoards') }} />
+      <Stack.Screen name="AdminUniversities" component={AdminUniversitiesScreen} options={{ title: t('nav.adminUniversities') }} />
       <Stack.Screen name="AdminBroadcast" component={AdminBroadcastScreen} options={{ title: t('nav.adminBroadcast') }} />
       <Stack.Screen name="NoticeDetail"  component={NoticeDetailScreen}    options={{ title: t('nav.noticeDetail') }} />
       <Stack.Screen name="NoticeEdit"    component={NoticeEditScreen}      options={{ title: t('nav.noticeEdit') }} />
