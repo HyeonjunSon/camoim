@@ -254,7 +254,7 @@ export default function ChatRoomScreen({ route, navigation }) {
                   {senderIsLeader && <Ionicons name="star" size={11} color={colors.primary} style={styles.senderLeader} />}
                 </View>
           )}
-          <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{item.content}</Text>
+          <Text selectable style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{item.content}</Text>
           <Text style={[styles.bubbleTime, isMine && styles.bubbleTimeMine]}>
             {new Date(item.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
           </Text>

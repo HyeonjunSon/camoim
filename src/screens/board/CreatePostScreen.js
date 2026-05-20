@@ -19,7 +19,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
-import { uploadPostImage } from '../../lib/api';
+import { uploadPostImage, listDrafts, createDraft, updateDraft, deleteDraft } from '../../lib/api';
 import { getToken } from '../../lib/storage';
 import { API_BASE_URL, SERVER_HOST } from '../../lib/config';
 import { useAuth } from '../../context/AuthContext';
@@ -119,6 +119,101 @@ export default function CreatePostScreen({ route, navigation }) {
     isEditMode ? contentToHtml(editPost.content ?? '') : ''
   );
   const currentHtml = useRef(initialHtmlRef.current);
+
+  // 임시저장 (드래프트) — 수정 모드에선 비활성
+  const [drafts, setDrafts] = useState([]);
+  const [draftsModalOpen, setDraftsModalOpen] = useState(false);
+  const [currentDraftId, setCurrentDraftId] = useState(null);
+  const draftsEnabled = !isEditMode && !isGroupPost;
+
+  useEffect(() => {
+    if (!draftsEnabled) return;
+    (async () => {
+      try {
+        const res = await listDrafts();
+        if (res.success) setDrafts(res.data || []);
+      } catch {}
+    })();
+  }, [draftsEnabled]);
+
+  const refreshDrafts = async () => {
+    try {
+      const res = await listDrafts();
+      if (res.success) setDrafts(res.data || []);
+    } catch {}
+  };
+
+  const onLoadDraft = (d) => {
+    setCurrentDraftId(d.id ?? d._id);
+    setTitle(d.title || '');
+    if (d.city !== undefined) setSelectedCity(d.city || '');
+    const html = contentToHtml(d.content || '');
+    currentHtml.current = html;
+    setHasBody(!!html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, '').trim() || /<img/i.test(html));
+    try { richRef.current?.setContentHTML(html); } catch {}
+    setDraftsModalOpen(false);
+  };
+
+  const onDeleteDraft = async (id) => {
+    try {
+      await deleteDraft(id);
+      if (String(id) === String(currentDraftId)) setCurrentDraftId(null);
+      await refreshDrafts();
+    } catch (e) { Alert.alert(t('common.error'), e.message || t('common.serverError')); }
+  };
+
+  // 화면 닫을 때 호출 — 본문 있으면 임시저장 묻기
+  const onRequestClose = async () => {
+    if (!draftsEnabled) return navigation.goBack();
+    // 최신 HTML 가져오기
+    let html = currentHtml.current;
+    try {
+      const fetched = await richRef.current?.getContentHtml?.();
+      if (typeof fetched === 'string') html = fetched;
+    } catch {}
+    const cleaned = normalizeHtmlForSave(html);
+    const stripped = cleaned.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, '').trim();
+    const hasContent = !!title.trim() || stripped.length > 0 || /<img/i.test(cleaned);
+
+    if (!hasContent) {
+      // 빈 상태 — 기존 드래프트가 있었으면 같이 정리
+      if (currentDraftId) { try { await deleteDraft(currentDraftId); } catch {} }
+      return navigation.goBack();
+    }
+
+    Alert.alert(
+      t('draft.saveAsk'),
+      t('draft.saveAskMsg'),
+      [
+        {
+          text: t('draft.discard'),
+          style: 'destructive',
+          onPress: async () => {
+            if (currentDraftId) { try { await deleteDraft(currentDraftId); } catch {} }
+            navigation.goBack();
+          },
+        },
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('draft.save'),
+          onPress: async () => {
+            try {
+              const payload = {
+                boardId: boardId || null,
+                title: title.trim(),
+                content: cleaned,
+                isAnonymous: isAnonymousBoard,
+                city: selectedCity || '',
+              };
+              if (currentDraftId) await updateDraft(currentDraftId, payload);
+              else await createDraft(payload);
+            } catch (e) { Alert.alert(t('common.error'), e.message || t('common.serverError')); }
+            navigation.goBack();
+          },
+        },
+      ]
+    );
+  };
 
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -376,8 +471,11 @@ export default function CreatePostScreen({ route, navigation }) {
         body,
       });
       const data = await res.json();
-      if (data.success) navigation.goBack();
-      else Alert.alert(t('common.error'), data.message || t('post.requestFailed'));
+      if (data.success) {
+        // 게시 성공 시 사용된 드래프트는 정리
+        if (currentDraftId) { try { await deleteDraft(currentDraftId); } catch {} }
+        navigation.goBack();
+      } else Alert.alert(t('common.error'), data.message || t('post.requestFailed'));
     } catch (e) {
       Alert.alert(t('common.error'), t('post.requestFailedRetry'));
     } finally {
@@ -400,7 +498,7 @@ export default function CreatePostScreen({ route, navigation }) {
       {/* ── 상단 바 */}
       <View style={styles.topBar}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={onRequestClose}
           activeOpacity={0.7}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={[styles.topBarSide, { alignItems: 'flex-start' }]}
@@ -408,7 +506,24 @@ export default function CreatePostScreen({ route, navigation }) {
           <Ionicons name="close" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{isEditMode ? t('post.editTitle') : t('post.writeTitle')}</Text>
-        <View style={styles.topBarSide}>
+        <View style={[styles.topBarSide, { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'flex-end', minWidth: 110 }]}>
+          {draftsEnabled && (
+            <TouchableOpacity
+              onPress={() => setDraftsModalOpen(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.draftBtn}
+              accessibilityRole="button"
+              accessibilityLabel={t('draft.openList')}
+            >
+              <Ionicons name="menu" size={22} color={colors.text} />
+              {drafts.length > 0 && (
+                <View style={styles.draftBadge}>
+                  <Text style={styles.draftBadgeText}>{drafts.length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={!hasContent || submitting}
@@ -468,6 +583,72 @@ export default function CreatePostScreen({ route, navigation }) {
                 </TouchableOpacity>
               )}
             />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* 임시저장 (드래프트) 목록 모달 */}
+      <Modal
+        visible={draftsModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setDraftsModalOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.cityModalOverlay}
+          activeOpacity={1}
+          onPress={() => setDraftsModalOpen(false)}
+        >
+          <View style={styles.draftSheet}>
+            <View style={styles.draftHeader}>
+              <Text style={styles.cityModalTitle}>{t('draft.title')}</Text>
+              <Text style={styles.draftHeaderCount}>{drafts.length}</Text>
+            </View>
+            {drafts.length === 0 ? (
+              <Text style={styles.draftEmpty}>{t('draft.empty')}</Text>
+            ) : (
+              <FlatList
+                data={drafts}
+                keyExtractor={(d) => String(d.id ?? d._id)}
+                style={{ maxHeight: 420 }}
+                ItemSeparatorComponent={() => <View style={styles.draftSep} />}
+                renderItem={({ item }) => {
+                  const id = item.id ?? item._id;
+                  const preview = (item.content || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+                  return (
+                    <TouchableOpacity
+                      style={styles.draftRow}
+                      onPress={() => onLoadDraft(item)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.draftRowTitle} numberOfLines={1}>
+                          {item.title?.trim() || t('draft.untitled')}
+                        </Text>
+                        {!!preview && (
+                          <Text style={styles.draftRowPreview} numberOfLines={1}>{preview}</Text>
+                        )}
+                        <Text style={styles.draftRowMeta}>
+                          {new Date(item.updatedAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Alert.alert('', t('draft.deleteAsk'), [
+                            { text: t('common.cancel'), style: 'cancel' },
+                            { text: t('common.delete'), style: 'destructive', onPress: () => onDeleteDraft(id) },
+                          ]);
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={styles.draftDelBtn}
+                      >
+                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -929,6 +1110,48 @@ const createStyles = (colors) => StyleSheet.create({
   },
   postBtnDisabled: { opacity: 0.35 },
   postBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  draftBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.inputBg,
+  },
+  draftBadge: {
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 16, height: 16, borderRadius: 8,
+    paddingHorizontal: 4,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: colors.surface,
+  },
+  draftBadgeText: { fontSize: 9, fontWeight: '800', color: '#fff' },
+  draftSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 18, borderTopRightRadius: 18,
+    paddingTop: 14, paddingBottom: 24, paddingHorizontal: 0,
+  },
+  draftHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 20, marginBottom: 8,
+  },
+  draftHeaderCount: {
+    fontSize: 11, fontWeight: '700', color: colors.textSecondary,
+    paddingHorizontal: 7, paddingVertical: 2,
+    backgroundColor: colors.inputBg, borderRadius: 8,
+    overflow: 'hidden',
+  },
+  draftEmpty: { textAlign: 'center', color: colors.textSecondary, paddingVertical: 40, fontSize: 13 },
+  draftSep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  draftRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 20, paddingVertical: 12,
+  },
+  draftRowTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  draftRowPreview: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  draftRowMeta: { fontSize: 10, color: colors.textSecondary, marginTop: 3 },
+  draftDelBtn: {
+    width: 32, height: 32, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FEE2E2', borderRadius: 8,
+  },
 
   boardRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

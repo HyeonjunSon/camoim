@@ -381,6 +381,12 @@ export const setGroupNotifications = (groupId, { notifyPosts, notifyChat }) =>
   request('PUT', `/groups/${groupId}/notifications`, { notifyPosts, notifyChat });
 export const updateGroupCommunity = (groupId, data) =>
   request('PUT', `/groups/${groupId}/community`, data);
+
+// 글쓰기 임시저장 (드래프트)
+export const listDrafts = () => request('GET', '/drafts');
+export const createDraft = (data) => request('POST', '/drafts', data);
+export const updateDraft = (id, data) => request('PUT', `/drafts/${id}`, data);
+export const deleteDraft = (id) => request('DELETE', `/drafts/${id}`);
 export const getGroupPosts = (groupId, { page = 1, limit = 20 } = {}) =>
   request('GET', `/groups/${groupId}/posts?page=${page}&limit=${limit}`);
 export const getGroupChat = (groupId) => request('GET', `/groups/${groupId}/chat`);

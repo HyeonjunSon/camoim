@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { useLang } from '../../context/LangContext';
@@ -19,6 +20,7 @@ import { createNotice, updateNotice } from '../../lib/api';
 export default function NoticeEditScreen({ route, navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
+  const headerHeight = useHeaderHeight();
 
   const { t } = useLang();
   const editing = route.params?.notice;
@@ -59,6 +61,7 @@ export default function NoticeEditScreen({ route, navigation }) {
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
     >
       <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <TextInput

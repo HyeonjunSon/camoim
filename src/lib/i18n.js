@@ -170,6 +170,12 @@ export const TRANSLATIONS = {
       notice: '공지 한 줄', noticePh: '신입 환영! 학기 OT 3/2 19시 본관 강당',
       linksLabel: '소셜·링크',
     },
+    draft: {
+      title: '임시저장 글', openList: '임시저장 목록', empty: '아직 임시저장한 글이 없어요',
+      untitled: '(제목 없음)', save: '임시저장', discard: '버리기',
+      saveAsk: '작성 중인 글이 있어요', saveAskMsg: '임시저장 해두고 다음에 이어서 쓸까요?',
+      deleteAsk: '이 임시저장 글을 삭제할까요?',
+    },
     group: {
       title: '모임', empty: '아직 모임이 없어요',
       emptyHint: '첫 모임을 만들어보세요!',
@@ -880,6 +886,12 @@ export const TRANSLATIONS = {
       instagram: 'Instagram', kakaoOpen: 'Kakao Open Chat', discord: 'Discord', homepage: 'Homepage',
       notice: 'One-line notice', noticePh: 'Welcome new students! Orientation Mar 2, 7 PM, Main Hall',
       linksLabel: 'Social · Links',
+    },
+    draft: {
+      title: 'Drafts', openList: 'Open draft list', empty: 'No drafts yet',
+      untitled: '(Untitled)', save: 'Save draft', discard: 'Discard',
+      saveAsk: 'You have unsaved content', saveAskMsg: 'Save as a draft to continue later?',
+      deleteAsk: 'Delete this draft?',
     },
     group: {
       title: 'Groups', empty: 'No groups yet',

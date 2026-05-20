@@ -103,10 +103,10 @@ export default function NoticeDetailScreen({ route, navigation }) {
     {headerEl}
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {notice.pinned && <Text style={styles.pinTag}>{t('notice.pinned')}</Text>}
-      <Text style={styles.title}>{notice.title}</Text>
+      <Text selectable style={styles.title}>{notice.title}</Text>
       <Text style={styles.meta}>{notice.author ?? t('roles.admin')} · {formatDateTime(notice.createdAt)}</Text>
       <View style={styles.divider} />
-      <Text style={styles.body}>{notice.content}</Text>
+      <Text selectable style={styles.body}>{notice.content}</Text>
     </ScrollView>
     </View>
   );
