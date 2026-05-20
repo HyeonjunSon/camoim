@@ -1,8 +1,11 @@
 // 학교 커뮤니티 전용 엔드포인트
 // - GET /api/universities/chat — 본인 학교 전체 채팅방 (lazy-create + 자동 입장)
 // - GET /api/universities/members/count — 본인 학교 인증 회원 수
+// - GET /api/universities/members — 본인 학교 인증 회원 검색 (학생회장 인수인계용)
 // - GET /api/universities/community — 본인 학교 커뮤니티 카드 (소셜 링크 + 공지)
 // - PUT /api/universities/community — 학생회장 또는 admin만 편집 가능
+// - PUT /api/universities/leader/transfer — 현 학생회장이 다른 인증 회원에게 인수인계
+// - DELETE /api/universities/leader — 현 학생회장이 사임
 const express = require('express');
 const ChatRoom = require('../models/ChatRoom');
 const User = require('../models/User');
@@ -125,6 +128,88 @@ router.put('/community', requireAuth, async (req, res) => {
       }
     }
     await University.findByIdAndUpdate(uni._id, { $set: patch });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// GET /api/universities/members?search=&limit=50 — 같은 학교 인증 회원 검색 (본인 제외)
+router.get('/members', requireAuth, async (req, res) => {
+  try {
+    const me = await User.findById(req.user.id).select('verified university').lean();
+    if (!me?.verified || !me?.university) {
+      return res.status(403).json({ success: false, message: '학교 인증이 필요해요.' });
+    }
+    const search = String(req.query.search || '').trim();
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const filter = {
+      _id: { $ne: req.user.id },
+      verified: true,
+      university: me.university,
+    };
+    if (search) {
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.nickname = { $regex: escaped, $options: 'i' };
+    }
+    const list = await User.find(filter)
+      .select('nickname avatarUrl')
+      .sort({ nickname: 1 })
+      .limit(limit)
+      .lean();
+    res.json({ success: true, data: list.map(u => ({ id: u._id, nickname: u.nickname, avatarUrl: u.avatarUrl })) });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// PUT /api/universities/leader/transfer { newUserId } — 현 학생회장이 다음 회장에게 인수인계
+router.put('/leader/transfer', requireAuth, async (req, res) => {
+  try {
+    const me = await User.findById(req.user.id).select('verified university').lean();
+    if (!me?.verified || !me?.university) {
+      return res.status(403).json({ success: false, message: '학교 인증이 필요해요.' });
+    }
+    const uni = await University.findOne({ name: me.university });
+    if (!uni) return res.status(404).json({ success: false, message: '학교를 찾을 수 없어요.' });
+    if (!uni.leaderUserId || String(uni.leaderUserId) !== String(req.user.id)) {
+      return res.status(403).json({ success: false, message: '현재 학생회장만 인수인계할 수 있어요.' });
+    }
+    const newUserId = req.body?.newUserId;
+    if (!newUserId) return res.status(400).json({ success: false, message: '다음 회장을 선택해 주세요.' });
+    if (String(newUserId) === String(req.user.id)) {
+      return res.status(400).json({ success: false, message: '본인에게 넘길 수 없어요.' });
+    }
+    const next = await User.findById(newUserId).select('verified university nickname').lean();
+    if (!next) return res.status(404).json({ success: false, message: '대상 회원을 찾을 수 없어요.' });
+    if (!next.verified || next.university !== me.university) {
+      return res.status(400).json({ success: false, message: '같은 학교 인증 회원에게만 넘길 수 있어요.' });
+    }
+    uni.leaderUserId = next._id;
+    await uni.save();
+    res.json({ success: true, data: { newLeaderId: next._id, nickname: next.nickname } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// DELETE /api/universities/leader — 현 학생회장이 사임 (학교는 학생회장 공석 상태가 됨)
+router.delete('/leader', requireAuth, async (req, res) => {
+  try {
+    const me = await User.findById(req.user.id).select('verified university').lean();
+    if (!me?.verified || !me?.university) {
+      return res.status(403).json({ success: false, message: '학교 인증이 필요해요.' });
+    }
+    const uni = await University.findOne({ name: me.university });
+    if (!uni) return res.status(404).json({ success: false, message: '학교를 찾을 수 없어요.' });
+    if (!uni.leaderUserId || String(uni.leaderUserId) !== String(req.user.id)) {
+      return res.status(403).json({ success: false, message: '현재 학생회장만 사임할 수 있어요.' });
+    }
+    uni.leaderUserId = null;
+    await uni.save();
     res.json({ success: true });
   } catch (err) {
     console.error('[api]', req.method, req.originalUrl, err);

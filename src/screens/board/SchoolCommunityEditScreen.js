@@ -9,12 +9,21 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { getSchoolCommunity, updateSchoolCommunity } from '../../lib/api';
+import {
+  getSchoolCommunity,
+  updateSchoolCommunity,
+  searchSchoolMembers,
+  transferSchoolLeader,
+  resignSchoolLeader,
+} from '../../lib/api';
+import Avatar from '../../components/common/Avatar';
 import CustomHeader from '../../components/CustomHeader';
 
 const FIELDS = [
@@ -34,6 +43,14 @@ export default function SchoolCommunityEditScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
+  const [isLeader, setIsLeader] = useState(false);
+
+  // 인수인계 picker 상태
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerMembers, setPickerMembers] = useState([]);
+  const [transferring, setTransferring] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -41,6 +58,7 @@ export default function SchoolCommunityEditScreen({ navigation }) {
         const res = await getSchoolCommunity();
         if (res.success) {
           setCanEdit(!!res.data?.canEdit);
+          setIsLeader(!!res.data?.isLeader);
           const c = res.data?.community || {};
           setForm({
             instagram: c.instagram || '',
@@ -55,6 +73,21 @@ export default function SchoolCommunityEditScreen({ navigation }) {
       }
     })();
   }, []);
+
+  // picker 열렸을 때 검색어 변경마다 멤버 로드 (debounce 없이 — 입력 적고 즉시반응 가치 더 큼)
+  useEffect(() => {
+    if (!pickerOpen) return;
+    let cancelled = false;
+    setPickerLoading(true);
+    searchSchoolMembers(pickerSearch, 50)
+      .then(res => {
+        if (cancelled) return;
+        if (res.success) setPickerMembers(res.data || []);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setPickerLoading(false); });
+    return () => { cancelled = true; };
+  }, [pickerOpen, pickerSearch]);
 
   const onSave = async () => {
     if (!canEdit) return;
@@ -71,6 +104,64 @@ export default function SchoolCommunityEditScreen({ navigation }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const onPickMember = (member) => {
+    Alert.alert(
+      t('board.leaderTransferConfirmTitle'),
+      t('board.leaderTransferConfirmMsg').replace('{name}', member.nickname),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('board.leaderTransferConfirmBtn'),
+          style: 'destructive',
+          onPress: async () => {
+            setTransferring(true);
+            try {
+              const res = await transferSchoolLeader(member.id);
+              if (res.success) {
+                setPickerOpen(false);
+                Alert.alert(t('common.done'), t('board.leaderTransferred').replace('{name}', member.nickname));
+                navigation.goBack();
+              } else {
+                Alert.alert(t('common.error'), res.message || t('common.serverError'));
+              }
+            } catch (e) {
+              Alert.alert(t('common.error'), e.message || t('common.serverError'));
+            } finally {
+              setTransferring(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const onResign = () => {
+    Alert.alert(
+      t('board.leaderResignTitle'),
+      t('board.leaderResignMsg'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('board.leaderResignBtn'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await resignSchoolLeader();
+              if (res.success) {
+                Alert.alert(t('common.done'), t('board.leaderResigned'));
+                navigation.goBack();
+              } else {
+                Alert.alert(t('common.error'), res.message || t('common.serverError'));
+              }
+            } catch (e) {
+              Alert.alert(t('common.error'), e.message || t('common.serverError'));
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -143,8 +234,92 @@ export default function SchoolCommunityEditScreen({ navigation }) {
               />
             </View>
           ))}
+
+          {/* 학생회장 권한 — 실제 학생회장에게만 노출 (admin은 canEdit이지만 isLeader는 false) */}
+          {isLeader && (
+            <>
+              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>{t('board.leaderActionsTitle')}</Text>
+              <Text style={styles.leaderHint}>{t('board.leaderActionsHint')}</Text>
+
+              <TouchableOpacity
+                style={styles.leaderBtn}
+                onPress={() => setPickerOpen(true)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
+                <Text style={styles.leaderBtnText}>{t('board.leaderTransferBtn')}</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.leaderBtn, styles.leaderBtnDanger]}
+                onPress={onResign}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="log-out-outline" size={16} color="#EF4444" />
+                <Text style={[styles.leaderBtnText, { color: '#EF4444' }]}>{t('board.leaderResignBtn')}</Text>
+                <Ionicons name="chevron-forward" size={16} color="#EF4444" />
+              </TouchableOpacity>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* 인수인계 picker modal */}
+      <Modal
+        visible={pickerOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => !transferring && setPickerOpen(false)}
+      >
+        <View style={styles.pickerRoot}>
+          <View style={styles.pickerCard}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>{t('board.leaderTransferTitle')}</Text>
+              <TouchableOpacity onPress={() => !transferring && setPickerOpen(false)}>
+                <Ionicons name="close" size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.pickerSearchRow}>
+              <Ionicons name="search" size={14} color={colors.textSecondary} />
+              <TextInput
+                style={styles.pickerSearchInput}
+                value={pickerSearch}
+                onChangeText={setPickerSearch}
+                placeholder={t('board.leaderTransferSearchPh')}
+                placeholderTextColor={colors.textSecondary}
+                autoCapitalize="none"
+              />
+            </View>
+            {pickerLoading ? (
+              <View style={{ padding: 24 }}>
+                <ActivityIndicator color={colors.primary} />
+              </View>
+            ) : (
+              <FlatList
+                data={pickerMembers}
+                keyExtractor={(m) => String(m.id)}
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
+                  <Text style={styles.pickerEmpty}>{t('board.leaderTransferEmpty')}</Text>
+                }
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.pickerItem}
+                    onPress={() => onPickMember(item)}
+                    activeOpacity={0.75}
+                    disabled={transferring}
+                  >
+                    <Avatar nickname={item.nickname} uri={item.avatarUrl} size={32} showLetter />
+                    <Text style={styles.pickerItemName}>{item.nickname}</Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -170,4 +345,41 @@ const createStyles = (colors) => StyleSheet.create({
     borderColor: colors.border,
   },
   inputMulti: { minHeight: 80, textAlignVertical: 'top' },
+
+  leaderHint: { fontSize: 11, color: colors.textSecondary, marginBottom: 10, lineHeight: 15 },
+  leaderBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.surface, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  leaderBtnDanger: { borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
+  leaderBtnText: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.text },
+
+  // picker modal
+  pickerRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  pickerCard: {
+    backgroundColor: colors.background, borderTopLeftRadius: 18, borderTopRightRadius: 18,
+    maxHeight: '85%', minHeight: 300,
+  },
+  pickerHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10,
+  },
+  pickerTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
+  pickerSearchRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: 16, marginBottom: 10,
+    paddingHorizontal: 12, height: 40,
+    backgroundColor: colors.surface, borderRadius: 10,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  pickerSearchInput: { flex: 1, fontSize: 13, color: colors.text },
+  pickerEmpty: { padding: 28, textAlign: 'center', color: colors.textSecondary, fontSize: 12 },
+  pickerItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+  },
+  pickerItemName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
 });

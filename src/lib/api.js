@@ -386,6 +386,11 @@ export const getSchoolChat = () => request('GET', '/universities/chat');
 export const getSchoolMemberCount = () => request('GET', '/universities/members/count');
 export const getSchoolCommunity = () => request('GET', '/universities/community');
 export const updateSchoolCommunity = (data) => request('PUT', '/universities/community', data);
+export const searchSchoolMembers = (search = '', limit = 50) =>
+  request('GET', `/universities/members?search=${encodeURIComponent(search)}&limit=${limit}`);
+export const transferSchoolLeader = (newUserId) =>
+  request('PUT', '/universities/leader/transfer', { newUserId });
+export const resignSchoolLeader = () => request('DELETE', '/universities/leader');
 
 export const uploadGroupCover = async (groupId, asset) => {
   const token = await getToken();
