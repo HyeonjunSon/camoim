@@ -228,7 +228,7 @@ async function migrateUniversityNames() {
   for (const b of uniBoards) {
     const parts = b.slug.split('-');
     const suffix = parts[parts.length - 1];
-    if (!['free', 'anonymous', 'meetup', 'info'].includes(suffix)) continue;
+    if (!['free', 'anonymous'].includes(suffix)) continue;
     const prefix = b.university.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-');
     const correctSlug = `${prefix}-${suffix}`;
     if (b.slug !== correctSlug) {
@@ -248,12 +248,40 @@ async function migrateUniversityNames() {
   else console.log('✅ 학교 이름 이미 최신 상태');
 }
 
+// 학교 게시판 meetup/info 제거 — 1.0.5에서 폐기 결정 (글/댓글까지 cascade 삭제)
+async function cleanupLegacyMeetupInfoBoards() {
+  const Post = require('./models/Post');
+  const Comment = require('./models/Comment');
+
+  const legacy = await Board.find({
+    isUniversityBoard: true,
+    slug: { $regex: /-(meetup|info)$/ },
+  }).select('_id slug').lean();
+
+  if (legacy.length === 0) return;
+
+  const boardIds = legacy.map(b => b._id);
+  const posts = await Post.find({ boardId: { $in: boardIds } }).select('_id').lean();
+  const postIds = posts.map(p => p._id);
+
+  const commentRes = postIds.length
+    ? await Comment.deleteMany({ postId: { $in: postIds } })
+    : { deletedCount: 0 };
+  const postRes = postIds.length
+    ? await Post.deleteMany({ _id: { $in: postIds } })
+    : { deletedCount: 0 };
+  const boardRes = await Board.deleteMany({ _id: { $in: boardIds } });
+
+  console.log(`🧹 학교 meetup/info 정리: 게시판 ${boardRes.deletedCount}개, 글 ${postRes.deletedCount}개, 댓글 ${commentRes.deletedCount}개 삭제`);
+}
+
 const { startVerifyCleanupJob } = require('./utils/verifyCleanup');
 
 connectDB().then(async () => {
   await seedBoards();
   await migrateUniversityBoards();
   await migrateUniversityNames();
+  await cleanupLegacyMeetupInfoBoards();
   const io = initSocket(httpServer);
   app.set('io', io); // 라우트에서 req.app.get('io')로 접근 가능
   startVerifyCleanupJob(); // 인증 서류 90일 자동 삭제 cron
