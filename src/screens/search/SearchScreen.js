@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { API_BASE_URL, SERVER_HOST } from '../../lib/config';
+import { getBoards } from '../../lib/api';
 import { getToken } from '../../lib/storage';
 import { formatTime } from '../../lib/time';
 import { useLang } from '../../context/LangContext';
@@ -71,12 +72,11 @@ export default function SearchScreen({ navigation }) {
 
   const loadBoards = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/boards`);
-      const data = await res.json();
-      const boards = data.data ?? data ?? [];
+      const res = await getBoards();
+      const boards = res?.data ?? [];
       const mapped = RECOMMENDED_BOARD_SLUGS.map(rec => {
         const found = boards.find(b => b.slug === rec.slug);
-        return { ...rec, boardId: found?._id ?? found?.id ?? null };
+        return { ...rec, boardId: found?.id ?? null };
       }).filter(b => b.boardId);
       setRecommendedBoards(mapped);
     } catch {}

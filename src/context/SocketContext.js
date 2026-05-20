@@ -41,12 +41,10 @@ export function SocketProvider({ children }) {
 
       socket.on('connect', () => {
         setConnected(true);
-        console.log('🔌 글로벌 소켓 연결');
       });
 
       socket.on('disconnect', () => {
         setConnected(false);
-        console.log('🔌 글로벌 소켓 해제');
       });
 
       // 모든 이벤트를 등록된 리스너들에게 전달

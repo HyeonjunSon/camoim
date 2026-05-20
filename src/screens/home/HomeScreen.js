@@ -170,7 +170,7 @@ export default function HomeScreen({ navigation }) {
   // 게시판으로 이동
   const goToBoard = (board) => {
     navigation.navigate('BoardFeed', {
-      boardId: board.id ?? board._id,
+      boardId: board.id,
       boardSlug: board.slug,
       boardName: board.name,
       isUniversityBoard: !!board.isUniversityBoard,
@@ -404,7 +404,7 @@ export default function HomeScreen({ navigation }) {
             const meta = getMeta(board.slug);
             return (
               <TouchableOpacity
-                key={String(board.id ?? board._id)}
+                key={String(board.id)}
                 style={styles.chip}
                 onPress={() => goToBoard(board)}
                 activeOpacity={0.7}

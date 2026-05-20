@@ -19,7 +19,6 @@ Notifications.setNotificationHandler({
  */
 export async function registerForPushNotifications() {
   if (!Device.isDevice) {
-    console.log('푸시 알림: 실기기에서만 동작합니다');
     return null;
   }
 
@@ -43,7 +42,6 @@ export async function registerForPushNotifications() {
   }
 
   if (finalStatus !== 'granted') {
-    console.log('푸시 알림 권한이 거부됐어요');
     return null;
   }
 
@@ -53,7 +51,6 @@ export async function registerForPushNotifications() {
   });
 
   const token = tokenData.data;
-  console.log('Expo Push Token:', token);
 
   // 서버에 토큰 저장
   try {
