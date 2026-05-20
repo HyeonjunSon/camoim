@@ -10,6 +10,8 @@ const express = require('express');
 const ChatRoom = require('../models/ChatRoom');
 const User = require('../models/User');
 const University = require('../models/University');
+const Notification = require('../models/Notification');
+const { sendPush } = require('../utils/push');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -219,6 +221,28 @@ router.put('/leader/transfer', requireAuth, async (req, res) => {
     }
     uni.leaderUserId = next._id;
     await uni.save();
+
+    // 새 학생회장에게 알림 + 푸시
+    try {
+      await Notification.create({
+        userId: next._id,
+        type: 'university_leader',
+        message: `${me.university}의 학생회장으로 인수인계받았어요. 학교 커뮤니티를 이어서 꾸며보세요!`,
+      });
+      const withPush = await User.findById(next._id).select('pushToken').lean();
+      if (withPush?.pushToken) {
+        await sendPush(
+          withPush.pushToken,
+          '학생회장 인수인계',
+          `${me.university}의 학생회장이 되었어요`,
+          { kind: 'university_leader', university: me.university },
+          next._id
+        );
+      }
+    } catch (e) {
+      console.error('[leader transfer notify]', e.message);
+    }
+
     res.json({ success: true, data: { newLeaderId: next._id, nickname: next.nickname } });
   } catch (err) {
     console.error('[api]', req.method, req.originalUrl, err);

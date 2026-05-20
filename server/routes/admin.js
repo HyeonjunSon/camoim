@@ -4,6 +4,8 @@ const VerifyRequest = require('../models/VerifyRequest');
 const User = require('../models/User');
 const Board = require('../models/Board');
 const University = require('../models/University');
+const Notification = require('../models/Notification');
+const { sendPush } = require('../utils/push');
 const Report = require('../models/Report');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
@@ -11,7 +13,6 @@ const Group = require('../models/Group');
 const GroupMembership = require('../models/GroupMembership');
 const ChatRoom = require('../models/ChatRoom');
 const Message = require('../models/Message');
-const Notification = require('../models/Notification');
 const AdminLog = require('../models/AdminLog');
 const SystemSetting = require('../models/SystemSetting');
 const { invalidate: invalidateSystemCache } = require('../middleware/systemGuard');
@@ -418,6 +419,30 @@ router.put('/users/:id/university-leader', async (req, res) => {
       uni.leaderUserId = null;
     }
     await uni.save();
+
+    // 임명 시 새 학생회장에게 알림 + 푸시 (해제 시는 알림 없음)
+    if (isLeader) {
+      try {
+        await Notification.create({
+          userId: target._id,
+          type: 'university_leader',
+          message: `${target.university}의 학생회장으로 임명되었어요. 학교 커뮤니티를 꾸며보세요!`,
+        });
+        const withPush = await User.findById(target._id).select('pushToken').lean();
+        if (withPush?.pushToken) {
+          await sendPush(
+            withPush.pushToken,
+            '학생회장 임명',
+            `${target.university}의 학생회장이 되었어요`,
+            { kind: 'university_leader', university: target.university },
+            target._id
+          );
+        }
+      } catch (e) {
+        console.error('[leader notify]', e.message);
+      }
+    }
+
     logAdmin(req, 'university.leader', {
       targetType: 'user', targetId: target._id,
       meta: { university: target.university, isLeader },
