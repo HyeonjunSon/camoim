@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
-import { adminListBoards, adminCreateBoard, adminUpdateBoard, adminDeleteBoard } from '../../lib/api';
+import { adminListBoards, adminCreateBoard, adminUpdateBoard, adminDeleteBoard, getUniversities } from '../../lib/api';
 import { useLang } from '../../context/LangContext';
 import { getBoardName } from '../../lib/i18n';
 
@@ -30,9 +30,11 @@ export default function AdminBoardsScreen() {
   const [modal, setModal] = useState(null); // null | { mode, board }
   const [form, setForm] = useState({ slug: '', name: '', description: '', isAnonymousAllowed: false, sortOrder: 0, isUniversityBoard: false, university: '' });
   const [search, setSearch] = useState('');
-  const [uniList, setUniList] = useState([]);
   const [collapsed, setCollapsed] = useState({}); // { [sectionKey]: true }
   const [initialized, setInitialized] = useState(false);
+  const [dbUniversities, setDbUniversities] = useState([]); // [{ name, shortName }] from /auth/universities
+  const [uniSearch, setUniSearch] = useState('');
+  const [uniDropOpen, setUniDropOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,16 +46,19 @@ export default function AdminBoardsScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // 기존 학교 목록 추출
-  const universities = useMemo(() => {
-    const set = new Set();
-    items.forEach(b => { if (b.university) set.add(b.university); });
-    return [...set].sort();
-  }, [items]);
+  // DB에서 활성 학교 목록 불러오기 (학교 게시판 드롭다운용)
+  const loadDbUniversities = useCallback(async () => {
+    try {
+      const res = await getUniversities();
+      if (res.success) setDbUniversities(res.data ?? []);
+    } catch {}
+  }, []);
 
   const openCreate = () => {
     setForm({ slug: '', name: '', description: '', isAnonymousAllowed: false, sortOrder: items.length + 1, isUniversityBoard: false, university: '' });
-    setUniList(universities);
+    setUniSearch('');
+    setUniDropOpen(false);
+    loadDbUniversities();
     setModal({ mode: 'create' });
   };
 
@@ -240,20 +245,62 @@ export default function AdminBoardsScreen() {
                 {form.isUniversityBoard && (
                   <>
                     <Text style={styles.lbl}>{t('admin.boardUnivName')}</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={form.university}
-                      onChangeText={(v) => setForm({ ...form, university: v })}
-                      placeholder="예: University of Toronto"
-                      placeholderTextColor={colors.textSecondary}
-                    />
-                    {universities.length > 0 && (
-                      <View style={styles.uniChipRow}>
-                        {universities.filter(u => !form.university || u.toLowerCase().includes(form.university.toLowerCase())).slice(0, 5).map(u => (
-                          <TouchableOpacity key={u} style={styles.uniChip} onPress={() => setForm({ ...form, university: u })}>
-                            <Text style={styles.uniChipText}>{u}</Text>
-                          </TouchableOpacity>
-                        ))}
+                    <TouchableOpacity
+                      style={styles.dropdownField}
+                      onPress={() => setUniDropOpen(v => !v)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.dropdownText, !form.university && { color: colors.textSecondary }]}>
+                        {form.university || t('admin.uniPickerPh')}
+                      </Text>
+                      <Ionicons
+                        name={uniDropOpen ? 'chevron-up' : 'chevron-down'}
+                        size={16}
+                        color={colors.textSecondary}
+                      />
+                    </TouchableOpacity>
+                    {uniDropOpen && (
+                      <View style={styles.dropdownPanel}>
+                        <View style={styles.dropdownSearch}>
+                          <Ionicons name="search" size={14} color={colors.textSecondary} />
+                          <TextInput
+                            style={styles.dropdownSearchInput}
+                            value={uniSearch}
+                            onChangeText={setUniSearch}
+                            placeholder={t('admin.uniSearchPh')}
+                            placeholderTextColor={colors.textSecondary}
+                            autoCapitalize="none"
+                          />
+                        </View>
+                        <ScrollView
+                          style={styles.dropdownList}
+                          keyboardShouldPersistTaps="handled"
+                          nestedScrollEnabled
+                        >
+                          {dbUniversities
+                            .filter(u => {
+                              const s = uniSearch.trim().toLowerCase();
+                              if (!s) return true;
+                              return (u.shortName || '').toLowerCase().includes(s)
+                                || (u.name || '').toLowerCase().includes(s);
+                            })
+                            .map(u => (
+                              <TouchableOpacity
+                                key={u.shortName}
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                  setForm({ ...form, university: u.shortName });
+                                  setUniDropOpen(false);
+                                  setUniSearch('');
+                                }}
+                              >
+                                <Text style={styles.dropdownItemText}>{u.shortName}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          {dbUniversities.length === 0 && (
+                            <Text style={styles.dropdownEmpty}>{t('search.noResult')}</Text>
+                          )}
+                        </ScrollView>
                       </View>
                     )}
                   </>
@@ -370,12 +417,29 @@ const createStyles = (colors) => StyleSheet.create({
   typeBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   typeBtnText: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
   typeBtnTextActive: { color: colors.white },
-  uniChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
-  uniChip: {
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14,
-    backgroundColor: colors.primary + '15',
+  dropdownField: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 12,
+    paddingVertical: 10, borderWidth: 1, borderColor: colors.border,
   },
-  uniChipText: { fontSize: 11, fontWeight: '600', color: colors.primary },
+  dropdownText: { fontSize: 14, color: colors.text, flex: 1, marginRight: 8 },
+  dropdownPanel: {
+    marginTop: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 10,
+    backgroundColor: colors.surface,
+  },
+  dropdownSearch: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 10, paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+  },
+  dropdownSearchInput: { flex: 1, fontSize: 13, color: colors.text },
+  dropdownList: { maxHeight: 220 },
+  dropdownItem: {
+    paddingHorizontal: 12, paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+  },
+  dropdownItemText: { fontSize: 13, color: colors.text },
+  dropdownEmpty: { padding: 14, textAlign: 'center', color: colors.textSecondary, fontSize: 12 },
   modalActions: { flexDirection: 'row', gap: 10, marginTop: 18 },
   cancelBtn: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: colors.inputBg, alignItems: 'center' },
   applyBtn: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center' },
