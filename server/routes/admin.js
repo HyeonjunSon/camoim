@@ -297,7 +297,7 @@ router.get('/users/:id', async (req, res) => {
     const u = await User.findById(req.params.id).select('-passwordHash').lean();
     if (!u) return res.status(404).json({ success: false, message: '유저를 찾을 수 없어요' });
 
-    const [postCount, commentCount, reportCount, reportedCount] = await Promise.all([
+    const [postCount, commentCount, reportCount, reportedCount, leaderOf] = await Promise.all([
       Post.countDocuments({ userId: u._id }),
       Comment.countDocuments({ userId: u._id }),
       Report.countDocuments({ reporterId: u._id }),
@@ -308,11 +308,17 @@ router.get('/users/:id', async (req, res) => {
         const ids = [...myPosts.map(p => p._id), ...myComments.map(c => c._id)];
         return Report.countDocuments({ targetId: { $in: ids } });
       })(),
+      // 이 회원이 학생회장으로 임명된 학교 (해당 학교명 또는 null)
+      University.findOne({ leaderUserId: u._id }).select('name').lean().then(r => r?.name || null),
     ]);
 
     res.json({
       success: true,
-      data: { ...u, stats: { postCount, commentCount, reportCount, reportedCount } },
+      data: {
+        ...u,
+        stats: { postCount, commentCount, reportCount, reportedCount },
+        universityLeaderOf: leaderOf,
+      },
     });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
@@ -387,6 +393,38 @@ router.put('/users/:id/role', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// PUT /api/admin/users/:id/university-leader { isLeader: boolean }
+// 인증 회원을 본인 학교의 학생회장으로 임명/해제. 학교당 1명, 자기 학교만.
+router.put('/users/:id/university-leader', async (req, res) => {
+  try {
+    const target = await User.findById(req.params.id).select('verified university nickname');
+    if (!target) return res.status(404).json({ success: false, message: '유저를 찾을 수 없어요' });
+    if (!target.verified || !target.university) {
+      return res.status(400).json({ success: false, message: '학교 인증된 회원만 임명할 수 있어요.' });
+    }
+    const uni = await University.findOne({ name: target.university });
+    if (!uni) {
+      return res.status(404).json({ success: false, message: '대상 학교를 학교 마스터에서 찾을 수 없어요.' });
+    }
+
+    const isLeader = !!req.body?.isLeader;
+    if (isLeader) {
+      uni.leaderUserId = target._id;
+    } else if (uni.leaderUserId && String(uni.leaderUserId) === String(target._id)) {
+      uni.leaderUserId = null;
+    }
+    await uni.save();
+    logAdmin(req, 'university.leader', {
+      targetType: 'user', targetId: target._id,
+      meta: { university: target.university, isLeader },
+    });
+    res.json({ success: true, data: { university: target.university, isLeader } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
   }
 });

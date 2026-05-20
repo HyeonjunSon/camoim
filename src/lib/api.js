@@ -285,6 +285,8 @@ export const adminListUniversities = () => request('GET', '/admin/universities')
 export const adminCreateUniversity = (data) => request('POST', '/admin/universities', data);
 export const adminUpdateUniversity = (id, data) => request('PUT', `/admin/universities/${id}`, data);
 export const adminDeleteUniversity = (id) => request('DELETE', `/admin/universities/${id}`);
+export const adminSetUniversityLeader = (userId, isLeader) =>
+  request('PUT', `/admin/users/${userId}/university-leader`, { isLeader });
 
 // 관리자 - 통계 / 시스템 / 로그 / 푸시
 export const adminGetStats = () => request('GET', '/admin/stats');
@@ -382,6 +384,8 @@ export const getGroupPosts = (groupId, { page = 1, limit = 20 } = {}) =>
 export const getGroupChat = (groupId) => request('GET', `/groups/${groupId}/chat`);
 export const getSchoolChat = () => request('GET', '/universities/chat');
 export const getSchoolMemberCount = () => request('GET', '/universities/members/count');
+export const getSchoolCommunity = () => request('GET', '/universities/community');
+export const updateSchoolCommunity = (data) => request('PUT', '/universities/community', data);
 
 export const uploadGroupCover = async (groupId, asset) => {
   const token = await getToken();

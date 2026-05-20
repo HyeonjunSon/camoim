@@ -13,6 +13,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import {
   adminGetUser, adminSanctionUser, adminSetUserRole, adminDeleteUser, adminEditUserProfile,
+  adminSetUniversityLeader,
 } from '../../lib/api';
 
 const ROLES = ['admin', 'student', 'working_holiday', 'general'];
@@ -54,6 +55,24 @@ export default function AdminUserDetailScreen({ route, navigation }) {
     } catch (e) {
       Alert.alert('실패', e.message || '오류');
     }
+  };
+
+  const toggleLeader = (isLeader) => {
+    const verb = isLeader ? '임명' : '해제';
+    Alert.alert(`학생회장 ${verb}`, `${user.nickname}님을 학생회장으로 ${verb}할까요?`, [
+      { text: '취소', style: 'cancel' },
+      {
+        text: verb,
+        onPress: async () => {
+          try {
+            await adminSetUniversityLeader(userId, isLeader);
+            load();
+          } catch (e) {
+            Alert.alert('실패', e.message || '오류');
+          }
+        },
+      },
+    ]);
   };
 
   const changeRole = (role) => {
@@ -172,6 +191,35 @@ export default function AdminUserDetailScreen({ route, navigation }) {
           />
         ))}
       </View>
+
+      {/* 학생회장 — 학교 인증된 회원에만 노출 */}
+      {user.verified && user.university && (
+        <>
+          <Text style={styles.section}>학생회장</Text>
+          <View style={styles.card}>
+            <View style={{ paddingHorizontal: 12, paddingVertical: 10 }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>대상 학교</Text>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700', marginTop: 2 }}>
+                {user.university}
+              </Text>
+              {user.universityLeaderOf === user.university ? (
+                <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '700', marginTop: 4 }}>
+                  현재 학생회장 ✓
+                </Text>
+              ) : user.universityLeaderOf ? (
+                <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4 }}>
+                  다른 학교 학생회장: {user.universityLeaderOf}
+                </Text>
+              ) : null}
+            </View>
+            {user.universityLeaderOf === user.university ? (
+              <ActionBtn styles={styles} label="학생회장 해제" onPress={() => toggleLeader(false)} />
+            ) : (
+              <ActionBtn styles={styles} label="학생회장으로 임명" onPress={() => toggleLeader(true)} />
+            )}
+          </View>
+        </>
+      )}
 
       {/* 위험 */}
       <Text style={styles.section}>⚠️ 위험</Text>

@@ -4,6 +4,7 @@ import BoardFeedScreen from '../screens/board/BoardFeedScreen';
 import BoardPostDetailScreen from '../screens/board/BoardPostDetailScreen';
 import CreatePostScreen from '../screens/board/CreatePostScreen';
 import UniversityBoardScreen from '../screens/board/UniversityBoardScreen';
+import SchoolCommunityEditScreen from '../screens/board/SchoolCommunityEditScreen';
 import VerifyStudentScreen from '../screens/auth/VerifyStudentScreen';
 import UserProfileScreen from '../screens/user/UserProfileScreen';
 import ChatRoomScreen from '../screens/chat/ChatRoomScreen';
@@ -34,6 +35,7 @@ export default function BoardStack() {
     >
       <Stack.Screen name="BoardList"       component={BoardListScreen}       options={{ title: t('board.title') }} />
       <Stack.Screen name="UniversityBoard" component={UniversityBoardScreen} options={{ title: t('nav.schoolCommunity') }} />
+      <Stack.Screen name="SchoolCommunityEdit" component={SchoolCommunityEditScreen} options={{ headerShown: false }} />
       <Stack.Screen name="BoardFeed"       component={BoardFeedScreen}       options={{ title: t('nav.boardFeed') }} />
       <Stack.Screen name="BoardPostDetail" component={BoardPostDetailScreen} options={{ title: t('post.postTitle') }} />
       <Stack.Screen name="CreatePost"      component={CreatePostScreen}      options={{ headerShown: false, presentation: 'modal', gestureEnabled: false }} />

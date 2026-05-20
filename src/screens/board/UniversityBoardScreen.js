@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Text, TextInput } from '../../components/StyledText';
 import {
   View,
@@ -6,13 +6,15 @@ import {
   ActivityIndicator,
   StyleSheet,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { Image } from 'expo-image';
-import { getUniversityBoards, getGroups, getSchoolChat, getSchoolMemberCount } from '../../lib/api';
+import { getUniversityBoards, getGroups, getSchoolChat, getSchoolMemberCount, getSchoolCommunity } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { getBoardName, getBoardDescription } from '../../lib/i18n';
@@ -46,6 +48,7 @@ export default function UniversityBoardScreen({ navigation }) {
   const [boards, setBoards] = useState([]);
   const [schoolGroups, setSchoolGroups] = useState([]);
   const [memberCount, setMemberCount] = useState(null);
+  const [community, setCommunity] = useState(null); // { community, canEdit, isLeader }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
@@ -55,7 +58,19 @@ export default function UniversityBoardScreen({ navigation }) {
     fetchBoards();
     fetchSchoolGroups();
     fetchMemberCount();
+    fetchCommunity();
   }, []);
+
+  // 편집 화면에서 돌아왔을 때 새 데이터 반영
+  useFocusEffect(useCallback(() => { fetchCommunity(); }, []));
+
+  async function fetchCommunity() {
+    if (!user?.verified || !user?.university) return;
+    try {
+      const res = await getSchoolCommunity();
+      if (res.success) setCommunity(res.data);
+    } catch {}
+  }
 
   async function fetchMemberCount() {
     if (!user?.verified || !user?.university) return;
@@ -250,6 +265,80 @@ export default function UniversityBoardScreen({ navigation }) {
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.primary} />
         </TouchableOpacity>
+      )}
+
+      {/* ── 학교 커뮤니티 카드 — 학생회장이 꾸미는 소셜 링크 + 공지 ── */}
+      {!isAdmin && user?.verified && user?.university && community && (
+        (() => {
+          const c = community.community || {};
+          const links = [
+            c.instagram && { kind: 'instagram', icon: 'logo-instagram', color: '#E1306C', label: 'Instagram', url: c.instagram },
+            c.kakaoOpen && { kind: 'kakaoOpen', icon: 'chatbubble-ellipses', color: '#FAE100', label: '카톡 오픈채팅', url: c.kakaoOpen },
+            c.discord && { kind: 'discord', icon: 'logo-discord', color: '#5865F2', label: 'Discord', url: c.discord },
+            c.homepage && { kind: 'homepage', icon: 'globe', color: colors.primary, label: '홈페이지', url: c.homepage },
+          ].filter(Boolean);
+          const hasAny = links.length > 0 || !!c.notice;
+          if (!hasAny && !community.canEdit) return null;
+          return (
+            <View style={styles.communityCard}>
+              <View style={styles.communityHeader}>
+                <View style={styles.communityTitleRow}>
+                  <Ionicons name="sparkles" size={14} color={colors.primary} />
+                  <Text style={styles.communityTitle}>{t('board.communityTitle')}</Text>
+                  {community.isLeader && (
+                    <View style={styles.leaderBadge}>
+                      <Text style={styles.leaderBadgeText}>{t('board.leaderBadge')}</Text>
+                    </View>
+                  )}
+                </View>
+                {community.canEdit && (
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('SchoolCommunityEdit')}
+                    style={styles.communityEditBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('board.communityEdit')}
+                  >
+                    <Ionicons name="create-outline" size={14} color={colors.primary} />
+                    <Text style={styles.communityEditText}>{t('board.communityEdit')}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {!!c.notice && (
+                <View style={styles.communityNotice}>
+                  <Ionicons name="megaphone" size={13} color={colors.primary} style={{ marginTop: 2 }} />
+                  <Text style={styles.communityNoticeText}>{c.notice}</Text>
+                </View>
+              )}
+
+              {links.length > 0 && (
+                <View style={styles.communityLinksRow}>
+                  {links.map(l => (
+                    <TouchableOpacity
+                      key={l.kind}
+                      style={styles.communityLinkChip}
+                      onPress={() => Linking.openURL(/^https?:\/\//i.test(l.url) ? l.url : `https://${l.url}`).catch(() => {})}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name={l.icon} size={14} color={l.color} />
+                      <Text style={styles.communityLinkText}>{l.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {!hasAny && community.canEdit && (
+                <TouchableOpacity
+                  style={styles.communityEmptyCta}
+                  onPress={() => navigation.navigate('SchoolCommunityEdit')}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.communityEmptyText}>{t('board.communityEmpty')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })()
       )}
 
       {/* ── admin: 검색 + 학교별 접기/펼치기 ── */}
@@ -530,6 +619,82 @@ const createStyles = (colors) => StyleSheet.create({
     letterSpacing: 0.5,
   },
   chatEntrySub: { fontSize: 12, color: colors.textSecondary, marginTop: 3, fontWeight: '500' },
+
+  // ── 학교 커뮤니티 카드 (학생회장 편집 영역)
+  communityCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  communityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  communityTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  communityTitle: { fontSize: 14, fontWeight: '800', color: colors.text, letterSpacing: -0.2 },
+  leaderBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: colors.primary + '18',
+  },
+  leaderBadgeText: { fontSize: 10, fontWeight: '800', color: colors.primary },
+  communityEditBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: colors.primary + '12',
+  },
+  communityEditText: { fontSize: 11, fontWeight: '700', color: colors.primary },
+  communityNotice: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: colors.primary + '08',
+    borderRadius: 10,
+  },
+  communityNoticeText: { flex: 1, fontSize: 12, color: colors.text, lineHeight: 17 },
+  communityLinksRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+  },
+  communityLinkChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  communityLinkText: { fontSize: 11, fontWeight: '700', color: colors.text },
+  communityEmptyCta: {
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: colors.inputBg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  communityEmptyText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
 
   // ── 섹션 헤더 (게시판/동아리 공통)
   sectionHeader: {
