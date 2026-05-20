@@ -212,12 +212,21 @@ export default function ChatRoomScreen({ route, navigation }) {
       ? (item.readBy.some(id => String(id) === String(other?.id)) ? 0 : 1)
       : 0;
     const senderName = item.senderNickname || (other?.nickname ?? '');
+    // 그룹/학교 채팅에서만 sender 프로필 탭 허용 (탈퇴/null sender 가드)
+    const canTapSender = isGroupChat && !isMine && !!item.senderId;
+    const openSenderProfile = () => {
+      if (canTapSender) navigation.push('UserProfile', { userId: String(item.senderId) });
+    };
 
     return (
       <View style={[styles.msgRow, isMine ? styles.msgRowRight : styles.msgRowLeft]}>
         {!isMine && (
           showAvatar
-            ? <Avatar nickname={senderName || '?'} uri={isGroupChat ? null : other?.avatarUrl} size={30} showLetter />
+            ? (canTapSender
+                ? <TouchableOpacity onPress={openSenderProfile} activeOpacity={0.7}>
+                    <Avatar nickname={senderName || '?'} uri={isGroupChat ? null : other?.avatarUrl} size={30} showLetter />
+                  </TouchableOpacity>
+                : <Avatar nickname={senderName || '?'} uri={isGroupChat ? null : other?.avatarUrl} size={30} showLetter />)
             : <View style={styles.avatarSpacer} />
         )}
         {isMine && unreadCount > 0 && (
@@ -225,7 +234,11 @@ export default function ChatRoomScreen({ route, navigation }) {
         )}
         <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleOther]}>
           {!isMine && showAvatar && (
-            <Text style={styles.bubbleSender}>{senderName}</Text>
+            canTapSender
+              ? <TouchableOpacity onPress={openSenderProfile} activeOpacity={0.7}>
+                  <Text style={styles.bubbleSender}>{senderName}</Text>
+                </TouchableOpacity>
+              : <Text style={styles.bubbleSender}>{senderName}</Text>
           )}
           <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{item.content}</Text>
           <Text style={[styles.bubbleTime, isMine && styles.bubbleTimeMine]}>
