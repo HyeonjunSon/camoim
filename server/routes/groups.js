@@ -208,6 +208,11 @@ router.get('/:id', optionalAuth, async (req, res) => {
       }
     }
 
+    // 커뮤니티 카드 편집 가능 여부 — 그룹장/부그룹장만
+    const canEditCommunity = !!(myMembership &&
+      (myMembership.role === 'owner' || myMembership.role === 'manager') &&
+      myMembership.status === 'active');
+
     res.json({
       success: true,
       data: {
@@ -227,6 +232,8 @@ router.get('/:id', optionalAuth, async (req, res) => {
         rejectReason: group.rejectReason || undefined,
         createdAt: group.createdAt,
         myMembership,
+        community: group.community || { instagram: '', kakaoOpen: '', discord: '', homepage: '', notice: '' },
+        canEditCommunity,
       },
     });
   } catch (err) {
@@ -264,6 +271,46 @@ router.put('/:id', requireAuth, async (req, res) => {
     }
 
     res.json({ success: true, data: { message: '수정되었어요.' } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ── PUT /api/groups/:id/community — 그룹 커뮤니티 카드 편집 (owner/manager) ──
+const COMMUNITY_FIELDS = ['instagram', 'kakaoOpen', 'discord', 'homepage', 'notice'];
+
+function normalizeCommunityField(field, raw) {
+  const s = String(raw || '').trim();
+  if (!s || field === 'notice') return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (field === 'instagram') {
+    const handle = s.replace(/^@/, '').replace(/^instagram\.com\//i, '').replace(/^www\.instagram\.com\//i, '');
+    if (!handle.includes('/') && !handle.includes('.')) {
+      return `https://instagram.com/${handle}`;
+    }
+    return `https://${handle.replace(/^https?:\/\//, '')}`;
+  }
+  return `https://${s.replace(/^\/+/, '')}`;
+}
+
+router.put('/:id/community', requireAuth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
+    const my = await getMyMembership(group._id, req.user.id);
+    if (!canManage(my)) {
+      return res.status(403).json({ success: false, message: '그룹장 또는 부그룹장만 편집할 수 있어요.' });
+    }
+    const patch = {};
+    for (const f of COMMUNITY_FIELDS) {
+      if (req.body?.[f] !== undefined) {
+        const normalized = normalizeCommunityField(f, req.body[f]);
+        patch[`community.${f}`] = normalized.slice(0, f === 'notice' ? 500 : 300);
+      }
+    }
+    await Group.findByIdAndUpdate(group._id, { $set: patch });
+    res.json({ success: true });
   } catch (err) {
     console.error('[api]', req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });

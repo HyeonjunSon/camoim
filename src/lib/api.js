@@ -379,6 +379,8 @@ export const transferGroupOwner = (groupId, newOwnerId) =>
   request('POST', `/groups/${groupId}/transfer`, { newOwnerId });
 export const setGroupNotifications = (groupId, { notifyPosts, notifyChat }) =>
   request('PUT', `/groups/${groupId}/notifications`, { notifyPosts, notifyChat });
+export const updateGroupCommunity = (groupId, data) =>
+  request('PUT', `/groups/${groupId}/community`, data);
 export const getGroupPosts = (groupId, { page = 1, limit = 20 } = {}) =>
   request('GET', `/groups/${groupId}/posts?page=${page}&limit=${limit}`);
 export const getGroupChat = (groupId) => request('GET', `/groups/${groupId}/chat`);

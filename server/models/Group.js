@@ -1,5 +1,14 @@
 const mongoose = require('mongoose');
 
+// community: 그룹장이 직접 꾸미는 소셜 링크 + 공지 (학교 커뮤니티 카드와 동일 패턴)
+const communitySchema = new mongoose.Schema({
+  instagram: { type: String, default: '', maxlength: 300 },
+  kakaoOpen: { type: String, default: '', maxlength: 300 },
+  discord:   { type: String, default: '', maxlength: 300 },
+  homepage:  { type: String, default: '', maxlength: 300 },
+  notice:    { type: String, default: '', maxlength: 500 },
+}, { _id: false });
+
 // 사용자가 만드는 주제별 모임 (그룹)
 // admin 승인 후 활성화됨. 활성화되면 게시판 + 그룹 채팅이 자동으로 묶여서 운영됨.
 const groupSchema = new mongoose.Schema({
@@ -39,6 +48,9 @@ const groupSchema = new mongoose.Schema({
   reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   reviewedAt: { type: Date, default: null },
   closedAt: { type: Date, default: null },
+
+  // 그룹장(또는 부그룹장)이 꾸미는 소셜·공지 카드
+  community: { type: communitySchema, default: () => ({}) },
 }, { timestamps: true });
 
 groupSchema.index({ status: 1, category: 1, createdAt: -1 });

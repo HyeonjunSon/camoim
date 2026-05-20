@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
-  View, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, StyleSheet, Modal, Switch,
+  View, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, StyleSheet, Modal, Switch, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -340,6 +340,72 @@ export default function GroupDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       )}
 
+      {/* 모임 커뮤니티 카드 — 그룹장/부그룹장이 꾸미는 소셜·공지 */}
+      {isMember && (() => {
+        const c = group.community || {};
+        const links = [
+          c.instagram && { kind: 'instagram', icon: 'logo-instagram', color: '#E1306C', label: 'Instagram', url: c.instagram },
+          c.kakaoOpen && { kind: 'kakaoOpen', icon: 'chatbubble-ellipses', color: '#FAE100', label: '카톡 오픈채팅', url: c.kakaoOpen },
+          c.discord && { kind: 'discord', icon: 'logo-discord', color: '#5865F2', label: 'Discord', url: c.discord },
+          c.homepage && { kind: 'homepage', icon: 'globe', color: colors.primary, label: '홈페이지', url: c.homepage },
+        ].filter(Boolean);
+        const hasAny = links.length > 0 || !!c.notice;
+        if (!hasAny && !group.canEditCommunity) return null;
+        return (
+          <View style={styles.communityCard}>
+            <View style={styles.communityHeader}>
+              <View style={styles.communityTitleRow}>
+                <Ionicons name="sparkles" size={14} color={colors.primary} />
+                <Text style={styles.communityTitle}>{t('board.communityTitle')}</Text>
+              </View>
+              {group.canEditCommunity && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('GroupCommunityEdit', { groupId })}
+                  style={styles.communityEditBtn}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="create-outline" size={14} color={colors.primary} />
+                  <Text style={styles.communityEditText}>{t('board.communityEdit')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {!!c.notice && (
+              <View style={styles.communityNotice}>
+                <Ionicons name="megaphone" size={13} color={colors.primary} style={{ marginTop: 2 }} />
+                <Text style={styles.communityNoticeText}>{c.notice}</Text>
+              </View>
+            )}
+
+            {links.length > 0 && (
+              <View style={styles.communityLinksRow}>
+                {links.map(l => (
+                  <TouchableOpacity
+                    key={l.kind}
+                    style={styles.communityLinkChip}
+                    onPress={() => Linking.openURL(/^https?:\/\//i.test(l.url) ? l.url : `https://${l.url}`).catch(() => {})}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name={l.icon} size={14} color={l.color} />
+                    <Text style={styles.communityLinkText}>{l.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {!hasAny && group.canEditCommunity && (
+              <TouchableOpacity
+                style={styles.communityEmptyCta}
+                onPress={() => navigation.navigate('GroupCommunityEdit', { groupId })}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.communityEmptyText}>{t('board.communityEmpty')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        );
+      })()}
+
       {/* 모임 게시판 — 멤버 전용 */}
       {isMember && (
         <View style={styles.postsSection}>
@@ -601,6 +667,70 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.inputBg, borderRadius: 12,
   },
   sheetCloseText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+
+  // 커뮤니티 카드 (그룹장 편집)
+  communityCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  communityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  communityTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  communityTitle: { fontSize: 14, fontWeight: '800', color: colors.text, letterSpacing: -0.2 },
+  communityEditBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: colors.primary + '12',
+  },
+  communityEditText: { fontSize: 11, fontWeight: '700', color: colors.primary },
+  communityNotice: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: colors.primary + '08',
+    borderRadius: 10,
+  },
+  communityNoticeText: { flex: 1, fontSize: 12, color: colors.text, lineHeight: 17 },
+  communityLinksRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  communityLinkChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  communityLinkText: { fontSize: 11, fontWeight: '700', color: colors.text },
+  communityEmptyCta: {
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: colors.inputBg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  communityEmptyText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
 
   // 게시판 섹션
   postsSection: { marginTop: 4 },
