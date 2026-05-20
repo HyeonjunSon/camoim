@@ -108,12 +108,10 @@ router.put('/verify-requests/:id/reject', async (req, res) => {
   }
 });
 
-// 학교 게시판 4종 자동 생성 헬퍼
+// 학교 게시판 자동 생성 헬퍼 (free + anonymous 2종)
 const UNIVERSITY_BOARD_TEMPLATES = [
-  { slugSuffix: 'free',      name: '학교자유게시판',     description: '학교 친구들과 자유롭게 이야기해요',         isAnonymousAllowed: false, sortOrder: 1 },
-  { slugSuffix: 'anonymous', name: '학교 익명',          description: '익명으로 털어놓아요',                       isAnonymousAllowed: true,  sortOrder: 2 },
-  { slugSuffix: 'meetup',    name: '학교 한인 모임',     description: '밥약·스터디·운동·동아리 같이 할 사람 찾아요', isAnonymousAllowed: false, sortOrder: 3 },
-  { slugSuffix: 'info',      name: '학교 유학생 정보',   description: '학교 생활·비자·세금 등 궁금한 걸 물어봐요',   isAnonymousAllowed: false, sortOrder: 4 },
+  { slugSuffix: 'free',      name: '학교자유게시판',     description: '학교 친구들과 자유롭게 이야기해요', isAnonymousAllowed: false, sortOrder: 1 },
+  { slugSuffix: 'anonymous', name: '학교 익명',          description: '익명으로 털어놓아요',               isAnonymousAllowed: true,  sortOrder: 2 },
 ];
 
 async function ensureUniversityBoards(universityShortName) {

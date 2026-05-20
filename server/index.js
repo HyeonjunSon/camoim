@@ -118,7 +118,7 @@ async function seedBoards() {
   console.log('✅ 기본 게시판 확인 완료');
 }
 
-// 학교 게시판 일회성 마이그레이션: 옛 4종(notice/qna) → 새 4종(meetup/info)
+// 학교 게시판 시드/정리: 현재 템플릿은 free + anonymous 2종 (meetup/info는 1.0.5에서 제거)
 async function migrateUniversityBoards() {
   // 1) 옛 학교 자유게시판 이름 정리: "학교 자유게시판" → "학교자유게시판"
   await Board.updateMany(
@@ -174,10 +174,8 @@ async function migrateUniversityBoards() {
   const existing = await Board.distinct('university', { isUniversityBoard: true, university: { $ne: null } });
   const universities = Array.from(new Set([...SEED_UNIVERSITIES, ...existing]));
   const newTemplates = [
-    { slugSuffix: 'free',      name: '학교자유게시판',   description: '학교 친구들과 자유롭게 이야기해요',          isAnonymousAllowed: false, sortOrder: 1 },
-    { slugSuffix: 'anonymous', name: '학교익명게시판',   description: '학교 친구들과 익명으로 이야기해요',          isAnonymousAllowed: true,  sortOrder: 2 },
-    { slugSuffix: 'meetup',    name: '학교 한인 모임',   description: '밥약·스터디·운동·동아리 같이 할 사람 찾아요', isAnonymousAllowed: false, sortOrder: 3 },
-    { slugSuffix: 'info',      name: '학교 유학생 정보', description: '학교 생활·비자·세금 등 궁금한 걸 물어봐요',   isAnonymousAllowed: false, sortOrder: 4 },
+    { slugSuffix: 'free',      name: '학교자유게시판', description: '학교 친구들과 자유롭게 이야기해요', isAnonymousAllowed: false, sortOrder: 1 },
+    { slugSuffix: 'anonymous', name: '학교익명게시판', description: '학교 친구들과 익명으로 이야기해요', isAnonymousAllowed: true,  sortOrder: 2 },
   ];
   for (const uni of universities) {
     if (!uni) continue;
