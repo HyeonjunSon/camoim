@@ -45,6 +45,8 @@ export default function GroupListScreen({ navigation, embedded = false }) {
     try {
       const params = { box, sort };
       if (category !== 'all') params.category = category;
+      // 일반 모임 화면에선 학교 한정 동아리 제외 — 학교 동아리는 학교 커뮤니티 페이지에서만
+      if (box === 'all') params.excludeUniversity = true;
       const res = await getGroups(params);
       if (res.success) setGroups(res.data || []);
     } catch {

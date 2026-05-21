@@ -167,8 +167,11 @@ export const TRANSLATIONS = {
     },
     community: {
       instagram: 'Instagram', kakaoOpen: '카톡 오픈채팅', discord: 'Discord', homepage: '홈페이지',
-      notice: '공지 한 줄', noticePh: '신입 환영! 학기 OT 3/2 19시 본관 강당',
+      notice: '공지 한 줄', noticePh: '정모 일정·중요 안내 등 한 줄로 적어주세요',
       linksLabel: '소셜·링크',
+    },
+    schoolMembers: {
+      title: '인증 회원', searchPh: '닉네임 검색', me: '나',
     },
     draft: {
       title: '임시저장 글', openList: '임시저장 목록', empty: '아직 임시저장한 글이 없어요',
@@ -885,8 +888,11 @@ export const TRANSLATIONS = {
     },
     community: {
       instagram: 'Instagram', kakaoOpen: 'Kakao Open Chat', discord: 'Discord', homepage: 'Homepage',
-      notice: 'One-line notice', noticePh: 'Welcome new students! Orientation Mar 2, 7 PM, Main Hall',
+      notice: 'One-line notice', noticePh: 'Meetup schedule, important update, etc.',
       linksLabel: 'Social · Links',
+    },
+    schoolMembers: {
+      title: 'Verified members', searchPh: 'Search nickname', me: 'You',
     },
     draft: {
       title: 'Drafts', openList: 'Open draft list', empty: 'No drafts yet',

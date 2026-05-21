@@ -27,10 +27,10 @@ import Avatar from '../../components/common/Avatar';
 import CustomHeader from '../../components/CustomHeader';
 
 const FIELDS = [
-  { key: 'instagram', icon: 'logo-instagram', color: '#E1306C', labelKey: 'community.instagram', placeholder: '@uoft.korean 또는 https://instagram.com/...' },
-  { key: 'kakaoOpen', icon: 'chatbubble-ellipses', color: '#FAE100', labelKey: 'community.kakaoOpen', placeholder: 'https://open.kakao.com/...' },
-  { key: 'discord', icon: 'logo-discord', color: '#5865F2', labelKey: 'community.discord', placeholder: 'https://discord.gg/...' },
-  { key: 'homepage', icon: 'globe', color: '#10B981', labelKey: 'community.homepage', placeholder: 'https://...' },
+  { key: 'instagram', icon: 'logo-instagram', color: '#E1306C', labelKey: 'community.instagram', placeholder: 'your_handle' },
+  { key: 'kakaoOpen', icon: 'chatbubble-ellipses', color: '#FAE100', labelKey: 'community.kakaoOpen', placeholder: 'open.kakao.com/o/...' },
+  { key: 'discord', icon: 'logo-discord', color: '#5865F2', labelKey: 'community.discord', placeholder: 'discord.gg/...' },
+  { key: 'homepage', icon: 'globe', color: '#10B981', labelKey: 'community.homepage', placeholder: 'example.com' },
 ];
 
 export default function SchoolCommunityEditScreen({ navigation }) {

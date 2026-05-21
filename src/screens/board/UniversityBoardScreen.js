@@ -226,13 +226,19 @@ export default function UniversityBoardScreen({ navigation }) {
                 {isAdmin ? t('board.schoolBoardAdmin') : `Community · ${t('board.forStudents')}`}
               </Text>
             </View>
-            {/* 인증 회원수 카드 — 모임의 메타 칩처럼 hero 우측에 간결하게 */}
+            {/* 인증 회원수 카드 — 탭하면 멤버 목록 화면으로 (모임 패턴) */}
             {!isAdmin && memberCount != null && (
-              <View style={styles.heroMemberBadge}>
+              <TouchableOpacity
+                style={styles.heroMemberBadge}
+                onPress={() => navigation.navigate('SchoolMembers')}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={t('schoolMembers.title')}
+              >
                 <Ionicons name="people" size={12} color={colors.white} />
                 <Text style={styles.heroMemberCount}>{memberCount}</Text>
                 <Text style={styles.heroMemberLabel}>{t('group.member')}</Text>
-              </View>
+              </TouchableOpacity>
             )}
           </View>
         </LinearGradient>

@@ -167,7 +167,9 @@ router.put('/community', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/universities/members?search=&limit=50 — 같은 학교 인증 회원 검색 (본인 제외)
+// GET /api/universities/members?search=&limit=50&includeSelf=true|false
+// 같은 학교 인증 회원 목록. includeSelf=false (기본, picker용)는 본인 제외,
+// true는 본인 포함 (커뮤니티 멤버 리스트 화면용)
 router.get('/members', requireAuth, async (req, res) => {
   try {
     const me = await User.findById(req.user.id).select('verified university').lean();
@@ -175,22 +177,30 @@ router.get('/members', requireAuth, async (req, res) => {
       return res.status(403).json({ success: false, message: '학교 인증이 필요해요.' });
     }
     const search = String(req.query.search || '').trim();
-    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const limit = Math.min(Number(req.query.limit) || 100, 200);
+    const includeSelf = String(req.query.includeSelf || 'false') === 'true';
     const filter = {
-      _id: { $ne: req.user.id },
       verified: true,
       university: me.university,
     };
+    if (!includeSelf) filter._id = { $ne: req.user.id };
     if (search) {
       const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.nickname = { $regex: escaped, $options: 'i' };
     }
     const list = await User.find(filter)
-      .select('nickname avatarUrl')
+      .select('nickname avatarUrl role')
       .sort({ nickname: 1 })
       .limit(limit)
       .lean();
-    res.json({ success: true, data: list.map(u => ({ id: u._id, nickname: u.nickname, avatarUrl: u.avatarUrl })) });
+    // 학생회장 ID 같이 전달 → 클라에서 ⭐ 배지
+    const uni = await University.findOne({ name: me.university }).select('leaderUserId').lean();
+    res.json({
+      success: true,
+      data: list.map(u => ({ id: u._id, nickname: u.nickname, avatarUrl: u.avatarUrl, role: u.role })),
+      leaderUserId: uni?.leaderUserId || null,
+      university: me.university,
+    });
   } catch (err) {
     console.error('[api]', req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });
