@@ -27,7 +27,7 @@ import Avatar from '../../components/common/Avatar';
 import CustomHeader from '../../components/CustomHeader';
 
 const FIELDS = [
-  { key: 'instagram', icon: 'logo-instagram', color: '#E1306C', labelKey: 'community.instagram', placeholder: 'your_handle' },
+  { key: 'instagram', icon: 'logo-instagram', color: '#E1306C', labelKey: 'community.instagram', placeholder: 'instagram.com/...' },
   { key: 'kakaoOpen', icon: 'chatbubble-ellipses', color: '#FAE100', labelKey: 'community.kakaoOpen', placeholder: 'open.kakao.com/o/...' },
   { key: 'discord', icon: 'logo-discord', color: '#5865F2', labelKey: 'community.discord', placeholder: 'discord.gg/...' },
   { key: 'homepage', icon: 'globe', color: '#10B981', labelKey: 'community.homepage', placeholder: 'example.com' },
