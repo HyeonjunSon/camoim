@@ -27,7 +27,8 @@ const coverStorage = new CloudinaryStorage({
   params: {
     folder: 'camoim/groups',
     allowed_formats: ['jpg', 'jpeg', 'png', 'heic', 'heif', 'webp'],
-    transformation: [{ width: 1200, height: 600, crop: 'fill', quality: 'auto', fetch_format: 'auto' }],
+    // 원본 비율 유지 (1200x600 안에 들어가도록만 축소) — 디스플레이에서 contain으로 letterbox
+    transformation: [{ width: 1200, height: 1200, crop: 'limit', quality: 'auto', fetch_format: 'auto' }],
   },
 });
 const uploadCover = multer({ storage: coverStorage, limits: { fileSize: 10 * 1024 * 1024 } });

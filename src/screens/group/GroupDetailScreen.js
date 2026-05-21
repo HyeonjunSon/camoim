@@ -117,10 +117,10 @@ export default function GroupDetailScreen({ route, navigation }) {
       Alert.alert(t('post.permRequired'), t('post.permPhotoMsg'));
       return;
     }
+    // iOS는 allowsEditing=true일 때 aspect를 무시하고 정사각형 크롭 강제 → 비활성화
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [2, 1],
+      allowsEditing: false,
       quality: 1,
     });
     if (result.canceled) return;
@@ -215,7 +215,9 @@ export default function GroupDetailScreen({ route, navigation }) {
           disabled={!isOwner || uploadingCover}
         >
           {group.coverImage ? (
-            <Image source={{ uri: group.coverImage }} style={styles.cover} contentFit="cover" />
+            <View style={[styles.cover, styles.coverLetterbox]}>
+              <Image source={{ uri: group.coverImage }} style={StyleSheet.absoluteFill} contentFit="contain" />
+            </View>
           ) : (
             <View style={[styles.cover, { backgroundColor: colors.primary + '20', alignItems: 'center', justifyContent: 'center' }]}>
               <Text style={{ fontSize: 56 }}>👥</Text>
@@ -590,6 +592,7 @@ const createStyles = (colors) => StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   header: { backgroundColor: colors.surface, marginBottom: 12 },
   cover: { width: '100%', height: 180 },
+  coverLetterbox: { backgroundColor: '#000' }, // contain 잔여 영역 배경
   coverEditBadge: {
     position: 'absolute',
     right: 12,

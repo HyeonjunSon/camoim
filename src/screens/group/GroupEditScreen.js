@@ -65,10 +65,11 @@ export default function GroupEditScreen({ route, navigation }) {
       Alert.alert(t('post.permRequired'), t('post.permPhotoMsg'));
       return;
     }
+    // iOS는 allowsEditing=true일 때 aspect를 무시하고 정사각형 크롭을 강제함 →
+    // 강제 크롭 비활성화하고 원본 비율 그대로 업로드 (디스플레이에서 contain으로 보여줌)
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [2, 1],
+      allowsEditing: false,
       quality: 1,
     });
     if (result.canceled) return;
@@ -136,7 +137,9 @@ export default function GroupEditScreen({ route, navigation }) {
         <Text style={styles.label}>커버 이미지</Text>
         <TouchableOpacity style={styles.coverWrap} onPress={onPickCover} activeOpacity={0.85} disabled={uploadingCover}>
           {coverImage ? (
-            <Image source={{ uri: coverImage }} style={styles.cover} contentFit="cover" />
+            <View style={[styles.cover, styles.coverLetterbox]}>
+              <Image source={{ uri: coverImage }} style={StyleSheet.absoluteFill} contentFit="contain" />
+            </View>
           ) : (
             <View style={[styles.cover, styles.coverPlaceholder]}>
               <Ionicons name="image-outline" size={36} color={colors.textSecondary} />
@@ -249,6 +252,7 @@ const createStyles = (colors) => StyleSheet.create({
 
   coverWrap: { borderRadius: 12, overflow: 'hidden', position: 'relative' },
   cover: { width: '100%', height: 160 },
+  coverLetterbox: { backgroundColor: '#000' },
   coverPlaceholder: {
     backgroundColor: colors.inputBg, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed',
