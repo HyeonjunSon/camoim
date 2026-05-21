@@ -1,6 +1,7 @@
 // 소셜 가입(애플/구글) 후 추가 정보 수집 화면
 // 이메일 가입은 SignupScreen으로 가고, 소셜은 여기서 닉네임/유형/도시/약관만 받음
 import { useState, useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   TouchableOpacity,
@@ -33,6 +34,7 @@ export default function OnboardingScreen({ route, navigation }) {
   const { colors } = useTheme();
   const { t } = useLang();
   const { completeOnboarding } = useAuth();
+  const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
 
   const preRegToken = route?.params?.preRegToken || '';
@@ -307,18 +309,18 @@ export default function OnboardingScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      {/* 약관/개인정보 본문 모달 */}
+      {/* 약관/개인정보 본문 모달 — fullscreen이라 insets.top 안 주면 닫기 버튼이 status bar에 겹침 */}
       <Modal visible={!!docModal} animationType="slide" onRequestClose={() => setDocModal(null)}>
-        <View style={styles.docContainer}>
+        <View style={[styles.docContainer, { paddingTop: insets.top }]}>
           <View style={styles.docHeader}>
             <Text style={styles.docTitle}>
               {docModal === 'terms' ? t('auth.agreeTerms') : t('auth.agreePrivacy')}
             </Text>
-            <TouchableOpacity onPress={() => setDocModal(null)}>
+            <TouchableOpacity onPress={() => setDocModal(null)} hitSlop={12}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.docBody}>
+          <ScrollView contentContainerStyle={[styles.docBody, { paddingBottom: insets.bottom + 24 }]}>
             <Text style={styles.docText}>
               {docModal === 'terms' ? TERMS_OF_SERVICE : PRIVACY_POLICY}
             </Text>
