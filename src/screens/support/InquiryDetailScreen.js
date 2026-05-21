@@ -46,19 +46,19 @@ export default function InquiryDetailScreen({ route }) {
         <Text style={styles.cat}>{t(`inquiry.c_${item.category}`)}</Text>
       </View>
 
-      <Text style={styles.title}>{item.title}</Text>
+      <Text selectable style={styles.title}>{item.title}</Text>
       <Text style={styles.date}>{new Date(item.createdAt).toLocaleString()}</Text>
 
       <Text style={styles.sectionLabel}>{t('inquiry.yourQuestion')}</Text>
       <View style={styles.box}>
-        <Text style={styles.bodyText}>{item.content}</Text>
+        <Text selectable style={styles.bodyText}>{item.content}</Text>
       </View>
 
       <Text style={styles.sectionLabel}>{t('inquiry.adminAnswer')}</Text>
       <View style={[styles.box, !answered && styles.boxEmpty]}>
         {answered ? (
           <>
-            <Text style={styles.bodyText}>{item.answer}</Text>
+            <Text selectable style={styles.bodyText}>{item.answer}</Text>
             {item.answeredAt && (
               <Text style={[styles.date, { marginTop: 8 }]}>
                 {new Date(item.answeredAt).toLocaleString()}

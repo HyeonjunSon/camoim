@@ -161,7 +161,7 @@ function CommentItem({ comment, isReply = false, onMore, onAvatarPress, onReply,
           </View>
         ) : (
           <>
-            <Text style={styles.commentContent}>{comment.content}</Text>
+            <Text selectable style={styles.commentContent}>{comment.content}</Text>
             {!isReply && onReply && (
               <TouchableOpacity
                 onPress={() => onReply(comment)}
@@ -543,7 +543,7 @@ export default function PostDetailScreen({ route, navigation }) {
           {post.boardName && <Text style={styles.boardTag}>{post.boardName}</Text>}
 
           {/* 제목 */}
-          <Text style={styles.title}>{post.title}</Text>
+          <Text selectable style={styles.title}>{post.title}</Text>
 
           {/* 작성자 행 */}
           <TouchableOpacity
@@ -573,12 +573,12 @@ export default function PostDetailScreen({ route, navigation }) {
 
           {/* 본문: HTML(리치 에디터) 또는 레거시 블록 */}
           {isHtmlContent(post.content) ? (
-            <View pointerEvents="none">
+            <View>
               <RenderHTML
                 contentWidth={winWidth - 40}
                 source={{ html: absolutizeHtml(post.content) }}
                 tagsStyles={htmlTagsStyles}
-                defaultTextProps={{ selectable: false, allowFontScaling: false }}
+                defaultTextProps={{ selectable: true, allowFontScaling: false }}
                 renderersProps={{ img: { initialDimensions: { width: winWidth - 40, height: 220 } } }}
                 enableExperimentalBRCollapsing
               />
@@ -595,6 +595,7 @@ export default function PostDetailScreen({ route, navigation }) {
               ) : (
                 <Text
                   key={idx}
+                  selectable
                   style={[
                     styles.content,
                     block.heading && styles.contentHeading,
