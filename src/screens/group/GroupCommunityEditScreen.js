@@ -80,7 +80,7 @@ export default function GroupCommunityEditScreen({ navigation, route }) {
   if (!canEdit) {
     return (
       <View style={styles.container}>
-        <CustomHeader navigation={navigation} title={t('board.communityEditTitle')} />
+        <CustomHeader navigation={navigation} title={t('group.communityEditTitle')} />
         <View style={styles.center}>
           <Ionicons name="lock-closed" size={32} color={colors.textSecondary} />
           <Text style={styles.lockText}>{t('group.communityNoPerm')}</Text>
@@ -93,7 +93,7 @@ export default function GroupCommunityEditScreen({ navigation, route }) {
     <View style={styles.container}>
       <CustomHeader
         navigation={navigation}
-        title={t('board.communityEditTitle')}
+        title={t('group.communityEditTitle')}
         rightActions={[
           { text: saving ? '...' : t('common.save'), onPress: saving ? undefined : onSave, disabled: saving, label: t('common.save') },
         ]}

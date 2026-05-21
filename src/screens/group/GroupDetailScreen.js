@@ -358,7 +358,7 @@ export default function GroupDetailScreen({ route, navigation }) {
             <View style={styles.communityHeader}>
               <View style={styles.communityTitleRow}>
                 <Ionicons name="sparkles" size={14} color={colors.primary} />
-                <Text style={styles.communityTitle}>{t('board.communityTitle')}</Text>
+                <Text style={styles.communityTitle}>{t('group.communityTitle')}</Text>
               </View>
               {group.canEditCommunity && (
                 <TouchableOpacity
@@ -401,7 +401,7 @@ export default function GroupDetailScreen({ route, navigation }) {
                 onPress={() => navigation.navigate('GroupCommunityEdit', { groupId })}
                 activeOpacity={0.85}
               >
-                <Text style={styles.communityEmptyText}>{t('board.communityEmpty')}</Text>
+                <Text style={styles.communityEmptyText}>{t('group.communityEmpty')}</Text>
               </TouchableOpacity>
             )}
           </View>

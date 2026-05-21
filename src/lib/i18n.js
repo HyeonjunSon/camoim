@@ -229,6 +229,9 @@ export const TRANSLATIONS = {
       notifyPosts: '새 글 알림', notifyChat: '채팅 알림',
       communityNoPerm: '그룹장 또는 부그룹장만 편집할 수 있어요.',
       communityEditHint: '그룹장·부그룹장이 인스타·카톡 등 모임 소셜 채널과 한 줄 공지를 등록할 수 있어요. 모임 멤버에게만 노출됩니다.',
+      communityTitle: '모임 소개',
+      communityEmpty: '아직 비어있어요 — 그룹장이 꾸며볼까요?',
+      communityEditTitle: '모임 소개 꾸미기',
     },
     post: {
       titlePlaceholder: '제목', contentPlaceholder: '내용을 입력하세요',
@@ -946,6 +949,9 @@ export const TRANSLATIONS = {
       notifyPosts: 'New post alerts', notifyChat: 'Chat alerts',
       communityNoPerm: 'Only the owner or sub-owners can edit.',
       communityEditHint: 'Owners and sub-owners can add Instagram, KakaoTalk and other channels plus a one-line notice. Visible only to group members.',
+      communityTitle: 'About this group',
+      communityEmpty: "It's empty — let the owner fill it in",
+      communityEditTitle: 'Edit group profile',
     },
     post: {
       titlePlaceholder: 'Title', contentPlaceholder: 'Write your content',
