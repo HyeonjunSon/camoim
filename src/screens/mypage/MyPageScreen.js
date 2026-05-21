@@ -540,45 +540,51 @@ export default function MyPageScreen({ navigation }) {
                 <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
               </TouchableOpacity>
 
-              <Text style={styles.fieldLabel}>{t('mypage.school')}</Text>
-              {user?.verified && user?.university ? (
-                // 인증된 사용자: 학교 read-only + 변경 버튼
-                <View>
-                  <View style={styles.schoolReadOnly}>
-                    <Text style={styles.schoolReadOnlyText}>🎓 {user.university}</Text>
-                    <View style={styles.verifiedBadge}>
-                      <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-                      <Text style={styles.verifiedBadgeText}>{t('mypage.schoolVerified')}</Text>
+              {/* 학교 섹션은 학생 role 또는 이미 인증된 회원에게만 노출
+                  (일반/워홀/기타 회원은 학교 인증 대상이 아님) */}
+              {(user?.role === 'student' || (user?.verified && user?.university)) && (
+                <>
+                  <Text style={styles.fieldLabel}>{t('mypage.school')}</Text>
+                  {user?.verified && user?.university ? (
+                    // 인증된 사용자: 학교 read-only + 변경 버튼
+                    <View>
+                      <View style={styles.schoolReadOnly}>
+                        <Text style={styles.schoolReadOnlyText}>🎓 {user.university}</Text>
+                        <View style={styles.verifiedBadge}>
+                          <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                          <Text style={styles.verifiedBadgeText}>{t('mypage.schoolVerified')}</Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.changeSchoolBtn}
+                        onPress={() => {
+                          setEditModalVisible(false);
+                          setTimeout(() => navigation.navigate('VerifyStudent'), 250);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
+                        <Text style={styles.changeSchoolBtnText}>{t('mypage.changeSchool')}</Text>
+                      </TouchableOpacity>
                     </View>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.changeSchoolBtn}
-                    onPress={() => {
-                      setEditModalVisible(false);
-                      setTimeout(() => navigation.navigate('VerifyStudent'), 250);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
-                    <Text style={styles.changeSchoolBtnText}>{t('mypage.changeSchool')}</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                // 미인증 사용자: 학교 인증 CTA
-                <View style={styles.verifyCta}>
-                  <Text style={styles.verifyCtaText}>{t('mypage.verifyHint')}</Text>
-                  <TouchableOpacity
-                    style={styles.verifyCtaBtn}
-                    onPress={() => {
-                      setEditModalVisible(false);
-                      setTimeout(() => navigation.navigate('VerifyStudent'), 250);
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="school-outline" size={16} color={colors.white} />
-                    <Text style={styles.verifyCtaBtnText}>{t('mypage.verifySchool')}</Text>
-                  </TouchableOpacity>
-                </View>
+                  ) : (
+                    // 미인증 학생: 학교 인증 CTA
+                    <View style={styles.verifyCta}>
+                      <Text style={styles.verifyCtaText}>{t('mypage.verifyHint')}</Text>
+                      <TouchableOpacity
+                        style={styles.verifyCtaBtn}
+                        onPress={() => {
+                          setEditModalVisible(false);
+                          setTimeout(() => navigation.navigate('VerifyStudent'), 250);
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="school-outline" size={16} color={colors.white} />
+                        <Text style={styles.verifyCtaBtnText}>{t('mypage.verifySchool')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </>
               )}
             </ScrollView>
           </View>
