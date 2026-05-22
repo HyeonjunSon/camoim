@@ -1059,49 +1059,86 @@ export default function CreatePostScreen({ route, navigation }) {
         </View>
       ) : editorFocused ? (
       /* ── 포맷 툴바 — 본문 에디터 포커스됐을 때만 노출
-           Android는 컨테이너 padding 계산이 edgeToEdge에서 불안정해서
-           툴바를 화면 하단에 absolute로 깔아 키보드 위에 강제 부착 */
-      <RichToolbar
-        editor={richRef}
-        actions={[
-          actions.insertImage,
-          'TOGGLE_BOLD',
-          actions.setItalic,
-          actions.setUnderline,
-          'TOGGLE_H2',
-          actions.alignLeft,
-          actions.alignCenter,
-          actions.alignRight,
-          actions.undo,
-          actions.redo,
-        ]}
-        onPressAddImage={handlePickImage}
-        TOGGLE_H2={toggleHeading2}
-        TOGGLE_BOLD={toggleBold}
-        iconMap={{
-          [actions.insertImage]: () => (
-            <Ionicons name="image-outline" size={22} color={colors.text} />
-          ),
-          TOGGLE_H2: ({ tintColor }) => (
-            <Text style={{ color: h2Active ? colors.primary : tintColor, fontWeight: '800', fontSize: 16 }}>H</Text>
-          ),
-          TOGGLE_BOLD: ({ tintColor }) => (
-            <Text style={{ color: boldActive ? colors.primary : tintColor, fontWeight: '900', fontSize: 16 }}>B</Text>
-          ),
-        }}
-        iconTint={colors.text}
-        selectedIconTint={colors.primary}
-        style={[
-          styles.toolbar,
-          { paddingBottom: kbHeight > 0 ? 4 : 8 },
-          Platform.OS === 'android' && {
+           Android는 외부 View를 absolute로 깔아 키보드 위 강제 부착 */
+      Platform.OS === 'android' ? (
+        <View
+          style={{
             position: 'absolute',
             left: 0,
             right: 0,
             bottom: kbHeight > 0 ? kbHeight : insets.bottom,
-          },
-        ]}
-      />
+            backgroundColor: colors.surface,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+          }}
+        >
+          <RichToolbar
+            editor={richRef}
+            actions={[
+              actions.insertImage,
+              'TOGGLE_BOLD',
+              actions.setItalic,
+              actions.setUnderline,
+              'TOGGLE_H2',
+              actions.alignLeft,
+              actions.alignCenter,
+              actions.alignRight,
+              actions.undo,
+              actions.redo,
+            ]}
+            onPressAddImage={handlePickImage}
+            TOGGLE_H2={toggleHeading2}
+            TOGGLE_BOLD={toggleBold}
+            iconMap={{
+              [actions.insertImage]: () => (
+                <Ionicons name="image-outline" size={22} color={colors.text} />
+              ),
+              TOGGLE_H2: ({ tintColor }) => (
+                <Text style={{ color: h2Active ? colors.primary : tintColor, fontWeight: '800', fontSize: 16 }}>H</Text>
+              ),
+              TOGGLE_BOLD: ({ tintColor }) => (
+                <Text style={{ color: boldActive ? colors.primary : tintColor, fontWeight: '900', fontSize: 16 }}>B</Text>
+              ),
+            }}
+            iconTint={colors.text}
+            selectedIconTint={colors.primary}
+            style={{ paddingBottom: 4, backgroundColor: 'transparent', borderTopWidth: 0 }}
+          />
+        </View>
+      ) : (
+        <RichToolbar
+          editor={richRef}
+          actions={[
+            actions.insertImage,
+            'TOGGLE_BOLD',
+            actions.setItalic,
+            actions.setUnderline,
+            'TOGGLE_H2',
+            actions.alignLeft,
+            actions.alignCenter,
+            actions.alignRight,
+            actions.undo,
+            actions.redo,
+          ]}
+          onPressAddImage={handlePickImage}
+          TOGGLE_H2={toggleHeading2}
+          TOGGLE_BOLD={toggleBold}
+          iconMap={{
+            [actions.insertImage]: () => (
+              <Ionicons name="image-outline" size={22} color={colors.text} />
+            ),
+            TOGGLE_H2: ({ tintColor }) => (
+              <Text style={{ color: h2Active ? colors.primary : tintColor, fontWeight: '800', fontSize: 16 }}>H</Text>
+            ),
+            TOGGLE_BOLD: ({ tintColor }) => (
+              <Text style={{ color: boldActive ? colors.primary : tintColor, fontWeight: '900', fontSize: 16 }}>B</Text>
+            ),
+          }}
+          iconTint={colors.text}
+          selectedIconTint={colors.primary}
+          style={[styles.toolbar, { paddingBottom: kbHeight > 0 ? 4 : 8 }]}
+        />
+      )
       ) : null}
     </View>
   );
