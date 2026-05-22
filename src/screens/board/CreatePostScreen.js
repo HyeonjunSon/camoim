@@ -639,10 +639,15 @@ export default function CreatePostScreen({ route, navigation }) {
                       </View>
                       <TouchableOpacity
                         onPress={() => {
-                          Alert.alert('', t('draft.deleteAsk'), [
-                            { text: t('common.cancel'), style: 'cancel' },
-                            { text: t('common.delete'), style: 'destructive', onPress: () => onDeleteDraft(id) },
-                          ]);
+                          // iOS Modal + Alert.alert 조합이 slide 애니메이션 stale state 버그를 일으켜서
+                          // 모달을 먼저 닫고 confirm 하는 게 안전 (시트가 사라지지 않음)
+                          setDraftsModalOpen(false);
+                          setTimeout(() => {
+                            Alert.alert('', t('draft.deleteAsk'), [
+                              { text: t('common.cancel'), style: 'cancel' },
+                              { text: t('common.delete'), style: 'destructive', onPress: () => onDeleteDraft(id) },
+                            ]);
+                          }, 250);
                         }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         style={styles.draftDelBtn}
