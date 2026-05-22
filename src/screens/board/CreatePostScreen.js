@@ -472,18 +472,17 @@ export default function CreatePostScreen({ route, navigation }) {
 
   const hasContent = title.trim() && hasBody;
 
-  // edgeToEdgeEnabled:true 인 Android에선 키보드 올라오면 insets.bottom이 자동으로
-  // 키보드 높이를 반영함 (RN 0.74+). 따라서 kbHeight와 insets.bottom 중 큰 값만 쓰면
-  // 키보드 다운 시엔 nav bar 버퍼, 키보드 업 시엔 키보드 높이만큼 정확히 padding됨.
-  const keyboardPad = Math.max(kbHeight, insets.bottom);
-
+  // iOS는 원래 잘 동작 → 원본 로직 유지. Android edgeToEdge에선 컨테이너 padding 대신
+  // 툴바를 absolute로 깔아 키보드 위에 강제 부착 (아래 RichToolbar 부분 참조).
   return (
     <View
       style={[
         styles.container,
         {
           paddingTop: Platform.OS === 'ios' ? 6 : insets.top,
-          paddingBottom: keyboardPad,
+          paddingBottom: Platform.OS === 'ios'
+            ? (kbHeight > 0 ? kbHeight : 0)
+            : (kbHeight > 0 ? 0 : insets.bottom),
         },
       ]}
     >
@@ -1059,7 +1058,9 @@ export default function CreatePostScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       ) : editorFocused ? (
-      /* ── 포맷 툴바 — 본문 에디터 포커스됐을 때만 노출 */
+      /* ── 포맷 툴바 — 본문 에디터 포커스됐을 때만 노출
+           Android는 컨테이너 padding 계산이 edgeToEdge에서 불안정해서
+           툴바를 화면 하단에 absolute로 깔아 키보드 위에 강제 부착 */
       <RichToolbar
         editor={richRef}
         actions={[
@@ -1092,8 +1093,12 @@ export default function CreatePostScreen({ route, navigation }) {
         selectedIconTint={colors.primary}
         style={[
           styles.toolbar,
-          {
-            paddingBottom: kbHeight > 0 ? 4 : 8,
+          { paddingBottom: kbHeight > 0 ? 4 : 8 },
+          Platform.OS === 'android' && {
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: kbHeight > 0 ? kbHeight : insets.bottom,
           },
         ]}
       />
