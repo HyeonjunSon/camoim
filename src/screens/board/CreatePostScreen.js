@@ -472,11 +472,10 @@ export default function CreatePostScreen({ route, navigation }) {
 
   const hasContent = title.trim() && hasBody;
 
-  // edgeToEdgeEnabled:true 인 Android는 키보드가 시스템 nav bar 영역 위에 그려져서
-  // keyboardDidShow의 endCoordinates.height가 nav bar 만큼 작게 측정됨 → insets.bottom 보정
-  const keyboardPad = kbHeight > 0
-    ? (Platform.OS === 'android' ? kbHeight + insets.bottom : kbHeight)
-    : 0;
+  // edgeToEdgeEnabled:true 인 Android에선 키보드 올라오면 insets.bottom이 자동으로
+  // 키보드 높이를 반영함 (RN 0.74+). 따라서 kbHeight와 insets.bottom 중 큰 값만 쓰면
+  // 키보드 다운 시엔 nav bar 버퍼, 키보드 업 시엔 키보드 높이만큼 정확히 padding됨.
+  const keyboardPad = Math.max(kbHeight, insets.bottom);
 
   return (
     <View
@@ -1049,7 +1048,7 @@ export default function CreatePostScreen({ route, navigation }) {
           style={[
             styles.toolbar,
             styles.imgActionBar,
-            { paddingBottom: kbHeight > 0 ? 4 : insets.bottom + 8 },
+            { paddingBottom: kbHeight > 0 ? 4 : 8 },
           ]}
         >
           <TouchableOpacity onPress={cancelImageSelect} style={styles.imgActionBtn}>
@@ -1094,7 +1093,7 @@ export default function CreatePostScreen({ route, navigation }) {
         style={[
           styles.toolbar,
           {
-            paddingBottom: kbHeight > 0 ? 4 : insets.bottom + 8,
+            paddingBottom: kbHeight > 0 ? 4 : 8,
           },
         ]}
       />
