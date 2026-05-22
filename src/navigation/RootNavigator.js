@@ -1,7 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect, useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LangContext';
@@ -27,6 +27,25 @@ const TAB_ICONS = {
   MyPage: { focused: 'person', unfocused: 'person-outline' },
   Admin: { focused: 'shield', unfocused: 'shield-outline' },
 };
+
+// 풀스크린 작성/편집 화면 — 탭바를 숨겨 키보드 + 툴바와 충돌 안 나게
+// (iOS는 presentation:'modal'로 이미 가려지지만 Android는 명시적으로 숨겨야 함)
+const HIDE_TAB_ROUTES = new Set([
+  'CreatePost',
+  'EditPost',
+  'SchoolCommunityEdit',
+  'GroupCommunityEdit',
+  'NoticeEdit',
+  'ChatRoom',
+]);
+
+function getTabBarStyle(route, defaultStyle) {
+  const focused = getFocusedRouteNameFromRoute(route);
+  if (focused && HIDE_TAB_ROUTES.has(focused)) {
+    return { display: 'none' };
+  }
+  return defaultStyle;
+}
 
 export default function RootNavigator() {
   const { user } = useAuth();
@@ -91,7 +110,7 @@ export default function RootNavigator() {
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: getTabBarStyle(route, styles.tabBar),
         tabBarLabelStyle: styles.tabLabel,
       })}
     >
