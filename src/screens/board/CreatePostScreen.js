@@ -126,6 +126,10 @@ export default function CreatePostScreen({ route, navigation }) {
   const [currentDraftId, setCurrentDraftId] = useState(null);
   const draftsEnabled = !isEditMode && !isGroupPost;
 
+  // 본문 에디터 포커스 여부 — 툴바를 본문 편집 중일 때만 노출
+  const [editorFocused, setEditorFocused] = useState(false);
+  const titleRef = useRef(null);
+
   useEffect(() => {
     if (!draftsEnabled) return;
     (async () => {
@@ -468,13 +472,19 @@ export default function CreatePostScreen({ route, navigation }) {
 
   const hasContent = title.trim() && hasBody;
 
+  // edgeToEdgeEnabled:true 인 Android는 키보드가 시스템 nav bar 영역 위에 그려져서
+  // keyboardDidShow의 endCoordinates.height가 nav bar 만큼 작게 측정됨 → insets.bottom 보정
+  const keyboardPad = kbHeight > 0
+    ? (Platform.OS === 'android' ? kbHeight + insets.bottom : kbHeight)
+    : 0;
+
   return (
     <View
       style={[
         styles.container,
         {
           paddingTop: Platform.OS === 'ios' ? 6 : insets.top,
-          paddingBottom: kbHeight > 0 ? kbHeight : 0,
+          paddingBottom: keyboardPad,
         },
       ]}
     >
@@ -650,6 +660,7 @@ export default function CreatePostScreen({ route, navigation }) {
 
       {/* 제목 */}
       <TextInput
+        ref={titleRef}
         style={styles.titleInput}
         placeholder={t('post.titlePh')}
         placeholderTextColor={colors.textSecondary}
@@ -657,6 +668,12 @@ export default function CreatePostScreen({ route, navigation }) {
         onChangeText={setTitle}
         maxLength={100}
         returnKeyType="next"
+        onFocus={() => setEditorFocused(false)}
+        onSubmitEditing={() => {
+          // 다음(↵) 키 → 본문 포커스 (제목→본문 매끄럽게)
+          try { richRef.current?.focusContentEditor?.(); } catch {}
+        }}
+        blurOnSubmit={false}
       />
 
       <View style={styles.divider} />
@@ -666,8 +683,8 @@ export default function CreatePostScreen({ route, navigation }) {
         ref={scrollRef}
         style={styles.editorScroll}
         contentContainerStyle={styles.editorScrollContent}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="none"
         showsVerticalScrollIndicator={false}
         onLayout={(e) => { scrollViewHeightRef.current = e.nativeEvent.layout.height; }}
       >
@@ -676,6 +693,8 @@ export default function CreatePostScreen({ route, navigation }) {
           initialContentHTML=""
           placeholder={t('post.contentPh')}
           scrollEnabled={true}
+          onFocus={() => setEditorFocused(true)}
+          onBlur={() => setEditorFocused(false)}
           onCursorPosition={(cursorY) => {
             // 커서가 화면 중간(1/2 지점)에 오도록 자동 스크롤
             const visibleH = scrollViewHeightRef.current || 400;
@@ -1035,8 +1054,8 @@ export default function CreatePostScreen({ route, navigation }) {
             <Text style={[styles.imgActionText, { color: '#FF3B30' }]}>{t('common.delete')}</Text>
           </TouchableOpacity>
         </View>
-      ) : (
-      /* ── 포맷 툴바 */
+      ) : editorFocused ? (
+      /* ── 포맷 툴바 — 본문 에디터 포커스됐을 때만 노출 */
       <RichToolbar
         editor={richRef}
         actions={[
@@ -1074,7 +1093,7 @@ export default function CreatePostScreen({ route, navigation }) {
           },
         ]}
       />
-      )}
+      ) : null}
     </View>
   );
 }
