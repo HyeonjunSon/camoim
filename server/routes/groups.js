@@ -149,8 +149,11 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     // 같은 이름 중복 방지 (active 또는 pending_review)
+    // 학교 동아리는 같은 학교 안에서만 unique, 일반 모임은 다른 일반 모임들끼리 unique
+    // (일반 vs 학교 동아리는 서로 다른 카테고리라 같은 이름 허용)
     const dup = await Group.findOne({
       name: String(name).trim(),
+      university: groupUniversity,
       status: { $in: ['active', 'pending_review'] },
     });
     if (dup) return res.status(409).json({ success: false, message: '이미 같은 이름의 모임이 있어요.' });
@@ -251,8 +254,29 @@ router.put('/:id', requireAuth, async (req, res) => {
     const my = await getMyMembership(group._id, req.user.id);
     if (!isOwner(my)) return res.status(403).json({ success: false, message: '그룹장만 수정할 수 있어요.' });
 
-    const { description, coverImage, category, city, joinPolicy } = req.body || {};
+    const { name, description, coverImage, category, city, joinPolicy } = req.body || {};
     let coverChanged = false;
+    let nameChanged = false;
+
+    // 이름 변경 — 학교 동아리는 같은 학교 안에서만 unique, 일반 모임은 일반들끼리 unique
+    if (name !== undefined) {
+      const trimmed = String(name).trim();
+      if (!trimmed || trimmed.length < 2) {
+        return res.status(400).json({ success: false, message: '이름은 2자 이상이어야 해요.' });
+      }
+      if (trimmed !== group.name) {
+        const dup = await Group.findOne({
+          _id: { $ne: group._id }, // 자기 자신 제외
+          name: trimmed,
+          university: group.university || '',
+          status: { $in: ['active', 'pending_review'] },
+        });
+        if (dup) return res.status(409).json({ success: false, message: '이미 같은 이름의 모임이 있어요.' });
+        group.name = trimmed;
+        nameChanged = true;
+      }
+    }
+
     if (description !== undefined) group.description = String(description).slice(0, 500);
     if (coverImage !== undefined) {
       group.coverImage = String(coverImage).slice(0, 500);
@@ -261,13 +285,16 @@ router.put('/:id', requireAuth, async (req, res) => {
     if (category !== undefined && VALID_CATEGORIES.includes(category)) group.category = category;
     if (city !== undefined) group.city = String(city).slice(0, 100);
     if (joinPolicy !== undefined && ['open', 'approval'].includes(joinPolicy)) group.joinPolicy = joinPolicy;
-    // 이름 변경은 같은 이름 중복 방지를 위해 별도 검토 — 일단 비허용
     await group.save();
-    // 그룹 채팅방의 캐시된 커버 이미지도 동기화
-    if (coverChanged) {
+
+    // 그룹 채팅방의 캐시된 이름/커버 동기화
+    if (nameChanged || coverChanged) {
+      const update = {};
+      if (nameChanged) update.groupName = group.name;
+      if (coverChanged) update.groupCoverImage = group.coverImage;
       ChatRoom.findOneAndUpdate(
         { groupId: group._id, kind: 'group' },
-        { groupCoverImage: group.coverImage }
+        update
       ).catch(() => {});
     }
 
