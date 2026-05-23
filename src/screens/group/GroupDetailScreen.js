@@ -358,7 +358,7 @@ export default function GroupDetailScreen({ route, navigation }) {
             <View style={styles.communityHeader}>
               <View style={styles.communityTitleRow}>
                 <Ionicons name="sparkles" size={14} color={colors.primary} />
-                <Text style={styles.communityTitle}>{t('group.communityTitle')}</Text>
+                <Text style={styles.communityTitle}>{t(group.university ? 'group.communityTitleSchool' : 'group.communityTitle')}</Text>
               </View>
               {group.canEditCommunity && (
                 <TouchableOpacity

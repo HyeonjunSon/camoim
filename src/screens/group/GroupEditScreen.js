@@ -1,8 +1,9 @@
 import { useState, useEffect, useLayoutEffect } from 'react';
 import {
   View, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator,
-  StyleSheet, KeyboardAvoidingView, Platform,
+  StyleSheet, Platform, Modal, FlatList,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,6 +23,12 @@ const CATEGORIES = [
   { key: 'general', labelKey: 'group.catGeneral', emoji: '💬' },
 ];
 
+const CITIES = [
+  'Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Edmonton',
+  'Ottawa', 'Winnipeg', 'Victoria', 'Halifax', 'Saskatoon',
+  'London', 'Quebec',
+];
+
 export default function GroupEditScreen({ route, navigation }) {
   const { groupId } = route.params || {};
   const { colors } = useTheme();
@@ -35,8 +42,10 @@ export default function GroupEditScreen({ route, navigation }) {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [city, setCity] = useState('');
+  const [cityModalOpen, setCityModalOpen] = useState(false);
   const [joinPolicy, setJoinPolicy] = useState('open');
   const [name, setName] = useState('');
+  const [isSchoolClub, setIsSchoolClub] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -54,6 +63,7 @@ export default function GroupEditScreen({ route, navigation }) {
           setCategory(g.category);
           setCity(g.city || '');
           setJoinPolicy(g.joinPolicy);
+          setIsSchoolClub(!!g.university);
         }
       } catch {} finally { setLoading(false); }
     })();
@@ -95,12 +105,18 @@ export default function GroupEditScreen({ route, navigation }) {
   };
 
   const onSave = async () => {
+    if (!name.trim() || name.trim().length < 2) {
+      Alert.alert('', t('group.nameRequired') || '이름은 2자 이상이어야 해요.');
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await updateGroup(groupId, {
+        name: name.trim(),
         description: description.trim(),
         category,
-        city: city.trim(),
+        // 학교 동아리는 학교가 도시 컨텍스트라 city 보내지 않음
+        city: isSchoolClub ? '' : city.trim(),
         joinPolicy,
       });
       if (res.success) {
@@ -146,6 +162,13 @@ export default function GroupEditScreen({ route, navigation }) {
               <Text style={styles.coverPlaceholderText}>커버 이미지 추가</Text>
             </View>
           )}
+          {/* 편집 배지 — 커버가 있을 때 우측 하단에 표시 */}
+          {coverImage && !uploadingCover && (
+            <View style={styles.coverEditBadge} pointerEvents="none">
+              <Ionicons name="pencil" size={14} color="#fff" />
+              <Text style={styles.coverEditBadgeText}>{t('common.edit') || '편집'}</Text>
+            </View>
+          )}
           {uploadingCover && (
             <View style={styles.coverOverlay}>
               <ActivityIndicator color={colors.white} />
@@ -153,11 +176,16 @@ export default function GroupEditScreen({ route, navigation }) {
           )}
         </TouchableOpacity>
 
-        {/* 이름 (읽기 전용) */}
+        {/* 이름 */}
         <Text style={styles.label}>{t('group.nameLabel')}</Text>
-        <View style={[styles.input, styles.inputDisabled]}>
-          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{name}</Text>
-        </View>
+        <TextInput
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+          placeholder={t('group.namePh') || '모임 이름'}
+          placeholderTextColor={colors.textSecondary}
+          maxLength={50}
+        />
         <Text style={styles.hint}>이름은 변경할 수 없어요</Text>
 
         {/* 소개 */}
@@ -191,16 +219,22 @@ export default function GroupEditScreen({ route, navigation }) {
           })}
         </View>
 
-        {/* 지역 */}
-        <Text style={styles.label}>{t('group.cityLabel')}</Text>
-        <TextInput
-          style={styles.input}
-          value={city}
-          onChangeText={setCity}
-          placeholder={t('group.cityPh')}
-          placeholderTextColor={colors.textSecondary}
-          maxLength={100}
-        />
+        {/* 지역 — 학교 동아리는 학교가 도시를 결정하므로 숨김 */}
+        {!isSchoolClub && (
+          <>
+            <Text style={styles.label}>{t('group.cityLabel')}</Text>
+            <TouchableOpacity
+              style={styles.cityDropdown}
+              onPress={() => setCityModalOpen(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.cityDropdownText, !city && styles.cityDropdownPlaceholder]}>
+                {city ? (t(`city.${city}`) || city) : t('group.cityPh')}
+              </Text>
+              <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* 가입 방식 */}
         <Text style={styles.label}>{t('group.policyLabel')}</Text>
@@ -234,6 +268,46 @@ export default function GroupEditScreen({ route, navigation }) {
           {submitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.submitText}>저장</Text>}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* 도시 선택 모달 */}
+      <Modal visible={cityModalOpen} animationType="slide" transparent onRequestClose={() => setCityModalOpen(false)}>
+        <View style={styles.cityModalOverlay}>
+          <View style={styles.cityModalSheet}>
+            <View style={styles.cityModalHeader}>
+              <Text style={styles.cityModalTitle}>{t('group.cityLabel')}</Text>
+              <TouchableOpacity onPress={() => setCityModalOpen(false)} hitSlop={8}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={[styles.cityItem, !city && styles.cityItemActive]}
+              onPress={() => { setCity(''); setCityModalOpen(false); }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.cityItemText, !city && styles.cityItemTextActive]}>
+                {t('auth.citySkip')}
+              </Text>
+            </TouchableOpacity>
+            <FlatList
+              data={CITIES}
+              keyExtractor={item => item}
+              renderItem={({ item: c }) => (
+                <TouchableOpacity
+                  style={[styles.cityItem, city === c && styles.cityItemActive]}
+                  onPress={() => { setCity(c); setCityModalOpen(false); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.cityItemText, city === c && styles.cityItemTextActive]}>
+                    📍 {t(`city.${c}`) || c}
+                  </Text>
+                  {city === c && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                </TouchableOpacity>
+              )}
+              style={{ maxHeight: 400 }}
+            />
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -247,7 +321,6 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.inputBg, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.border,
   },
-  inputDisabled: { backgroundColor: colors.inputBg, opacity: 0.7 },
   inputMulti: { minHeight: 90, textAlignVertical: 'top' },
 
   coverWrap: { borderRadius: 12, overflow: 'hidden', position: 'relative' },
@@ -263,6 +336,13 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center', justifyContent: 'center',
   },
+  coverEditBadge: {
+    position: 'absolute', right: 10, bottom: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+  },
+  coverEditBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catBtn: {
@@ -290,4 +370,34 @@ const createStyles = (colors) => StyleSheet.create({
     paddingVertical: 14, alignItems: 'center',
   },
   submitText: { color: colors.white, fontSize: 15, fontWeight: '700' },
+
+  // 도시 드롭다운
+  cityDropdown: {
+    backgroundColor: colors.inputBg, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1, borderColor: colors.border,
+  },
+  cityDropdownText: { fontSize: 14, color: colors.text },
+  cityDropdownPlaceholder: { color: colors.textSecondary },
+
+  // 도시 선택 모달
+  cityModalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end',
+  },
+  cityModalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 16, borderTopRightRadius: 16,
+    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 28,
+  },
+  cityModalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
+  },
+  cityModalTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
+  cityItem: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  cityItemActive: {},
+  cityItemText: { fontSize: 15, color: colors.text },
+  cityItemTextActive: { color: colors.primary, fontWeight: '700' },
 });

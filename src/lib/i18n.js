@@ -88,6 +88,7 @@ export const TRANSLATIONS = {
     time: {
       now: '방금 전', minute: '분 전', hour: '시간 전', day: '일 전',
       monthDay: '{m}월 {d}일', fullDate: '{y}.{m}.{d}',
+      today: '오늘', yesterday: '어제',
     },
     a11y: {
       back: '뒤로 가기',
@@ -209,6 +210,7 @@ export const TRANSLATIONS = {
       ownerCantLeave: '그룹장은 모임을 탈퇴할 수 없어요. 다른 회원에게 그룹장을 양도하거나 모임을 폐쇄해주세요.',
       // 모임 만들기
       createTitle: '모임 만들기',
+      createTitleSchool: '학교 동아리 만들기',
       nameLabel: '모임 이름', namePh: '예: 토론토 한인 등산 모임',
       descLabel: '소개', descPh: '어떤 모임인지 소개해주세요',
       categoryLabel: '카테고리', cityLabel: '지역 (선택)', cityPh: '예: Toronto',
@@ -230,8 +232,10 @@ export const TRANSLATIONS = {
       communityNoPerm: '그룹장 또는 부그룹장만 편집할 수 있어요.',
       communityEditHint: '그룹장·부그룹장이 인스타·카톡 등 모임 소셜 채널과 한 줄 공지를 등록할 수 있어요. 모임 멤버에게만 노출됩니다.',
       communityTitle: '모임 소개',
+      communityTitleSchool: '동아리 소개',
       communityEmpty: '아직 비어있어요 — 그룹장이 꾸며볼까요?',
       communityEditTitle: '모임 소개 꾸미기',
+      communityEditTitleSchool: '동아리 소개 꾸미기',
     },
     post: {
       titlePlaceholder: '제목', contentPlaceholder: '내용을 입력하세요',
@@ -846,6 +850,7 @@ export const TRANSLATIONS = {
     time: {
       now: 'just now', minute: 'm ago', hour: 'h ago', day: 'd ago',
       monthDay: '{month} {d}', fullDate: '{month} {d}, {y}',
+      today: 'Today', yesterday: 'Yesterday',
     },
     board: {
       title: 'Boards', filterAll: 'All', filterPinned: '⭐ Pinned',
@@ -932,6 +937,7 @@ export const TRANSLATIONS = {
       transferOk: 'Ownership transferred.',
       ownerCantLeave: 'Owners cannot leave. Transfer ownership or close the group instead.',
       createTitle: 'Create Group',
+      createTitleSchool: 'Create School Club',
       nameLabel: 'Group Name', namePh: 'e.g. Toronto Hiking Club',
       descLabel: 'Description', descPh: 'What is this group about?',
       categoryLabel: 'Category', cityLabel: 'City (optional)', cityPh: 'e.g. Toronto',
@@ -950,8 +956,10 @@ export const TRANSLATIONS = {
       communityNoPerm: 'Only the owner or sub-owners can edit.',
       communityEditHint: 'Owners and sub-owners can add Instagram, KakaoTalk and other channels plus a one-line notice. Visible only to group members.',
       communityTitle: 'About this group',
+      communityTitleSchool: 'About this club',
       communityEmpty: "It's empty — let the owner fill it in",
       communityEditTitle: 'Edit group profile',
+      communityEditTitleSchool: 'Edit club profile',
     },
     post: {
       titlePlaceholder: 'Title', contentPlaceholder: 'Write your content',

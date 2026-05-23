@@ -6,11 +6,12 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
-  KeyboardAvoidingView,
   Platform,
   StyleSheet,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -44,6 +45,16 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [otherLeft, setOtherLeft] = useState(route.params?.otherLeft ?? false);
   const [otherDeleted, setOtherDeleted] = useState(route.params?.otherDeleted ?? false);
   const [schoolLeaderId, setSchoolLeaderId] = useState(null);
+  // 키보드 가시성 추적 — 키보드 열렸을 때는 safe-area inset 제외해서 입력바와 키보드 사이 여백 제거
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const s = Keyboard.addListener(showEvt, () => setKeyboardVisible(true));
+    const h = Keyboard.addListener(hideEvt, () => setKeyboardVisible(false));
+    return () => { s.remove(); h.remove(); };
+  }, []);
+  const inputBarBottomPad = 8 + (keyboardVisible ? 0 : insets.bottom);
   const { on, off, emit, joinRoom, leaveRoom, setActiveRoom } = useSocket();
   const flatListRef = useRef(null);
 
@@ -226,38 +237,70 @@ export default function ChatRoomScreen({ route, navigation }) {
     // 학교 채팅에서 발신자가 그 학교 학생회장이면 ⭐ 배지
     const senderIsLeader = isSchoolChat && !!schoolLeaderId && String(item.senderId) === schoolLeaderId;
 
+    // 같은 발신자가 연속 메시지면 시간 표시 압축 — 같은 분 안의 마지막 메시지에만 시간 노출 (카톡 스타일)
+    const nextItem = messages[index + 1];
+    const sameMinute = (a, b) => {
+      if (!a || !b) return false;
+      const da = new Date(a);
+      const db = new Date(b);
+      return da.getFullYear() === db.getFullYear()
+        && da.getMonth() === db.getMonth()
+        && da.getDate() === db.getDate()
+        && da.getHours() === db.getHours()
+        && da.getMinutes() === db.getMinutes();
+    };
+    const showTime = !nextItem
+      || String(nextItem.senderId) !== String(item.senderId)
+      || !sameMinute(nextItem.createdAt, item.createdAt);
+
+    const timeStr = new Date(item.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+
+    // 발신자 이름 (그룹/학교 채팅, 같은 발신자가 처음 등장할 때만)
+    const senderHeader = !isMine && showAvatar && (
+      canTapSender
+        ? <TouchableOpacity onPress={openSenderProfile} activeOpacity={0.7}>
+            <View style={styles.senderRow}>
+              <Text style={styles.bubbleSender}>{senderName}</Text>
+              {senderIsLeader && <Ionicons name="star" size={11} color={colors.primary} style={styles.senderLeader} />}
+            </View>
+          </TouchableOpacity>
+        : <View style={styles.senderRow}>
+            <Text style={styles.bubbleSender}>{senderName}</Text>
+            {senderIsLeader && <Ionicons name="star" size={11} color={colors.primary} style={styles.senderLeader} />}
+          </View>
+    );
+
     return (
       <View style={[styles.msgRow, isMine ? styles.msgRowRight : styles.msgRowLeft]}>
         {!isMine && (
           showAvatar
             ? (canTapSender
                 ? <TouchableOpacity onPress={openSenderProfile} activeOpacity={0.7}>
-                    <Avatar nickname={senderName || '?'} uri={isGroupChat ? null : other?.avatarUrl} size={30} showLetter />
+                    <Avatar nickname={senderName || '?'} uri={isGroupChat ? null : other?.avatarUrl} size={28} showLetter />
                   </TouchableOpacity>
-                : <Avatar nickname={senderName || '?'} uri={isGroupChat ? null : other?.avatarUrl} size={30} showLetter />)
+                : <Avatar nickname={senderName || '?'} uri={isGroupChat ? null : other?.avatarUrl} size={28} showLetter />)
             : <View style={styles.avatarSpacer} />
         )}
-        {isMine && unreadCount > 0 && (
-          <Text style={styles.unreadBadge}>{unreadCount}</Text>
-        )}
-        <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleOther]}>
-          {!isMine && showAvatar && (
-            canTapSender
-              ? <TouchableOpacity onPress={openSenderProfile} activeOpacity={0.7}>
-                  <View style={styles.senderRow}>
-                    <Text style={styles.bubbleSender}>{senderName}</Text>
-                    {senderIsLeader && <Ionicons name="star" size={11} color={colors.primary} style={styles.senderLeader} />}
-                  </View>
-                </TouchableOpacity>
-              : <View style={styles.senderRow}>
-                  <Text style={styles.bubbleSender}>{senderName}</Text>
-                  {senderIsLeader && <Ionicons name="star" size={11} color={colors.primary} style={styles.senderLeader} />}
-                </View>
-          )}
-          <Text selectable style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{item.content}</Text>
-          <Text style={[styles.bubbleTime, isMine && styles.bubbleTimeMine]}>
-            {new Date(item.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-          </Text>
+        <View style={[styles.bubbleColumn, isMine ? styles.bubbleColumnRight : styles.bubbleColumnLeft]}>
+          {senderHeader}
+          <View style={[styles.bubbleRow, isMine ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
+            {/* 내 메시지: 시간이 버블 좌측 */}
+            {isMine && showTime && (
+              <View style={styles.timeBox}>
+                {unreadCount > 0 && <Text style={styles.unreadBadge}>{unreadCount}</Text>}
+                <Text style={styles.bubbleTime}>{timeStr}</Text>
+              </View>
+            )}
+            <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleOther]}>
+              <Text selectable style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{item.content}</Text>
+            </View>
+            {/* 상대 메시지: 시간이 버블 우측 */}
+            {!isMine && showTime && (
+              <View style={styles.timeBox}>
+                <Text style={styles.bubbleTime}>{timeStr}</Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
     );
@@ -323,7 +366,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       {/* 하단 영역: 상태에 따라 다름 */}
       {isGroupChat ? (
         // 그룹 채팅 — 항상 입력 바
-        <View style={styles.inputBar}>
+        <View style={[styles.inputBar, { paddingBottom: inputBarBottomPad }]}>
           <TextInput
             style={styles.input}
             placeholder={t('chat.placeholder')}
@@ -342,7 +385,7 @@ export default function ChatRoomScreen({ route, navigation }) {
             disabled={!text.trim() || sending}
             activeOpacity={0.8}
           >
-            <Text style={styles.sendBtnText}>{t('common.send')}</Text>
+            <Ionicons name="arrow-up" size={22} color={colors.white} />
           </TouchableOpacity>
         </View>
       ) : status === 'pending' && !isRequester ? (
@@ -375,7 +418,7 @@ export default function ChatRoomScreen({ route, navigation }) {
                 {t('chat.onlyOneMsg')}
               </Text>
             </View>
-            <View style={styles.inputBar}>
+            <View style={[styles.inputBar, { paddingBottom: inputBarBottomPad }]}>
               <TextInput
                 style={styles.input}
                 placeholder={t('chat.placeholder')}
@@ -394,7 +437,7 @@ export default function ChatRoomScreen({ route, navigation }) {
                 disabled={!text.trim() || sending}
                 activeOpacity={0.8}
               >
-                <Text style={styles.sendBtnText}>{t('common.send')}</Text>
+                <Ionicons name="arrow-up" size={22} color={colors.white} />
               </TouchableOpacity>
             </View>
           </View>
@@ -416,7 +459,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         </View>
       ) : (
         // 일반 입력 바
-        <View style={styles.inputBar}>
+        <View style={[styles.inputBar, { paddingBottom: inputBarBottomPad }]}>
           <TextInput
             style={styles.input}
             placeholder={t('chat.placeholder')}
@@ -435,7 +478,7 @@ export default function ChatRoomScreen({ route, navigation }) {
             disabled={!text.trim() || sending}
             activeOpacity={0.8}
           >
-            <Text style={styles.sendBtnText}>{t('common.send')}</Text>
+            <Ionicons name="arrow-up" size={22} color={colors.white} />
           </TouchableOpacity>
         </View>
       )}
@@ -450,18 +493,24 @@ const createStyles = (colors) => StyleSheet.create({
   listContent: { padding: 12, gap: 6, paddingBottom: 20 },
 
 
-  msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginVertical: 2 },
+  msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginVertical: 1 },
   msgRowRight: { justifyContent: 'flex-end' },
   msgRowLeft: { justifyContent: 'flex-start', gap: 6 },
   avatarPlaceholder: { width: 8 },
-  avatarSpacer: { width: 30 },
+  avatarSpacer: { width: 28 },
+
+  // 카톡 스타일: 발신자 이름은 버블 위, 시간은 버블 옆 (밖)
+  bubbleColumn: { maxWidth: '78%' },
+  bubbleColumnLeft: { alignItems: 'flex-start' },
+  bubbleColumnRight: { alignItems: 'flex-end' },
+  bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
+  bubbleRowLeft: { justifyContent: 'flex-start' },
+  bubbleRowRight: { justifyContent: 'flex-end' },
 
   bubble: {
-    maxWidth: '75%',
-    borderRadius: 14,
+    borderRadius: 18,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    gap: 2,
   },
   bubbleMine: {
     backgroundColor: colors.primary,
@@ -472,24 +521,26 @@ const createStyles = (colors) => StyleSheet.create({
     borderBottomLeftRadius: 4,
   },
   bubbleSender: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },
-  senderRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 2 },
+  senderRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 4, paddingHorizontal: 4 },
   senderLeader: { marginLeft: 1 },
-  bubbleText: { fontSize: 15, color: colors.text, lineHeight: 22 },
+  bubbleText: { fontSize: 14.5, color: colors.text, lineHeight: 20 },
   bubbleTextMine: { color: colors.white },
-  bubbleTime: { fontSize: 10, color: colors.textSecondary, alignSelf: 'flex-end' },
-  bubbleTimeMine: { color: 'rgba(255,255,255,0.7)' },
-  unreadBadge: {
-    fontSize: 11, color: colors.primary, fontWeight: '700',
-    alignSelf: 'flex-end', marginRight: 4, marginBottom: 4,
+
+  // 버블 밖 시간 박스
+  timeBox: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 3,
+    marginBottom: 2,
   },
+  bubbleTime: { fontSize: 10, color: colors.textSecondary },
+  unreadBadge: { fontSize: 10, color: colors.primary, fontWeight: '700' },
 
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 10,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 8,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
@@ -499,19 +550,21 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     backgroundColor: colors.background,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    maxHeight: 100,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    maxHeight: 110,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   sendBtn: {
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: colors.primary,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
+    alignItems: 'center', justifyContent: 'center',
   },
-  sendBtnDisabled: { opacity: 0.4 },
-  sendBtnText: { fontSize: 14, fontWeight: '700', color: colors.white },
+  sendBtnDisabled: { backgroundColor: colors.primary + '55' },
+  sendBtnText: { fontSize: 13, fontWeight: '700', color: colors.white },
 
   // 메시지 요청 수락/거절 바
   requestBar: {

@@ -1,18 +1,18 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Text } from '../../components/StyledText';
 import {
   View,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
   ScrollView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
-import { colors } from '../../constants/colors'
 import {
   getNotifications,
   markAllNotificationsRead,
@@ -22,37 +22,126 @@ import { useLang } from '../../context/LangContext';
 import { formatTime } from '../../lib/time';
 import EmptyState from '../../components/EmptyState';
 
+// 알림 타입별 아이콘 / 배경 / 강조색 — 디자인 통일
 const buildTypeMeta = (colors) => ({
-  comment: { icon: '💬', labelKey: 'notif.catComment', color: colors.info,    bg: colors.infoSoft },
-  like:    { icon: '❤️', labelKey: 'notif.catLike',    color: colors.danger,  bg: colors.dangerSoft },
-  chat:    { icon: '✉️', labelKey: 'notif.catChat',    color: colors.accent,  bg: colors.accentSoft },
+  comment: {
+    iconName: 'chatbubble-ellipses',
+    bg: '#DBEAFE',         // 라이트 블루
+    color: '#2563EB',
+    labelKey: 'notif.catComment',
+  },
+  like: {
+    iconName: 'heart',
+    bg: '#FEE2E2',         // 라이트 레드
+    color: '#DC2626',
+    labelKey: 'notif.catLike',
+  },
+  chat: {
+    iconName: 'mail',
+    bg: '#EDE9FE',         // 라이트 퍼플
+    color: '#7C3AED',
+    labelKey: 'notif.catChat',
+  },
+  university_leader: {
+    iconName: 'school',
+    bg: '#DCFCE7',         // 라이트 그린
+    color: '#16A34A',
+    labelKey: 'notif.catDefault',
+  },
+  group_approved: {
+    iconName: 'people',
+    bg: '#FEF3C7',         // 라이트 옐로
+    color: '#D97706',
+    labelKey: 'notif.catDefault',
+  },
+  default: {
+    iconName: 'notifications',
+    bg: '#EDE9FE',         // 라이트 퍼플
+    color: '#7C3AED',
+    labelKey: 'notif.catDefault',
+  },
 });
+
+// 댓글 메시지에서 인용 부분을 분리 — "...남겼어요: 'xxx'" 패턴
+function splitCommentMessage(message) {
+  if (!message) return { lead: '', quote: '' };
+  const m = message.match(/^(.*?:\s*)["'"](.*)["'"]\s*$/s);
+  if (m) return { lead: m[1].trim(), quote: m[2] };
+  return { lead: message, quote: '' };
+}
+
+// 알림을 오늘/어제/그 외 날짜별 섹션으로 그룹화
+function groupNotifications(notifs, t) {
+  const todayLabel = t('time.today') || '오늘';
+  const yesterdayLabel = t('time.yesterday') || '어제';
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const yesterdayStart = todayStart - 86_400_000;
+
+  const today = [];
+  const yesterday = [];
+  const older = new Map(); // key: "5월 8일", value: { sortKey, data }
+
+  for (const n of notifs) {
+    const ts = new Date(n.createdAt).getTime();
+    if (ts >= todayStart) {
+      today.push(n);
+    } else if (ts >= yesterdayStart) {
+      yesterday.push(n);
+    } else {
+      const d = new Date(n.createdAt);
+      const key = `${d.getMonth() + 1}월 ${d.getDate()}일`;
+      const sortKey = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+      if (!older.has(key)) older.set(key, { sortKey, data: [] });
+      older.get(key).data.push(n);
+    }
+  }
+
+  const sections = [];
+  if (today.length) sections.push({ title: todayLabel, data: today });
+  if (yesterday.length) sections.push({ title: yesterdayLabel, data: yesterday });
+  // 최신 날짜부터 표시
+  Array.from(older.entries())
+    .sort((a, b) => b[1].sortKey - a[1].sortKey)
+    .forEach(([title, { data }]) => sections.push({ title, data }));
+
+  return sections;
+}
 
 function NotificationCard({ item, onPress, t, styles, colors }) {
   const TYPE_META = buildTypeMeta(colors);
-  const meta = TYPE_META[item.type] ?? { icon: '🔔', labelKey: 'notif.catDefault', color: colors.textSecondary, bg: colors.inputBg };
+  const meta = TYPE_META[item.type] ?? TYPE_META.default;
+  const { lead, quote } = item.type === 'comment'
+    ? splitCommentMessage(item.message)
+    : { lead: item.message, quote: '' };
 
   return (
     <TouchableOpacity
       style={[styles.card, !item.isRead && styles.cardUnread]}
       onPress={() => onPress(item)}
-      activeOpacity={0.75}
+      activeOpacity={0.7}
     >
-      {/* 아이콘 */}
+      {/* 아이콘 (배경 원) */}
       <View style={[styles.iconWrap, { backgroundColor: meta.bg }]}>
-        <Text style={styles.iconText}>{meta.icon}</Text>
+        <Ionicons name={meta.iconName} size={18} color={meta.color} />
+        {!item.isRead && <View style={[styles.unreadDot, { borderColor: colors.surface }]} />}
       </View>
 
       {/* 본문 */}
       <View style={styles.cardBody}>
-        <View style={styles.cardTop}>
+        <View style={styles.cardTopRow}>
           <Text style={[styles.categoryLabel, { color: meta.color }]}>{t(meta.labelKey)}</Text>
-          <Text style={styles.cardTime}>{formatTime(item.createdAt)}</Text>
-          {!item.isRead && <View style={[styles.unreadDot, { backgroundColor: meta.color }]} />}
+          <Text style={styles.cardTime}>{formatTime(item.createdAt, t)}</Text>
         </View>
-        <Text style={[styles.cardMsg, !item.isRead && styles.cardMsgBold]} numberOfLines={2}>
-          {item.message}
-        </Text>
+        {quote ? (
+          <Text style={styles.cardMsg} numberOfLines={3}>
+            {lead}{' '}
+            <Text style={styles.cardQuote}>&ldquo;{quote}&rdquo;</Text>
+          </Text>
+        ) : (
+          <Text style={styles.cardMsg} numberOfLines={3}>{lead}</Text>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -65,6 +154,7 @@ export default function NotificationScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { t } = useLang();
+
   const FILTERS = [
     { key: 'all',     label: t('notif.filterAll') },
     { key: 'comment', label: t('notif.filterComment') },
@@ -115,11 +205,12 @@ export default function NotificationScreen() {
     ? notifications
     : notifications.filter(n => n.type === filter);
 
+  const sections = useMemo(() => groupNotifications(filtered, t), [filtered, t]);
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
     <View style={styles.container}>
-      {/* 헤더 — 탭바에서 직접 접근 시만 표시 (스택에서 열리면 네이티브 헤더 사용) */}
+      {/* 헤더 */}
       <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 4 : 16 }]}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerTitle}>{t('notif.title')}</Text>
@@ -129,7 +220,7 @@ export default function NotificationScreen() {
             </View>
           )}
         </View>
-        <TouchableOpacity onPress={handleMarkAllRead} activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleMarkAllRead} activeOpacity={0.7} hitSlop={8}>
           <Text style={styles.markAllText}>{t('notif.markAllRead')}</Text>
         </TouchableOpacity>
       </View>
@@ -162,10 +253,16 @@ export default function NotificationScreen() {
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>
       ) : (
-        <FlatList
-          data={filtered}
+        <SectionList
+          sections={sections}
           keyExtractor={item => String(item.id)}
-          renderItem={({ item }) => <NotificationCard item={item} onPress={handlePress} t={t} styles={styles} colors={colors} />}
+          renderItem={({ item }) => (
+            <NotificationCard item={item} onPress={handlePress} t={t} styles={styles} colors={colors} />
+          )}
+          renderSectionHeader={({ section: { title } }) => (
+            <Text style={styles.sectionHeader}>{title}</Text>
+          )}
+          stickySectionHeadersEnabled={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => loadNotifications(true)} tintColor={colors.primary} />
           }
@@ -177,11 +274,11 @@ export default function NotificationScreen() {
             />
           }
           ListFooterComponent={
-            filtered.length > 0
+            sections.length > 0
               ? <Text style={styles.footerText}>{t('notif.footer')}</Text>
               : null
           }
-          contentContainerStyle={filtered.length === 0 ? { flexGrow: 1 } : { paddingVertical: 12 }}
+          contentContainerStyle={sections.length === 0 ? { flexGrow: 1 } : { paddingBottom: 24, paddingHorizontal: 16 }}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -192,6 +289,8 @@ export default function NotificationScreen() {
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  // 헤더
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',
     paddingHorizontal: 20, paddingBottom: 12,
@@ -204,34 +303,58 @@ const createStyles = (colors) => StyleSheet.create({
   },
   headerBadgeText: { fontSize: 10, fontWeight: '800', color: colors.white },
   markAllText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
-  filterWrap: { paddingBottom: 8 },
+
+  // 필터 칩
+  filterWrap: { paddingBottom: 12 },
   filterRow: { paddingHorizontal: 16, gap: 8 },
   chip: {
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 18,
     backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border,
   },
-  chipActive: { backgroundColor: colors.primary + '15', borderColor: colors.primary },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  chipTextActive: { color: colors.primary },
+  chipTextActive: { color: colors.white },
   chipDot: {
     position: 'absolute', top: 6, right: 6,
     width: 6, height: 6, borderRadius: 3, backgroundColor: colors.danger,
   },
+
+  // 섹션 헤더 (오늘/어제/날짜)
+  sectionHeader: {
+    fontSize: 15, fontWeight: '800', color: colors.text,
+    marginTop: 18, marginBottom: 10, paddingHorizontal: 4,
+  },
+
+  // 카드
   card: {
-    flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 14, gap: 12,
+    flexDirection: 'row', gap: 12,
+    paddingVertical: 14, paddingHorizontal: 14,
+    backgroundColor: colors.surface, borderRadius: 14, marginBottom: 8,
+    borderWidth: 1, borderColor: colors.border,
   },
-  cardUnread: { backgroundColor: colors.primary + '06' },
+  cardUnread: {
+    borderColor: colors.primary + '40',
+    backgroundColor: colors.primary + '06',
+  },
   iconWrap: {
-    width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+    position: 'relative',
   },
-  iconText: { fontSize: 18 },
-  cardBody: { flex: 1 },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  categoryLabel: { fontSize: 11, fontWeight: '700' },
+  unreadDot: {
+    position: 'absolute', top: -2, right: -2,
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: colors.primary, borderWidth: 2,
+  },
+  cardBody: { flex: 1, minWidth: 0 },
+  cardTopRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: 4,
+  },
+  categoryLabel: { fontSize: 12, fontWeight: '700' },
   cardTime: { fontSize: 11, color: colors.textSecondary },
-  unreadDot: { width: 6, height: 6, borderRadius: 3, marginLeft: 'auto' },
-  cardMsg: { fontSize: 14, color: colors.text, marginTop: 4, lineHeight: 20 },
-  cardMsgBold: { fontWeight: '600' },
-  emptyText: { fontSize: 14, color: colors.textSecondary },
+  cardMsg: { fontSize: 14, color: colors.text, lineHeight: 20 },
+  cardQuote: { fontStyle: 'italic', color: colors.textSecondary },
+
   footerText: { textAlign: 'center', fontSize: 12, color: colors.textSecondary, paddingVertical: 16 },
 });

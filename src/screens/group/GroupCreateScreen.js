@@ -1,7 +1,8 @@
 import { useState, useLayoutEffect } from 'react';
 import {
-  View, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Switch,
+  View, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, Platform, Modal, FlatList,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
@@ -19,6 +20,12 @@ const CATEGORIES = [
   { key: 'general', labelKey: 'group.catGeneral', emoji: '💬' },
 ];
 
+const CITIES = [
+  'Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Edmonton',
+  'Ottawa', 'Winnipeg', 'Victoria', 'Halifax', 'Saskatoon',
+  'London', 'Quebec',
+];
+
 export default function GroupCreateScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { t } = useLang();
@@ -28,12 +35,13 @@ export default function GroupCreateScreen({ navigation, route }) {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [city, setCity] = useState('');
+  const [cityModalOpen, setCityModalOpen] = useState(false);
   const [joinPolicy, setJoinPolicy] = useState('open');
-  // 학교 페이지에서 진입했으면 schoolOnly=true로 시작 (인증된 회원일 때만 의미 있음)
-  const [schoolOnly, setSchoolOnly] = useState(!!route?.params?.schoolOnly);
+  // 진입 경로로 컨텍스트 결정 — 학교 커뮤니티에서 진입했으면 학교 동아리, 그 외엔 일반 모임
+  // (토글 UI 없음 — 컨텍스트로 자동 결정됨)
+  const isSchoolContext = !!route?.params?.schoolOnly;
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
-  const canSchoolRestrict = user?.verified === true && !!user?.university;
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -54,9 +62,10 @@ export default function GroupCreateScreen({ navigation, route }) {
         name: name.trim(),
         description: description.trim(),
         category,
-        city: city.trim(),
+        // 학교 동아리는 학교가 도시 컨텍스트라 city는 빈값
+        city: isSchoolContext ? '' : city.trim(),
         joinPolicy,
-        schoolOnly: canSchoolRestrict ? schoolOnly : false,
+        schoolOnly: isSchoolContext,
       });
       if (res.success) {
         Alert.alert('', t('group.submitOk'), [
@@ -82,7 +91,7 @@ export default function GroupCreateScreen({ navigation, route }) {
       style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <CustomHeader navigation={navigation} title={t('group.createTitle')} />
+      <CustomHeader navigation={navigation} title={t(isSchoolContext ? 'group.createTitleSchool' : 'group.createTitle')} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* 안내 */}
         <View style={styles.notice}>
@@ -132,16 +141,22 @@ export default function GroupCreateScreen({ navigation, route }) {
           })}
         </View>
 
-        {/* 지역 */}
-        <Text style={styles.label}>{t('group.cityLabel')}</Text>
-        <TextInput
-          style={styles.input}
-          value={city}
-          onChangeText={setCity}
-          placeholder={t('group.cityPh')}
-          placeholderTextColor={colors.textSecondary}
-          maxLength={100}
-        />
+        {/* 지역 — 드롭다운 선택 (학교 동아리는 학교가 도시를 결정하므로 숨김) */}
+        {!isSchoolContext && (
+          <>
+            <Text style={styles.label}>{t('group.cityLabel')}</Text>
+            <TouchableOpacity
+              style={styles.cityDropdown}
+              onPress={() => setCityModalOpen(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.cityDropdownText, !city && styles.cityDropdownPlaceholder]}>
+                {city ? (t(`city.${city}`) || city) : t('group.cityPh')}
+              </Text>
+              <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* 가입 방식 */}
         <Text style={styles.label}>{t('group.policyLabel')}</Text>
@@ -166,22 +181,13 @@ export default function GroupCreateScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
-        {/* 학교 한정 동아리 — 학교 인증된 사람만 토글 노출 */}
-        {canSchoolRestrict && (
+        {/* 학교 컨텍스트에서 진입했으면 안내 배너만 표시 (토글 없음 — 자동으로 학교 동아리) */}
+        {isSchoolContext && user?.university && (
           <View style={styles.schoolToggleBox}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.schoolToggleLabel}>🎓 학교 한정 동아리</Text>
-              <Text style={styles.schoolToggleHint}>
-                {schoolOnly
-                  ? `${user.university} 인증 회원만 가입 가능`
-                  : '체크하면 본인 학교 인증 회원만 가입 가능'}
-              </Text>
-            </View>
-            <Switch
-              value={schoolOnly}
-              onValueChange={setSchoolOnly}
-              trackColor={{ false: colors.border, true: colors.primary }}
-            />
+            <Text style={styles.schoolToggleLabel}>🎓 학교 동아리</Text>
+            <Text style={styles.schoolToggleHint}>
+              {`${user.university} 인증 회원만 가입할 수 있어요`}
+            </Text>
           </View>
         )}
 
@@ -198,6 +204,46 @@ export default function GroupCreateScreen({ navigation, route }) {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* 도시 선택 모달 */}
+      <Modal visible={cityModalOpen} animationType="slide" transparent onRequestClose={() => setCityModalOpen(false)}>
+        <View style={styles.cityModalOverlay}>
+          <View style={styles.cityModalSheet}>
+            <View style={styles.cityModalHeader}>
+              <Text style={styles.cityModalTitle}>{t('group.cityLabel')}</Text>
+              <TouchableOpacity onPress={() => setCityModalOpen(false)} hitSlop={8}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={[styles.cityItem, !city && styles.cityItemActive]}
+              onPress={() => { setCity(''); setCityModalOpen(false); }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.cityItemText, !city && styles.cityItemTextActive]}>
+                {t('auth.citySkip')}
+              </Text>
+            </TouchableOpacity>
+            <FlatList
+              data={CITIES}
+              keyExtractor={item => item}
+              renderItem={({ item: c }) => (
+                <TouchableOpacity
+                  style={[styles.cityItem, city === c && styles.cityItemActive]}
+                  onPress={() => { setCity(c); setCityModalOpen(false); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.cityItemText, city === c && styles.cityItemTextActive]}>
+                    📍 {t(`city.${c}`) || c}
+                  </Text>
+                  {city === c && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                </TouchableOpacity>
+              )}
+              style={{ maxHeight: 400 }}
+            />
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -227,7 +273,6 @@ const createStyles = (colors) => StyleSheet.create({
   catTextActive: { color: colors.white },
   policyRow: { flexDirection: 'row', gap: 8 },
   schoolToggleBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
     marginTop: 16, padding: 14, borderRadius: 12,
     backgroundColor: colors.primary + '0F',
     borderWidth: 1, borderColor: colors.primary + '30',
@@ -247,4 +292,34 @@ const createStyles = (colors) => StyleSheet.create({
     paddingVertical: 14, alignItems: 'center',
   },
   submitText: { color: colors.white, fontSize: 15, fontWeight: '700' },
+
+  // 도시 드롭다운
+  cityDropdown: {
+    backgroundColor: colors.inputBg, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1, borderColor: colors.border,
+  },
+  cityDropdownText: { fontSize: 14, color: colors.text },
+  cityDropdownPlaceholder: { color: colors.textSecondary },
+
+  // 도시 선택 모달
+  cityModalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end',
+  },
+  cityModalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 16, borderTopRightRadius: 16,
+    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 28,
+  },
+  cityModalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
+  },
+  cityModalTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
+  cityItem: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  cityItemActive: {},
+  cityItemText: { fontSize: 15, color: colors.text },
+  cityItemTextActive: { color: colors.primary, fontWeight: '700' },
 });

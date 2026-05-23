@@ -6,9 +6,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -34,6 +34,9 @@ export default function GroupCommunityEditScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
+  const [isSchoolClub, setIsSchoolClub] = useState(false);
+
+  const headerTitle = t(isSchoolClub ? 'group.communityEditTitleSchool' : 'group.communityEditTitle');
 
   useEffect(() => {
     (async () => {
@@ -41,6 +44,7 @@ export default function GroupCommunityEditScreen({ navigation, route }) {
         const res = await getGroup(groupId);
         if (res.success) {
           setCanEdit(!!res.data?.canEditCommunity);
+          setIsSchoolClub(!!res.data?.university);
           const c = res.data?.community || {};
           setForm({
             instagram: c.instagram || '',
@@ -80,7 +84,7 @@ export default function GroupCommunityEditScreen({ navigation, route }) {
   if (!canEdit) {
     return (
       <View style={styles.container}>
-        <CustomHeader navigation={navigation} title={t('group.communityEditTitle')} />
+        <CustomHeader navigation={navigation} title={headerTitle} />
         <View style={styles.center}>
           <Ionicons name="lock-closed" size={32} color={colors.textSecondary} />
           <Text style={styles.lockText}>{t('group.communityNoPerm')}</Text>
@@ -93,7 +97,7 @@ export default function GroupCommunityEditScreen({ navigation, route }) {
     <View style={styles.container}>
       <CustomHeader
         navigation={navigation}
-        title={t('group.communityEditTitle')}
+        title={headerTitle}
         rightActions={[
           { text: saving ? '...' : t('common.save'), onPress: saving ? undefined : onSave, disabled: saving, label: t('common.save') },
         ]}

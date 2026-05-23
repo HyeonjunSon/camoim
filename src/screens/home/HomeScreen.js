@@ -185,9 +185,12 @@ export default function HomeScreen({ navigation }) {
   const bannerWidth = SCREEN_WIDTH - 32;
 
   // ── 섹션 헤더 컴포넌트
-  const SectionHeader = ({ title, onPress }) => (
+  const SectionHeader = ({ title, onPress, icon, iconColor }) => (
     <View style={styles.sectionHeaderRow}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionTitleRow}>
+        {icon && <Ionicons name={icon} size={18} color={iconColor || colors.primary} />}
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
       {onPress && (
         <TouchableOpacity onPress={onPress} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={styles.viewAllText}>{t('home.seeMore')} ›</Text>
@@ -250,6 +253,7 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.sectionWrap}>
         <SectionHeader
           title={t('home.freeLatest')}
+          icon="clipboard-outline"
           onPress={() => goToBoardBySlug('free')}
         />
         {freePosts.map((post, idx) => {
@@ -612,6 +616,7 @@ const createStyles = (colors) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: 12,
   },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
   viewAllText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
 

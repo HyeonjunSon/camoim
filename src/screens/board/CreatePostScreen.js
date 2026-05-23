@@ -11,7 +11,9 @@ import {
   Keyboard,
   Modal,
   FlatList,
+  useWindowDimensions,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -93,6 +95,7 @@ export default function CreatePostScreen({ route, navigation }) {
   const groupName = routeParams.groupName ?? editPost?.groupName;
   const isGroupPost = !!groupId;
   const insets = useSafeAreaInsets();
+  const { height: winHeight } = useWindowDimensions();
   const { t } = useLang();
   const { user } = useAuth();
 
@@ -106,6 +109,8 @@ export default function CreatePostScreen({ route, navigation }) {
   const [submitting, setSubmitting] = useState(false);
   const [hasBody, setHasBody] = useState(!!editPost?.content);
   const [kbHeight, setKbHeight] = useState(0);
+  // Android: endCoordinates.height가 과측정되는 경우가 있어 screenY (키보드 top 절대좌표)로 정확한 키보드 top을 추적
+  const [kbScreenY, setKbScreenY] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imgSelected, setImgSelected] = useState(false);
   const [boldActive, setBoldActive] = useState(false);
@@ -205,8 +210,14 @@ export default function CreatePostScreen({ route, navigation }) {
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const s1 = Keyboard.addListener(showEvt, (e) => setKbHeight(e?.endCoordinates?.height ?? 0));
-    const s2 = Keyboard.addListener(hideEvt, () => setKbHeight(0));
+    const s1 = Keyboard.addListener(showEvt, (e) => {
+      setKbHeight(e?.endCoordinates?.height ?? 0);
+      setKbScreenY(e?.endCoordinates?.screenY ?? null);
+    });
+    const s2 = Keyboard.addListener(hideEvt, () => {
+      setKbHeight(0);
+      setKbScreenY(null);
+    });
     return () => { s1.remove(); s2.remove(); };
   }, []);
 
@@ -681,11 +692,17 @@ export default function CreatePostScreen({ route, navigation }) {
 
       <View style={styles.divider} />
 
-      {/* 리치 에디터 — 외부 ScrollView가 스크롤 담당 (pell-rich-editor는 WebView 내부 스크롤 비활성) */}
+      {/* 리치 에디터 — 외부 ScrollView가 스크롤 담당 (pell-rich-editor는 WebView 내부 스크롤 비활성)
+          Android는 키보드+absolute 툴바가 ScrollView 하단을 가리므로 그만큼 paddingBottom 추가 */}
       <ScrollView
         ref={scrollRef}
         style={styles.editorScroll}
-        contentContainerStyle={styles.editorScrollContent}
+        contentContainerStyle={[
+          styles.editorScrollContent,
+          Platform.OS === 'android' && editorFocused && {
+            paddingBottom: 16 + (kbHeight > 0 ? kbHeight : 0) + 56,
+          },
+        ]}
         keyboardShouldPersistTaps="always"
         keyboardDismissMode="none"
         showsVerticalScrollIndicator={false}
@@ -693,20 +710,66 @@ export default function CreatePostScreen({ route, navigation }) {
       >
         <RichEditor
           ref={richRef}
-          initialContentHTML=""
+          // Android WebView는 빈 contenteditable에 자동으로 <div><br></div>를 끼워넣어
+          // 첫 줄에 빈 칸이 생기는 버그가 있음 → 새 글 작성 시 <p><br></p>로 강제 (edit 모드는
+          // editorInitializedCallback에서 별도로 기존 내용을 setContentHTML로 로드함)
+          initialContentHTML={isEditMode ? '' : '<p><br></p>'}
           placeholder={t('post.contentPh')}
           scrollEnabled={true}
           onFocus={() => setEditorFocused(true)}
           onBlur={() => setEditorFocused(false)}
           onCursorPosition={(cursorY) => {
-            // 커서가 화면 중간(1/2 지점)에 오도록 자동 스크롤
-            const visibleH = scrollViewHeightRef.current || 400;
+            // Android에서 onFocus가 안 부르는 경우가 있어 커서 활동 감지로 보완
+            if (!editorFocused) setEditorFocused(true);
+            // ScrollView 컨테이너 높이에서 키보드+툴바가 가리는 영역을 뺀 "실제 보이는 영역"의
+            // 1/3 지점에 커서가 오도록 스크롤 (1/2였더니 Android에선 키보드 위쪽 경계에 걸림)
+            const containerH = scrollViewHeightRef.current || 400;
+            const obscuredH = Platform.OS === 'android' && kbHeight > 0
+              ? kbHeight + 56  // 키보드 + absolute 툴바
+              : 0;
+            const visibleH = containerH - obscuredH;
             if (visibleH <= 0) return;
-            const targetY = Math.max(0, cursorY - visibleH / 2);
+            const targetY = Math.max(0, cursorY - visibleH / 3);
             scrollRef.current?.scrollTo({ y: targetY, animated: true });
           }}
           onMessage={handleEditorMessage}
           editorInitializedCallback={() => {
+            // Android WebView가 입력 중에도 <div><br></div>를 끼워넣는 버그 회피:
+            // 초기 진입 시점에 contenteditable을 <p><br></p>로 강제하고, 이후 input마다
+            // 선행 빈 <div>를 자동 제거 (사용자 커서 위치는 건드리지 않음)
+            const ensureFirstPJS = `
+              (function(){
+                if (window.__firstPBound) return true;
+                window.__firstPBound = true;
+                var root = document.querySelector('[contenteditable]') || document.body;
+                if (!root) return true;
+                // 초기 상태가 비어있거나 <div><br></div> 만 있을 때 <p><br></p>로 정리
+                function normalizeStart(){
+                  if (!root.firstChild) {
+                    root.innerHTML = '<p><br></p>';
+                    return;
+                  }
+                  // 선행 빈 <div> 제거 (사용자가 타이핑한 본 줄이 첫 줄로 올라옴)
+                  while (root.firstChild) {
+                    var f = root.firstChild;
+                    if (f.nodeType === 1 && f.tagName === 'DIV' &&
+                        (f.innerHTML === '<br>' || f.innerHTML === '<br/>' || f.innerHTML.trim() === '')) {
+                      root.removeChild(f);
+                    } else {
+                      break;
+                    }
+                  }
+                  if (!root.firstChild) {
+                    root.innerHTML = '<p><br></p>';
+                  }
+                }
+                normalizeStart();
+                document.addEventListener('input', normalizeStart, true);
+                true;
+              })();
+            `;
+            try { richRef.current?.injectJavascript?.(ensureFirstPJS); } catch (e) {}
+
             // 이미지 탭 감지 → RN으로 메시지 전송 (선택된 이미지에 outline 표시)
             const imgSelectJS = `
               (function(){
@@ -897,8 +960,10 @@ export default function CreatePostScreen({ route, navigation }) {
                   }
 
                   // 3) MIDDLE 슬롯
-                  var ps = Array.prototype.slice.call(root.querySelectorAll('p'));
-                  ps.forEach(function(p){
+                  // pell-rich-editor는 P 또는 DIV로 이미지를 감쌀 수 있어 root.children에서 블록만 필터
+                  // (querySelectorAll('p')만 쓰면 DIV로 감싸진 이미지 사이엔 힌트가 안 들어감)
+                  var blocks = Array.prototype.slice.call(root.children).filter(isBlock);
+                  blocks.forEach(function(p){
                     if (!isImgPara(p)) return;
                     var next = p.nextElementSibling;
                     if (!next) return;
@@ -1000,7 +1065,11 @@ export default function CreatePostScreen({ route, navigation }) {
               } catch (e) {}
             }, 50);
           }}
-          onChange={handleChangeHtml}
+          onChange={(html) => {
+            // 타이핑 시작 자체도 본문 포커스 신호로 간주 (onFocus 누락 보완)
+            if (!editorFocused) setEditorFocused(true);
+            handleChangeHtml(html);
+          }}
           editorStyle={{
             backgroundColor: colors.surface,
             color: colors.text,
@@ -1057,16 +1126,19 @@ export default function CreatePostScreen({ route, navigation }) {
             <Text style={[styles.imgActionText, { color: '#FF3B30' }]}>{t('common.delete')}</Text>
           </TouchableOpacity>
         </View>
-      ) : editorFocused ? (
-      /* ── 포맷 툴바 — 본문 에디터 포커스됐을 때만 노출
+      ) : (editorFocused && kbHeight > 0) ? (
+      /* ── 포맷 툴바 — 본문 에디터 포커스 + 키보드 떠 있을 때만 노출
+           (iOS WebView가 마운트 시 onCursorPosition을 한 번 발화시켜 editorFocused를
+           true로 만드는 부작용이 있어, 실제 키보드가 떠 있을 때만 노출하도록 강화)
            Android는 외부 View를 absolute로 깔아 키보드 위 강제 부착 */
       Platform.OS === 'android' ? (
-        <View
+        <KeyboardAvoidingView
+          behavior="padding"
           style={{
             position: 'absolute',
             left: 0,
             right: 0,
-            bottom: kbHeight > 0 ? kbHeight : insets.bottom,
+            bottom: 0,
             backgroundColor: colors.surface,
             borderTopWidth: 1,
             borderTopColor: colors.border,
@@ -1104,7 +1176,7 @@ export default function CreatePostScreen({ route, navigation }) {
             selectedIconTint={colors.primary}
             style={{ paddingBottom: 4, backgroundColor: 'transparent', borderTopWidth: 0 }}
           />
-        </View>
+        </KeyboardAvoidingView>
       ) : (
         <RichToolbar
           editor={richRef}
