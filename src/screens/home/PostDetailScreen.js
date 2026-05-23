@@ -8,7 +8,6 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   Alert,
   ActionSheetIOS,
@@ -16,6 +15,7 @@ import {
   Dimensions,
   useWindowDimensions,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import CustomHeader from '../../components/CustomHeader';
 import RenderHTML from 'react-native-render-html';

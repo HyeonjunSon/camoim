@@ -6,6 +6,7 @@ import {
   DarkTheme,
 } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar, setStatusBarStyle } from 'expo-status-bar';
 import { View, ActivityIndicator, AppState } from 'react-native';
@@ -118,17 +119,19 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <LangProvider>
-            <AuthProvider>
-              <SocketProvider>
-                <ThemedNavigation />
-              </SocketProvider>
-            </AuthProvider>
-          </LangProvider>
-        </ThemeProvider>
-      </SafeAreaProvider>
+      <KeyboardProvider>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <LangProvider>
+              <AuthProvider>
+                <SocketProvider>
+                  <ThemedNavigation />
+                </SocketProvider>
+              </AuthProvider>
+            </LangProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }
