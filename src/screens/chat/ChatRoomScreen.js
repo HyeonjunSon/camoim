@@ -54,7 +54,10 @@ export default function ChatRoomScreen({ route, navigation }) {
     const h = Keyboard.addListener(hideEvt, () => setKeyboardVisible(false));
     return () => { s.remove(); h.remove(); };
   }, []);
-  const inputBarBottomPad = 8 + (keyboardVisible ? 0 : insets.bottom);
+  // Android edgeToEdge에서 insets.bottom이 0으로 잡히는 경우가 있어서 최소 32px 보장
+  // (gesture indicator / 시스템 nav bar 영역 + 시각적 여백)
+  const safeBottom = Platform.OS === 'android' ? Math.max(insets.bottom, 32) : insets.bottom;
+  const inputBarBottomPad = 8 + (keyboardVisible ? 0 : safeBottom);
   const { on, off, emit, joinRoom, leaveRoom, setActiveRoom } = useSocket();
   const flatListRef = useRef(null);
 
@@ -390,7 +393,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         </View>
       ) : status === 'pending' && !isRequester ? (
         // 수신자: 수락/거절 버튼
-        <View style={[styles.requestBar, { paddingBottom: 14 + insets.bottom }]}>
+        <View style={[styles.requestBar, { paddingBottom: 14 + safeBottom }]}>
           <Text style={styles.requestNotice}>
             {(other?.nickname ?? '') + t('chat.requested')}
           </Text>
@@ -406,7 +409,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       ) : status === 'pending' && isRequester ? (
         // 요청자: 아직 메시지 안 보냈으면 입력바 + 안내, 보냈으면 대기 안내만
         messages.some(m => String(m.senderId) === String(me?.id)) ? (
-          <View style={[styles.pendingBar, { paddingBottom: 14 + insets.bottom }]}>
+          <View style={[styles.pendingBar, { paddingBottom: 14 + safeBottom }]}>
             <Text style={styles.pendingText}>
               {t('chat.pendingNotice')}
             </Text>
@@ -444,13 +447,13 @@ export default function ChatRoomScreen({ route, navigation }) {
         )
       ) : otherDeleted ? (
         // 상대방이 계정 탈퇴한 경우 — 재요청 불가
-        <View style={[styles.leftBar, { paddingBottom: 16 + insets.bottom }]}>
+        <View style={[styles.leftBar, { paddingBottom: 16 + safeBottom }]}>
           <Text style={styles.leftText}>{t('chat.otherDeleted')}</Text>
           <Text style={styles.leftHint}>{t('chat.otherDeletedHint')}</Text>
         </View>
       ) : otherLeft ? (
         // 상대방이 채팅방에서 나간 경우 — 재요청 가능
-        <View style={[styles.leftBar, { paddingBottom: 16 + insets.bottom }]}>
+        <View style={[styles.leftBar, { paddingBottom: 16 + safeBottom }]}>
           <Text style={styles.leftText}>{t('chat.otherLeft')}</Text>
           <Text style={styles.leftHint}>{t('chat.otherLeftHint')}</Text>
           <TouchableOpacity style={styles.requestAgainBtn} onPress={handleRequestAgain} activeOpacity={0.8}>
