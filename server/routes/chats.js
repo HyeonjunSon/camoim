@@ -279,6 +279,12 @@ router.put('/:roomId/accept', requireAuth, async (req, res) => {
     }
     room.status = 'accepted';
     await room.save();
+    // 이 방에 대한 chat_request 알림 자동 읽음 처리
+    // (수신자가 알림 카드를 직접 탭 안 하고 채팅탭에서 바로 수락한 케이스 커버)
+    Notification.updateMany(
+      { userId: req.user.id, type: 'chat_request', roomId: room._id, isRead: false },
+      { $set: { isRead: true } }
+    ).catch(() => {});
     res.json({ success: true, data: { id: room._id, status: room.status } });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
@@ -311,6 +317,13 @@ router.delete('/:roomId', requireAuth, async (req, res) => {
 
     // 나가기 전에 상대방 ID 확보
     const otherId = room.participants.find(p => String(p) !== String(req.user.id));
+
+    // 이 방에 대한 chat_request 알림 자동 읽음 처리
+    // (수신자가 거절/나가기 → 요청이 해결된 것이므로 알림도 정리)
+    Notification.updateMany(
+      { userId: req.user.id, type: 'chat_request', roomId: room._id, isRead: false },
+      { $set: { isRead: true } }
+    ).catch(() => {});
 
     // 나가는 사람의 정보를 스냅샷으로 저장 (상대방이 나중에 닉네임을 볼 수 있도록)
     const leaver = await User.findById(req.user.id).select('nickname avatarUrl');
