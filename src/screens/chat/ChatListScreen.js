@@ -26,7 +26,7 @@ import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatTime } from '../../lib/time';
 
-export default function ChatListScreen({ navigation }) {
+export default function ChatListScreen({ navigation, route }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
@@ -35,9 +35,17 @@ export default function ChatListScreen({ navigation }) {
   const { on, off } = useSocket();
   const [rooms, setRooms] = useState([]);
   const [requests, setRequests] = useState([]);
-  const [tab, setTab] = useState('chats'); // chats | requests
+  // 알림 탭에서 메시지 요청 알림을 누르고 진입 시 'requests' 탭으로 열기
+  const [tab, setTab] = useState(route?.params?.initialBox === 'requests' ? 'requests' : 'chats');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // 알림에서 다시 들어왔을 때 (param 새로 들어오면 tab 동기화)
+  useEffect(() => {
+    if (route?.params?.initialBox === 'requests') {
+      setTab('requests');
+    }
+  }, [route?.params?.initialBox]);
 
   useFocusEffect(
     useCallback(() => {

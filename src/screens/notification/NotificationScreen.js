@@ -42,6 +42,12 @@ const buildTypeMeta = (colors) => ({
     color: '#7C3AED',
     labelKey: 'notif.catChat',
   },
+  chat_request: {
+    iconName: 'chatbubble-ellipses-outline',
+    bg: '#CFFAFE',         // 라이트 시안
+    color: '#0891B2',
+    labelKey: 'notif.catChatRequest',
+  },
   university_leader: {
     iconName: 'school',
     bg: '#DCFCE7',         // 라이트 그린
@@ -194,7 +200,10 @@ export default function NotificationScreen() {
       } catch {}
     }
 
-    if (notification.type === 'chat' && notification.roomId) {
+    if (notification.type === 'chat_request') {
+      // 채팅탭 → 받은 요청 박스로 이동 (ChatList의 box 토글이 'requests'로 열림)
+      navigation.navigate('Chat', { screen: 'ChatList', params: { initialBox: 'requests' } });
+    } else if (notification.type === 'chat' && notification.roomId) {
       navigation.navigate('Chat', { screen: 'ChatList' });
     } else if (notification.postId) {
       navigation.navigate('Home', { screen: 'PostDetail', params: { postId: notification.postId } });

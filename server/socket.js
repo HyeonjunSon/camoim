@@ -97,6 +97,8 @@ function initSocket(httpServer) {
               socket.emit('send_error', { message: '상대가 수락하기 전에는 메시지를 한 통만 보낼 수 있어요.' });
               return;
             }
+            // 첫 요청 메시지 표시 — 메시지 저장 후 수신자에게 chat_request 알림 생성
+            socket._isFirstRequestMessage = true;
           }
         }
 
@@ -134,6 +136,20 @@ function initSocket(httpServer) {
 
         // 방 안의 모든 사람에게 전송
         io.to(roomId).emit('new_message', payload);
+
+        // DM 첫 요청 메시지면 수신자 알림함에 chat_request 레코드 생성
+        // (일반 채팅 메시지는 안 쌓지만, 요청은 사용자가 채팅탭 안 들어가면 모를 수 있어서 별도 알림)
+        if (socket._isFirstRequestMessage && otherIds.length > 0) {
+          for (const oid of otherIds) {
+            Notification.create({
+              userId: oid,
+              type: 'chat_request',
+              message: `${socket.user.nickname}님이 메시지 요청을 보냈어요.`,
+              roomId,
+            }).catch(() => {});
+          }
+          socket._isFirstRequestMessage = false; // 일회성 플래그 클리어
+        }
 
         // 채팅 메시지는 알림함(Notification)에 안 쌓음 — 채팅탭 unread 뱃지로
         // 충분하고, 카톡/슬랙 등 표준 패턴. 실시간 chat_notification 이벤트만 발송
