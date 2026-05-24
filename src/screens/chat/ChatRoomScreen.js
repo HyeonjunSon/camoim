@@ -390,7 +390,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         </View>
       ) : status === 'pending' && !isRequester ? (
         // 수신자: 수락/거절 버튼
-        <View style={styles.requestBar}>
+        <View style={[styles.requestBar, { paddingBottom: 14 + insets.bottom }]}>
           <Text style={styles.requestNotice}>
             {(other?.nickname ?? '') + t('chat.requested')}
           </Text>
@@ -406,7 +406,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       ) : status === 'pending' && isRequester ? (
         // 요청자: 아직 메시지 안 보냈으면 입력바 + 안내, 보냈으면 대기 안내만
         messages.some(m => String(m.senderId) === String(me?.id)) ? (
-          <View style={styles.pendingBar}>
+          <View style={[styles.pendingBar, { paddingBottom: 14 + insets.bottom }]}>
             <Text style={styles.pendingText}>
               {t('chat.pendingNotice')}
             </Text>
@@ -444,13 +444,13 @@ export default function ChatRoomScreen({ route, navigation }) {
         )
       ) : otherDeleted ? (
         // 상대방이 계정 탈퇴한 경우 — 재요청 불가
-        <View style={styles.leftBar}>
+        <View style={[styles.leftBar, { paddingBottom: 16 + insets.bottom }]}>
           <Text style={styles.leftText}>{t('chat.otherDeleted')}</Text>
           <Text style={styles.leftHint}>{t('chat.otherDeletedHint')}</Text>
         </View>
       ) : otherLeft ? (
         // 상대방이 채팅방에서 나간 경우 — 재요청 가능
-        <View style={styles.leftBar}>
+        <View style={[styles.leftBar, { paddingBottom: 16 + insets.bottom }]}>
           <Text style={styles.leftText}>{t('chat.otherLeft')}</Text>
           <Text style={styles.leftHint}>{t('chat.otherLeftHint')}</Text>
           <TouchableOpacity style={styles.requestAgainBtn} onPress={handleRequestAgain} activeOpacity={0.8}>

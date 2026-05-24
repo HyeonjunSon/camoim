@@ -23,8 +23,8 @@ export const TRANSLATIONS = {
       hi: '안녕하세요', friend: '친구', sub: '오늘의 커뮤니티 소식을 확인해보세요',
       category: '더 둘러보기', boardFallback: '게시판',
       viewAll: '전체보기', freeLatest: '자유게시판 최신글',
-      marketHighlight: '🛍️ 장터', jobsHighlight: '💼 구인구직',
-      marketLocal: '장터', jobsLocal: '구인구직',
+      marketHighlight: '🛍️ 중고거래', jobsHighlight: '💼 구인구직',
+      marketLocal: '중고거래', jobsLocal: '구인구직',
       seeMore: '더보기', notices: '📢 공지사항',
       regionAll: '전체', regionMy: '내 지역', regionFilter: '지역 선택',
     },
@@ -40,7 +40,7 @@ export const TRANSLATIONS = {
     boardName: {
       free: '자유게시판', anonymous: '익명게시판', meetup: '같이가요 함께해요',
       immigration: '이민·영주권', study: '교육·유학', workingholiday: '워킹홀리데이',
-      market: '사고팔고 아나바다', car: '자동차 사고팔기', giveaway: '나눔해 드려요',
+      market: '중고거래', car: '자동차 중고거래', giveaway: '무료나눔',
       jobs: '구인구직·알바', realestate: '부동산 매매/전세', roomrent: '룸랜트·민박·하숙',
       exchange: '환전·사기주의', university: '학교 커뮤니티', fallback: '게시판',
       // 학교 게시판 템플릿 (slug suffix 기반)
@@ -126,7 +126,7 @@ export const TRANSLATIONS = {
     },
     board: {
       title: '게시판', filterAll: '전체', filterPinned: '⭐ 자주가는',
-      filterCommunity: '커뮤니티', filterQna: 'Q&A', filterMarket: '사고팔고',
+      filterCommunity: '커뮤니티', filterQna: 'Q&A', filterMarket: '중고거래',
       filterLife: '생활정보', noPost: '아직 글이 없어요',
       writeWhere: '어디에 글을 쓸까요?', empty: '게시판이 없어요',
       pinnedEmpty: '아직 자주가는 게시판이 없어요',
