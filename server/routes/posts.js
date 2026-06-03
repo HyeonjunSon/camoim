@@ -11,6 +11,7 @@ const Group = require('../models/Group');
 const GroupMembership = require('../models/GroupMembership');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const BoardSubscription = require('../models/BoardSubscription');
 const Bookmark = require('../models/Bookmark');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { sendPush } = require('../utils/push');
@@ -525,6 +526,49 @@ router.post('/', requireAuth, uploadImages.array('images', 5), async (req, res) 
 
     if (groupId) {
       Group.findByIdAndUpdate(groupId, { $inc: { postCount: 1 } }).catch(() => {});
+    } else if (boardId) {
+      // 게시판 구독자에게 새 글 알림 (자기 자신 제외, 익명 글은 익명으로)
+      (async () => {
+        try {
+          const board = await Board.findById(boardId).select('name slug').lean();
+          if (!board) return;
+          const subs = await BoardSubscription.find({ boardId })
+            .select('userId')
+            .lean();
+          const recipients = subs
+            .map(s => String(s.userId))
+            .filter(uid => uid !== String(req.user.id));
+          if (recipients.length === 0) return;
+
+          const authorLabel = postData.isAnonymous
+            ? '익명'
+            : (await User.findById(req.user.id).select('nickname').lean())?.nickname || '회원';
+          const message = `[${board.name}] ${authorLabel}님의 새 글: ${post.title}`;
+
+          await Notification.insertMany(
+            recipients.map(uid => ({
+              userId: uid,
+              type: 'board_new_post',
+              message,
+              postId: post._id,
+            }))
+          ).catch(() => {});
+
+          // 푸시 (각 사용자에게)
+          const users = await User.find({
+            _id: { $in: recipients },
+          }).select('pushToken notificationSettings').lean();
+          for (const u of users) {
+            if (!u.pushToken) continue;
+            sendPush(u.pushToken, '새 게시글', message, {
+              postId: String(post._id),
+              type: 'board_new_post',
+            }, u._id).catch(() => {});
+          }
+        } catch (e) {
+          console.error('[boardSubscription notify failed]', e.message);
+        }
+      })();
     }
 
     res.status(201).json({ success: true, data: { id: post._id, title: post.title } });

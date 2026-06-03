@@ -128,6 +128,7 @@ export const TRANSLATIONS = {
       title: '게시판', filterAll: '전체', filterPinned: '⭐ 자주가는',
       filterCommunity: '커뮤니티', filterQna: 'Q&A', filterMarket: '중고거래',
       filterLife: '생활정보', noPost: '아직 글이 없어요',
+      subscribe: '새 글 알림 받기', unsubscribe: '알림 끄기',
       writeWhere: '어디에 글을 쓸까요?', empty: '게시판이 없어요',
       pinnedEmpty: '아직 자주가는 게시판이 없어요',
       pinHint: '오른쪽 ⭐ 아이콘으로 등록하세요',
@@ -717,7 +718,7 @@ export const TRANSLATIONS = {
       newChat: '님이 메시지를 보냈어요',
       markAllRead: '모두 읽음', footer: '최근 30일간의 알림만 표시됩니다.',
       filterAll: '전체', filterComment: '댓글', filterLike: '좋아요', filterChat: '메시지',
-      catComment: '댓글', catLike: '좋아요', catChat: '메시지', catChatRequest: '메시지 요청', catDefault: '알림',
+      catComment: '댓글', catLike: '좋아요', catChat: '메시지', catChatRequest: '메시지 요청', catBoardNewPost: '새 글', catDefault: '알림',
     },
     search: {
       title: '검색', placeholder: '궁금한 것을 검색해 보세요', noResult: '검색 결과가 없어요',
@@ -856,6 +857,7 @@ export const TRANSLATIONS = {
       title: 'Boards', filterAll: 'All', filterPinned: '⭐ Pinned',
       filterCommunity: 'Community', filterQna: 'Q&A', filterMarket: 'Market',
       filterLife: 'Life Info', noPost: 'No posts yet',
+      subscribe: 'Notify on new posts', unsubscribe: 'Turn off notifications',
       writeWhere: 'Where do you want to post?', empty: 'No boards',
       pinnedEmpty: 'No pinned boards yet',
       pinHint: 'Tap the ⭐ icon to pin',
@@ -1439,7 +1441,7 @@ export const TRANSLATIONS = {
       newChat: ' sent you a message',
       markAllRead: 'Mark all read', footer: 'Showing notifications from the last 30 days.',
       filterAll: 'All', filterComment: 'Comments', filterLike: 'Likes', filterChat: 'Messages',
-      catComment: 'Comment', catLike: 'Like', catChat: 'Message', catChatRequest: 'Message Request', catDefault: 'Alert',
+      catComment: 'Comment', catLike: 'Like', catChat: 'Message', catChatRequest: 'Message Request', catBoardNewPost: 'New Post', catDefault: 'Alert',
     },
     search: {
       title: 'Search', placeholder: 'Search anything', noResult: 'No results',

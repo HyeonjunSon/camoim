@@ -111,6 +111,11 @@ export const getBoardPosts = (boardId, page = 1, { search, sort, city, tradeStat
   if (tradeStatus) params.append('tradeStatus', tradeStatus);
   return request('GET', `/boards/${boardId}/posts?${params}`);
 };
+// 게시판 새 글 알림 구독
+export const getBoardSubscription = (boardId) =>
+  request('GET', `/boards/${boardId}/subscription`);
+export const toggleBoardSubscription = (boardId) =>
+  request('POST', `/boards/${boardId}/subscribe`);
 export const createPost = (boardId, data) =>
   request('POST', '/posts', { boardId, ...data });
 export const getPost = (postId) => request('GET', `/posts/${postId}`);
