@@ -116,6 +116,12 @@ export const getBoardSubscription = (boardId) =>
   request('GET', `/boards/${boardId}/subscription`);
 export const toggleBoardSubscription = (boardId) =>
   request('POST', `/boards/${boardId}/subscribe`);
+
+// 통합 검색 — 게시글 + 모임 + 사용자
+export const unifiedSearch = (q, { type = 'all', limit = 20 } = {}) => {
+  const params = new URLSearchParams({ q, type, limit: String(limit) });
+  return request('GET', `/search?${params}`);
+};
 export const createPost = (boardId, data) =>
   request('POST', '/posts', { boardId, ...data });
 export const getPost = (postId) => request('GET', `/posts/${postId}`);

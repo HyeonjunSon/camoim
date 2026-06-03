@@ -14,9 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
-import { API_BASE_URL, SERVER_HOST } from '../../lib/config';
-import { getBoards } from '../../lib/api';
-import { getToken } from '../../lib/storage';
+import { SERVER_HOST } from '../../lib/config';
+import { getBoards, unifiedSearch } from '../../lib/api';
 import { formatTime } from '../../lib/time';
 import { useLang } from '../../context/LangContext';
 
@@ -51,10 +50,11 @@ export default function SearchScreen({ navigation }) {
 
   const [query, setQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState([]);
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState({ posts: [], groups: [], users: [] });
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(false);
   const [recommendedBoards, setRecommendedBoards] = useState([]);
+  const [searchTab, setSearchTab] = useState('all'); // all | posts | groups | users
 
   const trendingTime = useRef(
     (() => {
@@ -120,27 +120,16 @@ export default function SearchScreen({ navigation }) {
 
       setIsSearching(true);
       setLoading(true);
-      setResults([]);
+      setResults({ posts: [], groups: [], users: [] });
       await saveRecentSearch(trimmed);
 
       try {
-        const token = await getToken();
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const response = await fetch(
-          `${API_BASE_URL}/posts?search=${encodeURIComponent(trimmed)}&limit=20`,
-          { headers }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          setResults(data.data ?? data.posts ?? []);
-        } else {
-          setResults([]);
+        const res = await unifiedSearch(trimmed, { type: 'all' });
+        if (res.success) {
+          setResults(res.data ?? { posts: [], groups: [], users: [] });
         }
       } catch {
-        setResults([]);
+        setResults({ posts: [], groups: [], users: [] });
       } finally {
         setLoading(false);
       }
@@ -152,14 +141,15 @@ export default function SearchScreen({ navigation }) {
     setQuery(text);
     if (!text.trim()) {
       setIsSearching(false);
-      setResults([]);
+      setResults({ posts: [], groups: [], users: [] });
     }
   };
 
   const handleClear = () => {
     setQuery('');
     setIsSearching(false);
-    setResults([]);
+    setResults({ posts: [], groups: [], users: [] });
+    setSearchTab('all');
   };
 
   const handleKeywordTap = (keyword) => {
@@ -178,12 +168,86 @@ export default function SearchScreen({ navigation }) {
     navigation.navigate('PostDetail', { postId });
   };
 
+  const handleGroupTap = (groupId) => {
+    navigation.navigate('Board', { screen: 'GroupDetail', params: { groupId } });
+  };
+
+  const handleUserTap = (userId) => {
+    navigation.navigate('UserProfile', { userId });
+  };
+
+  // 결과 탭에 들어갈 데이터 (검색 후만 사용)
+  const currentTabData = (() => {
+    if (searchTab === 'posts') return results.posts;
+    if (searchTab === 'groups') return results.groups;
+    if (searchTab === 'users') return results.users;
+    // all: 묶어서 (타입 표시 위해 _kind 첨가)
+    return [
+      ...(results.groups || []).map(g => ({ ...g, _kind: 'group' })),
+      ...(results.users || []).map(u => ({ ...u, _kind: 'user' })),
+      ...(results.posts || []).map(p => ({ ...p, _kind: 'post' })),
+    ];
+  })();
+
+  const totalCount = (results.posts?.length ?? 0) + (results.groups?.length ?? 0) + (results.users?.length ?? 0);
+
   // 트렌드 화살표
   const TrendArrow = ({ trend }) => {
     if (trend === 'up') return <Ionicons name="caret-up" size={12} color="#EF4444" />;
     if (trend === 'down') return <Ionicons name="caret-down" size={12} color="#3B82F6" />;
     return <Text style={styles.trendSame}>–</Text>;
   };
+
+  // 모임 카드
+  const GroupCard = ({ item, onPress }) => {
+    const hasThumb = !!item.coverImage;
+    return (
+      <TouchableOpacity style={styles.resultCard} onPress={onPress} activeOpacity={0.7}>
+        <View style={styles.resultIconWrap}>
+          {hasThumb ? (
+            <Image source={{ uri: item.coverImage }} style={styles.resultIcon} />
+          ) : (
+            <View style={[styles.resultIcon, styles.resultIconPlaceholder]}>
+              <Ionicons name="people" size={20} color={colors.primary} />
+            </View>
+          )}
+        </View>
+        <View style={styles.resultBody}>
+          <View style={styles.resultTopRow}>
+            <Text style={styles.resultKindBadge}>{t('search.kindGroup')}</Text>
+            {!!item.university && <Text style={styles.resultMetaSmall}>🎓 {item.university}</Text>}
+          </View>
+          <Text style={styles.resultTitle} numberOfLines={1}>{item.name}</Text>
+          {!!item.description && (
+            <Text style={styles.resultDesc} numberOfLines={1}>{item.description}</Text>
+          )}
+          <Text style={styles.resultMetaSmall}>👥 {item.memberCount}{!!item.city ? ` · ${item.city}` : ''}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // 사용자 카드
+  const UserCard = ({ item, onPress }) => (
+    <TouchableOpacity style={styles.resultCard} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.resultIconWrap}>
+        {item.avatarUrl ? (
+          <Image source={{ uri: item.avatarUrl }} style={styles.resultIcon} />
+        ) : (
+          <View style={[styles.resultIcon, styles.resultIconPlaceholder]}>
+            <Ionicons name="person" size={20} color={colors.primary} />
+          </View>
+        )}
+      </View>
+      <View style={styles.resultBody}>
+        <Text style={styles.resultKindBadge}>{t('search.kindUser')}</Text>
+        <Text style={styles.resultTitle} numberOfLines={1}>
+          {item.nickname}{item.verified ? ' ✓' : ''}
+        </Text>
+        {!!item.university && <Text style={styles.resultDesc} numberOfLines={1}>🎓 {item.university}</Text>}
+      </View>
+    </TouchableOpacity>
+  );
 
   // 검색 결과 카드
   const PostCard = ({ item, onPress }) => {
@@ -269,23 +333,50 @@ export default function SearchScreen({ navigation }) {
             <Text style={styles.loadingText}>{t('search.searching')}</Text>
           </View>
         ) : (
-          <FlatList
-            data={results}
-            keyExtractor={(item) => String(item.postId || item.id)}
-            renderItem={({ item }) => (
-              <PostCard
-                item={item}
-                onPress={() => handlePostTap(item.postId || item.id)}
-              />
-            )}
-            ListEmptyComponent={renderEmptyResults}
-            contentContainerStyle={
-              results.length === 0 ? styles.flatListEmpty : styles.flatListContent
-            }
-            refreshControl={<RefreshControl refreshing={loading} onRefresh={() => handleSearch()} />}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-          />
+          <>
+            {/* 결과 카테고리 탭 */}
+            <View style={styles.tabRow}>
+              {[
+                { key: 'all', label: t('search.tabAll'), count: totalCount },
+                { key: 'posts', label: t('search.tabPosts'), count: results.posts?.length ?? 0 },
+                { key: 'groups', label: t('search.tabGroups'), count: results.groups?.length ?? 0 },
+                { key: 'users', label: t('search.tabUsers'), count: results.users?.length ?? 0 },
+              ].map(tab => (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={[styles.tabBtn, searchTab === tab.key && styles.tabBtnActive]}
+                  onPress={() => setSearchTab(tab.key)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.tabText, searchTab === tab.key && styles.tabTextActive]}>
+                    {tab.label}{tab.count > 0 ? ` ${tab.count}` : ''}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <FlatList
+              data={currentTabData}
+              keyExtractor={(item, idx) => `${item._kind || searchTab}_${item.id || idx}`}
+              renderItem={({ item }) => {
+                const kind = item._kind || searchTab;
+                if (kind === 'group' || kind === 'groups') {
+                  return <GroupCard item={item} onPress={() => handleGroupTap(item.id)} />;
+                }
+                if (kind === 'user' || kind === 'users') {
+                  return <UserCard item={item} onPress={() => handleUserTap(item.id)} />;
+                }
+                return <PostCard item={item} onPress={() => handlePostTap(item.id)} />;
+              }}
+              ListEmptyComponent={renderEmptyResults}
+              contentContainerStyle={
+                currentTabData.length === 0 ? styles.flatListEmpty : styles.flatListContent
+              }
+              refreshControl={<RefreshControl refreshing={loading} onRefresh={() => handleSearch()} />}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+            />
+          </>
         )
       ) : (
         <ScrollView
@@ -479,6 +570,44 @@ const createStyles = (colors) => StyleSheet.create({
   },
   boardName: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
   boardDescription: { fontSize: 12, color: colors.textSecondary },
+
+  // 결과 카테고리 탭
+  tabRow: {
+    flexDirection: 'row', paddingHorizontal: 16, gap: 6, paddingBottom: 10, paddingTop: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+  },
+  tabBtn: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 18,
+    backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border,
+  },
+  tabBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  tabText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
+  tabTextActive: { color: colors.white },
+
+  // 통합 카드 (Group / User 공용)
+  resultCard: {
+    flexDirection: 'row', gap: 12,
+    backgroundColor: colors.surface, borderRadius: 14, padding: 12, marginBottom: 8,
+    borderWidth: 1, borderColor: colors.border + '40',
+  },
+  resultIconWrap: { width: 48, height: 48 },
+  resultIcon: { width: 48, height: 48, borderRadius: 12 },
+  resultIconPlaceholder: {
+    backgroundColor: colors.primary + '12',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  resultBody: { flex: 1, minWidth: 0 },
+  resultTopRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  resultKindBadge: {
+    fontSize: 10, fontWeight: '800', color: colors.primary,
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
+  resultTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 2 },
+  resultDesc: { fontSize: 12, color: colors.textSecondary, marginBottom: 2 },
+  resultMetaSmall: { fontSize: 11, color: colors.textSecondary },
 
   // 검색 결과 카드
   postCard: {

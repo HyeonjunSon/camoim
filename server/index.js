@@ -23,6 +23,7 @@ const inquiryRoutes = require('./routes/inquiries');
 const groupRoutes = require('./routes/groups');
 const universityRoutes = require('./routes/universities');
 const draftRoutes = require('./routes/drafts');
+const searchRoutes = require('./routes/search');
 const { systemGuard } = require('./middleware/systemGuard');
 
 const app = express();
@@ -53,6 +54,7 @@ app.use('/api/notices', noticeRoutes);
 app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/universities', universityRoutes);
+app.use('/api/search', searchRoutes);
 app.use('/api/drafts', draftRoutes);
 
 app.get('/health', (req, res) => res.json({ success: true, message: 'CaMoim 서버 정상 작동 중' }));

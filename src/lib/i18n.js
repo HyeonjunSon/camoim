@@ -725,6 +725,8 @@ export const TRANSLATIONS = {
       noResultSub: '다른 키워드로 검색해 보세요', searching: '검색 중...',
       recent: '최근 검색어', clearAll: '전체 삭제', noRecent: '최근 검색어가 없어요',
       trending: '인기 급상승', trendingTimeSuffix: ' 기준', recommendedBoard: '추천 게시판',
+      tabAll: '전체', tabPosts: '게시글', tabGroups: '모임', tabUsers: '사용자',
+      kindGroup: '모임', kindUser: '사용자',
     },
     profile: {
       posts: '게시글', sendMsg: '메시지 보내기', blocked: '차단됨',
@@ -1448,6 +1450,8 @@ export const TRANSLATIONS = {
       noResultSub: 'Try a different keyword', searching: 'Searching...',
       recent: 'Recent', clearAll: 'Clear all', noRecent: 'No recent searches',
       trending: 'Trending', trendingTimeSuffix: '', recommendedBoard: 'Recommended Boards',
+      tabAll: 'All', tabPosts: 'Posts', tabGroups: 'Groups', tabUsers: 'Users',
+      kindGroup: 'Group', kindUser: 'User',
     },
     profile: {
       posts: 'Posts', sendMsg: 'Send Message', blocked: 'Blocked',
