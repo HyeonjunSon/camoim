@@ -50,6 +50,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, pinPost, setBlock, setTradeStatus } from '../../lib/api';
+import { track } from '../../lib/analytics';
 import { isTradeBoard, getTradeLabel, getTradeChangeLabel } from '../../constants/boards';
 import { formatTime } from '../../lib/time';
 import { useAuth } from '../../context/AuthContext';
@@ -515,8 +516,24 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     );
   };
 
+  const handleSharePost = async () => {
+    try {
+      const preview = (post.content || '')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .trim()
+        .slice(0, 120);
+      const lines = [`[${post.boardName || 'CaMoim'}] ${post.title || ''}`];
+      if (preview) lines.push('', preview + (post.content && post.content.length > 120 ? '…' : ''));
+      lines.push('', t('post.shareFooter'));
+      await Share.share({ message: lines.join('\n'), title: post.title });
+      track('post_share', { postId: String(postId), source: 'board', boardSlug: post.boardSlug });
+    } catch {}
+  };
+
   const handleMore = () => {
     const L = {
+      share: t('post.sharePost'),
       edit: t('post.editPostMenu'),
       pin: '📌 고정',
       unpin: '📌 고정 해제',
@@ -526,7 +543,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
       cancel: t('common.cancel'),
     };
     // 옵션 동적 구성
-    const opts = [];
+    const opts = [L.share]; // 공유는 누구나
     if (isPostAuthor) opts.push(L.edit);
     if (canPin) opts.push(post.pinned ? L.unpin : L.pin);
     if (canDelete) opts.push(L.del);
@@ -538,7 +555,8 @@ export default function BoardPostDetailScreen({ route, navigation }) {
 
     const handle = (idx) => {
       const action = opts[idx];
-      if (action === L.edit) navigation.navigate('EditPost', { editPost: post });
+      if (action === L.share) handleSharePost();
+      else if (action === L.edit) navigation.navigate('EditPost', { editPost: post });
       else if (action === L.pin || action === L.unpin) togglePin();
       else if (action === L.del) confirmDeletePost();
       else if (action === L.report) showReportSheet();

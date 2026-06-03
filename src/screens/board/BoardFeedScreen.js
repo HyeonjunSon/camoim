@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { getBoardPosts, getBoardSubscription, toggleBoardSubscription } from '../../lib/api';
+import { track } from '../../lib/analytics';
 import PostCard from '../../components/PostCard';
 import CustomHeader from '../../components/CustomHeader';
 import { useLang } from '../../context/LangContext';
@@ -74,6 +75,10 @@ export default function BoardFeedScreen({ route, navigation }) {
       const res = await toggleBoardSubscription(boardId);
       if (res.success) {
         setSubscribed(!!res.data?.subscribed);
+        track('board_subscribe_toggle', {
+          boardSlug,
+          subscribed: !!res.data?.subscribed,
+        });
       } else {
         setSubscribed(prev);
       }

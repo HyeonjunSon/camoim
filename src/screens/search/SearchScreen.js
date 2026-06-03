@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { SERVER_HOST } from '../../lib/config';
 import { getBoards, unifiedSearch } from '../../lib/api';
+import { track } from '../../lib/analytics';
 import { formatTime } from '../../lib/time';
 import { useLang } from '../../context/LangContext';
 
@@ -122,6 +123,7 @@ export default function SearchScreen({ navigation }) {
       setLoading(true);
       setResults({ posts: [], groups: [], users: [] });
       await saveRecentSearch(trimmed);
+      track('search_submit', { length: trimmed.length });
 
       try {
         const res = await unifiedSearch(trimmed, { type: 'all' });

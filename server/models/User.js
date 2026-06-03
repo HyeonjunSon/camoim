@@ -66,6 +66,7 @@ const userSchema = new mongoose.Schema({
     like:       { type: Boolean, default: true }, // 좋아요
     chat:       { type: Boolean, default: true }, // 채팅 메시지
     notice:     { type: Boolean, default: true }, // 공지사항
+    boardSubscription: { type: Boolean, default: true }, // 구독 게시판 새 글
   },
 }, { timestamps: true });
 

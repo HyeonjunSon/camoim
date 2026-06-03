@@ -554,12 +554,14 @@ router.post('/', requireAuth, uploadImages.array('images', 5), async (req, res) 
             }))
           ).catch(() => {});
 
-          // 푸시 (각 사용자에게)
+          // 푸시 (각 사용자에게) — boardSubscription 카테고리가 꺼진 사용자는 제외
           const users = await User.find({
             _id: { $in: recipients },
           }).select('pushToken notificationSettings').lean();
           for (const u of users) {
             if (!u.pushToken) continue;
+            if (u.notificationSettings?.enabled === false) continue;
+            if (u.notificationSettings?.boardSubscription === false) continue;
             sendPush(u.pushToken, '새 게시글', message, {
               postId: String(post._id),
               type: 'board_new_post',

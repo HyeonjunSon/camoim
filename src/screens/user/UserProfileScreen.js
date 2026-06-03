@@ -239,6 +239,19 @@ export default function UserProfileScreen({ route, navigation }) {
         </View>
       </View>
 
+      {/* 거래 신뢰도 배지 (1건 이상일 때만) */}
+      {profile.tradeSoldCount > 0 && (
+        <View style={styles.trustRow}>
+          <View style={styles.trustBadge}>
+            <Text style={styles.trustEmoji}>🤝</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.trustLabel}>{t('profile.tradeCompleted')}</Text>
+              <Text style={styles.trustCount}>{profile.tradeSoldCount}{t('profile.tradeUnit')}</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
       {profile.bio ? (
         <Text style={styles.bio}>{profile.bio}</Text>
       ) : null}
@@ -426,6 +439,18 @@ const createStyles = (colors) => StyleSheet.create({
   },
   roleText: { fontSize: 12, color: colors.primary, fontWeight: '600' },
   subText: { fontSize: 13, color: colors.textSecondary },
+
+  // 거래 신뢰도 배지
+  trustRow: { paddingHorizontal: 16, marginTop: 14 },
+  trustBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: '#FDE68A',
+  },
+  trustEmoji: { fontSize: 22 },
+  trustLabel: { fontSize: 11, fontWeight: '700', color: '#92400E' },
+  trustCount: { fontSize: 16, fontWeight: '800', color: '#78350F' },
 
   bio: {
     fontSize: 14,

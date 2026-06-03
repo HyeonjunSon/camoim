@@ -4,8 +4,10 @@ const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const User = require('../models/User');
 const Post = require('../models/Post');
+const Board = require('../models/Board');
 const Block = require('../models/Block');
 const Bookmark = require('../models/Bookmark');
+const { TRADE_BOARD_SLUGS } = require('../constants/boards');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -365,6 +367,17 @@ router.get('/:userId', async (req, res) => {
       thumbnail: p.images?.[0] ?? null,
     }));
 
+    // ── 거래 평판 — 사용자가 작성한 거래 게시글 중 sold 상태인 것 카운트
+    // (시장/나눔/자동차/룸렌트 모두 거래 보드에 해당)
+    const tradeBoards = await Board.find({ slug: { $in: TRADE_BOARD_SLUGS } }).select('_id').lean();
+    const tradeBoardIds = tradeBoards.map(b => b._id);
+    const tradeSoldCount = await Post.countDocuments({
+      userId: req.params.userId,
+      boardId: { $in: tradeBoardIds },
+      tradeStatus: 'sold',
+      isAnonymous: false,
+    });
+
     res.json({
       success: true,
       data: {
@@ -376,6 +389,9 @@ router.get('/:userId', async (req, res) => {
         city: user.city,
         avatarUrl: user.avatarUrl,
         createdAt: user.createdAt,
+        verified: !!user.verified,
+        university: user.university || '',
+        tradeSoldCount,
         posts: formattedPosts,
       },
     });

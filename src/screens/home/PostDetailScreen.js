@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost } from '../../lib/api';
+import { track } from '../../lib/analytics';
 import { formatTime } from '../../lib/time';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
@@ -410,33 +411,57 @@ export default function PostDetailScreen({ route, navigation }) {
   };
 
   // ··· 더보기 메뉴
+  const handleSharePost = async () => {
+    try {
+      const preview = (post.content || '')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .trim()
+        .slice(0, 120);
+      const lines = [
+        `[${post.boardName || 'CaMoim'}] ${post.title || ''}`,
+      ];
+      if (preview) lines.push('', preview + (post.content && post.content.length > 120 ? '…' : ''));
+      lines.push('', t('post.shareFooter'));
+      await Share.share({ message: lines.join('\n'), title: post.title });
+      track('post_share', { postId: String(postId), source: 'home' });
+    } catch {}
+  };
+
   const handleMore = () => {
-    const L = { edit: t('post.editPostMenu'), del: t('common.delete'), report: t('common.report'), cancel: t('common.cancel') };
-    const authorOptions = isPostAuthor ? [L.edit, L.del, L.report, L.cancel] : [L.report, L.cancel];
+    const L = {
+      share: t('post.sharePost'),
+      edit: t('post.editPostMenu'),
+      del: t('common.delete'),
+      report: t('common.report'),
+      cancel: t('common.cancel'),
+    };
+    const authorOptions = isPostAuthor ? [L.share, L.edit, L.del, L.report, L.cancel] : [L.share, L.report, L.cancel];
     const cancelIdx = authorOptions.length - 1;
+    const destructiveIdx = isPostAuthor ? authorOptions.indexOf(L.del) : undefined;
 
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options: authorOptions, cancelButtonIndex: cancelIdx, destructiveButtonIndex: isPostAuthor ? 1 : undefined },
+        { options: authorOptions, cancelButtonIndex: cancelIdx, destructiveButtonIndex: destructiveIdx },
         (idx) => {
-          if (isPostAuthor) {
-            if (idx === 0) navigation.navigate('EditPost', { editPost: post });
-            else if (idx === 1) confirmDeletePost();
-            else if (idx === 2) showReportSheet();
-          } else {
-            if (idx === 0) showReportSheet();
-          }
+          const action = authorOptions[idx];
+          if (action === L.share) handleSharePost();
+          else if (action === L.edit) navigation.navigate('EditPost', { editPost: post });
+          else if (action === L.del) confirmDeletePost();
+          else if (action === L.report) showReportSheet();
         }
       );
     } else {
       const items = isPostAuthor
         ? [
+            { text: L.share, onPress: handleSharePost },
             { text: L.edit, onPress: () => navigation.navigate('EditPost', { editPost: post }) },
             { text: L.del, style: 'destructive', onPress: confirmDeletePost },
             { text: L.report, onPress: showReportSheet },
             { text: L.cancel, style: 'cancel' },
           ]
         : [
+            { text: L.share, onPress: handleSharePost },
             { text: L.report, onPress: showReportSheet },
             { text: L.cancel, style: 'cancel' },
           ];
