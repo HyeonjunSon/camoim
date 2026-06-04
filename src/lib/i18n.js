@@ -164,8 +164,9 @@ export const TRANSLATIONS = {
       tabBoards: '게시판', tabGroups: '모임',
       tradeAll: '전체', tradeSelling: '판매중', tradeSold: '판매완료',
       rentAvailable: '입주가능', rentTaken: '입주완료',
-      tradeChangeToSold: '판매완료로 변경', tradeChangeToSelling: '판매중으로',
-      rentChangeToTaken: '입주완료로 변경', rentChangeToAvailable: '입주가능으로',
+      tradeChangeToSold: '거래완료', tradeChangeToSelling: '다시 판매중으로',
+      rentChangeToTaken: '입주완료', rentChangeToAvailable: '다시 입주가능으로',
+      tradeChangeConfirm: '"{label}"(으)로 변경할까요?',
     },
     community: {
       instagram: 'Instagram', kakaoOpen: '카톡 오픈채팅', discord: 'Discord', homepage: '홈페이지',
@@ -898,8 +899,9 @@ export const TRANSLATIONS = {
       tabBoards: 'Boards', tabGroups: 'Groups',
       tradeAll: 'All', tradeSelling: 'For Sale', tradeSold: 'Sold',
       rentAvailable: 'Available', rentTaken: 'Taken',
-      tradeChangeToSold: 'Mark as Sold', tradeChangeToSelling: 'Mark as For Sale',
-      rentChangeToTaken: 'Mark as Taken', rentChangeToAvailable: 'Mark as Available',
+      tradeChangeToSold: 'Mark Sold', tradeChangeToSelling: 'Back to For Sale',
+      tradeChangeConfirm: 'Change to "{label}"?',
+      rentChangeToTaken: 'Mark Taken', rentChangeToAvailable: 'Back to Available',
     },
     community: {
       instagram: 'Instagram', kakaoOpen: 'Kakao Open Chat', discord: 'Discord', homepage: 'Homepage',
