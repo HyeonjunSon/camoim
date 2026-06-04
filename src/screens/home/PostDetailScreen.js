@@ -18,6 +18,7 @@ import {
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import CustomHeader from '../../components/CustomHeader';
+import ImageGalleryModal from '../../components/ImageGalleryModal';
 import RenderHTML from 'react-native-render-html';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -242,6 +243,21 @@ export default function PostDetailScreen({ route, navigation }) {
   // 북마크 상태
   const [bookmarked, setBookmarked] = useState(false);
   const [bookmarkBusy, setBookmarkBusy] = useState(false);
+
+  // 이미지 뷰어
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const allImageUris = useMemo(() => {
+    if (!post) return [];
+    const blocks = parseContentBlocks(post.content, post.images);
+    return blocks.filter(b => b.type === 'image').map(b => b.uri);
+  }, [post]);
+  const openImageViewer = (uri) => {
+    const idx = allImageUris.findIndex(u => u === uri);
+    setViewerIndex(idx >= 0 ? idx : 0);
+    setViewerVisible(true);
+    track('image_view', { postId: String(postId) });
+  };
 
   const handleToggleLike = useCallback(async () => {
     if (likeBusy) return;
@@ -611,12 +627,19 @@ export default function PostDetailScreen({ route, navigation }) {
           ) : (
             parseContentBlocks(post.content, post.images).map((block, idx) =>
               block.type === 'image' ? (
-                <Image
+                <TouchableOpacity
                   key={idx}
-                  source={{ uri: block.uri }}
-                  style={styles.postImage}
-                  resizeMode="cover"
-                />
+                  activeOpacity={0.9}
+                  onPress={() => openImageViewer(block.uri)}
+                  accessibilityRole="imagebutton"
+                  accessibilityLabel="이미지 크게 보기"
+                >
+                  <Image
+                    source={{ uri: block.uri }}
+                    style={styles.postImage}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
               ) : (
                 <Text
                   key={idx}
@@ -774,6 +797,13 @@ export default function PostDetailScreen({ route, navigation }) {
             : <Text style={styles.barSendText}>{t('common.send')}</Text>}
         </TouchableOpacity>
       </View>
+
+      <ImageGalleryModal
+        visible={viewerVisible}
+        images={allImageUris}
+        initialIndex={viewerIndex}
+        onClose={() => setViewerVisible(false)}
+      />
     </KeyboardAvoidingView>
   );
 }

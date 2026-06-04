@@ -58,6 +58,7 @@ import { useLang } from '../../context/LangContext';
 import { getBoardName } from '../../lib/i18n';
 import Avatar from '../../components/common/Avatar';
 import RoleBadge from '../../components/RoleBadge';
+import ImageGalleryModal from '../../components/ImageGalleryModal';
 
 import { SERVER_HOST } from '../../lib/config';
 const BASE_URL = SERVER_HOST;
@@ -228,6 +229,21 @@ export default function BoardPostDetailScreen({ route, navigation }) {
   // 북마크 상태
   const [bookmarked, setBookmarked] = useState(false);
   const [bookmarkBusy, setBookmarkBusy] = useState(false);
+
+  // 이미지 뷰어
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const allImageUris = useMemo(() => {
+    if (!post) return [];
+    const blocks = parseContentBlocks(post.content, post.images);
+    return blocks.filter(b => b.type === 'image').map(b => b.uri);
+  }, [post]);
+  const openImageViewer = (uri) => {
+    const idx = allImageUris.findIndex(u => u === uri);
+    setViewerIndex(idx >= 0 ? idx : 0);
+    setViewerVisible(true);
+    track('image_view', { postId: String(postId) });
+  };
 
   const loadData = useCallback(async () => {
     if (!postId) return;
@@ -716,12 +732,19 @@ export default function BoardPostDetailScreen({ route, navigation }) {
           ) : (
             parseContentBlocks(post.content, post.images).map((block, idx) =>
               block.type === 'image' ? (
-                <Image
+                <TouchableOpacity
                   key={idx}
-                  source={{ uri: block.uri }}
-                  style={styles.postImage}
-                  resizeMode="cover"
-                />
+                  activeOpacity={0.9}
+                  onPress={() => openImageViewer(block.uri)}
+                  accessibilityRole="imagebutton"
+                  accessibilityLabel="이미지 크게 보기"
+                >
+                  <Image
+                    source={{ uri: block.uri }}
+                    style={styles.postImage}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
               ) : (
                 <Text
                   key={idx}
@@ -878,6 +901,13 @@ export default function BoardPostDetailScreen({ route, navigation }) {
             : <Text style={styles.barSendText}>{t('common.send')}</Text>}
         </TouchableOpacity>
       </View>
+
+      <ImageGalleryModal
+        visible={viewerVisible}
+        images={allImageUris}
+        initialIndex={viewerIndex}
+        onClose={() => setViewerVisible(false)}
+      />
     </KeyboardAvoidingView>
   );
 }

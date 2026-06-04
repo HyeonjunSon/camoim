@@ -482,6 +482,38 @@ export default function CreatePostScreen({ route, navigation }) {
   };
 
   const hasContent = title.trim() && hasBody;
+  // 작성 중인 내용이 있는지 (제목 또는 본문) — 나가기 확인용
+  const hasAnyContent = !!title.trim() || hasBody;
+
+  // X 버튼 / 하드웨어 뒤로가기 / 스와이프 통합 인터셉트
+  // navigation.dispatch(e.data.action) 로 한 번만 실제 나가게 처리 (재진입 방지)
+  useEffect(() => {
+    const unsub = navigation.addListener('beforeRemove', (e) => {
+      if (!hasAnyContent || submitting) return; // 빈 화면이거나 제출 중이면 그냥 통과
+      e.preventDefault();
+      Alert.alert(
+        t('post.leaveConfirmTitle') || '작성 중인 내용이 있어요',
+        t('post.leaveConfirmDesc') || '저장하지 않으면 사라져요. 어떻게 할까요?',
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('draft.save') || '임시저장',
+            onPress: async () => {
+              try { await onSaveDraft(); } catch {}
+              navigation.dispatch(e.data.action);
+            },
+          },
+          {
+            text: t('post.discardLeave') || '저장 안 하고 나가기',
+            style: 'destructive',
+            onPress: () => navigation.dispatch(e.data.action),
+          },
+        ],
+      );
+    });
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation, hasAnyContent, submitting, title, hasBody, currentDraftId]);
 
   // iOS는 원래 잘 동작 → 원본 로직 유지. Android edgeToEdge에선 컨테이너 padding 대신
   // 툴바를 absolute로 깔아 키보드 위에 강제 부착 (아래 RichToolbar 부분 참조).
