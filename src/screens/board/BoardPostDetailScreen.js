@@ -627,7 +627,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
         {/* ── 게시글 카드 */}
         <View style={styles.postCard}>
 
-          {/* 게시판 태그 + 거래 상태 (한 줄) */}
+          {/* 게시판 태그 (왼쪽) + 거래 상태 (오른쪽 끝) */}
           {(post.boardName || isTradeBoard(post.boardSlug)) && (
             <View style={styles.tagRow}>
               {post.boardName && (
@@ -635,7 +635,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
               )}
               {isTradeBoard(post.boardSlug) && (
                 showTradeButton ? (
-                  <View style={styles.tradeSegment}>
+                  <View style={[styles.tradeSegment, { marginLeft: 'auto' }]}>
                 <TouchableOpacity
                   style={[styles.tradeSegOption, !isSold && styles.tradeSegOptionActive]}
                   onPress={isSold ? confirmToggleTradeStatus : undefined}
@@ -660,7 +660,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
                 </TouchableOpacity>
               </View>
                 ) : (
-                  <View style={[styles.tradeStatusPill, isSold ? styles.tradeStatusPillSold : styles.tradeStatusPillSelling]}>
+                  <View style={[styles.tradeStatusPill, isSold ? styles.tradeStatusPillSold : styles.tradeStatusPillSelling, { marginLeft: 'auto' }]}>
                     <View style={[styles.tradeDot, isSold ? styles.tradeDotSold : styles.tradeDotSelling]} />
                     <Text style={[styles.tradeStatusPillText, isSold ? styles.tradeStatusPillTextSold : styles.tradeStatusPillTextSelling]}>
                       {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling', t)}
