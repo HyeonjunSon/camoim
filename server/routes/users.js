@@ -56,7 +56,7 @@ router.get('/me/posts', requireAuth, async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('boardId', 'name'),
+        .populate('boardId', 'name slug'),
       Post.countDocuments({ userId: req.user.id }),
     ]);
 
@@ -69,6 +69,11 @@ router.get('/me/posts', requireAuth, async (req, res) => {
       commentCount: p.commentCount,
       createdAt: p.createdAt,
       boardName: p.boardId?.name,
+      boardId: p.boardId?._id,
+      boardSlug: p.boardId?.slug,
+      groupId: p.groupId,
+      tradeStatus: p.tradeStatus || 'selling',
+      thumbnail: p.images?.[0] ?? null,
       nickname: p.isAnonymous ? '익명' : req.user.nickname,
     }));
 
@@ -106,7 +111,10 @@ router.get('/me/liked-posts', requireAuth, async (req, res) => {
       commentCount: p.commentCount,
       createdAt: p.createdAt,
       boardName: p.boardId?.name,
+      boardId: p.boardId?._id,
       boardSlug: p.boardId?.slug,
+      groupId: p.groupId,
+      tradeStatus: p.tradeStatus || 'selling',
       nickname: p.isAnonymous ? '익명' : (p.userId?.nickname ?? '탈퇴한 회원'),
       thumbnail: p.images?.[0] ?? null,
     }));
@@ -154,7 +162,10 @@ router.get('/me/bookmarks', requireAuth, async (req, res) => {
         commentCount: p.commentCount,
         createdAt: p.createdAt,
         boardName: p.boardId?.name,
+        boardId: p.boardId?._id,
         boardSlug: p.boardId?.slug,
+        groupId: p.groupId,
+        tradeStatus: p.tradeStatus || 'selling',
         nickname: p.isAnonymous ? '익명' : (p.userId?.nickname ?? '탈퇴한 회원'),
         thumbnail: p.images?.[0] ?? null,
       }));

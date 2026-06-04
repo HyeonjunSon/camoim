@@ -118,10 +118,21 @@ export default function MyPostsScreen({ navigation }) {
           >
             <PostCard
               post={item}
-              onPress={() => navigation.navigate('Home', {
-                screen: 'PostDetail',
-                params: { postId: item.id },
-              })}
+              onPress={() => {
+                // 게시판 글은 BoardPostDetail로 (거래 상태 토글, 핀, 신고 등 풀 기능)
+                // 모임 글은 Home/PostDetail로 (기본 보기)
+                if (item.boardId) {
+                  navigation.navigate('Board', {
+                    screen: 'BoardPostDetail',
+                    params: { postId: item.id },
+                  });
+                } else {
+                  navigation.navigate('Home', {
+                    screen: 'PostDetail',
+                    params: { postId: item.id },
+                  });
+                }
+              }}
             />
           </Swipeable>
         )}

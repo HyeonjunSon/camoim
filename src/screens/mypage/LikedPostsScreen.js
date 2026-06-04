@@ -72,10 +72,19 @@ export default function LikedPostsScreen({ navigation }) {
         renderItem={({ item }) => (
           <PostCard
             post={item}
-            onPress={() => navigation.navigate('Home', {
-              screen: 'PostDetail',
-              params: { postId: item.id },
-            })}
+            onPress={() => {
+              if (item.boardId) {
+                navigation.navigate('Board', {
+                  screen: 'BoardPostDetail',
+                  params: { postId: item.id },
+                });
+              } else {
+                navigation.navigate('Home', {
+                  screen: 'PostDetail',
+                  params: { postId: item.id },
+                });
+              }
+            }}
           />
         )}
         ListEmptyComponent={() => (
