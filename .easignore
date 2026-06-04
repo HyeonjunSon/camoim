@@ -13,3 +13,7 @@ CLAUDE.md
 
 # 로컬 dev
 .claude/
+
+# managed workflow 유지 — 로컬 prebuild 결과물 무시 (없어야 EAS가 managed로 인식)
+ios/
+android/
