@@ -227,7 +227,14 @@ export default function UserProfileScreen({ route, navigation }) {
       <View style={styles.header}>
         <Avatar nickname={profile.nickname} uri={profile.avatarUrl} size={64} showLetter />
         <View style={styles.headerInfo}>
-          <Text style={styles.nickname}>{profile.nickname}</Text>
+          <View style={styles.nicknameRow}>
+            <Text style={styles.nickname} numberOfLines={1}>{profile.nickname}</Text>
+            {profile.tradeSoldCount > 0 && (
+              <View style={styles.trustChip}>
+                <Text style={styles.trustChipText}>🤝 {profile.tradeSoldCount}{t('profile.tradeUnit')}</Text>
+              </View>
+            )}
+          </View>
           {profile.role && (
             <View style={styles.roleBadge}>
               <Text style={styles.roleText}>{ROLE_LABEL[profile.role] ?? profile.role}</Text>
@@ -238,19 +245,6 @@ export default function UserProfileScreen({ route, navigation }) {
           <Text style={styles.subText}>{t('profile.joined')} {formatDate(profile.createdAt)}</Text>
         </View>
       </View>
-
-      {/* 거래 신뢰도 배지 (1건 이상일 때만) */}
-      {profile.tradeSoldCount > 0 && (
-        <View style={styles.trustRow}>
-          <View style={styles.trustBadge}>
-            <Text style={styles.trustEmoji}>🤝</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.trustLabel}>{t('profile.tradeCompleted')}</Text>
-              <Text style={styles.trustCount}>{profile.tradeSoldCount}{t('profile.tradeUnit')}</Text>
-            </View>
-          </View>
-        </View>
-      )}
 
       {profile.bio ? (
         <Text style={styles.bio}>{profile.bio}</Text>
@@ -440,17 +434,15 @@ const createStyles = (colors) => StyleSheet.create({
   roleText: { fontSize: 12, color: colors.primary, fontWeight: '600' },
   subText: { fontSize: 13, color: colors.textSecondary },
 
-  // 거래 신뢰도 배지
-  trustRow: { paddingHorizontal: 16, marginTop: 14 },
-  trustBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+  // 닉네임 + 거래 신뢰도 칩 (가로 정렬)
+  nicknameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  trustChip: {
     backgroundColor: '#FEF3C7',
-    borderRadius: 12, padding: 12,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 999,
     borderWidth: 1, borderColor: '#FDE68A',
   },
-  trustEmoji: { fontSize: 22 },
-  trustLabel: { fontSize: 11, fontWeight: '700', color: '#92400E' },
-  trustCount: { fontSize: 16, fontWeight: '800', color: '#78350F' },
+  trustChipText: { fontSize: 11, fontWeight: '800', color: '#92400E' },
 
   bio: {
     fontSize: 14,
