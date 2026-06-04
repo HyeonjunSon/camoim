@@ -627,17 +627,15 @@ export default function BoardPostDetailScreen({ route, navigation }) {
         {/* ── 게시글 카드 */}
         <View style={styles.postCard}>
 
-          {/* 게시판 태그 — 한 줄, 단독 */}
-          {post.boardName && (
+          {/* 게시판 태그 + 거래 상태 (한 줄) */}
+          {(post.boardName || isTradeBoard(post.boardSlug)) && (
             <View style={styles.tagRow}>
-              <Text style={styles.boardTag}>{getBoardName(post.boardSlug, post.boardName, t)}</Text>
-            </View>
-          )}
-
-          {/* 거래 상태 — 작성자면 세그먼트 토글, 아니면 상태 칩 */}
-          {isTradeBoard(post.boardSlug) && (
-            showTradeButton ? (
-              <View style={styles.tradeSegment}>
+              {post.boardName && (
+                <Text style={styles.boardTag}>{getBoardName(post.boardSlug, post.boardName, t)}</Text>
+              )}
+              {isTradeBoard(post.boardSlug) && (
+                showTradeButton ? (
+                  <View style={styles.tradeSegment}>
                 <TouchableOpacity
                   style={[styles.tradeSegOption, !isSold && styles.tradeSegOptionActive]}
                   onPress={isSold ? confirmToggleTradeStatus : undefined}
@@ -645,7 +643,6 @@ export default function BoardPostDetailScreen({ route, navigation }) {
                   disabled={!isSold}
                   accessibilityRole="button"
                 >
-                  <View style={[styles.tradeDot, !isSold ? styles.tradeDotSelling : { backgroundColor: 'transparent' }]} />
                   <Text style={[styles.tradeSegText, !isSold ? styles.tradeSegTextActiveSelling : styles.tradeSegTextInactive]}>
                     {getTradeLabel(post.boardSlug, 'selling', t)}
                   </Text>
@@ -657,24 +654,21 @@ export default function BoardPostDetailScreen({ route, navigation }) {
                   disabled={isSold}
                   accessibilityRole="button"
                 >
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={12}
-                    color={isSold ? colors.textSecondary : 'transparent'}
-                  />
                   <Text style={[styles.tradeSegText, isSold ? styles.tradeSegTextActiveSold : styles.tradeSegTextInactive]}>
                     {getTradeLabel(post.boardSlug, 'sold', t)}
                   </Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              <View style={[styles.tradeStatusPill, isSold ? styles.tradeStatusPillSold : styles.tradeStatusPillSelling]}>
-                <View style={[styles.tradeDot, isSold ? styles.tradeDotSold : styles.tradeDotSelling]} />
-                <Text style={[styles.tradeStatusPillText, isSold ? styles.tradeStatusPillTextSold : styles.tradeStatusPillTextSelling]}>
-                  {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling', t)}
-                </Text>
-              </View>
-            )
+                ) : (
+                  <View style={[styles.tradeStatusPill, isSold ? styles.tradeStatusPillSold : styles.tradeStatusPillSelling]}>
+                    <View style={[styles.tradeDot, isSold ? styles.tradeDotSold : styles.tradeDotSelling]} />
+                    <Text style={[styles.tradeStatusPillText, isSold ? styles.tradeStatusPillTextSold : styles.tradeStatusPillTextSelling]}>
+                      {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling', t)}
+                    </Text>
+                  </View>
+                )
+              )}
+            </View>
           )}
 
           {/* 제목 */}
@@ -927,36 +921,34 @@ const createStyles = (colors) => StyleSheet.create({
   tradeStatusPillTextSelling: { color: '#047857' },
   tradeStatusPillTextSold: { color: colors.textSecondary },
 
-  // iOS-style 세그먼트 토글 — 작성자 전용
-  // 한 눈에 현재 상태 보임 (하이라이트) + 반대편 탭하면 바뀜
+  // 컴팩트 세그먼트 토글 — 작성자 전용
+  // 풀너비 X, 콘텐츠 너비만큼만, 마진/패딩 작게
   tradeSegment: {
     flexDirection: 'row',
     backgroundColor: colors.inputBg,
-    borderRadius: 10,
-    padding: 3,
-    marginBottom: 12,
-    alignSelf: 'stretch',
+    borderRadius: 7,
+    padding: 2,
+    alignSelf: 'flex-start',  // 콘텐츠 너비만큼만
   },
   tradeSegOption: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 5,
   },
   tradeSegOptionActive: {
     backgroundColor: colors.surface,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 1.5,
+    elevation: 1,
   },
-  tradeSegText: { fontSize: 13, fontWeight: '700', letterSpacing: -0.2 },
-  tradeSegTextActiveSelling: { color: '#047857' },  // green
+  tradeSegText: { fontSize: 12, fontWeight: '700', letterSpacing: -0.2 },
+  tradeSegTextActiveSelling: { color: '#047857' },
   tradeSegTextActiveSold: { color: colors.text },
   tradeSegTextInactive: { color: colors.textSecondary },
 
