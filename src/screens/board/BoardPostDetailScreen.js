@@ -627,39 +627,54 @@ export default function BoardPostDetailScreen({ route, navigation }) {
         {/* ── 게시글 카드 */}
         <View style={styles.postCard}>
 
-          {/* 게시판 태그 + 거래 상태 (한 줄 컴팩트) */}
-          {(post.boardName || isTradeBoard(post.boardSlug)) && (
+          {/* 게시판 태그 — 한 줄, 단독 */}
+          {post.boardName && (
             <View style={styles.tagRow}>
-              {post.boardName && (
-                <Text style={styles.boardTag}>{getBoardName(post.boardSlug, post.boardName, t)}</Text>
-              )}
-              {isTradeBoard(post.boardSlug) && (
-                <View style={[styles.tradeStatusPill, isSold ? styles.tradeStatusPillSold : styles.tradeStatusPillSelling]}>
-                  <View style={[styles.tradeDot, isSold ? styles.tradeDotSold : styles.tradeDotSelling]} />
-                  <Text style={[styles.tradeStatusPillText, isSold ? styles.tradeStatusPillTextSold : styles.tradeStatusPillTextSelling]}>
-                    {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling', t)}
-                  </Text>
-                </View>
-              )}
-              {/* 작성자만 보이는 변경 버튼 — 우측 끝 푸시 */}
-              {showTradeButton && (
+              <Text style={styles.boardTag}>{getBoardName(post.boardSlug, post.boardName, t)}</Text>
+            </View>
+          )}
+
+          {/* 거래 상태 — 작성자면 세그먼트 토글, 아니면 상태 칩 */}
+          {isTradeBoard(post.boardSlug) && (
+            showTradeButton ? (
+              <View style={styles.tradeSegment}>
                 <TouchableOpacity
-                  style={[styles.tradeChangeBtn, isSold ? styles.tradeChangeBtnSold : styles.tradeChangeBtnSelling, { marginLeft: 'auto' }]}
-                  onPress={confirmToggleTradeStatus}
-                  activeOpacity={0.7}
+                  style={[styles.tradeSegOption, !isSold && styles.tradeSegOptionActive]}
+                  onPress={isSold ? confirmToggleTradeStatus : undefined}
+                  activeOpacity={isSold ? 0.6 : 1}
+                  disabled={!isSold}
+                  accessibilityRole="button"
+                >
+                  <View style={[styles.tradeDot, !isSold ? styles.tradeDotSelling : { backgroundColor: 'transparent' }]} />
+                  <Text style={[styles.tradeSegText, !isSold ? styles.tradeSegTextActiveSelling : styles.tradeSegTextInactive]}>
+                    {getTradeLabel(post.boardSlug, 'selling', t)}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tradeSegOption, isSold && styles.tradeSegOptionActive]}
+                  onPress={!isSold ? confirmToggleTradeStatus : undefined}
+                  activeOpacity={!isSold ? 0.6 : 1}
+                  disabled={isSold}
                   accessibilityRole="button"
                 >
                   <Ionicons
-                    name={isSold ? 'arrow-undo-outline' : 'checkmark-done'}
-                    size={13}
-                    color={isSold ? colors.primary : '#FFFFFF'}
+                    name="checkmark-circle"
+                    size={12}
+                    color={isSold ? colors.textSecondary : 'transparent'}
                   />
-                  <Text style={[styles.tradeChangeBtnText, isSold ? styles.tradeChangeBtnTextSold : styles.tradeChangeBtnTextSelling]}>
-                    {getTradeChangeLabel(post.boardSlug, isSold ? 'sold' : 'selling', t)}
+                  <Text style={[styles.tradeSegText, isSold ? styles.tradeSegTextActiveSold : styles.tradeSegTextInactive]}>
+                    {getTradeLabel(post.boardSlug, 'sold', t)}
                   </Text>
                 </TouchableOpacity>
-              )}
-            </View>
+              </View>
+            ) : (
+              <View style={[styles.tradeStatusPill, isSold ? styles.tradeStatusPillSold : styles.tradeStatusPillSelling]}>
+                <View style={[styles.tradeDot, isSold ? styles.tradeDotSold : styles.tradeDotSelling]} />
+                <Text style={[styles.tradeStatusPillText, isSold ? styles.tradeStatusPillTextSold : styles.tradeStatusPillTextSelling]}>
+                  {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling', t)}
+                </Text>
+              </View>
+            )
           )}
 
           {/* 제목 */}
@@ -912,20 +927,38 @@ const createStyles = (colors) => StyleSheet.create({
   tradeStatusPillTextSelling: { color: '#047857' },
   tradeStatusPillTextSold: { color: colors.textSecondary },
 
-  // 변경 버튼 — 작성자 전용 (한 줄 끝)
-  tradeChangeBtn: {
+  // iOS-style 세그먼트 토글 — 작성자 전용
+  // 한 눈에 현재 상태 보임 (하이라이트) + 반대편 탭하면 바뀜
+  tradeSegment: {
+    flexDirection: 'row',
+    backgroundColor: colors.inputBg,
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 12,
+    alignSelf: 'stretch',
+  },
+  tradeSegOption: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 8,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
+    borderRadius: 8,
   },
-  tradeChangeBtnSelling: { backgroundColor: '#10B981' },
-  tradeChangeBtnSold: { backgroundColor: colors.primary + '15' },
-  tradeChangeBtnText: { fontSize: 11, fontWeight: '800', letterSpacing: -0.2 },
-  tradeChangeBtnTextSelling: { color: '#FFFFFF' },
-  tradeChangeBtnTextSold: { color: colors.primary },
+  tradeSegOptionActive: {
+    backgroundColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tradeSegText: { fontSize: 13, fontWeight: '700', letterSpacing: -0.2 },
+  tradeSegTextActiveSelling: { color: '#047857' },  // green
+  tradeSegTextActiveSold: { color: colors.text },
+  tradeSegTextInactive: { color: colors.textSecondary },
 
   boardTag: {
     fontSize: 11, fontWeight: '700', color: colors.primary,
