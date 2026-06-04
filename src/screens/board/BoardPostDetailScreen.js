@@ -55,6 +55,7 @@ import { isTradeBoard, getTradeLabel, getTradeChangeLabel } from '../../constant
 import { formatTime } from '../../lib/time';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
+import { getBoardName } from '../../lib/i18n';
 import Avatar from '../../components/common/Avatar';
 import RoleBadge from '../../components/RoleBadge';
 
@@ -626,32 +627,31 @@ export default function BoardPostDetailScreen({ route, navigation }) {
         {/* ── 게시글 카드 */}
         <View style={styles.postCard}>
 
-          {/* 게시판 태그 — 한 줄 */}
-          {post.boardName && (
+          {/* 게시판 태그 + 거래 상태 (한 줄 컴팩트) */}
+          {(post.boardName || isTradeBoard(post.boardSlug)) && (
             <View style={styles.tagRow}>
-              <Text style={styles.boardTag}>{post.boardName}</Text>
-            </View>
-          )}
-
-          {/* 거래 상태 배너 — 거래 보드일 때만 (큰 표시, 작성자면 변경 버튼) */}
-          {isTradeBoard(post.boardSlug) && (
-            <View style={[styles.tradeBanner, isSold ? styles.tradeBannerSold : styles.tradeBannerSelling]}>
-              <View style={styles.tradeStatusInfo}>
-                <View style={[styles.tradeDot, isSold ? styles.tradeDotSold : styles.tradeDotSelling]} />
-                <Text style={[styles.tradeStatusBigText, isSold ? styles.tradeStatusBigTextSold : styles.tradeStatusBigTextSelling]}>
-                  {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling', t)}
-                </Text>
-              </View>
+              {post.boardName && (
+                <Text style={styles.boardTag}>{getBoardName(post.boardSlug, post.boardName, t)}</Text>
+              )}
+              {isTradeBoard(post.boardSlug) && (
+                <View style={[styles.tradeStatusPill, isSold ? styles.tradeStatusPillSold : styles.tradeStatusPillSelling]}>
+                  <View style={[styles.tradeDot, isSold ? styles.tradeDotSold : styles.tradeDotSelling]} />
+                  <Text style={[styles.tradeStatusPillText, isSold ? styles.tradeStatusPillTextSold : styles.tradeStatusPillTextSelling]}>
+                    {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling', t)}
+                  </Text>
+                </View>
+              )}
+              {/* 작성자만 보이는 변경 버튼 — 우측 끝 푸시 */}
               {showTradeButton && (
                 <TouchableOpacity
-                  style={[styles.tradeChangeBtn, isSold ? styles.tradeChangeBtnSold : styles.tradeChangeBtnSelling]}
+                  style={[styles.tradeChangeBtn, isSold ? styles.tradeChangeBtnSold : styles.tradeChangeBtnSelling, { marginLeft: 'auto' }]}
                   onPress={confirmToggleTradeStatus}
                   activeOpacity={0.7}
                   accessibilityRole="button"
                 >
                   <Ionicons
                     name={isSold ? 'arrow-undo-outline' : 'checkmark-done'}
-                    size={15}
+                    size={13}
                     color={isSold ? colors.primary : '#FFFFFF'}
                   />
                   <Text style={[styles.tradeChangeBtnText, isSold ? styles.tradeChangeBtnTextSold : styles.tradeChangeBtnTextSelling]}>
@@ -894,68 +894,36 @@ const createStyles = (colors) => StyleSheet.create({
     flexWrap: 'wrap',
     marginBottom: 10,
   },
-  // 거래 상태 큰 배너 — 자체 행, 시각적 강조
-  tradeBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    marginBottom: 12,
-    gap: 8,
-  },
-  tradeBannerSelling: {
-    backgroundColor: '#ECFDF5',  // 라이트 그린
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  tradeBannerSold: {
-    backgroundColor: colors.inputBg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  tradeStatusInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  tradeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  tradeDotSelling: { backgroundColor: '#10B981' },
-  tradeDotSold: { backgroundColor: colors.textSecondary },
-  tradeStatusBigText: {
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  tradeStatusBigTextSelling: { color: '#047857' },
-  tradeStatusBigTextSold: { color: colors.textSecondary },
-
-  // 변경 버튼 — 작성자 전용
-  tradeChangeBtn: {
+  // 거래 상태 칩 — 게시판 태그 옆 인라인
+  tradeStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 999,
   },
-  tradeChangeBtnSelling: {
-    backgroundColor: '#10B981',  // 강조 — 거래완료 처리할 때 큰 액션
+  tradeStatusPillSelling: { backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0' },
+  tradeStatusPillSold: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border },
+  tradeDot: { width: 6, height: 6, borderRadius: 3 },
+  tradeDotSelling: { backgroundColor: '#10B981' },
+  tradeDotSold: { backgroundColor: colors.textSecondary },
+  tradeStatusPillText: { fontSize: 11, fontWeight: '800', letterSpacing: -0.2 },
+  tradeStatusPillTextSelling: { color: '#047857' },
+  tradeStatusPillTextSold: { color: colors.textSecondary },
+
+  // 변경 버튼 — 작성자 전용 (한 줄 끝)
+  tradeChangeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
   },
-  tradeChangeBtnSold: {
-    backgroundColor: colors.primary + '15',
-  },
-  tradeChangeBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
+  tradeChangeBtnSelling: { backgroundColor: '#10B981' },
+  tradeChangeBtnSold: { backgroundColor: colors.primary + '15' },
+  tradeChangeBtnText: { fontSize: 11, fontWeight: '800', letterSpacing: -0.2 },
   tradeChangeBtnTextSelling: { color: '#FFFFFF' },
   tradeChangeBtnTextSold: { color: colors.primary },
 
