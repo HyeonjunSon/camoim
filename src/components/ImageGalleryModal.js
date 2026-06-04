@@ -1,50 +1,36 @@
-import { useRef, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Modal,
-  FlatList,
   TouchableOpacity,
-  ScrollView,
   StyleSheet,
   StatusBar,
-  Platform,
-  Dimensions,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import Gallery from 'react-native-awesome-gallery';
 import { Text } from './StyledText';
 
 // 게시글/댓글 이미지 풀스크린 뷰어
-// - 가로 스와이프로 이미지 간 이동
-// - iOS: ScrollView 네이티브 핀치줌 (maximumZoomScale)
-// - Android: 줌 없음 — 다음 빌드에서 PinchGestureHandler 도입 가능
-// - 상단: N / M 카운터 + 닫기 버튼
+// react-native-awesome-gallery 사용 — Reanimated + GestureHandler 기반
+// - 핀치 줌 (iOS + Android 둘 다)
+// - 더블탭 줌
+// - 줌 상태에서 패닝
+// - 가로 스와이프로 다음/이전 이미지
+// - 아래로 스와이프하면 자동 닫기
 export default function ImageGalleryModal({ visible, images, initialIndex = 0, onClose }) {
   const insets = useSafeAreaInsets();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const listRef = useRef(null);
-  const [screenSize, setScreenSize] = useState(() => Dimensions.get('window'));
-
-  // 회전 시 너비 재계산
-  useEffect(() => {
-    const sub = Dimensions.addEventListener('change', ({ window }) => setScreenSize(window));
-    return () => sub.remove();
-  }, []);
 
   useEffect(() => {
-    if (visible) {
-      setCurrentIndex(initialIndex);
-    }
+    if (visible) setCurrentIndex(initialIndex);
   }, [visible, initialIndex]);
 
   if (!images || images.length === 0) return null;
 
-  const onScrollEnd = (e) => {
-    const x = e.nativeEvent.contentOffset.x;
-    const idx = Math.round(x / screenSize.width);
-    if (idx !== currentIndex) setCurrentIndex(idx);
-  };
+  // gallery는 문자열 배열 또는 객체 배열 받음 — 우리는 URI 문자열만
+  const galleryImages = images.map((img) => (typeof img === 'string' ? img : img?.uri));
 
   return (
     <Modal
@@ -55,40 +41,13 @@ export default function ImageGalleryModal({ visible, images, initialIndex = 0, o
       statusBarTranslucent
     >
       <StatusBar barStyle="light-content" backgroundColor="#000" />
-      <View style={styles.container}>
-        <FlatList
-          ref={listRef}
-          data={images}
-          keyExtractor={(item, idx) => `${idx}_${typeof item === 'string' ? item.slice(-20) : 'img'}`}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          initialScrollIndex={initialIndex}
-          getItemLayout={(_, index) => ({
-            length: screenSize.width,
-            offset: screenSize.width * index,
-            index,
-          })}
-          onMomentumScrollEnd={onScrollEnd}
-          renderItem={({ item }) => (
-            <ScrollView
-              style={{ width: screenSize.width, height: screenSize.height }}
-              contentContainerStyle={styles.zoomContainer}
-              maximumZoomScale={Platform.OS === 'ios' ? 3 : 1}
-              minimumZoomScale={1}
-              showsHorizontalScrollIndicator={false}
-              showsVerticalScrollIndicator={false}
-              centerContent
-              pinchGestureEnabled
-            >
-              <Image
-                source={{ uri: typeof item === 'string' ? item : item?.uri }}
-                style={{ width: screenSize.width, height: screenSize.height }}
-                contentFit="contain"
-                transition={0}
-              />
-            </ScrollView>
-          )}
+      <GestureHandlerRootView style={styles.container}>
+        <Gallery
+          data={galleryImages}
+          initialIndex={initialIndex}
+          onIndexChange={(idx) => setCurrentIndex(idx)}
+          onSwipeToClose={onClose}
+          loop={false}
         />
 
         {/* 상단 헤더 — 카운터 + 닫기 */}
@@ -108,14 +67,13 @@ export default function ImageGalleryModal({ visible, images, initialIndex = 0, o
             <Ionicons name="close" size={26} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
-  zoomContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
     position: 'absolute',
     top: 0, left: 0, right: 0,
@@ -126,7 +84,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
-  counterWrap: { flex: 1, alignItems: 'center', marginLeft: 36 /* close 버튼 너비 보정 */ },
+  counterWrap: { flex: 1, alignItems: 'center', marginLeft: 36 },
   counterText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   closeBtn: {
     width: 36, height: 36, borderRadius: 18,
