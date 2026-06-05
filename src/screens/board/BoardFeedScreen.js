@@ -12,8 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
-import { getBoardPosts, getBoardSubscription, toggleBoardSubscription } from '../../lib/api';
-import { track } from '../../lib/analytics';
+import { getBoardPosts } from '../../lib/api';
 import PostCard from '../../components/PostCard';
 import CustomHeader from '../../components/CustomHeader';
 import { useLang } from '../../context/LangContext';
@@ -56,38 +55,6 @@ export default function BoardFeedScreen({ route, navigation }) {
   const [error, setError] = useState(null);
   const flatListRef = useRef(null);
   const isFirstFocusRef = useRef(true);
-
-  // 게시판 새 글 알림 구독 상태
-  const [subscribed, setSubscribed] = useState(false);
-  const [subBusy, setSubBusy] = useState(false);
-  useEffect(() => {
-    if (!boardId) return;
-    getBoardSubscription(boardId).then(res => {
-      if (res.success) setSubscribed(!!res.data?.subscribed);
-    }).catch(() => {});
-  }, [boardId]);
-  const handleToggleSubscribe = useCallback(async () => {
-    if (subBusy) return;
-    setSubBusy(true);
-    const prev = subscribed;
-    setSubscribed(!prev); // 낙관적 업데이트
-    try {
-      const res = await toggleBoardSubscription(boardId);
-      if (res.success) {
-        setSubscribed(!!res.data?.subscribed);
-        track('board_subscribe_toggle', {
-          boardSlug,
-          subscribed: !!res.data?.subscribed,
-        });
-      } else {
-        setSubscribed(prev);
-      }
-    } catch {
-      setSubscribed(prev);
-    } finally {
-      setSubBusy(false);
-    }
-  }, [subBusy, subscribed, boardId]);
 
   // 검색 상태
   const [searchOpen, setSearchOpen] = useState(false);
@@ -372,12 +339,6 @@ export default function BoardFeedScreen({ route, navigation }) {
         navigation={navigation}
         title={boardName || ''}
         rightActions={[
-          {
-            icon: subscribed ? 'notifications' : 'notifications-outline',
-            onPress: handleToggleSubscribe,
-            label: subscribed ? t('board.unsubscribe') : t('board.subscribe'),
-            disabled: subBusy,
-          },
           {
             icon: searchOpen ? 'close' : 'search',
             onPress: toggleSearch,
