@@ -111,12 +111,6 @@ export const getBoardPosts = (boardId, page = 1, { search, sort, city, tradeStat
   if (tradeStatus) params.append('tradeStatus', tradeStatus);
   return request('GET', `/boards/${boardId}/posts?${params}`);
 };
-// 게시판 새 글 알림 구독
-export const getBoardSubscription = (boardId) =>
-  request('GET', `/boards/${boardId}/subscription`);
-export const toggleBoardSubscription = (boardId) =>
-  request('POST', `/boards/${boardId}/subscribe`);
-
 // 통합 검색 — 게시글 + 모임 + 사용자
 export const unifiedSearch = (q, { type = 'all', limit = 20 } = {}) => {
   const params = new URLSearchParams({ q, type, limit: String(limit) });

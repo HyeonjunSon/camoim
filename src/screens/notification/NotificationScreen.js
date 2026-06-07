@@ -48,12 +48,6 @@ const buildTypeMeta = (colors) => ({
     color: '#0891B2',
     labelKey: 'notif.catChatRequest',
   },
-  board_new_post: {
-    iconName: 'newspaper',
-    bg: '#FCE7F3',         // 라이트 핑크
-    color: '#DB2777',
-    labelKey: 'notif.catBoardNewPost',
-  },
   university_leader: {
     iconName: 'school',
     bg: '#DCFCE7',         // 라이트 그린

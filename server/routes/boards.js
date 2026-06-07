@@ -4,9 +4,7 @@ const Board = require('../models/Board');
 const Post = require('../models/Post');
 const User = require('../models/User');
 const University = require('../models/University');
-const BoardSubscription = require('../models/BoardSubscription');
 
-const { requireAuth } = require('../middleware/auth');
 const { expandCity } = require('../utils/metro');
 const { toContentPreview } = require('../utils/contentPreview');
 
@@ -176,47 +174,6 @@ router.get('/:boardId/posts', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
-  }
-});
-
-// ── 게시판 새 글 알림 구독 ───────────────────────────
-// GET /api/boards/:boardId/subscription — 현재 구독 상태 확인
-router.get('/:boardId/subscription', requireAuth, async (req, res) => {
-  try {
-    const exists = await BoardSubscription.findOne({
-      userId: req.user.id,
-      boardId: req.params.boardId,
-    }).lean();
-    res.json({ success: true, data: { subscribed: !!exists } });
-  } catch (err) {
-    console.error('[api]', req.method, req.originalUrl, err);
-    res.status(500).json({ success: false, message: '서버 오류' });
-  }
-});
-
-// POST /api/boards/:boardId/subscribe — 구독 토글 (켜기/끄기)
-router.post('/:boardId/subscribe', requireAuth, async (req, res) => {
-  try {
-    const board = await Board.findById(req.params.boardId).select('_id name').lean();
-    if (!board) return res.status(404).json({ success: false, message: '게시판을 찾을 수 없어요.' });
-
-    const existing = await BoardSubscription.findOne({
-      userId: req.user.id,
-      boardId: board._id,
-    });
-    if (existing) {
-      await existing.deleteOne();
-      return res.json({ success: true, data: { subscribed: false } });
-    }
-    await BoardSubscription.create({ userId: req.user.id, boardId: board._id });
-    res.json({ success: true, data: { subscribed: true } });
-  } catch (err) {
-    if (err.code === 11000) {
-      // race condition — already subscribed
-      return res.json({ success: true, data: { subscribed: true } });
-    }
-    console.error('[api]', req.method, req.originalUrl, err);
-    res.status(500).json({ success: false, message: '서버 오류' });
   }
 });
 

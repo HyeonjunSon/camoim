@@ -18,7 +18,6 @@ const ITEMS = [
   { key: 'reply',   icon: '↩️' },
   { key: 'like',    icon: '❤️' },
   { key: 'chat',    icon: '✉️' },
-  { key: 'boardSubscription', icon: '📋' },
   { key: 'notice',  icon: '📢' },
 ];
 

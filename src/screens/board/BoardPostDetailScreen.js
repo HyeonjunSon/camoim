@@ -4,7 +4,6 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  Pressable,
   Image,
   StyleSheet,
   ActivityIndicator,
@@ -12,7 +11,6 @@ import {
   Alert,
   ActionSheetIOS,
   Share,
-  Dimensions,
   useWindowDimensions,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -44,7 +42,6 @@ const buildHtmlTagsStyles = (colors) => ({
   a: { color: colors.primary },
 });
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useTheme } from '../../context/ThemeContext';
