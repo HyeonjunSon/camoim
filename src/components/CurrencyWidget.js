@@ -124,7 +124,7 @@ export default function CurrencyWidget() {
     if (!rate) return;
     if (lastEditedRef.current === 'cad') {
       const cadNum = parseInput(cadStr);
-      setKrwStr(formatNumber(cadNum * rate.cadToKrw, 0));
+      setKrwStr(formatNumber(cadNum * rate.cadToKrw, 2));
     } else {
       const krwNum = parseInput(krwStr);
       setCadStr(formatNumber(krwNum / rate.cadToKrw, 2));
@@ -140,7 +140,7 @@ export default function CurrencyWidget() {
     lastEditedRef.current = 'cad';
     if (rate) {
       const cadNum = parseInput(filtered);
-      setKrwStr(cadNum === 0 ? '' : formatNumber(cadNum * rate.cadToKrw, 0));
+      setKrwStr(cadNum === 0 ? '' : formatNumber(cadNum * rate.cadToKrw, 2));
     }
   };
 
