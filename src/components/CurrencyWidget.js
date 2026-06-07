@@ -1,14 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
-import { View, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { View, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text } from './StyledText';
 import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LangContext';
 
-// 환율 위젯 — KRW ↔ CAD
-// frankfurter.app 무료 API (ECB 기준, 인증·키 불필요, 1일 1회 업데이트)
-// AsyncStorage에 6시간 캐싱 — API 호출 최소화
+// 환율 계산기 — KRW ↔ CAD 양방향 입력
+// 네이버 환율 UI 스타일 — 한쪽 입력하면 다른쪽 즉시 변환
+// 데이터 출처: frankfurter.app (ECB 매매기준율, 무료, 키 불필요, 1일 1회 업데이트)
 const CACHE_KEY = '@camoim_currency_cache';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6시간
 
@@ -23,18 +23,30 @@ async function loadCachedRate() {
 }
 
 async function fetchFreshRate() {
-  // 양방향 한 번에: 1 CAD = X KRW, 1 KRW = Y CAD = 1/X
   const res = await fetch('https://api.frankfurter.app/latest?from=CAD&to=KRW');
   if (!res.ok) throw new Error('rate fetch failed');
   const json = await res.json();
   const cadToKrw = json?.rates?.KRW;
   if (!cadToKrw || typeof cadToKrw !== 'number') throw new Error('invalid response');
-  return {
-    cadToKrw,
-    krwToCad: 1 / cadToKrw,
-    date: json.date,
-    fetchedAt: Date.now(),
-  };
+  return { cadToKrw, date: json.date, fetchedAt: Date.now() };
+}
+
+// 숫자 천단위 콤마
+function formatNumber(n, fractionDigits = 0) {
+  if (n === null || n === undefined || Number.isNaN(n)) return '';
+  return n.toLocaleString('en-US', {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  });
+}
+
+// 콤마 제거 + 숫자 파싱 (잘못된 입력은 0)
+function parseInput(s) {
+  if (typeof s !== 'string') return 0;
+  const cleaned = s.replace(/,/g, '').trim();
+  if (cleaned === '' || cleaned === '.') return 0;
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : 0;
 }
 
 export default function CurrencyWidget() {
@@ -46,6 +58,11 @@ export default function CurrencyWidget() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
+
+  // 양쪽 입력값 (string으로 관리 — 소수점·콤마 표시)
+  const [cadStr, setCadStr] = useState('1');
+  const [krwStr, setKrwStr] = useState('');
+  const lastEditedRef = useRef('cad'); // 'cad' | 'krw' — 마지막으로 사용자가 만진 쪽
 
   const loadRate = useCallback(async (forceFresh = false) => {
     setError(false);
@@ -71,7 +88,44 @@ export default function CurrencyWidget() {
 
   useEffect(() => { loadRate(); }, [loadRate]);
 
+  // 환율 로드되면 기본 KRW 계산
+  useEffect(() => {
+    if (!rate) return;
+    if (lastEditedRef.current === 'cad') {
+      const cadNum = parseInput(cadStr);
+      setKrwStr(formatNumber(cadNum * rate.cadToKrw, 0));
+    } else {
+      const krwNum = parseInput(krwStr);
+      setCadStr(formatNumber(krwNum / rate.cadToKrw, 2));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rate]);
+
+  // CAD 입력 → KRW 자동 계산
+  const onCadChange = (text) => {
+    // 숫자·콤마·소수점만 허용
+    const filtered = text.replace(/[^0-9.,]/g, '');
+    setCadStr(filtered);
+    lastEditedRef.current = 'cad';
+    if (rate) {
+      const cadNum = parseInput(filtered);
+      setKrwStr(cadNum === 0 ? '' : formatNumber(cadNum * rate.cadToKrw, 0));
+    }
+  };
+
+  // KRW 입력 → CAD 자동 계산
+  const onKrwChange = (text) => {
+    const filtered = text.replace(/[^0-9.,]/g, '');
+    setKrwStr(filtered);
+    lastEditedRef.current = 'krw';
+    if (rate) {
+      const krwNum = parseInput(filtered);
+      setCadStr(krwNum === 0 ? '' : formatNumber(krwNum / rate.cadToKrw, 2));
+    }
+  };
+
   const onRefresh = () => {
+    Keyboard.dismiss();
     setRefreshing(true);
     loadRate(true);
   };
@@ -87,43 +141,78 @@ export default function CurrencyWidget() {
   if (error || !rate) {
     return (
       <TouchableOpacity style={styles.card} onPress={onRefresh} activeOpacity={0.7}>
-        <Text style={styles.errorText}>{t('currency.errorRetry') || '환율을 불러오지 못했어요 (탭하여 재시도)'}</Text>
+        <Text style={styles.errorText}>{t('currency.errorRetry')}</Text>
       </TouchableOpacity>
     );
   }
-
-  // 숫자 포맷팅
-  const cadToKrwFmt = Math.round(rate.cadToKrw).toLocaleString();
-  const krwToCadFmt = rate.krwToCad.toFixed(4);
-  const updatedLabel = `${t('currency.updated') || '업데이트'} ${rate.date}`;
 
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.titleRow}>
-          <Ionicons name="cash-outline" size={16} color={colors.primary} />
-          <Text style={styles.title}>{t('currency.title') || '실시간 환율'}</Text>
+          <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
+          <Text style={styles.title}>{t('currency.title')}</Text>
         </View>
-        <TouchableOpacity onPress={onRefresh} disabled={refreshing} hitSlop={8} accessibilityRole="button" accessibilityLabel="새로고침">
+        <TouchableOpacity
+          onPress={onRefresh}
+          disabled={refreshing}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="새로고침"
+        >
           <Ionicons name="refresh" size={16} color={refreshing ? colors.textSecondary : colors.primary} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.row}>
-        <Text style={styles.flag}>🇨🇦</Text>
-        <Text style={styles.leftLabel}>1 CAD</Text>
-        <Text style={styles.arrow}>=</Text>
-        <Text style={styles.rightLabel}>{cadToKrwFmt}{t('currency.krwSuffix') || '원'}</Text>
+      {/* CAD 행 */}
+      <View style={styles.currencyRow}>
+        <View style={styles.currencyLeft}>
+          <Text style={styles.flag}>🇨🇦</Text>
+          <View>
+            <Text style={styles.countryName}>{t('currency.canada')}</Text>
+            <Text style={styles.currencyCode}>CAD</Text>
+          </View>
+        </View>
+        <TextInput
+          style={styles.input}
+          value={cadStr}
+          onChangeText={onCadChange}
+          keyboardType="decimal-pad"
+          placeholder="0"
+          placeholderTextColor={colors.textSecondary}
+          selectTextOnFocus
+          returnKeyType="done"
+        />
       </View>
 
-      <View style={styles.row}>
-        <Text style={styles.flag}>🇰🇷</Text>
-        <Text style={styles.leftLabel}>1,000원</Text>
-        <Text style={styles.arrow}>=</Text>
-        <Text style={styles.rightLabel}>${(rate.krwToCad * 1000).toFixed(2)}</Text>
+      <View style={styles.divider}>
+        <Text style={styles.dividerSign}>=</Text>
       </View>
 
-      <Text style={styles.updatedText}>{updatedLabel}</Text>
+      {/* KRW 행 */}
+      <View style={styles.currencyRow}>
+        <View style={styles.currencyLeft}>
+          <Text style={styles.flag}>🇰🇷</Text>
+          <View>
+            <Text style={styles.countryName}>{t('currency.korea')}</Text>
+            <Text style={styles.currencyCode}>KRW</Text>
+          </View>
+        </View>
+        <TextInput
+          style={styles.input}
+          value={krwStr}
+          onChangeText={onKrwChange}
+          keyboardType="number-pad"
+          placeholder="0"
+          placeholderTextColor={colors.textSecondary}
+          selectTextOnFocus
+          returnKeyType="done"
+        />
+      </View>
+
+      <Text style={styles.updatedText}>
+        {t('currency.basis')} · {t('currency.updated')} {rate.date}
+      </Text>
     </View>
   );
 }
@@ -138,16 +227,58 @@ const createStyles = (colors) => StyleSheet.create({
     marginTop: 14,
     borderWidth: 1,
     borderColor: colors.border + '60',
-    gap: 8,
   },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   title: { fontSize: 13, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  flag: { fontSize: 16 },
-  leftLabel: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, minWidth: 70 },
-  arrow: { fontSize: 13, color: colors.textSecondary, marginHorizontal: 2 },
-  rightLabel: { fontSize: 14, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
-  updatedText: { fontSize: 10, color: colors.textSecondary, marginTop: 2, textAlign: 'right' },
+
+  currencyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    gap: 8,
+  },
+  currencyLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  flag: { fontSize: 20 },
+  countryName: { fontSize: 13, fontWeight: '700', color: colors.text },
+  currencyCode: { fontSize: 11, color: colors.textSecondary, marginTop: 1 },
+  input: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'right',
+    letterSpacing: -0.3,
+    paddingVertical: 4,
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dividerSign: {
+    position: 'absolute',
+    backgroundColor: colors.surface,
+    paddingHorizontal: 8,
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  updatedText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 10,
+    textAlign: 'right',
+  },
   errorText: { fontSize: 12, color: colors.textSecondary, textAlign: 'center' },
 });

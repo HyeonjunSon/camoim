@@ -35,9 +35,11 @@ export const TRANSLATIONS = {
       Saskatoon: '새스커툰', London: '런던', Quebec: '퀘벡시티',
     },
     currency: {
-      title: '실시간 환율',
+      title: '환율 계산기',
       updated: '업데이트',
-      krwSuffix: '원',
+      basis: '매매기준율 기준',
+      canada: '캐나다',
+      korea: '대한민국',
       errorRetry: '환율을 불러오지 못했어요 (탭하여 재시도)',
     },
     roles: {
@@ -783,9 +785,11 @@ export const TRANSLATIONS = {
       Saskatoon: 'Saskatoon', London: 'London', Quebec: 'Quebec City',
     },
     currency: {
-      title: 'Exchange Rate',
+      title: 'Currency Converter',
       updated: 'Updated',
-      krwSuffix: ' KRW',
+      basis: 'Mid-market rate',
+      canada: 'Canada',
+      korea: 'South Korea',
       errorRetry: "Couldn't load rate (tap to retry)",
     },
     roles: {
