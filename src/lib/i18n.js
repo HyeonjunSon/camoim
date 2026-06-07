@@ -34,6 +34,12 @@ export const TRANSLATIONS = {
       Winnipeg: '위니펙', Victoria: '빅토리아', Halifax: '핼리팩스',
       Saskatoon: '새스커툰', London: '런던', Quebec: '퀘벡시티',
     },
+    currency: {
+      title: '실시간 환율',
+      updated: '업데이트',
+      krwSuffix: '원',
+      errorRetry: '환율을 불러오지 못했어요 (탭하여 재시도)',
+    },
     roles: {
       admin: '관리자', student: '유학생', working_holiday: '워홀', general: '일반',
     },
@@ -775,6 +781,12 @@ export const TRANSLATIONS = {
       Calgary: 'Calgary', Edmonton: 'Edmonton', Ottawa: 'Ottawa',
       Winnipeg: 'Winnipeg', Victoria: 'Victoria', Halifax: 'Halifax',
       Saskatoon: 'Saskatoon', London: 'London', Quebec: 'Quebec City',
+    },
+    currency: {
+      title: 'Exchange Rate',
+      updated: 'Updated',
+      krwSuffix: ' KRW',
+      errorRetry: "Couldn't load rate (tap to retry)",
     },
     roles: {
       admin: 'Admin', student: 'Student', working_holiday: 'Working Holiday', general: 'General',

@@ -23,6 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { useSocket } from '../../context/SocketContext';
 import { getBoardName } from '../../lib/i18n';
+import CurrencyWidget from '../../components/CurrencyWidget';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -486,6 +487,9 @@ export default function HomeScreen({ navigation }) {
 
       {/* 카테고리 */}
       <CategorySection />
+
+      {/* 💱 환율 위젯 (KRW ↔ CAD) */}
+      <CurrencyWidget />
 
       {/* 🔥 Hot Topics */}
       <HotTopicsSection />
