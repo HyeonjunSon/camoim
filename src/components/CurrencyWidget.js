@@ -8,10 +8,10 @@ import { useLang } from '../context/LangContext';
 
 // 환율 계산기 — KRW ↔ CAD 양방향 입력
 // 네이버 환율 UI 스타일 — 한쪽 입력하면 다른쪽 즉시 변환
-// 데이터 출처: open.er-api.com (무료, 키 불필요, 24시간 내 여러 번 갱신)
-// → 네이버/하나은행 매매기준율과 거의 동일
-const CACHE_KEY = '@camoim_currency_cache_v2';
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1시간 (자주 갱신)
+// 데이터 출처: Yahoo Finance (실시간 외환시장 가격, 네이버/하나은행 매매기준율과 거의 동일)
+// 백업: open.er-api.com (mid-market, 8~10원 더 낮음)
+const CACHE_KEY = '@camoim_currency_cache_v3';
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30분 (장중엔 더 자주 갱신)
 
 async function loadCachedRate() {
   try {
@@ -23,18 +23,43 @@ async function loadCachedRate() {
   } catch { return null; }
 }
 
-async function fetchFreshRate() {
+function ymd(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Yahoo Finance — 실시간 외환 시세 (네이버 매매기준율과 거의 일치)
+async function fetchYahooRate() {
+  const res = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/CADKRW=X?interval=1d', {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CaMoim/1.0)' },
+  });
+  if (!res.ok) throw new Error('yahoo http ' + res.status);
+  const json = await res.json();
+  const meta = json?.chart?.result?.[0]?.meta;
+  const price = meta?.regularMarketPrice;
+  if (!price || typeof price !== 'number') throw new Error('yahoo invalid response');
+  const ts = meta?.regularMarketTime ? meta.regularMarketTime * 1000 : Date.now();
+  return { cadToKrw: price, date: ymd(ts), fetchedAt: Date.now(), source: 'yahoo' };
+}
+
+// 백업 — open.er-api (mid-market, 약간 lag)
+async function fetchOpenErApiRate() {
   const res = await fetch('https://open.er-api.com/v6/latest/CAD');
-  if (!res.ok) throw new Error('rate fetch failed');
+  if (!res.ok) throw new Error('open-er-api http ' + res.status);
   const json = await res.json();
   const cadToKrw = json?.rates?.KRW;
-  if (!cadToKrw || typeof cadToKrw !== 'number') throw new Error('invalid response');
-  // open.er-api는 time_last_update_utc를 줌
-  const updatedTs = json?.time_last_update_unix
-    ? new Date(json.time_last_update_unix * 1000)
-    : new Date();
-  const date = `${updatedTs.getFullYear()}-${String(updatedTs.getMonth() + 1).padStart(2, '0')}-${String(updatedTs.getDate()).padStart(2, '0')}`;
-  return { cadToKrw, date, fetchedAt: Date.now() };
+  if (!cadToKrw || typeof cadToKrw !== 'number') throw new Error('open-er-api invalid');
+  const ts = json?.time_last_update_unix ? json.time_last_update_unix * 1000 : Date.now();
+  return { cadToKrw, date: ymd(ts), fetchedAt: Date.now(), source: 'open-er-api' };
+}
+
+async function fetchFreshRate() {
+  try {
+    return await fetchYahooRate();
+  } catch (e) {
+    // Yahoo 실패 시 백업
+    return await fetchOpenErApiRate();
+  }
 }
 
 // 숫자 천단위 콤마
