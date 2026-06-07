@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { useLang } from '../../context/LangContext';
 import { useTheme } from '../../context/ThemeContext';
-import { colors } from '../../constants/colors'
 import { getNotificationSettings, updateNotificationSettings } from '../../lib/api';
 
 const ITEMS = [

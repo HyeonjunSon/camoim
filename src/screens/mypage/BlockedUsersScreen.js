@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
-import { colors } from '../../constants/colors'
 import { useLang } from '../../context/LangContext';
 import { getMyBlocks, unblockUser } from '../../lib/api';
 import Avatar from '../../components/common/Avatar';
