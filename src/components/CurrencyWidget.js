@@ -8,9 +8,10 @@ import { useLang } from '../context/LangContext';
 
 // 환율 계산기 — KRW ↔ CAD 양방향 입력
 // 네이버 환율 UI 스타일 — 한쪽 입력하면 다른쪽 즉시 변환
-// 데이터 출처: frankfurter.app (ECB 매매기준율, 무료, 키 불필요, 1일 1회 업데이트)
-const CACHE_KEY = '@camoim_currency_cache';
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6시간
+// 데이터 출처: open.er-api.com (무료, 키 불필요, 24시간 내 여러 번 갱신)
+// → 네이버/하나은행 매매기준율과 거의 동일
+const CACHE_KEY = '@camoim_currency_cache_v2';
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1시간 (자주 갱신)
 
 async function loadCachedRate() {
   try {
@@ -23,12 +24,17 @@ async function loadCachedRate() {
 }
 
 async function fetchFreshRate() {
-  const res = await fetch('https://api.frankfurter.app/latest?from=CAD&to=KRW');
+  const res = await fetch('https://open.er-api.com/v6/latest/CAD');
   if (!res.ok) throw new Error('rate fetch failed');
   const json = await res.json();
   const cadToKrw = json?.rates?.KRW;
   if (!cadToKrw || typeof cadToKrw !== 'number') throw new Error('invalid response');
-  return { cadToKrw, date: json.date, fetchedAt: Date.now() };
+  // open.er-api는 time_last_update_utc를 줌
+  const updatedTs = json?.time_last_update_unix
+    ? new Date(json.time_last_update_unix * 1000)
+    : new Date();
+  const date = `${updatedTs.getFullYear()}-${String(updatedTs.getMonth() + 1).padStart(2, '0')}-${String(updatedTs.getDate()).padStart(2, '0')}`;
+  return { cadToKrw, date, fetchedAt: Date.now() };
 }
 
 // 숫자 천단위 콤마

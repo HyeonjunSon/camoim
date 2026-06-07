@@ -37,7 +37,7 @@ export const TRANSLATIONS = {
     currency: {
       title: '환율 계산기',
       updated: '업데이트',
-      basis: '매매기준율 기준',
+      basis: '은행 고시환율 기준',
       canada: '캐나다',
       korea: '대한민국',
       errorRetry: '환율을 불러오지 못했어요 (탭하여 재시도)',
@@ -787,7 +787,7 @@ export const TRANSLATIONS = {
     currency: {
       title: 'Currency Converter',
       updated: 'Updated',
-      basis: 'Mid-market rate',
+      basis: 'Bank reference rate',
       canada: 'Canada',
       korea: 'South Korea',
       errorRetry: "Couldn't load rate (tap to retry)",
