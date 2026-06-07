@@ -1143,13 +1143,13 @@ export default function CreatePostScreen({ route, navigation }) {
 
       {uploadingImage && (
         <View style={styles.uploadOverlay} pointerEvents="auto">
-          <ActivityIndicator size="large" color={colors.white} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.uploadOverlayText}>
             {t('post.uploading')}{uploadProgress > 0 ? `  ${uploadProgress}%` : ''}
           </Text>
           {uploadProgress > 0 && (
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${uploadProgress}%` }]} />
+              <View style={[styles.progressFill, { width: `${uploadProgress}%`, backgroundColor: colors.primary }]} />
             </View>
           )}
         </View>
