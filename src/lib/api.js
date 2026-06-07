@@ -134,7 +134,34 @@ export const likePost = (postId) => request('POST', `/posts/${postId}/like`);
 export const bookmarkPost = (postId) => request('POST', `/posts/${postId}/bookmark`);
 
 // 리치 에디터용 단일 이미지 업로드 → 서버 URL 반환
-export const uploadPostImage = async (asset) => {
+// 진행률 트래킹을 위해 XHR 사용 (fetch는 upload progress 미지원)
+// onProgress: (percent: 0~100) => void
+function uploadWithProgress({ url, formData, token, onProgress }) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    // RN FormData는 Content-Type을 자동 설정 (boundary 포함)
+    xhr.upload.onprogress = (evt) => {
+      if (!evt.lengthComputable || !onProgress) return;
+      const pct = Math.round((evt.loaded / evt.total) * 100);
+      onProgress(pct);
+    };
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText || '{}');
+        if (xhr.status >= 200 && xhr.status < 300) resolve(toCamel(data));
+        else reject(new Error(data.message || rt('common.uploadFailed')));
+      } catch (e) {
+        reject(new Error(rt('common.uploadFailed')));
+      }
+    };
+    xhr.onerror = () => reject(new Error(rt('common.uploadFailed')));
+    xhr.send(formData);
+  });
+}
+
+export const uploadPostImage = async (asset, onProgress) => {
   const token = await getToken();
   const formData = new FormData();
   formData.append('image', {
@@ -142,14 +169,12 @@ export const uploadPostImage = async (asset) => {
     name: asset.filename ?? `post_img_${Date.now()}.jpg`,
     type: asset.type ?? 'image/jpeg',
   });
-  const res = await fetch(`${BASE_URL}/posts/upload-image`, {
-    method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: formData,
+  return uploadWithProgress({
+    url: `${BASE_URL}/posts/upload-image`,
+    formData,
+    token,
+    onProgress,
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || rt('common.uploadFailed'));
-  return toCamel(data);
 };
 
 // 아바타 업로드 → Cloudinary URL 반환

@@ -803,6 +803,11 @@ router.get('/:postId/comments', optionalAuth, async (req, res) => {
       const canSee = !c.isSecret ||
         (requesterId && (requesterId === commentAuthorId || requesterId === postAuthorId));
 
+      // 수정됨 표시 — updatedAt이 createdAt보다 2초 이상 늦으면 편집된 것으로 간주
+      // (mongoose의 자동 timestamp는 생성/저장 시 ms 차이가 살짝 있어서 토널런스)
+      const wasEdited = c.updatedAt && c.createdAt &&
+        (new Date(c.updatedAt).getTime() - new Date(c.createdAt).getTime() > 2000);
+
       const item = canSee ? {
         id: c._id,
         content: c.content,
@@ -810,6 +815,8 @@ router.get('/:postId/comments', optionalAuth, async (req, res) => {
         isSecret: c.isSecret ?? false,
         likeCount: c.likeCount,
         createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        edited: wasEdited,
         parentId: c.parentId,
         userId: c.userId?._id,        // 항상 포함 (클라이언트에서 권한 확인용)
         nickname: c.isAnonymous ? '익명' : (c.userId?.nickname ?? '탈퇴한 회원'),
@@ -821,6 +828,7 @@ router.get('/:postId/comments', optionalAuth, async (req, res) => {
         id: c._id,
         isSecretMasked: true,
         createdAt: c.createdAt,
+        edited: wasEdited,
         parentId: c.parentId,
         isPinned: c.isPinned ?? false,
         replies: [],

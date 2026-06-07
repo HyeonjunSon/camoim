@@ -112,6 +112,7 @@ export default function CreatePostScreen({ route, navigation }) {
   // Android: endCoordinates.height가 과측정되는 경우가 있어 screenY (키보드 top 절대좌표)로 정확한 키보드 top을 추적
   const [kbScreenY, setKbScreenY] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [imgSelected, setImgSelected] = useState(false);
   const [boldActive, setBoldActive] = useState(false);
   const [h2Active, setH2Active] = useState(false);
@@ -246,6 +247,7 @@ export default function CreatePostScreen({ route, navigation }) {
     if (result.canceled) return;
     const asset = result.assets[0];
     setUploadingImage(true);
+    setUploadProgress(0);
     try {
       // 가로 1280px, JPEG 70%로 리사이즈/압축 (보통 5MB → 200~400KB)
       const manipulated = await ImageManipulator.manipulateAsync(
@@ -253,11 +255,14 @@ export default function CreatePostScreen({ route, navigation }) {
         [{ resize: { width: 1280 } }],
         { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
       );
-      const res = await uploadPostImage({
-        uri: manipulated.uri,
-        filename: `post_img_${Date.now()}.jpg`,
-        type: 'image/jpeg',
-      });
+      const res = await uploadPostImage(
+        {
+          uri: manipulated.uri,
+          filename: `post_img_${Date.now()}.jpg`,
+          type: 'image/jpeg',
+        },
+        (pct) => setUploadProgress(pct),
+      );
       if (res.success) {
         // Cloudinary는 절대 URL 반환, 로컬은 /uploads/... 상대 경로
         const imgUrl = res.data.url.startsWith('http') ? res.data.url : `${SERVER_HOST}${res.data.url}`;
@@ -295,6 +300,7 @@ export default function CreatePostScreen({ route, navigation }) {
       Alert.alert(t('common.error'), e.message ?? t('post.uploadFailed'));
     } finally {
       setUploadingImage(false);
+      setUploadProgress(0);
     }
   };
 
@@ -1138,7 +1144,14 @@ export default function CreatePostScreen({ route, navigation }) {
       {uploadingImage && (
         <View style={styles.uploadOverlay} pointerEvents="auto">
           <ActivityIndicator size="large" color={colors.white} />
-          <Text style={styles.uploadOverlayText}>{t('post.uploading')}</Text>
+          <Text style={styles.uploadOverlayText}>
+            {t('post.uploading')}{uploadProgress > 0 ? `  ${uploadProgress}%` : ''}
+          </Text>
+          {uploadProgress > 0 && (
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${uploadProgress}%` }]} />
+            </View>
+          )}
         </View>
       )}
 
@@ -1373,6 +1386,12 @@ const createStyles = (colors) => StyleSheet.create({
     zIndex: 100,
   },
   uploadOverlayText: { color: '#fff', marginTop: 12, fontSize: 14, fontWeight: '600' },
+  progressTrack: {
+    marginTop: 14, width: 220, height: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 3, overflow: 'hidden',
+  },
+  progressFill: { height: '100%', backgroundColor: '#fff' },
 
   toolbar: {
     backgroundColor: colors.surface,

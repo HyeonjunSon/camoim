@@ -136,7 +136,10 @@ function CommentItem({ comment, isReply = false, onMore, onAvatarPress, onReply,
             )}
           </View>
           <View style={styles.commentHeaderRight}>
-            <Text style={styles.commentTime}>{formatTime(comment.createdAt, t)}</Text>
+            <Text style={styles.commentTime}>
+              {formatTime(comment.createdAt, t)}
+              {comment.edited && ` · ${t('post.commentEdited') || '수정됨'}`}
+            </Text>
             <TouchableOpacity onPress={() => onMore(comment, isReply)} activeOpacity={0.6} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
             </TouchableOpacity>
