@@ -23,9 +23,10 @@ async function loadCachedRate() {
   } catch { return null; }
 }
 
-function ymd(ts) {
+function ymdhm(ts) {
   const d = new Date(ts);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 // Yahoo Finance — 실시간 외환 시세 (네이버 매매기준율과 거의 일치)
@@ -39,7 +40,7 @@ async function fetchYahooRate() {
   const price = meta?.regularMarketPrice;
   if (!price || typeof price !== 'number') throw new Error('yahoo invalid response');
   const ts = meta?.regularMarketTime ? meta.regularMarketTime * 1000 : Date.now();
-  return { cadToKrw: price, date: ymd(ts), fetchedAt: Date.now(), source: 'yahoo' };
+  return { cadToKrw: price, date: ymdhm(ts), fetchedAt: Date.now(), source: 'yahoo' };
 }
 
 // 백업 — open.er-api (mid-market, 약간 lag)
@@ -50,7 +51,7 @@ async function fetchOpenErApiRate() {
   const cadToKrw = json?.rates?.KRW;
   if (!cadToKrw || typeof cadToKrw !== 'number') throw new Error('open-er-api invalid');
   const ts = json?.time_last_update_unix ? json.time_last_update_unix * 1000 : Date.now();
-  return { cadToKrw, date: ymd(ts), fetchedAt: Date.now(), source: 'open-er-api' };
+  return { cadToKrw, date: ymdhm(ts), fetchedAt: Date.now(), source: 'open-er-api' };
 }
 
 async function fetchFreshRate() {
