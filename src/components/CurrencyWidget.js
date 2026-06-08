@@ -200,9 +200,11 @@ export default function CurrencyWidget() {
       <View style={styles.currencyRow}>
         <View style={styles.currencyLeft}>
           <Text style={styles.flag}>🇨🇦</Text>
-          <View>
+          <View style={styles.labelGroup}>
             <Text style={styles.countryName}>{t('currency.canada')}</Text>
-            <Text style={styles.currencyCode}>CAD</Text>
+            <View style={styles.codeBadge}>
+              <Text style={styles.codeBadgeText}>CAD</Text>
+            </View>
           </View>
         </View>
         <TextInput
@@ -218,16 +220,20 @@ export default function CurrencyWidget() {
       </View>
 
       <View style={styles.divider}>
-        <Text style={styles.dividerSign}>=</Text>
+        <View style={styles.dividerBadge}>
+          <Ionicons name="swap-vertical" size={12} color={colors.primary} />
+        </View>
       </View>
 
       {/* KRW 행 */}
       <View style={styles.currencyRow}>
         <View style={styles.currencyLeft}>
           <Text style={styles.flag}>🇰🇷</Text>
-          <View>
+          <View style={styles.labelGroup}>
             <Text style={styles.countryName}>{t('currency.korea')}</Text>
-            <Text style={styles.currencyCode}>KRW</Text>
+            <View style={styles.codeBadge}>
+              <Text style={styles.codeBadgeText}>KRW</Text>
+            </View>
           </View>
         </View>
         <TextInput
@@ -252,13 +258,18 @@ export default function CurrencyWidget() {
 const createStyles = (colors) => StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginHorizontal: 14,
     marginTop: 12,
-    borderWidth: 1,
-    borderColor: colors.border + '60',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border + '40',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 1,
   },
   headerRow: {
     flexDirection: 'row',
@@ -278,8 +289,20 @@ const createStyles = (colors) => StyleSheet.create({
   },
   currencyLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   flag: { fontSize: 18 },
-  countryName: { fontSize: 12, fontWeight: '700', color: colors.text },
-  currencyCode: { fontSize: 10, color: colors.textSecondary, marginTop: 1 },
+  labelGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  countryName: { fontSize: 13, fontWeight: '700', color: colors.text },
+  codeBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: colors.primary + '14',
+  },
+  codeBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: 0.5,
+  },
   input: {
     flex: 1,
     fontSize: 17,
@@ -291,19 +314,22 @@ const createStyles = (colors) => StyleSheet.create({
   },
 
   divider: {
-    height: 1,
+    height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
-    marginVertical: 2,
+    marginVertical: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dividerSign: {
+  dividerBadge: {
     position: 'absolute',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: colors.surface,
-    paddingHorizontal: 8,
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '700',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   updatedText: {
