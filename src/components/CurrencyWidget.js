@@ -7,11 +7,12 @@ import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LangContext';
 
 // 환율 계산기 — KRW ↔ CAD 양방향 입력
-// 네이버 환율 UI 스타일 — 한쪽 입력하면 다른쪽 즉시 변환
-// 데이터 출처: Yahoo Finance (실시간 외환시장 가격, 네이버/하나은행 매매기준율과 거의 동일)
-// 백업: open.er-api.com (mid-market, 8~10원 더 낮음)
-const CACHE_KEY = '@camoim_currency_cache_v3';
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30분 (장중엔 더 자주 갱신)
+// 데이터 출처:
+//   1순위: 네이버 finance (m.stock.naver.com) — 하나은행 매매기준율, 1원 이내 일치
+//   2순위: Yahoo Finance — interbank real-time (현찰가에 가까움)
+//   3순위: open.er-api.com — mid-market 백업
+const CACHE_KEY = '@camoim_currency_cache_v4';
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30분
 
 async function loadCachedRate() {
   try {
@@ -29,7 +30,28 @@ function ymdhm(ts) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// Yahoo Finance — 실시간 외환 시세 (네이버 매매기준율과 거의 일치)
+// 네이버 finance — 하나은행 매매기준율 (한국 금융앱 표준 reference rate)
+async function fetchNaverRate() {
+  const res = await fetch(
+    'https://m.stock.naver.com/front-api/marketIndex/prices?category=exchange&reutersCode=FX_CADKRW&page=1',
+    { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CaMoim/1.0)' } },
+  );
+  if (!res.ok) throw new Error('naver http ' + res.status);
+  const json = await res.json();
+  if (!json?.isSuccess) throw new Error('naver not success');
+  const latest = json?.result?.[0];
+  if (!latest?.closePrice) throw new Error('naver no closePrice');
+  const cadToKrw = parseFloat(String(latest.closePrice).replace(/,/g, ''));
+  if (!Number.isFinite(cadToKrw) || cadToKrw <= 0) throw new Error('naver invalid price');
+  return {
+    cadToKrw,
+    date: ymdhm(Date.now()),
+    fetchedAt: Date.now(),
+    source: 'naver',
+  };
+}
+
+// Yahoo Finance — 실시간 외환 시세 (현찰 사실 때 가격과 비슷)
 async function fetchYahooRate() {
   const res = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/CADKRW=X?interval=1d', {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CaMoim/1.0)' },
@@ -56,10 +78,13 @@ async function fetchOpenErApiRate() {
 
 async function fetchFreshRate() {
   try {
-    return await fetchYahooRate();
-  } catch (e) {
-    // Yahoo 실패 시 백업
-    return await fetchOpenErApiRate();
+    return await fetchNaverRate();
+  } catch {
+    try {
+      return await fetchYahooRate();
+    } catch {
+      return await fetchOpenErApiRate();
+    }
   }
 }
 
