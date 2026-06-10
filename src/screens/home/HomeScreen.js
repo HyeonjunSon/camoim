@@ -90,8 +90,14 @@ export default function HomeScreen({ navigation }) {
   const [bannerIndex, setBannerIndex] = useState(0);
   const bannerRef = useRef(null);
 
-  const loadAll = useCallback(async (isRefresh = false) => {
-    isRefresh ? setRefreshing(true) : setLoading(true);
+  // stale-while-revalidate — 첫 진입만 spinner, 이후엔 이전 데이터 유지하며 백그라운드에서 갱신
+  const hasLoadedOnce = useRef(false);
+
+  const loadAll = useCallback(async (mode = 'initial') => {
+    // mode: 'initial' (첫 진입, spinner) | 'silent' (백그라운드) | 'pull' (당겨서 새로고침)
+    if (mode === 'pull') setRefreshing(true);
+    else if (!hasLoadedOnce.current) setLoading(true);
+
     const myCity = user?.city || '';
     try {
       const [hotRes, boardsRes, sectionsRes, unreadRes, noticesRes] = await Promise.all([
@@ -129,11 +135,16 @@ export default function HomeScreen({ navigation }) {
       }
 
       if (unreadRes.success) setUnreadCount(unreadRes.data.count ?? 0);
+      hasLoadedOnce.current = true;
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
   }, []);
 
-  useFocusEffect(useCallback(() => { loadAll(); }, []));
+  useFocusEffect(
+    useCallback(() => {
+      loadAll(hasLoadedOnce.current ? 'silent' : 'initial');
+    }, [loadAll])
+  );
 
   // 실시간 채팅 알림
   useEffect(() => {
@@ -431,7 +442,7 @@ export default function HomeScreen({ navigation }) {
     <ScrollView
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={() => loadAll(true)} tintColor={colors.primary} />
+        <RefreshControl refreshing={refreshing} onRefresh={() => loadAll('pull')} tintColor={colors.primary} />
       }
       contentContainerStyle={{ paddingBottom: 32 }}
     >
