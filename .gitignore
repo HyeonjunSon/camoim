@@ -35,6 +35,10 @@ yarn-error.*
 .env
 server/.env
 
+# seed account credentials (캐스모 이관용 — 절대 커밋 금지)
+seed-accounts.env
+server/seed-accounts.env
+
 # claude
 .claude/
 
