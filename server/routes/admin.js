@@ -273,13 +273,16 @@ router.get('/users', async (req, res) => {
       conditions.push({ $or: [{ status: 'active' }, { status: { $exists: false } }, { status: null }] });
     } else if (status) {
       conditions.push({ status });
+    } else {
+      // '전체' 탭: 탈퇴(deleted) 회원은 제외 (탈퇴 탭에서만 노출)
+      conditions.push({ status: { $ne: 'deleted' } });
     }
     const filter = conditions.length ? (conditions.length === 1 ? conditions[0] : { $and: conditions }) : {};
     if (role) filter.role = role;
 
     const total = await User.countDocuments(filter);
     const users = await User.find(filter)
-      .select('email nickname role status verified university city createdAt suspendedUntil shadowBanned warningCount')
+      .select('email nickname role status verified university city createdAt suspendedUntil shadowBanned warningCount deletedAt')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -813,16 +816,17 @@ router.get('/stats', async (req, res) => {
     const monthAgo = new Date(now - 30 * 24 * 3600 * 1000);
 
     const [
-      totalUsers, activeUsers, suspendedUsers, bannedUsers,
+      totalUsers, activeUsers, suspendedUsers, bannedUsers, deletedUsers,
       totalPosts, totalComments, totalReportsPending,
       newUsers24h, newUsers7d, newUsers30d,
       newPosts24h, newPosts7d,
       verifyPending, inquiryOpen, groupsPending,
     ] = await Promise.all([
-      User.countDocuments(),
+      User.countDocuments({ status: { $ne: 'deleted' } }), // 탈퇴 제외 (전체 회원수)
       User.countDocuments({ status: 'active' }),
       User.countDocuments({ status: 'suspended' }),
       User.countDocuments({ status: 'banned' }),
+      User.countDocuments({ status: 'deleted' }),
       Post.countDocuments(),
       Comment.countDocuments(),
       Report.countDocuments({ status: 'pending' }),
@@ -849,7 +853,7 @@ router.get('/stats', async (req, res) => {
     res.json({
       success: true,
       data: {
-        users: { total: totalUsers, active: activeUsers, suspended: suspendedUsers, banned: bannedUsers },
+        users: { total: totalUsers, active: activeUsers, suspended: suspendedUsers, banned: bannedUsers, deleted: deletedUsers },
         content: { posts: totalPosts, comments: totalComments },
         pending: { reports: totalReportsPending, verify: verifyPending, inquiry: inquiryOpen, groups: groupsPending },
         signups: { d1: newUsers24h, d7: newUsers7d, d30: newUsers30d },

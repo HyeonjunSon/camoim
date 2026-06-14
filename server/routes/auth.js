@@ -326,6 +326,11 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ success: false, message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
     }
 
+    // 탈퇴(soft-delete)된 계정 — 로그인 차단
+    if (user.status === 'deleted') {
+      return res.status(403).json({ success: false, code: 'ACCOUNT_DELETED', message: '탈퇴 처리된 계정입니다.' });
+    }
+
     // 소셜 로그인 전용 계정 (비밀번호 없음) — 비번 로그인 차단
     if (!user.passwordHash) {
       const provider = user.appleSub ? 'Apple' : (user.googleSub ? 'Google' : '소셜');
@@ -580,7 +585,22 @@ router.delete('/me', requireAuth, async (req, res) => {
       University.updateMany({ leaderUserId: userId }, { $set: { leaderUserId: null } }),
     ]);
 
-    await User.findByIdAndDelete(userId);
+    // 계정은 soft-delete: status='deleted'로 전환하고 신원(이메일/닉네임)은 유지.
+    // tokenVersion을 올려 기존 JWT 즉시 무효화 (requireAuth에서 deleted도 차단됨).
+    await User.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          status: 'deleted',
+          deletedAt: new Date(),
+          deleteReason: reason ? String(reason).slice(0, 500) : '',
+          pushToken: '',          // 푸쉬 발송 중단
+          lockedUntil: null,
+          failedLoginCount: 0,
+        },
+        $inc: { tokenVersion: 1 },
+      }
+    );
     res.json({ success: true, message: '회원탈퇴가 완료되었습니다.' });
   } catch (err) {
     console.error('[auth] delete account error:', err);
@@ -673,6 +693,9 @@ router.post('/apple', socialLimiter, async (req, res) => {
     const { sub, email } = await verifyAppleIdToken(identityToken);
     const { user, linked } = await findOrPreReg('apple', sub, email);
 
+    if (user?.status === 'deleted') {
+      return res.status(403).json({ success: false, code: 'ACCOUNT_DELETED', message: '탈퇴 처리된 계정입니다.' });
+    }
     if (user) {
       const token = makeAccessToken(user);
       return res.json({ success: true, data: { token, user: userResponse(user), linked: !!linked } });
@@ -707,6 +730,9 @@ router.post('/google', socialLimiter, async (req, res) => {
     const { sub, email } = await verifyGoogleIdToken(idToken);
     const { user, linked } = await findOrPreReg('google', sub, email);
 
+    if (user?.status === 'deleted') {
+      return res.status(403).json({ success: false, code: 'ACCOUNT_DELETED', message: '탈퇴 처리된 계정입니다.' });
+    }
     if (user) {
       const token = makeAccessToken(user);
       return res.json({ success: true, data: { token, user: userResponse(user), linked: !!linked } });
@@ -765,6 +791,9 @@ router.post('/social-complete', socialLimiter, async (req, res) => {
     const subQuery = payload.provider === 'apple' ? { appleSub: payload.sub } : { googleSub: payload.sub };
     const existing = await User.findOne(subQuery);
     if (existing) {
+      if (existing.status === 'deleted') {
+        return res.status(403).json({ success: false, code: 'ACCOUNT_DELETED', message: '탈퇴 처리된 계정입니다.' });
+      }
       const token = makeAccessToken(existing);
       return res.json({ success: true, data: { token, user: userResponse(existing) } });
     }
@@ -774,6 +803,9 @@ router.post('/social-complete', socialLimiter, async (req, res) => {
     if (email) {
       const byEmail = await User.findOne({ email });
       if (byEmail) {
+        if (byEmail.status === 'deleted') {
+          return res.status(403).json({ success: false, code: 'ACCOUNT_DELETED', message: '탈퇴 처리된 계정입니다.' });
+        }
         if (payload.provider === 'apple' && !byEmail.appleSub) byEmail.appleSub = payload.sub;
         if (payload.provider === 'google' && !byEmail.googleSub) byEmail.googleSub = payload.sub;
         byEmail.emailVerified = true;

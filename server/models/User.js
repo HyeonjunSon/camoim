@@ -57,6 +57,9 @@ const userSchema = new mongoose.Schema({
   },
   suspendedUntil: { type: Date, default: null }, // null이고 status=suspended면 무기한
   suspendReason:  { type: String, default: '', maxlength: 500 },
+  // 회원탈퇴 (soft-delete) — status='deleted'와 함께 기록
+  deletedAt:    { type: Date, default: null },
+  deleteReason: { type: String, default: '', maxlength: 500 },
   warningCount:   { type: Number, default: 0 },
   shadowBanned:   { type: Boolean, default: false }, // 본인은 모르고 글이 다른 사람에게 안 보임
   notificationSettings: {

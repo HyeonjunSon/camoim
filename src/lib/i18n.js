@@ -684,8 +684,8 @@ export const TRANSLATIONS = {
       rpDeleteTarget: '대상 콘텐츠 삭제', rpDeleteAsk: '신고 대상을 삭제할까요?',
       rpNoReports: '신고 없음', rpDeleteAction: '삭제 처리', rpDismissAction: '기각',
       // 유저 관리
-      usAll: '전체', usActive: '정상', usSuspended: '정지', usBanned: '차단',
-      usSearchPlaceholder: '닉네임 또는 이메일 검색', usNoUsers: '유저 없음',
+      usAll: '전체', usActive: '정상', usSuspended: '정지', usBanned: '차단', usDeleted: '탈퇴',
+      usSearchPlaceholder: '닉네임 또는 이메일 검색', usNoUsers: '유저 없음', usTotal: '명',
       // 게시글 관리
       ptAll: '전체', ptVisible: '공개', ptHidden: '숨김',
       ptGlobal: '일반 게시판', ptSchool: '학교 게시판',
@@ -1423,8 +1423,8 @@ export const TRANSLATIONS = {
       rpDeleteTarget: 'Delete Content', rpDeleteAsk: 'Delete the reported content?',
       rpNoReports: 'No reports', rpDeleteAction: 'Delete', rpDismissAction: 'Dismiss',
       // Users
-      usAll: 'All', usActive: 'Active', usSuspended: 'Suspended', usBanned: 'Banned',
-      usSearchPlaceholder: 'Search nickname or email', usNoUsers: 'No users',
+      usAll: 'All', usActive: 'Active', usSuspended: 'Suspended', usBanned: 'Banned', usDeleted: 'Withdrawn',
+      usSearchPlaceholder: 'Search nickname or email', usNoUsers: 'No users', usTotal: '',
       // Posts
       ptAll: 'All', ptVisible: 'Visible', ptHidden: 'Hidden',
       ptGlobal: 'General', ptSchool: 'School',

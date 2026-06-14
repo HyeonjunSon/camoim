@@ -31,6 +31,7 @@ export default function AdminUsersScreen({ navigation }) {
     { key: 'active',    label: t('admin.usActive') },
     { key: 'suspended', label: t('admin.usSuspended') },
     { key: 'banned',    label: t('admin.usBanned') },
+    { key: 'deleted',   label: t('admin.usDeleted') },
   ];
 
   const [q, setQ] = useState('');
@@ -38,29 +39,30 @@ export default function AdminUsersScreen({ navigation }) {
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const load = useCallback(async (reset = false) => {
-    setLoading(true);
+  // pageToLoad를 명시적으로 받아 stale 클로저/루프 방지
+  const load = useCallback(async (pageToLoad, reset) => {
+    if (reset) setLoading(true); else setLoadingMore(true);
     try {
-      const nextPage = reset ? 1 : page;
-      const res = await adminListUsers({ q, status, page: nextPage });
+      const res = await adminListUsers({ q, status, page: pageToLoad });
       if (res.success) {
-        setItems(reset ? res.data.users : [...items, ...res.data.users]);
+        setItems(prev => (reset ? res.data.users : [...prev, ...res.data.users]));
         setPages(res.data.pages);
-        setPage(nextPage);
+        setPage(pageToLoad);
+        setTotal(res.data.total ?? 0);
       }
-    } catch {} finally { setLoading(false); }
-  }, [q, status, page, items]);
+    } catch {} finally {
+      if (reset) setLoading(false); else setLoadingMore(false);
+    }
+  }, [q, status]);
 
   useEffect(() => {
-    const id = setTimeout(() => {
-      setPage(1);
-      load(true);
-    }, 300);
+    const id = setTimeout(() => load(1, true), 300);
     return () => clearTimeout(id);
-    // eslint-disable-next-line
-  }, [q, status]);
+  }, [q, status, load]);
 
   return (
     <View style={styles.container}>
@@ -88,21 +90,22 @@ export default function AdminUsersScreen({ navigation }) {
         ))}
       </View>
 
+      <Text style={styles.countText}>{total}{t('admin.usTotal')}</Text>
+
       <FlatList
         data={items}
         keyExtractor={(it) => String(it.id)}
         contentContainerStyle={{ padding: 14, paddingBottom: 32 }}
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={() => load(true)} />}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={() => load(1, true)} />}
         onEndReachedThreshold={0.4}
         onEndReached={() => {
-          if (!loading && page < pages) {
-            setPage(page + 1);
-            load(false);
+          if (!loading && !loadingMore && page < pages) {
+            load(page + 1, false);
           }
         }}
         ListEmptyComponent={!loading && <Text style={styles.empty}>{t('admin.usNoUsers')}</Text>}
-        ListFooterComponent={loading && <ActivityIndicator color={colors.primary} style={{ margin: 16 }} />}
+        ListFooterComponent={(loading || loadingMore) && <ActivityIndicator color={colors.primary} style={{ margin: 16 }} />}
         renderItem={({ item }) => {
           const sc = STATUS_COLOR[item.status] ?? STATUS_COLOR.active;
           return (
@@ -122,6 +125,11 @@ export default function AdminUsersScreen({ navigation }) {
                   <Text style={styles.meta}>
                     {item.role} · {item.city || '-'} · {new Date(item.createdAt).toLocaleDateString()}
                   </Text>
+                  {item.status === 'deleted' && item.deletedAt && (
+                    <Text style={styles.meta}>
+                      {t('admin.usDeleted')}: {new Date(item.deletedAt).toLocaleDateString()}
+                    </Text>
+                  )}
                 </View>
                 <View style={[styles.badge, { backgroundColor: sc.bg }]}>
                   <Text style={[styles.badgeText, { color: sc.text }]}>{item.status}</Text>
@@ -144,7 +152,11 @@ const createStyles = (colors) => StyleSheet.create({
   },
   search: { flex: 1, fontSize: 14, color: colors.text },
   tabBar: {
-    flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 6, gap: 6,
+    flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingBottom: 6, gap: 6,
+  },
+  countText: {
+    paddingHorizontal: 16, paddingBottom: 6,
+    fontSize: 12, color: colors.textSecondary, textAlign: 'right',
   },
   tab: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
