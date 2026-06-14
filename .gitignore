@@ -39,6 +39,11 @@ server/.env
 seed-accounts.env
 server/seed-accounts.env
 
+# 캐스모 이관 작업용 글 목록 (임시)
+server/scripts/posts*.json
+# 시드 계정 사전 발급 JWT (절대 커밋 금지)
+server/scripts/seed-tokens.json
+
 # claude
 .claude/
 
