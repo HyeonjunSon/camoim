@@ -27,11 +27,7 @@ const SORT_OPTIONS = [
 // 로컬 게시판: 도시 필터가 표시되는 게시판 slug
 const LOCAL_BOARD_SLUGS = ['market', 'jobs', 'roomrent', 'car', 'giveaway', 'realestate', 'meetup'];
 
-const CITIES = [
-  'Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Edmonton',
-  'Ottawa', 'Winnipeg', 'Victoria', 'Halifax', 'Saskatoon',
-  'London', 'Quebec',
-];
+import { CITIES } from '../../constants/cities';
 
 
 export default function BoardFeedScreen({ route, navigation }) {

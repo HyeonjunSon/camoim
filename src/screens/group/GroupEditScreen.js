@@ -23,11 +23,7 @@ const CATEGORIES = [
   { key: 'general', labelKey: 'group.catGeneral', emoji: '💬' },
 ];
 
-const CITIES = [
-  'Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Edmonton',
-  'Ottawa', 'Winnipeg', 'Victoria', 'Halifax', 'Saskatoon',
-  'London', 'Quebec',
-];
+import { CITIES } from '../../constants/cities';
 
 export default function GroupEditScreen({ route, navigation }) {
   const { groupId } = route.params || {};

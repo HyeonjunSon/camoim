@@ -28,11 +28,7 @@ import CurrencyWidget from '../../components/CurrencyWidget';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // 주요 캐나다 도시 목록 (city 필터용)
-const CITIES = [
-  'Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Edmonton',
-  'Ottawa', 'Winnipeg', 'Victoria', 'Halifax', 'Saskatoon',
-  'London', 'Quebec',
-];
+import { CITIES } from '../../constants/cities';
 
 // HTML/마커 제거 후 본문 미리보기
 function getPreview(content) {

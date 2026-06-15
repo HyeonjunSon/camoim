@@ -32,7 +32,7 @@ export const TRANSLATIONS = {
       Toronto: '토론토', Vancouver: '밴쿠버', Montreal: '몬트리올',
       Calgary: '캘거리', Edmonton: '에드먼턴', Ottawa: '오타와',
       Winnipeg: '위니펙', Victoria: '빅토리아', Halifax: '핼리팩스',
-      Saskatoon: '새스커툰', London: '런던', Quebec: '퀘벡시티',
+      Saskatoon: '새스커툰', London: '런던', Windsor: '윈저', Quebec: '퀘벡시티',
     },
     currency: {
       title: '환율 계산기',
@@ -782,7 +782,7 @@ export const TRANSLATIONS = {
       Toronto: 'Toronto', Vancouver: 'Vancouver', Montreal: 'Montreal',
       Calgary: 'Calgary', Edmonton: 'Edmonton', Ottawa: 'Ottawa',
       Winnipeg: 'Winnipeg', Victoria: 'Victoria', Halifax: 'Halifax',
-      Saskatoon: 'Saskatoon', London: 'London', Quebec: 'Quebec City',
+      Saskatoon: 'Saskatoon', London: 'London', Windsor: 'Windsor', Quebec: 'Quebec City',
     },
     currency: {
       title: 'Currency Converter',

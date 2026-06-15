@@ -29,11 +29,7 @@ import RoleBadge from '../../components/RoleBadge';
 const APP_VERSION = Constants.expoConfig?.version || Constants.manifest?.version || '1.0.0';
 
 // 도시 목록 (Signup 화면과 동일)
-const CITIES = [
-  'Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Edmonton',
-  'Ottawa', 'Winnipeg', 'Victoria', 'Halifax', 'Saskatoon',
-  'London', 'Quebec',
-];
+import { CITIES } from '../../constants/cities';
 
 // 학교 리스트는 백엔드 /auth/universities 에서 fetch — useState로 관리
 

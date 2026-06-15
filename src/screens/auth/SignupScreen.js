@@ -23,11 +23,7 @@ import { TERMS_OF_SERVICE, PRIVACY_POLICY } from '../../constants/legal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthLangToggle from '../../components/AuthLangToggle';
 
-const CITIES = [
-  'Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Edmonton',
-  'Ottawa', 'Winnipeg', 'Victoria', 'Halifax', 'Saskatoon',
-  'London', 'Quebec',
-];
+import { CITIES } from '../../constants/cities';
 
 export default function SignupScreen({ navigation }) {
   const { colors } = useTheme();

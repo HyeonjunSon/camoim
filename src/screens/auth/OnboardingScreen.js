@@ -24,11 +24,7 @@ import { checkNickname } from '../../lib/api';
 import { TERMS_OF_SERVICE, PRIVACY_POLICY } from '../../constants/legal';
 import AuthLangToggle from '../../components/AuthLangToggle';
 
-const CITIES = [
-  'Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Edmonton',
-  'Ottawa', 'Winnipeg', 'Victoria', 'Halifax', 'Saskatoon',
-  'London', 'Quebec',
-];
+import { CITIES } from '../../constants/cities';
 
 export default function OnboardingScreen({ route, navigation }) {
   const { colors } = useTheme();
