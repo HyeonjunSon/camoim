@@ -43,6 +43,9 @@ server/seed-accounts.env
 server/scripts/posts*.json
 # 시드 계정 사전 발급 JWT (절대 커밋 금지)
 server/scripts/seed-tokens.json
+# 드립 업로드 로그/상태 (임시)
+server/scripts/*.log
+server/scripts/posts-drip-state.json
 
 # claude
 .claude/
