@@ -731,7 +731,7 @@ export const TRANSLATIONS = {
       newChat: '님이 메시지를 보냈어요',
       markAllRead: '모두 읽음', footer: '최근 30일간의 알림만 표시됩니다.',
       filterAll: '전체', filterComment: '댓글', filterLike: '좋아요', filterChat: '메시지',
-      catComment: '댓글', catLike: '좋아요', catChat: '메시지', catChatRequest: '메시지 요청', catDefault: '알림',
+      catComment: '댓글', catReply: '답글', catLike: '좋아요', catChat: '메시지', catChatRequest: '메시지 요청', catDefault: '알림',
     },
     search: {
       title: '검색', placeholder: '궁금한 것을 검색해 보세요', noResult: '검색 결과가 없어요',
@@ -1470,7 +1470,7 @@ export const TRANSLATIONS = {
       newChat: ' sent you a message',
       markAllRead: 'Mark all read', footer: 'Showing notifications from the last 30 days.',
       filterAll: 'All', filterComment: 'Comments', filterLike: 'Likes', filterChat: 'Messages',
-      catComment: 'Comment', catLike: 'Like', catChat: 'Message', catChatRequest: 'Message Request', catDefault: 'Alert',
+      catComment: 'Comment', catReply: 'Reply', catLike: 'Like', catChat: 'Message', catChatRequest: 'Message Request', catDefault: 'Alert',
     },
     search: {
       title: 'Search', placeholder: 'Search anything', noResult: 'No results',

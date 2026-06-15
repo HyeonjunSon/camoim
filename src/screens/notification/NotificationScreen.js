@@ -30,6 +30,12 @@ const buildTypeMeta = (colors) => ({
     color: '#2563EB',
     labelKey: 'notif.catComment',
   },
+  reply: {
+    iconName: 'arrow-undo',
+    bg: '#E0E7FF',         // 라이트 인디고
+    color: '#4F46E5',
+    labelKey: 'notif.catReply',
+  },
   like: {
     iconName: 'heart',
     bg: '#FEE2E2',         // 라이트 레드
@@ -118,7 +124,7 @@ function groupNotifications(notifs, t) {
 function NotificationCard({ item, onPress, t, styles, colors }) {
   const TYPE_META = buildTypeMeta(colors);
   const meta = TYPE_META[item.type] ?? TYPE_META.default;
-  const { lead, quote } = item.type === 'comment'
+  const { lead, quote } = (item.type === 'comment' || item.type === 'reply')
     ? splitCommentMessage(item.message)
     : { lead: item.message, quote: '' };
 
@@ -210,9 +216,12 @@ export default function NotificationScreen() {
     }
   }
 
+  // '댓글' 필터는 대댓글(reply)도 포함
+  const matchesFilter = (n, key) =>
+    key === 'comment' ? (n.type === 'comment' || n.type === 'reply') : n.type === key;
   const filtered = filter === 'all'
     ? notifications
-    : notifications.filter(n => n.type === filter);
+    : notifications.filter(n => matchesFilter(n, filter));
 
   const sections = useMemo(() => groupNotifications(filtered, t), [filtered, t]);
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -240,7 +249,7 @@ export default function NotificationScreen() {
           {FILTERS.map(f => {
             const count = f.key === 'all'
               ? notifications.filter(n => !n.isRead).length
-              : notifications.filter(n => n.type === f.key && !n.isRead).length;
+              : notifications.filter(n => matchesFilter(n, f.key) && !n.isRead).length;
             const active = filter === f.key;
             return (
               <TouchableOpacity

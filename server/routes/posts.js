@@ -869,15 +869,42 @@ router.post('/:postId/comments', requireAuth, async (req, res) => {
 
     await Post.findByIdAndUpdate(req.params.postId, { $inc: { commentCount: 1 } });
 
-    // 자기 글에 자기 댓글 제외하고 알림 발송
-    if (String(post.userId) !== String(req.user.id)) {
-      const [commenter, postOwner] = await Promise.all([
-        User.findById(req.user.id).select('nickname'),
-        User.findById(post.userId).select('pushToken notificationSettings'),
-      ]);
-      const commenterName = enforcedIsAnonymous ? '익명' : (commenter?.nickname ?? '누군가');
+    // 알림 발송:
+    //  - 대댓글(parentId 있음) → 부모 댓글 작성자에게만 (type 'reply'). 글 작성자에겐 X.
+    //  - 최상위 댓글 → 글 작성자에게 (type 'comment').
+    //  - 본인에게는 알림 안 보냄.
+    const commenter = await User.findById(req.user.id).select('nickname');
+    const commenterName = enforcedIsAnonymous ? '익명' : (commenter?.nickname ?? '누군가');
 
-      // DB 알림 저장
+    if (parentId) {
+      // 대댓글 → 부모 댓글 작성자에게만 알림
+      const parent = await Comment.findById(parentId).select('userId').lean();
+      if (parent && String(parent.userId) !== String(req.user.id)) {
+        const parentOwner = await User.findById(parent.userId).select('pushToken notificationSettings');
+
+        await Notification.create({
+          userId: parent.userId,
+          type: 'reply',
+          refId: comment._id,
+          postId: post._id,
+          message: `${commenterName}님이 답글을 남겼어요: "${content.slice(0, 30)}"`,
+        });
+
+        const ns = parentOwner?.notificationSettings;
+        if (parentOwner?.pushToken && ns?.enabled !== false && ns?.reply !== false) {
+          sendPush(
+            parentOwner.pushToken,
+            '새 답글 💬',
+            `${commenterName}: ${content.slice(0, 50)}`,
+            { type: 'reply', postId: String(post._id) },
+            parentOwner._id,
+          );
+        }
+      }
+    } else if (String(post.userId) !== String(req.user.id)) {
+      // 최상위 댓글 → 글 작성자에게 알림
+      const postOwner = await User.findById(post.userId).select('pushToken notificationSettings');
+
       await Notification.create({
         userId: post.userId,
         type: 'comment',
@@ -886,7 +913,6 @@ router.post('/:postId/comments', requireAuth, async (req, res) => {
         message: `${commenterName}님이 댓글을 남겼어요: "${content.slice(0, 30)}"`,
       });
 
-      // 푸시 알림 발송
       const ns2 = postOwner?.notificationSettings;
       if (postOwner?.pushToken && ns2?.enabled !== false && ns2?.comment !== false) {
         sendPush(
