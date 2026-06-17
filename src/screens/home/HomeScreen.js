@@ -83,6 +83,7 @@ export default function HomeScreen({ navigation }) {
   const [jobsPosts, setJobsPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [currencyKey, setCurrencyKey] = useState(0); // 홈 새로고침 시 환율 위젯 강제 갱신용
   const [bannerIndex, setBannerIndex] = useState(0);
   const bannerRef = useRef(null);
 
@@ -438,7 +439,11 @@ export default function HomeScreen({ navigation }) {
     <ScrollView
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={() => loadAll('pull')} tintColor={colors.primary} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => { setCurrencyKey(k => k + 1); loadAll('pull'); }}
+          tintColor={colors.primary}
+        />
       }
       contentContainerStyle={{ paddingBottom: 32 }}
     >
@@ -496,7 +501,7 @@ export default function HomeScreen({ navigation }) {
       <CategorySection />
 
       {/* 💱 환율 위젯 (KRW ↔ CAD) */}
-      <CurrencyWidget />
+      <CurrencyWidget refreshKey={currencyKey} />
 
       {/* 🔥 Hot Topics */}
       <HotTopicsSection />

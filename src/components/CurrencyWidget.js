@@ -106,7 +106,7 @@ function parseInput(s) {
   return Number.isFinite(n) ? n : 0;
 }
 
-export default function CurrencyWidget() {
+export default function CurrencyWidget({ refreshKey = 0 }) {
   const { colors } = useTheme();
   const { t } = useLang();
   const styles = createStyles(colors);
@@ -144,6 +144,14 @@ export default function CurrencyWidget() {
   }, []);
 
   useEffect(() => { loadRate(); }, [loadRate]);
+
+  // 홈 새로고침(refreshKey 변경) 시 최신 환율 강제 재요청 (초기 마운트는 제외)
+  const didMountRef = useRef(false);
+  useEffect(() => {
+    if (!didMountRef.current) { didMountRef.current = true; return; }
+    setRefreshing(true);
+    loadRate(true);
+  }, [refreshKey, loadRate]);
 
   // 환율 로드되면 기본 KRW 계산
   useEffect(() => {
