@@ -16,7 +16,7 @@ export const TRANSLATIONS = {
       requestFailed: '요청에 실패했어요.',
       uploadFailed: '업로드에 실패했어요.',
     },
-    tabs: { home: '홈', search: '검색', board: '게시판', chat: '채팅', mypage: '마이페이지', admin: '관리' },
+    tabs: { home: '홈', search: '검색', map: '지도', board: '게시판', chat: '채팅', mypage: '마이페이지', admin: '관리' },
     home: {
       title: '홈', latest: '📝 최신글', boards: '게시판', popular: '🔥 지금 인기',
       noPostYet: '아직 게시글이 없어요', writeFirst: '첫 번째 글을 작성해보세요!',
@@ -766,7 +766,7 @@ export const TRANSLATIONS = {
       requestFailed: 'Request failed.',
       uploadFailed: 'Upload failed.',
     },
-    tabs: { home: 'Home', search: 'Search', board: 'Boards', chat: 'Chat', mypage: 'My', admin: 'Admin' },
+    tabs: { home: 'Home', search: 'Search', map: 'Map', board: 'Boards', chat: 'Chat', mypage: 'My', admin: 'Admin' },
     home: {
       title: 'Home', latest: '📝 Latest', boards: 'Boards', popular: '🔥 Trending',
       noPostYet: 'No posts yet', writeFirst: 'Be the first to post!',

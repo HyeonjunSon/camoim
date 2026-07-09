@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const reportSchema = new mongoose.Schema({
   reporterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  targetType: { type: String, enum: ['post', 'comment', 'user'], required: true },
+  targetType: { type: String, enum: ['post', 'comment', 'user', 'business'], required: true },
   targetId: { type: mongoose.Schema.Types.ObjectId, required: true },
   postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', default: null }, // 댓글 신고 시 원본 포스트 참조
   // 신고 시점 작성자 스냅샷 — 추후 작성자가 탈퇴해도 관리자가 누가 썼는지 확인 가능

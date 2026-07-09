@@ -13,6 +13,7 @@ import AdminSystemScreen from '../screens/admin/AdminSystemScreen';
 import AdminLogsScreen from '../screens/admin/AdminLogsScreen';
 import AdminInquiriesScreen from '../screens/admin/AdminInquiriesScreen';
 import AdminGroupsScreen from '../screens/admin/AdminGroupsScreen';
+import AdminBusinessScreen from '../screens/admin/AdminBusinessScreen';
 import NoticeDetailScreen from '../screens/notice/NoticeDetailScreen';
 import NoticeEditScreen from '../screens/notice/NoticeEditScreen';
 import { useTheme } from '../context/ThemeContext';
@@ -49,6 +50,7 @@ export default function AdminStack() {
       <Stack.Screen name="AdminLogs"    component={AdminLogsScreen}    options={{ title: t('nav.adminLogs') }} />
       <Stack.Screen name="AdminInquiries" component={AdminInquiriesScreen} options={{ title: t('nav.adminInquiries') }} />
       <Stack.Screen name="AdminGroups"    component={AdminGroupsScreen}    options={{ title: t('nav.adminGroups') }} />
+      <Stack.Screen name="AdminBusiness"  component={AdminBusinessScreen}  options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

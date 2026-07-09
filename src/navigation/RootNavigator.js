@@ -13,7 +13,7 @@ import { API_BASE_URL } from '../lib/config';
 import HomeStack from './HomeStack';
 import BoardStack from './BoardStack';
 import ChatStack from './ChatStack';
-import SearchStack from './SearchStack';
+import MapStack from './MapStack';
 import MyPageStack from './MyPageStack';
 import AdminStack from './AdminStack';
 
@@ -22,7 +22,7 @@ const Tab = createBottomTabNavigator();
 const TAB_ICONS = {
   Home: { focused: 'home', unfocused: 'home-outline' },
   Board: { focused: 'reader', unfocused: 'reader-outline' },
-  Search: { focused: 'search', unfocused: 'search-outline' },
+  Map: { focused: 'map', unfocused: 'map-outline' },
   Chat: { focused: 'chatbubbles', unfocused: 'chatbubbles-outline' },
   MyPage: { focused: 'person', unfocused: 'person-outline' },
   Admin: { focused: 'shield', unfocused: 'shield-outline' },
@@ -116,7 +116,7 @@ export default function RootNavigator() {
     >
       <Tab.Screen name="Home" component={HomeStack} options={{ title: t('tabs.home') }} />
       <Tab.Screen name="Board" component={BoardStack} options={{ title: t('tabs.board') }} />
-      <Tab.Screen name="Search" component={SearchStack} options={{ title: t('tabs.search') }} />
+      <Tab.Screen name="Map" component={MapStack} options={{ title: t('tabs.map') }} />
       <Tab.Screen name="Chat" component={ChatStack} options={{
         title: t('tabs.chat'),
         tabBarBadge: chatBadge > 0 ? (chatBadge > 99 ? '99+' : chatBadge) : undefined,

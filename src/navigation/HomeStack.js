@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/home/HomeScreen';
+import SearchScreen from '../screens/search/SearchScreen';
 import PostDetailScreen from '../screens/home/PostDetailScreen';
 import CreatePostScreen from '../screens/board/CreatePostScreen';
 import BoardFeedScreen from '../screens/board/BoardFeedScreen';
@@ -30,6 +31,7 @@ export default function HomeStack() {
     >
       {/* 홈 피드는 자체 헤더(앱 이름 + 필터 칩)가 있으므로 네이티브 헤더 숨김 */}
       <Stack.Screen name="HomeFeed" component={HomeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false }} />
       <Stack.Screen name="BoardFeed" component={BoardFeedScreen} options={{ title: t('nav.boardFeed') }} />
       <Stack.Screen name="BoardPostDetail" component={BoardPostDetailScreen} options={{ title: t('post.postTitle') }} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} options={{ title: t('post.postTitle') }} />

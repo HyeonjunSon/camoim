@@ -1,0 +1,4 @@
+name,category,city,address,phone,hours,description,lat,lng,images
+예시-북창동순두부,음식점,토론토,"691 Bloor St W, Toronto, ON",(416) 537-0972,매일 11:00-22:00,순두부 전문점,,,
+예시-PAT 한국마트,마트,토론토,"675 Bloor St W, Toronto, ON",(416) 532-2961,,,,,
+예시-아리랑,음식점,밴쿠버,"1518 Robson St, Vancouver, BC",(604) 687-7872,,,49.2905,-123.1360,

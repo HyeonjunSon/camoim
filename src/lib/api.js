@@ -456,3 +456,39 @@ export const adminRejectGroup = (groupId, reason) =>
   request('PUT', `/admin/groups/${groupId}/reject`, { reason });
 export const adminCloseGroup = (groupId) =>
   request('DELETE', `/admin/groups/${groupId}`);
+
+// 한인 업체 지도 (Businesses)
+export const getBusinesses = ({ city, category, near } = {}) => {
+  const params = new URLSearchParams();
+  if (city) params.set('city', city);
+  if (category && category !== 'all') params.set('category', category);
+  if (near) params.set('near', near); // "lng,lat"
+  const q = params.toString();
+  return request('GET', `/businesses${q ? `?${q}` : ''}`);
+};
+export const getBusiness = (id) => request('GET', `/businesses/${id}`);
+export const createBusiness = (data) => request('POST', '/businesses', data);
+export const toggleBusinessBookmark = (id) => request('POST', `/businesses/${id}/bookmark`);
+export const reportBusiness = (id, reason) => request('POST', `/businesses/${id}/report`, { reason });
+
+export const uploadBusinessImage = async (asset, onProgress) => {
+  const token = await getToken();
+  const formData = new FormData();
+  formData.append('image', {
+    uri: asset.uri,
+    name: asset.filename ?? `biz_img_${Date.now()}.jpg`,
+    type: asset.type ?? 'image/jpeg',
+  });
+  return uploadWithProgress({
+    url: `${BASE_URL}/businesses/upload-image`,
+    formData,
+    token,
+    onProgress,
+  });
+};
+
+// 관리자 — 업체 승인/관리
+export const adminListBusinesses = (status) =>
+  request('GET', `/admin/businesses${status ? `?status=${status}` : ''}`);
+export const adminUpdateBusiness = (id, data) => request('PUT', `/admin/businesses/${id}`, data);
+export const adminDeleteBusiness = (id) => request('DELETE', `/admin/businesses/${id}`);

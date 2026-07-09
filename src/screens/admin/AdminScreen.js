@@ -108,6 +108,13 @@ export default function AdminScreen({ navigation }) {
           color="#10B981"
           onPress={() => navigation.navigate('AdminGroups')}
         />
+        <Tile
+          icon="storefront"
+          label="업체 관리"
+          badge={stats?.pending?.businesses}
+          color="#7F77DD"
+          onPress={() => navigation.navigate('AdminBusiness')}
+        />
       </View>
 
       {/* 사용자/콘텐츠 */}

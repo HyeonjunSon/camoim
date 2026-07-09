@@ -15,6 +15,9 @@ const ChatRoom = require('../models/ChatRoom');
 const Message = require('../models/Message');
 const AdminLog = require('../models/AdminLog');
 const SystemSetting = require('../models/SystemSetting');
+const Business = require('../models/Business');
+const BusinessBookmark = require('../models/BusinessBookmark');
+const { geocodeAddress } = require('../utils/geocode');
 const { invalidate: invalidateSystemCache } = require('../middleware/systemGuard');
 const { requireAuth } = require('../middleware/auth');
 const { requireRole } = require('../middleware/requireRole');
@@ -174,6 +177,9 @@ router.get('/reports', async (req, res) => {
         targetText = '[사용자]';
         const u = r.targetAuthorId ? await User.findById(r.targetAuthorId).select('nickname email').lean() : null;
         liveAuthor = u || null;
+      } else if (r.targetType === 'business') {
+        const biz = await Business.findById(r.targetId).select('name status').lean();
+        targetText = biz ? `[업체] ${biz.name}` : '(삭제됨)';
       }
 
       // 작성자 정보: 라이브 우선, 없으면(탈퇴) 신고 시점 스냅샷 사용
@@ -820,7 +826,7 @@ router.get('/stats', async (req, res) => {
       totalPosts, totalComments, totalReportsPending,
       newUsers24h, newUsers7d, newUsers30d,
       newPosts24h, newPosts7d,
-      verifyPending, inquiryOpen, groupsPending,
+      verifyPending, inquiryOpen, groupsPending, businessesPending,
     ] = await Promise.all([
       User.countDocuments({ status: { $ne: 'deleted' } }), // 탈퇴 제외 (전체 회원수)
       User.countDocuments({ status: 'active' }),
@@ -838,6 +844,7 @@ router.get('/stats', async (req, res) => {
       VerifyRequest.countDocuments({ status: 'pending' }),
       mongoose.model('Inquiry').countDocuments({ status: 'open' }).catch(() => 0),
       Group.countDocuments({ status: 'pending_review' }).catch(() => 0),
+      Business.countDocuments({ status: 'pending' }).catch(() => 0),
     ]);
 
     // 최근 7일 일별 신규 가입 추이
@@ -855,7 +862,7 @@ router.get('/stats', async (req, res) => {
       data: {
         users: { total: totalUsers, active: activeUsers, suspended: suspendedUsers, banned: bannedUsers, deleted: deletedUsers },
         content: { posts: totalPosts, comments: totalComments },
-        pending: { reports: totalReportsPending, verify: verifyPending, inquiry: inquiryOpen, groups: groupsPending },
+        pending: { reports: totalReportsPending, verify: verifyPending, inquiry: inquiryOpen, groups: groupsPending, businesses: businessesPending },
         signups: { d1: newUsers24h, d7: newUsers7d, d30: newUsers30d },
         posts: { d1: newPosts24h, d7: newPosts7d },
         signupTrend,
@@ -1086,6 +1093,109 @@ router.delete('/groups/:id', async (req, res) => {
     await group.save();
     logAdmin(req, 'group.close', { targetType: 'group', targetId: group._id, meta: { name: group.name } });
     res.json({ success: true, data: { id: group._id, status: 'closed' } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+// 한인 업체 관리 (지도)
+// ═══════════════════════════════════════════════════════════
+function formatAdminBusiness(b) {
+  const coords = b.location?.coordinates;
+  return {
+    id: b._id,
+    name: b.name,
+    category: b.category,
+    city: b.city,
+    address: b.address,
+    phone: b.phone || '',
+    hours: b.hours || '',
+    description: b.description || '',
+    images: b.images || [],
+    lat: Array.isArray(coords) ? coords[1] : null,
+    lng: Array.isArray(coords) ? coords[0] : null,
+    hasLocation: Array.isArray(coords) && coords.length === 2,
+    source: b.source,
+    status: b.status,
+    bookmarkCount: b.bookmarkCount || 0,
+    reportCount: b.reportCount || 0,
+    submitterNickname: b.submitterNickname || '',
+    sourceName: b.sourceName || '',
+    createdAt: b.createdAt,
+  };
+}
+
+// GET /api/admin/businesses?status= — 전체 목록 + 상태별 카운트
+router.get('/businesses', async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = {};
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) filter.status = status;
+    const list = await Business.find(filter).sort({ createdAt: -1 }).limit(1000).lean();
+    const [pending, approved, rejected] = await Promise.all([
+      Business.countDocuments({ status: 'pending' }),
+      Business.countDocuments({ status: 'approved' }),
+      Business.countDocuments({ status: 'rejected' }),
+    ]);
+    res.json({ success: true, data: list.map(formatAdminBusiness), counts: { pending, approved, rejected } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// PUT /api/admin/businesses/:id — 승인/거절/정보 수정 (주소 변경/좌표 없으면 재지오코딩)
+router.put('/businesses/:id', async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '업체를 찾을 수 없어요.' });
+    const b = await Business.findById(req.params.id);
+    if (!b) return res.status(404).json({ success: false, message: '업체를 찾을 수 없어요.' });
+
+    const { status, name, category, city, address, phone, hours, description, rejectedReason } = req.body;
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) b.status = status;
+    if (typeof name === 'string' && name.trim()) b.name = name.trim();
+    if (category && Business.CATEGORIES.includes(category)) b.category = category;
+    if (city) b.city = city;
+    if (typeof phone === 'string') b.phone = phone.trim();
+    if (typeof hours === 'string') b.hours = hours.trim();
+    if (typeof description === 'string') b.description = description.trim();
+    if (typeof rejectedReason === 'string') b.rejectedReason = rejectedReason;
+
+    let addressChanged = false;
+    if (typeof address === 'string' && address.trim() && address.trim() !== b.address) {
+      b.address = address.trim();
+      addressChanged = true;
+    }
+    const hasLoc = b.location && Array.isArray(b.location.coordinates) && b.location.coordinates.length === 2;
+    if (addressChanged || !hasLoc) {
+      const geo = await geocodeAddress(b.address, b.city);
+      if (geo) b.location = { type: 'Point', coordinates: [geo.lng, geo.lat] };
+    }
+
+    await b.save();
+    logAdmin(req, 'business.update', { targetType: 'business', targetId: b._id, meta: { status: b.status } });
+    res.json({ success: true, data: formatAdminBusiness(b) });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
+// DELETE /api/admin/businesses/:id — 삭제 (즐겨찾기·신고 cascade)
+router.delete('/businesses/:id', async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '업체를 찾을 수 없어요.' });
+    const b = await Business.findById(req.params.id);
+    if (!b) return res.status(404).json({ success: false, message: '업체를 찾을 수 없어요.' });
+    await Promise.all([
+      BusinessBookmark.deleteMany({ businessId: b._id }),
+      Report.deleteMany({ targetType: 'business', targetId: b._id }),
+    ]);
+    await b.deleteOne();
+    logAdmin(req, 'business.delete', { targetType: 'business', targetId: b._id, meta: { name: b.name } });
+    res.json({ success: true, data: { id: b._id } });
   } catch (err) {
     console.error('[api]', req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류' });

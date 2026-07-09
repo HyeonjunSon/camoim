@@ -531,21 +531,33 @@ export default function HomeScreen({ navigation }) {
       {/* 헤더 */}
       <View style={styles.header}>
         <Text style={styles.appName}>CaMoim</Text>
-        <TouchableOpacity
-          style={styles.headerBtn}
-          onPress={() => navigation.push('Notification')}
-          activeOpacity={0.7}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          accessibilityLabel={t('a11y.notification')}
-          accessibilityRole="button"
-        >
-          <Ionicons name="notifications-outline" size={22} color={colors.text} />
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.headerCapsule}
+            onPress={() => navigation.navigate('Search')}
+            activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel={t('common.search')}
+            accessibilityRole="button"
+          >
+            <Ionicons name="search-outline" size={19} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerCapsule}
+            onPress={() => navigation.push('Notification')}
+            activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel={t('a11y.notification')}
+            accessibilityRole="button"
+          >
+            <Ionicons name="notifications-outline" size={19} color={colors.text} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -568,11 +580,17 @@ const createStyles = (colors) => StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 10,
   },
   appName: { fontSize: 22, fontWeight: '800', color: colors.primary },
-  headerBtn: { padding: 6, position: 'relative' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerCapsule: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(118,118,128,0.12)',
+    alignItems: 'center', justifyContent: 'center', position: 'relative',
+  },
   badge: {
-    position: 'absolute', top: 2, right: 0,
+    position: 'absolute', top: -3, right: -3,
     backgroundColor: colors.danger, borderRadius: 9, minWidth: 18, height: 18,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4,
+    borderWidth: 1.5, borderColor: colors.background,
   },
   badgeText: { fontSize: 9, fontWeight: '800', color: colors.white },
 
