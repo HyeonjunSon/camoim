@@ -470,6 +470,16 @@ export const getBusiness = (id) => request('GET', `/businesses/${id}`);
 export const createBusiness = (data) => request('POST', '/businesses', data);
 export const toggleBusinessBookmark = (id) => request('POST', `/businesses/${id}/bookmark`);
 export const reportBusiness = (id, reason) => request('POST', `/businesses/${id}/report`, { reason });
+// 이번 주 인기 TOP 5 (주간 조회수 기준)
+export const getTrendingBusinesses = (city) =>
+  request('GET', `/businesses/trending${city ? `?city=${city}` : ''}`);
+// 리뷰 — 별점(1~5) + 한줄평, 업체당 1인 1리뷰
+export const getBusinessReviews = (id) => request('GET', `/businesses/${id}/reviews`);
+export const upsertBusinessReview = (id, { rating, text }) =>
+  request('POST', `/businesses/${id}/reviews`, { rating, text });
+export const deleteBusinessReview = (id) => request('DELETE', `/businesses/${id}/reviews`);
+export const reportBusinessReview = (id, reviewId) =>
+  request('POST', `/businesses/${id}/reviews/${reviewId}/report`);
 
 export const uploadBusinessImage = async (asset, onProgress) => {
   const token = await getToken();

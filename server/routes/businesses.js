@@ -7,6 +7,8 @@ const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const Business = require('../models/Business');
 const BusinessBookmark = require('../models/BusinessBookmark');
+const BusinessReview = require('../models/BusinessReview');
+const BusinessWeeklyStat = require('../models/BusinessWeeklyStat');
 const Report = require('../models/Report');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { geocodeAddress } = require('../utils/geocode');
@@ -65,6 +67,8 @@ function formatBusiness(b, bookmarkedSet) {
     source: b.source,
     status: b.status,
     bookmarkCount: b.bookmarkCount || 0,
+    ratingAvg: b.ratingAvg || 0,
+    ratingCount: b.ratingCount || 0,
     submitterNickname: b.submitterNickname || '',
     sourceName: b.sourceName || '',
     createdAt: b.createdAt,
@@ -107,6 +111,137 @@ router.get('/', optionalAuth, async (req, res) => {
   } catch (err) {
     console.error('GET /businesses', err);
     res.status(500).json({ success: false, message: '업체 목록을 불러오지 못했습니다.' });
+  }
+});
+
+// ── GET /api/businesses/trending?city= ── 이번 주 조회수 TOP 5 (⚠️ '/:id'보다 먼저 선언)
+router.get('/trending', optionalAuth, async (req, res) => {
+  try {
+    const week = BusinessWeeklyStat.currentWeekKey();
+    const stats = await BusinessWeeklyStat.find({ week }).sort({ views: -1 }).limit(50).lean();
+    if (!stats.length) return res.json({ success: true, data: [] });
+
+    const filter = { _id: { $in: stats.map((s) => s.businessId) }, status: 'approved' };
+    if (req.query.city) filter.city = req.query.city;
+    const list = await Business.find(filter).lean();
+
+    const viewsOf = new Map(stats.map((s) => [String(s.businessId), s.views]));
+    const bmSet = await bookmarkedSetFor(req.user?.id);
+    const ranked = list
+      .sort((a, b) => (viewsOf.get(String(b._id)) || 0) - (viewsOf.get(String(a._id)) || 0))
+      .slice(0, 5)
+      .map((b, i) => ({ ...formatBusiness(b, bmSet), rank: i + 1, weeklyViews: viewsOf.get(String(b._id)) || 0 }));
+    res.json({ success: true, data: ranked, week });
+  } catch (err) {
+    console.error('GET /businesses/trending', err);
+    res.status(500).json({ success: false, message: '인기 업체를 불러오지 못했습니다.' });
+  }
+});
+
+// ── 리뷰 집계 재계산 → Business.ratingAvg/ratingCount 비정규화 갱신 ──
+async function recomputeRating(businessId) {
+  const [agg] = await BusinessReview.aggregate([
+    { $match: { businessId: new mongoose.Types.ObjectId(businessId) } },
+    { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+  ]);
+  await Business.updateOne(
+    { _id: businessId },
+    { ratingAvg: agg ? Math.round(agg.avg * 10) / 10 : 0, ratingCount: agg ? agg.count : 0 }
+  );
+}
+
+function formatReview(r, userId) {
+  return {
+    id: r._id,
+    rating: r.rating,
+    text: r.text || '',
+    nickname: r.nickname || '익명',
+    createdAt: r.createdAt,
+    mine: userId ? String(r.userId) === String(userId) : false,
+  };
+}
+
+// ── GET /api/businesses/:id/reviews ── 리뷰 목록 (최신순 50개)
+router.get('/:id/reviews', optionalAuth, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '업체를 찾을 수 없습니다.' });
+    const list = await BusinessReview.find({ businessId: req.params.id }).sort({ createdAt: -1 }).limit(50).lean();
+    res.json({ success: true, data: list.map((r) => formatReview(r, req.user?.id)) });
+  } catch (err) {
+    console.error('GET /businesses/:id/reviews', err);
+    res.status(500).json({ success: false, message: '리뷰를 불러오지 못했습니다.' });
+  }
+});
+
+// ── POST /api/businesses/:id/reviews ── 리뷰 작성/수정 (1인 1리뷰 upsert)
+router.post('/:id/reviews', requireAuth, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '업체를 찾을 수 없습니다.' });
+    const biz = await Business.findById(req.params.id).select('_id status').lean();
+    if (!biz || biz.status !== 'approved') return res.status(404).json({ success: false, message: '업체를 찾을 수 없습니다.' });
+
+    const rating = Math.round(Number(req.body.rating));
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: '별점을 선택해주세요.' });
+    }
+    const text = String(req.body.text || '').trim().slice(0, 300);
+
+    const review = await BusinessReview.findOneAndUpdate(
+      { businessId: biz._id, userId: req.user.id },
+      { rating, text, nickname: req.user.nickname || '' },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+    await recomputeRating(biz._id);
+    const fresh = await Business.findById(biz._id).select('ratingAvg ratingCount').lean();
+    res.json({
+      success: true,
+      data: formatReview(review, req.user.id),
+      ratingAvg: fresh?.ratingAvg || 0,
+      ratingCount: fresh?.ratingCount || 0,
+    });
+  } catch (err) {
+    console.error('POST /businesses/:id/reviews', err);
+    res.status(500).json({ success: false, message: '리뷰 저장에 실패했습니다.' });
+  }
+});
+
+// ── DELETE /api/businesses/:id/reviews ── 내 리뷰 삭제
+router.delete('/:id/reviews', requireAuth, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '업체를 찾을 수 없습니다.' });
+    await BusinessReview.deleteOne({ businessId: req.params.id, userId: req.user.id });
+    await recomputeRating(req.params.id);
+    const fresh = await Business.findById(req.params.id).select('ratingAvg ratingCount').lean();
+    res.json({ success: true, ratingAvg: fresh?.ratingAvg || 0, ratingCount: fresh?.ratingCount || 0 });
+  } catch (err) {
+    console.error('DELETE /businesses/:id/reviews', err);
+    res.status(500).json({ success: false, message: '리뷰 삭제에 실패했습니다.' });
+  }
+});
+
+// ── POST /api/businesses/:id/reviews/:reviewId/report ── 리뷰 신고 (UGC 정책)
+router.post('/:id/reviews/:reviewId/report', requireAuth, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.reviewId)) return res.status(404).json({ success: false, message: '리뷰를 찾을 수 없습니다.' });
+    const review = await BusinessReview.findById(req.params.reviewId).lean();
+    if (!review) return res.status(404).json({ success: false, message: '리뷰를 찾을 수 없습니다.' });
+    try {
+      await Report.create({
+        reporterId: req.user.id,
+        targetType: 'review',
+        targetId: review._id,
+        targetAuthorId: review.userId,
+        targetAuthorNickname: review.nickname || '',
+        reason: 'etc',
+        detail: `업체 리뷰 신고: "${(review.text || '').slice(0, 80)}"`,
+      });
+    } catch (e) {
+      if (e.code !== 11000) throw e; // 중복 신고는 조용히 성공
+    }
+    res.json({ success: true, message: '신고가 접수되었어요.' });
+  } catch (err) {
+    console.error('POST /businesses/:id/reviews/:reviewId/report', err);
+    res.status(500).json({ success: false, message: '신고에 실패했습니다.' });
   }
 });
 
@@ -166,6 +301,15 @@ router.get('/:id', optionalAuth, async (req, res) => {
     const isOwner = req.user && String(b.submittedBy) === String(req.user.id);
     if (b.status !== 'approved' && !isAdmin && !isOwner) {
       return res.status(404).json({ success: false, message: '업체를 찾을 수 없습니다.' });
+    }
+
+    // 주간 조회수 +1 (트렌딩 랭킹용) — 실패해도 응답에 영향 없음
+    if (b.status === 'approved') {
+      BusinessWeeklyStat.updateOne(
+        { businessId: b._id, week: BusinessWeeklyStat.currentWeekKey() },
+        { $inc: { views: 1 } },
+        { upsert: true }
+      ).catch(() => {});
     }
 
     const bmSet = await bookmarkedSetFor(req.user?.id);

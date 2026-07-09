@@ -30,6 +30,9 @@ const businessSchema = new mongoose.Schema({
 
   bookmarkCount: { type: Number, default: 0 },
   reportCount:   { type: Number, default: 0 },
+  // 리뷰 집계 (BusinessReview 비정규화 — 목록/지도에서 join 없이 별점 표시)
+  ratingAvg:   { type: Number, default: 0 },
+  ratingCount: { type: Number, default: 0 },
   rejectedReason: { type: String, default: '' },
 }, { timestamps: true });
 

@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../components/StyledText';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   BUSINESS_CATEGORIES,
   BUSINESS_CITIES,
@@ -30,13 +31,15 @@ import {
   BUSINESS_REPORT_REASONS,
   formatDistance,
 } from '../../constants/businesses';
-import { getBusinesses, toggleBusinessBookmark, reportBusiness } from '../../lib/api';
+import { getBusinesses, getTrendingBusinesses, toggleBusinessBookmark, reportBusiness } from '../../lib/api';
+import BusinessReviewsSection, { Stars } from './BusinessReviewsSection';
 
 const PRIMARY = '#7F77DD';
 
 // 지도 위 컨트롤(플로팅)은 지도 타일 위에 뜨므로 라이트 고정 스타일 사용
 export default function BusinessMapScreen({ navigation }) {
   const { colors } = useTheme();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
   const mapRef = useRef(null);
@@ -54,10 +57,12 @@ export default function BusinessMapScreen({ navigation }) {
   const [reportOpen, setReportOpen] = useState(false);
 
   const [myLocation, setMyLocation] = useState(null);
+  const [trending, setTrending] = useState([]); // 이번 주 인기 TOP 5
   const [region, setRegion] = useState(() => ({
     ...cityRegion('toronto'),
   }));
   const [markerTracking, setMarkerTracking] = useState(true);
+  const [mapReady, setMapReady] = useState(false); // 지도 준비 전 마커 mount 시 인터롭 크래시 방지
 
   const [toast, setToast] = useState('');
   const toastTimer = useRef(null);
@@ -89,6 +94,34 @@ export default function BusinessMapScreen({ navigation }) {
 
   // 화면 재진입 시 새 제보 반영
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // ── 첫 진입 시 현재 위치 기반으로 시작 (OpenTable 스타일) ──
+  // 권한 요청 → 허용 시 내 위치 중심 + 거리순 정렬(near). 거부 시 도시 중심 유지 (조용히)
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        setMyLocation(loc);
+        mapRef.current?.animateToRegion({ ...loc, latitudeDelta: 0.08, longitudeDelta: 0.08 }, 700);
+      } catch {
+        // 위치 실패 → 도시 중심 그대로
+      }
+    })();
+  }, []);
+
+  // ── 이번 주 인기 TOP 5 ──
+  const loadTrending = useCallback(async () => {
+    try {
+      const res = await getTrendingBusinesses(city);
+      if (res.success) setTrending(res.data || []);
+    } catch {
+      // 랭킹은 부가 기능 — 실패해도 조용히
+    }
+  }, [city]);
+  useEffect(() => { loadTrending(); }, [loadTrending]);
 
   // 도시 변경 → 지도 이동 + 선택/드롭다운 초기화
   useEffect(() => {
@@ -210,8 +243,14 @@ export default function BusinessMapScreen({ navigation }) {
     }
   }, [selected, showToast]);
 
-  const countLabel = `업체 ${filtered.length}곳`;
   const cityLabel = cityLabelOf(city);
+
+  // 트렌딩 탭 → 해당 업체 선택(시트) + 지도 이동
+  const onTrendingPress = useCallback((b) => {
+    // 목록의 최신 상태(북마크 등)가 있으면 그걸 우선 사용
+    const fresh = businesses.find((x) => x.id === b.id) || b;
+    selectBusiness(fresh);
+  }, [businesses, selectBusiness]);
 
   return (
     <View style={styles.container}>
@@ -222,7 +261,7 @@ export default function BusinessMapScreen({ navigation }) {
           provider={PROVIDER_DEFAULT}
           style={StyleSheet.absoluteFill}
           initialRegion={region}
-          onMapReady={() => mapRef.current?.animateToRegion(cityRegion(city), 0)}
+          onMapReady={() => { setMapReady(true); mapRef.current?.animateToRegion(cityRegion(city), 0); }}
           onRegionChangeComplete={(r) => setRegion(r)}
           onPress={() => setCityOpen(false)}
           showsUserLocation={!!myLocation}
@@ -230,7 +269,7 @@ export default function BusinessMapScreen({ navigation }) {
           showsCompass={false}
           toolbarEnabled={false}
         >
-          {pins.map((b) => {
+          {mapReady && pins.map((b) => {
             const c = catOf(b.category);
             const isSel = selected?.id === b.id;
             return (
@@ -245,7 +284,7 @@ export default function BusinessMapScreen({ navigation }) {
               </Marker>
             );
           })}
-          {clusters.map((cl) => (
+          {mapReady && clusters.map((cl) => (
             <Marker
               key={cl.id}
               coordinate={{ latitude: cl.lat, longitude: cl.lng }}
@@ -264,7 +303,7 @@ export default function BusinessMapScreen({ navigation }) {
           data={sortedList}
           keyExtractor={(b) => b.id}
           style={styles.listRoot}
-          contentContainerStyle={{ paddingTop: insets.top + 96, paddingBottom: 96, paddingHorizontal: 16 }}
+          contentContainerStyle={{ paddingTop: insets.top + (trending.length ? 140 : 96), paddingBottom: 96, paddingHorizontal: 16 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={PRIMARY} />}
           renderItem={({ item: b }) => {
             const c = catOf(b.category);
@@ -280,6 +319,12 @@ export default function BusinessMapScreen({ navigation }) {
                       <Text style={[styles.catChipText, { color: c.color }]}>{c.label}</Text>
                     </View>
                   </View>
+                  {b.ratingCount > 0 && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Stars value={b.ratingAvg} size={11} />
+                      <Text style={styles.listRating}>{b.ratingAvg.toFixed(1)} · 리뷰 {b.ratingCount}</Text>
+                    </View>
+                  )}
                   <Text style={styles.listAddr} numberOfLines={1}>{b.address}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 5 }}>
@@ -310,9 +355,6 @@ export default function BusinessMapScreen({ navigation }) {
             <Text style={styles.cityBtnText}>{cityLabel}</Text>
             <Ionicons name={cityOpen ? 'chevron-up' : 'chevron-down'} size={13} color="#888888" />
           </TouchableOpacity>
-          <View style={styles.countPill}>
-            <Text style={styles.countText}>{countLabel}</Text>
-          </View>
         </View>
 
         <ScrollView
@@ -337,6 +379,29 @@ export default function BusinessMapScreen({ navigation }) {
             );
           })}
         </ScrollView>
+
+        {/* ── 🔥 이번 주 인기 TOP 5 (주간 조회수 기준) ── */}
+        {trending.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.trendRow}
+            pointerEvents="auto"
+          >
+            <View style={styles.trendBadge}>
+              <Text style={styles.trendBadgeText}>🔥 이번 주 인기</Text>
+            </View>
+            {trending.map((b) => (
+              <TouchableOpacity key={b.id} style={styles.trendChip} activeOpacity={0.85} onPress={() => onTrendingPress(b)}>
+                <Text style={styles.trendRank}>{b.rank}</Text>
+                <Text style={styles.trendName} numberOfLines={1}>{b.name}</Text>
+                {b.ratingCount > 0 && (
+                  <Text style={styles.trendRating}>⭐ {b.ratingAvg.toFixed(1)}</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
       </View>
 
       {/* ── 도시 드롭다운 (최상단 오버레이 — 칩 위로 확실히 뜸) ── */}
@@ -407,11 +472,15 @@ export default function BusinessMapScreen({ navigation }) {
       <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
         <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setSelected(null)} />
         {selected && (
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, sheetFull && { maxHeight: '82%' }]}>
             <TouchableOpacity style={styles.handleWrap} activeOpacity={0.7} onPress={() => setSheetFull((v) => !v)}>
               <View style={styles.handle} />
             </TouchableOpacity>
-            <View style={{ paddingHorizontal: 18, paddingBottom: insets.bottom + 20, gap: 14 }}>
+            <ScrollView
+              scrollEnabled={sheetFull}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: insets.bottom + 20, gap: 14 }}
+            >
               <SheetHeader biz={selected} colors={colors} onBookmark={() => onToggleBookmark(selected)} />
               <View style={{ gap: 10 }}>
                 <InfoRow icon="location-outline" text={selected.address} colors={colors} />
@@ -433,7 +502,31 @@ export default function BusinessMapScreen({ navigation }) {
                   <Text style={styles.reportBtnText}>신고</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+              {/* ── 리뷰 (시트 확장 시) ── */}
+              {sheetFull ? (
+                <BusinessReviewsSection
+                  biz={selected}
+                  colors={colors}
+                  isLoggedIn={!!user}
+                  showToast={showToast}
+                  onAggregate={(ratingAvg, ratingCount) => {
+                    setSelected((s) => (s ? { ...s, ratingAvg, ratingCount } : s));
+                    setBusinesses((prev) => prev.map((b) => (b.id === selected.id ? { ...b, ratingAvg, ratingCount } : b)));
+                    loadTrending();
+                  }}
+                />
+              ) : (
+                <TouchableOpacity style={styles.reviewPeek} activeOpacity={0.8} onPress={() => setSheetFull(true)}>
+                  <Stars value={selected.ratingAvg} size={13} />
+                  <Text style={styles.reviewPeekText}>
+                    {selected.ratingCount > 0
+                      ? `${selected.ratingAvg.toFixed(1)} · 리뷰 ${selected.ratingCount}개 보기`
+                      : '첫 리뷰를 남겨보세요'}
+                  </Text>
+                  <Ionicons name="chevron-up" size={14} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </ScrollView>
           </View>
         )}
       </Modal>
@@ -471,7 +564,9 @@ export default function BusinessMapScreen({ navigation }) {
 function Pin({ cat, selected }) {
   return (
     <View style={pinStyles.wrap}>
-      {selected && <View style={[pinStyles.ring, { borderColor: 'rgba(127,119,221,0.9)' }]} />}
+      {/* 신아키텍처 인터롭에서 마커 자식이 조건부로 mount/unmount 되면
+          -[AIRMap insertReactSubview:] nil 크래시 발생 → 항상 렌더하고 opacity로 숨김 */}
+      <View style={[pinStyles.ring, { borderColor: 'rgba(127,119,221,0.9)', opacity: selected ? 1 : 0 }]} />
       <View style={[pinStyles.pin, { backgroundColor: cat.color, width: selected ? 36 : 30, height: selected ? 36 : 30 }]}>
         <Text style={{ fontSize: selected ? 16 : 14 }}>{cat.emoji}</Text>
       </View>
@@ -489,6 +584,12 @@ function SheetHeader({ biz, colors, onBookmark }) {
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
         <Text style={styles.sheetName} numberOfLines={2}>{biz.name}</Text>
+        {biz.ratingCount > 0 && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Stars value={biz.ratingAvg} size={13} />
+            <Text style={styles.sheetRating}>{biz.ratingAvg.toFixed(1)} · 리뷰 {biz.ratingCount}</Text>
+          </View>
+        )}
         <View style={styles.rowCenter}>
           <View style={[styles.catChip, { backgroundColor: c.soft }]}>
             <Text style={[styles.catChipText, { color: c.color }]}>{c.label}</Text>
@@ -580,12 +681,22 @@ const createStyles = (colors) => StyleSheet.create({
   cityOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 13, paddingHorizontal: 15 },
   cityOptionBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EEEEF2' },
   cityOptionText: { fontSize: 14, color: '#1A1A1A', fontWeight: '500' },
-  countPill: {
-    backgroundColor: 'rgba(255,255,255,0.95)', paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999,
-    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 3,
-  },
-  countText: { fontSize: 11, fontWeight: '600', color: '#888888' },
   chipRow: { gap: 8, paddingHorizontal: 14, paddingVertical: 2 },
+  // 이번 주 인기 TOP 5 스트립
+  trendRow: { gap: 7, paddingHorizontal: 14, paddingVertical: 2, alignItems: 'center' },
+  trendBadge: {
+    backgroundColor: '#FF6B4A', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999,
+    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 1 }, elevation: 2,
+  },
+  trendBadgeText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
+  trendChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: 190,
+    backgroundColor: 'rgba(255,255,255,0.97)', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999,
+    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, shadowOffset: { width: 0, height: 1 }, elevation: 2,
+  },
+  trendRank: { fontSize: 11, fontWeight: '800', color: '#FF6B4A' },
+  trendName: { fontSize: 12, fontWeight: '600', color: '#333333', flexShrink: 1 },
+  trendRating: { fontSize: 11, fontWeight: '600', color: '#888888' },
   chip: {
     paddingVertical: 8, paddingHorizontal: 13, borderRadius: 999,
     shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, shadowOffset: { width: 0, height: 1 }, elevation: 2,
@@ -640,6 +751,7 @@ const createStyles = (colors) => StyleSheet.create({
   listName: { fontSize: 14, fontWeight: '700', color: colors.text, flexShrink: 1 },
   listAddr: { fontSize: 12, color: colors.textSecondary },
   listDist: { fontSize: 11, fontWeight: '600', color: PRIMARY },
+  listRating: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
   catChip: { paddingVertical: 1, paddingHorizontal: 7, borderRadius: 999 },
   catChipText: { fontSize: 10, fontWeight: '700' },
   emptyWrap: { alignItems: 'center', paddingTop: 60, gap: 8 },
@@ -656,7 +768,13 @@ const createStyles = (colors) => StyleSheet.create({
   handle: { width: 40, height: 4, borderRadius: 999, backgroundColor: colors.border },
   sheetEmoji: { width: 64, height: 64, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   sheetName: { fontSize: 18, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
+  sheetRating: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
   sourceText: { fontSize: 11, color: colors.textSecondary },
+  reviewPeek: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 10, borderRadius: 10, backgroundColor: colors.surface,
+  },
+  reviewPeekText: { fontSize: 13, fontWeight: '600', color: colors.text },
   sheetStar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.inputBg, alignItems: 'center', justifyContent: 'center' },
   descBox: { backgroundColor: colors.inputBg, borderRadius: 12, padding: 14 },
   descText: { fontSize: 13, color: colors.textSecondary, lineHeight: 21 },

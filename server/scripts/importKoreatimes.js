@@ -85,22 +85,28 @@ function parseCSV(text) {
 }
 
 async function main() {
-  const file = process.argv[2];
-  const asPending = process.argv.slice(3).includes('--pending');
-  if (!file) { console.log('사용법: node scripts/importKoreatimes.js <directory.csv> [--pending]'); process.exit(1); }
+  const flags = process.argv.slice(2);
+  const file = flags.find((a) => !a.startsWith('--'));
+  const asPending = flags.includes('--pending');
+  const dry = flags.includes('--dry'); // DB 안 건드리고 개수만 미리보기
+  // --only=food,cafe,mart,hair,clinic → 이 카테고리만 등록 (없으면 전부)
+  const onlyArg = flags.find((a) => a.startsWith('--only='));
+  const ONLY = onlyArg ? new Set(onlyArg.slice(7).split(',').map((s) => s.trim()).filter(Boolean)) : null;
+  if (!file) { console.log('사용법: node scripts/importKoreatimes.js <directory.csv> [--pending] [--dry] [--only=food,cafe,...]'); process.exit(1); }
 
   const rows = parseCSV(fs.readFileSync(path.resolve(file), 'utf8'));
-  console.log(`📄 ${rows.length}행 · 상태=${asPending ? 'pending' : 'approved'} · 출처="${SOURCE_NAME}"`);
+  console.log(`📄 ${rows.length}행 · 상태=${asPending ? 'pending' : 'approved'} · 출처="${SOURCE_NAME}"${ONLY ? ` · only=[${[...ONLY].join(',')}]` : ''}${dry ? ' · [DRY-RUN: DB 안 씀]' : ''}`);
 
-  await connectDB();
-  let added = 0, updated = 0, skipCat = 0, skipCity = 0, skipBad = 0;
-  const catCount = {};
+  if (!dry) await connectDB();
+  let added = 0, updated = 0, skipCat = 0, skipCity = 0, skipBad = 0, skipOnly = 0, wouldImport = 0;
+  const catCount = {}, cityCount = {};
 
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     const cid = String(r.category_id || '').trim();
     if (EXCLUDE.has(cid)) { skipCat++; continue; }
     const category = CATEGORY_MAP[cid] || 'etc';
+    if (ONLY && !ONLY.has(category)) { skipOnly++; continue; }
 
     const name = String(r.name_kr || r.name_en || '').trim();
     const address = String(r.address || '').trim();
@@ -108,6 +114,11 @@ async function main() {
 
     const city = detectCity(address);
     if (!city) { skipCity++; continue; }
+
+    catCount[category] = (catCount[category] || 0) + 1;
+    cityCount[city] = (cityCount[city] || 0) + 1;
+
+    if (dry) { wouldImport++; continue; }
 
     const doc = {
       name, category, city, address,
@@ -119,15 +130,16 @@ async function main() {
     const existing = await Business.findOne({ name, address });
     if (existing) { Object.assign(existing, doc); await existing.save(); updated++; }
     else { await Business.create(doc); added++; }
-    catCount[category] = (catCount[category] || 0) + 1;
     if ((i + 1) % 200 === 0) console.log(`  ... ${i + 1}/${rows.length}`);
   }
 
   console.log('─'.repeat(48));
-  console.log(`✅ 등록: 추가 ${added} · 갱신 ${updated}`);
-  console.log(`⏭  제외: 분류(업체아님) ${skipCat} · 도시밖 ${skipCity} · 필수값누락 ${skipBad}`);
+  if (dry) console.log(`✅ 등록 예정: ${wouldImport}개`);
+  else console.log(`✅ 등록: 추가 ${added} · 갱신 ${updated}`);
+  console.log(`⏭  제외: 분류(업체아님) ${skipCat}${ONLY ? ` · only필터 ${skipOnly}` : ''} · 도시밖 ${skipCity} · 필수값누락 ${skipBad}`);
   console.log('📊 카테고리별:', catCount);
-  console.log('👉 다음: railway run node scripts/geocodeBusinesses.js --limit 300  (좌표 배치 등록)');
+  console.log('🏙  도시별:', cityCount);
+  if (!dry) console.log('👉 다음: railway run node scripts/geocodeBusinesses.js --limit 300  (좌표 배치 등록)');
   process.exit(0);
 }
 
