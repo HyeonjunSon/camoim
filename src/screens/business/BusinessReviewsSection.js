@@ -36,8 +36,11 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
   const [myRating, setMyRating] = useState(0);
   const [myText, setMyText] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false); // 내 리뷰 수정 모드 (수정 버튼 눌렀을 때만 작성창 표시)
 
   const mine = (reviews || []).find((r) => r.mine);
+  // 작성창 노출: 리뷰가 없거나(신규) 수정 모드일 때만
+  const showComposer = isLoggedIn && (!mine || editing);
 
   const load = useCallback(async () => {
     try {
@@ -61,6 +64,7 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
       const res = await upsertBusinessReview(biz.id, { rating: myRating, text: myText.trim() });
       if (res.success) {
         showToast(mine ? '리뷰를 수정했어요.' : '리뷰가 등록되었어요. 감사합니다! 🙌');
+        setEditing(false); // 저장 후 작성창 닫기
         onAggregate?.(res.ratingAvg, res.ratingCount);
         load();
       }
@@ -80,7 +84,7 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
           try {
             const res = await deleteBusinessReview(biz.id);
             if (res.success) {
-              setMyRating(0); setMyText('');
+              setMyRating(0); setMyText(''); setEditing(false);
               onAggregate?.(res.ratingAvg, res.ratingCount);
               load();
             }
@@ -108,48 +112,51 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
   const s = createStyles(colors);
 
   return (
-    <View style={{ gap: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Text style={s.title}>리뷰</Text>
-        {biz.ratingCount > 0 && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Stars value={biz.ratingAvg} size={13} />
-            <Text style={s.avgText}>{biz.ratingAvg.toFixed(1)} ({biz.ratingCount})</Text>
-          </View>
-        )}
-      </View>
+    <View style={{ gap: 14 }}>
+      {/* 섹션 구분선 + 제목 (별점은 헤더에 이미 있으니 개수만) */}
+      <View style={s.divider} />
+      <Text style={s.title}>리뷰 {reviews?.length ? reviews.length : ''}</Text>
 
-      {/* 작성/수정 박스 */}
-      {isLoggedIn ? (
+      {/* 작성창 — 리뷰가 없을 때(신규) 또는 수정 모드일 때만 */}
+      {!isLoggedIn ? (
+        <Text style={s.loginHint}>로그인하면 리뷰를 남길 수 있어요.</Text>
+      ) : showComposer ? (
         <View style={s.writeBox}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Stars value={myRating} size={22} onRate={setMyRating} />
-            {mine && (
-              <TouchableOpacity onPress={onDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={s.deleteText}>내 리뷰 삭제</Text>
+            <Text style={s.writePrompt}>{editing ? '내 리뷰 수정' : '이곳, 어땠나요?'}</Text>
+            {editing && (
+              <TouchableOpacity
+                onPress={() => {
+                  // 취소 → 원래 값으로 되돌리고 닫기
+                  setEditing(false);
+                  setMyRating(mine?.rating || 0);
+                  setMyText(mine?.text || '');
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={s.cancelText}>취소</Text>
               </TouchableOpacity>
             )}
           </View>
+          <Stars value={myRating} size={26} onRate={setMyRating} />
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
             <TextInput
               style={s.input}
               value={myText}
               onChangeText={setMyText}
-              placeholder="한 줄 평을 남겨주세요 (선택)"
+              placeholder="한 줄 평 남기기 (선택)"
               placeholderTextColor={colors.textSecondary}
               maxLength={300}
               multiline
             />
-            <TouchableOpacity style={[s.submitBtn, (!myRating || saving) && { opacity: 0.5 }]} disabled={!myRating || saving} onPress={onSubmit}>
+            <TouchableOpacity style={[s.submitBtn, (!myRating || saving) && { opacity: 0.4 }]} disabled={!myRating || saving} onPress={onSubmit}>
               {saving ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
-                <Text style={s.submitText}>{mine ? '수정' : '등록'}</Text>
+                <Text style={s.submitText}>{editing ? '완료' : '등록'}</Text>
               )}
             </TouchableOpacity>
           </View>
         </View>
-      ) : (
-        <Text style={s.loginHint}>로그인하면 리뷰를 남길 수 있어요.</Text>
-      )}
+      ) : null}
 
       {/* 리뷰 목록 */}
       {reviews === null ? (
@@ -157,14 +164,34 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
       ) : reviews.length === 0 ? (
         <Text style={s.emptyText}>아직 리뷰가 없어요. 첫 리뷰를 남겨보세요! ✍️</Text>
       ) : (
-        <View style={{ gap: 10 }}>
-          {reviews.map((r) => (
-            <View key={r.id} style={s.reviewRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={s.nickname}>{r.nickname}{r.mine ? ' (나)' : ''}</Text>
-                <Stars value={r.rating} size={11} />
-                <View style={{ flex: 1 }} />
-                {!r.mine && (
+        <View style={{ gap: 0 }}>
+          {reviews.map((r, i) => (
+            <View key={r.id} style={[s.reviewRow, i > 0 && s.reviewRowBorder]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={s.avatar}>
+                  <Text style={s.avatarText}>{(r.nickname || '?').slice(0, 1).toUpperCase()}</Text>
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.nickname} numberOfLines={1}>{r.nickname}{r.mine ? ' (나)' : ''}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Stars value={r.rating} size={10} />
+                    <Text style={s.dateText}>{formatDate(r.createdAt)}</Text>
+                  </View>
+                </View>
+                {r.mine ? (
+                  // 내 리뷰 → 수정 / 삭제 (수정 누르면 위에 작성창이 열림)
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <TouchableOpacity
+                      onPress={() => { setEditing(true); setMyRating(r.rating); setMyText(r.text); }}
+                      hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                    >
+                      <Text style={s.editText}>수정</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={onDelete} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                      <Text style={s.deleteText}>삭제</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
                   <TouchableOpacity onPress={() => onReport(r)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Ionicons name="flag-outline" size={13} color={colors.textSecondary} />
                   </TouchableOpacity>
@@ -179,24 +206,46 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
   );
 }
 
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const createStyles = (colors) =>
   StyleSheet.create({
-    title: { fontSize: 15, fontWeight: '700', color: colors.text },
-    avgText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
-    writeBox: { backgroundColor: colors.surface, borderRadius: 12, padding: 12, gap: 10 },
+    divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginTop: 2 },
+    title: { fontSize: 16, fontWeight: '800', color: colors.text, letterSpacing: -0.2 },
+    // 시트가 흰색이라 배경색+테두리로 카드 경계를 확실히
+    writeBox: {
+      backgroundColor: colors.background, borderRadius: 14, padding: 14, gap: 12,
+      borderWidth: 1, borderColor: colors.border,
+    },
+    writePrompt: { fontSize: 13, fontWeight: '700', color: colors.text },
     input: {
-      flex: 1, minHeight: 38, maxHeight: 90, paddingHorizontal: 10, paddingVertical: 8,
-      backgroundColor: colors.background, borderRadius: 9, fontSize: 13, color: colors.text,
+      flex: 1, minHeight: 40, maxHeight: 90, paddingHorizontal: 12, paddingVertical: 10,
+      backgroundColor: colors.surface, borderRadius: 10, fontSize: 13, color: colors.text,
+      borderWidth: 1, borderColor: colors.border,
     },
     submitBtn: {
-      backgroundColor: PRIMARY, borderRadius: 9, paddingHorizontal: 14, height: 38,
+      backgroundColor: PRIMARY, borderRadius: 10, paddingHorizontal: 16, height: 40,
       alignItems: 'center', justifyContent: 'center',
     },
     submitText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
-    deleteText: { fontSize: 12, color: '#FF4444' },
+    deleteText: { fontSize: 12, fontWeight: '600', color: '#FF4444' },
+    editText: { fontSize: 12, fontWeight: '600', color: PRIMARY },
+    cancelText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
     loginHint: { fontSize: 13, color: colors.textSecondary },
     emptyText: { fontSize: 13, color: colors.textSecondary, marginVertical: 4 },
-    reviewRow: { gap: 4, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border || 'rgba(120,120,128,0.2)' },
-    nickname: { fontSize: 13, fontWeight: '600', color: colors.text },
-    reviewText: { fontSize: 13, color: colors.text, lineHeight: 19 },
+    reviewRow: { gap: 7, paddingVertical: 12 },
+    reviewRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+    avatar: {
+      width: 32, height: 32, borderRadius: 16, backgroundColor: '#EDEBFB',
+      alignItems: 'center', justifyContent: 'center',
+    },
+    avatarText: { fontSize: 14, fontWeight: '800', color: PRIMARY },
+    nickname: { fontSize: 13, fontWeight: '700', color: colors.text },
+    dateText: { fontSize: 11, color: colors.textSecondary },
+    reviewText: { fontSize: 13, color: colors.text, lineHeight: 20, paddingLeft: 40 },
   });

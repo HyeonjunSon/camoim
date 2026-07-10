@@ -77,14 +77,14 @@ export default function BusinessReportScreen({ navigation, route }) {
         images,
       });
       if (res?.success) {
-        Alert.alert('제보 완료', '정보가 접수되었어요. 운영진 확인 후 지도에 표시돼요.', [
+        Alert.alert('추가 완료', '장소가 접수되었어요. 운영진 확인 후 지도에 표시돼요.', [
           { text: '확인', onPress: () => navigation.goBack() },
         ]);
       } else {
-        Alert.alert('오류', res?.message || '제보에 실패했어요.');
+        Alert.alert('오류', res?.message || '등록에 실패했어요.');
       }
     } catch (e) {
-      Alert.alert('오류', e?.message || '제보에 실패했어요.');
+      Alert.alert('오류', e?.message || '등록에 실패했어요.');
     } finally {
       setSubmitting(false);
     }
@@ -92,7 +92,7 @@ export default function BusinessReportScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <CustomHeader navigation={navigation} title="업체 제보" />
+      <CustomHeader navigation={navigation} title="장소 추가" />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
         <ScrollView
           style={{ flex: 1 }}
@@ -100,7 +100,7 @@ export default function BusinessReportScreen({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.notice}>
-            <Text style={styles.noticeText}>알고 계신 한인 업체를 제보해주세요. 운영진 확인 후 지도에 표시돼요.</Text>
+            <Text style={styles.noticeText}>알고 계신 한인 업체·장소를 추가해주세요. 운영진 확인 후 지도에 표시돼요.</Text>
           </View>
 
           {/* 업체명 */}
@@ -215,7 +215,7 @@ export default function BusinessReportScreen({ navigation, route }) {
             {submitting ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.submitText}>제보하기</Text>
+              <Text style={styles.submitText}>추가하기</Text>
             )}
           </TouchableOpacity>
         </ScrollView>

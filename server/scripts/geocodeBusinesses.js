@@ -16,16 +16,46 @@ const MISSING = { $or: [{ location: { $exists: false } }, { 'location.coordinate
 
 // 한국일보 주소 특성 보정 — 실패 시 순서대로 재시도할 후보 쿼리 목록
 // 예) "691 Bloor , W. Toronto, ON. M6G 1L3"
-//  1) 원본 그대로
-//  2) 방향(W.)을 도로명 뒤로 이동: "691 Bloor W, Toronto, ON. M6G 1L3"
-//  3) 우편번호만: "M6G 1L3" (캐나다 우편번호는 블록 단위라 핀 용도로 충분)
+//  1) 정제본 (괄호/Unit/# 제거)
+//  2) 방향 보정: "691 Bloor W, Toronto, ..."
+//  3) 도로 타입 삽입: 한국일보 주소는 St/Ave/Rd가 빠져 있어 OSM 매칭 실패가 많음
+//     → "691 Bloor St W", "691 Bloor Ave W" ... 순회 (실측: 실패분의 대다수가 이걸로 해결)
+//  4) 우편번호만 (최후 수단 — OSM 캐나다 우편번호 데이터는 부분적)
+const STREET_SUFFIXES = ['St', 'Ave', 'Rd', 'Dr', 'Blvd'];
+const HAS_SUFFIX_RE = /\b(st|street|ave|avenue|rd|road|dr|drive|blvd|boulevard|cres|crescent|way|ct|court|pkwy|parkway|line|circle|cir|trail|gate|hwy|highway|sideroad|terrace|lane|ln|pl|place|quay|sq|square|grove|path|heights|hts|gardens|gdns|mall|row|walk|close|view|mills|park|loop)\b\.?$/i;
+
 function candidateQueries(address) {
-  const out = [address];
-  const dirFix = address.replace(/^(\d[\w' .-]*?)\s*,\s*([NSEW])\.\s+/i, '$1 $2, ');
-  if (dirFix !== address) out.push(dirFix);
-  const postal = address.match(/[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d/);
+  const out = [];
+  // 기본 정제: 괄호 내용(한글 설명 등)·Unit/Suite/# 제거, 공백 정리
+  let a = String(address)
+    .replace(/[(（][^)）]*[)）]/g, ' ')
+    .replace(/\b(unit|suite|ste)\.?\s*#?\s*[\w-]+/gi, ' ')
+    .replace(/#\s*[\w-]+/g, ' ')
+    .replace(/\s+,/g, ',')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  out.push(a);
+
+  // 방향(N./S./E./W.)이 도시 앞에 붙은 형식 → 도로명 뒤로 이동
+  const dirFix = a.replace(/^(\d[\w' .-]*?)\s*,\s*([NSEW])\.\s+/i, '$1 $2, ');
+  if (dirFix !== a) { out.push(dirFix); a = dirFix; }
+
+  // 도로 타입이 없으면 St/Ave/Rd/Dr/Blvd 순회 삽입 (방향 문자는 타입 뒤로: "Bloor St W")
+  const m = a.match(/^(\d+[A-Za-z]?\s+[A-Za-z][\w' .-]*?)(\s+[NSEW])?\s*,(.*)$/);
+  if (m && !HAS_SUFFIX_RE.test(m[1].trim())) {
+    for (const suf of STREET_SUFFIXES) out.push(`${m[1].trim()} ${suf}${m[2] || ''},${m[3]}`);
+  }
+
+  // 우편번호 fallback
+  const postal = a.match(/[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d/);
   if (postal) out.push(postal[0].toUpperCase());
-  return out;
+
+  // 마무리 정규화: "ON." → "ON" + 끝에 ", Canada" 부착
+  // (주소에 canada가 있으면 geocodeAddress가 도시 힌트를 안 붙임 —
+  //  힌트가 붙으면 "Richmond Hill ... Toronto ..." 처럼 도시가 중복돼 Nominatim 매칭 실패)
+  return [...new Set(out.map((c) =>
+    `${c.replace(/,\s*(ON|BC|QC|AB|MB|SK|NS|NB|NL|PE)\.\s*/g, ', $1 ').trim().replace(/,$/, '')}, Canada`
+  ))];
 }
 
 async function main() {

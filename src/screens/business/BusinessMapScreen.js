@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Linking,
-  Platform,
+  TextInput,
+  Keyboard,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -46,6 +47,8 @@ export default function BusinessMapScreen({ navigation }) {
 
   const [city, setCity] = useState('toronto');
   const [category, setCategory] = useState('all');
+  const [query, setQuery] = useState(''); // 업체명/주소 검색
+  const [bookmarkOnly, setBookmarkOnly] = useState(false); // ⭐ 즐겨찾기만 보기
   const [viewMode, setViewMode] = useState('map'); // map | list
   const [businesses, setBusinesses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -139,10 +142,13 @@ export default function BusinessMapScreen({ navigation }) {
     return () => clearTimeout(t);
   }, [businesses, selected?.id, category, city]);
 
-  const filtered = useMemo(
-    () => (category === 'all' ? businesses : businesses.filter((b) => b.category === category)),
-    [businesses, category]
-  );
+  const filtered = useMemo(() => {
+    let list = category === 'all' ? businesses : businesses.filter((b) => b.category === category);
+    if (bookmarkOnly) list = list.filter((b) => b.bookmarked);
+    const q = query.trim().toLowerCase();
+    if (q) list = list.filter((b) => (b.name || '').toLowerCase().includes(q) || (b.address || '').toLowerCase().includes(q));
+    return list;
+  }, [businesses, category, bookmarkOnly, query]);
 
   const pinnable = useMemo(() => filtered.filter((b) => b.lat != null && b.lng != null), [filtered]);
 
@@ -213,20 +219,14 @@ export default function BusinessMapScreen({ navigation }) {
     mapRef.current?.animateToRegion(r, 400);
   }, [region]);
 
+  // 길찾기 — 구글맵으로 연동 (앱 설치 시 구글맵 앱, 미설치 시 브라우저로 열림)
   const onDirections = useCallback((biz) => {
-    const label = encodeURIComponent(biz.name || '');
     let url;
     if (biz.lat != null && biz.lng != null) {
-      url = Platform.select({
-        ios: `http://maps.apple.com/?daddr=${biz.lat},${biz.lng}&q=${label}`,
-        default: `https://www.google.com/maps/dir/?api=1&destination=${biz.lat},${biz.lng}`,
-      });
+      url = `https://www.google.com/maps/dir/?api=1&destination=${biz.lat},${biz.lng}&destination_place_id=&travelmode=driving`;
     } else {
-      const q = encodeURIComponent(biz.address || biz.name || '');
-      url = Platform.select({
-        ios: `http://maps.apple.com/?q=${q}`,
-        default: `https://www.google.com/maps/search/?api=1&query=${q}`,
-      });
+      const q = encodeURIComponent(`${biz.name || ''} ${biz.address || ''}`.trim());
+      url = `https://www.google.com/maps/search/?api=1&query=${q}`;
     }
     Linking.openURL(url).catch(() => showToast('지도 앱을 열지 못했어요.'));
   }, [showToast]);
@@ -340,7 +340,13 @@ export default function BusinessMapScreen({ navigation }) {
             loading ? null : (
               <View style={styles.emptyWrap}>
                 <Text style={{ fontSize: 34 }}>🗭</Text>
-                <Text style={styles.emptyText}>이 카테고리에는 아직 업체가 없어요</Text>
+                <Text style={styles.emptyText}>
+                  {bookmarkOnly
+                    ? '즐겨찾기한 곳이 아직 없어요 ⭐'
+                    : query.trim()
+                      ? `"${query.trim()}" 검색 결과가 없어요`
+                      : '이 카테고리에는 아직 업체가 없어요'}
+                </Text>
               </View>
             )
           }
@@ -355,6 +361,25 @@ export default function BusinessMapScreen({ navigation }) {
             <Text style={styles.cityBtnText}>{cityLabel}</Text>
             <Ionicons name={cityOpen ? 'chevron-up' : 'chevron-down'} size={13} color="#888888" />
           </TouchableOpacity>
+          {/* 검색 — 업체명/주소 실시간 필터 (지도 핀·리스트 모두 적용) */}
+          <View style={styles.searchPill}>
+            <Ionicons name="search" size={15} color="#888888" />
+            <TextInput
+              style={styles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="업체명·주소 검색"
+              placeholderTextColor="#999999"
+              returnKeyType="search"
+              onSubmitEditing={Keyboard.dismiss}
+              onFocus={() => setCityOpen(false)}
+            />
+            {query.length > 0 && (
+              <TouchableOpacity onPress={() => { setQuery(''); Keyboard.dismiss(); }} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
+                <Ionicons name="close-circle" size={16} color="#BBBBBB" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         <ScrollView
@@ -363,6 +388,14 @@ export default function BusinessMapScreen({ navigation }) {
           contentContainerStyle={styles.chipRow}
           pointerEvents="auto"
         >
+          {/* ⭐ 즐겨찾기만 보기 (카테고리와 독립 토글) */}
+          <TouchableOpacity
+            style={[styles.chip, bookmarkOnly ? styles.chipBookmarkActive : styles.chipInactive]}
+            activeOpacity={0.8}
+            onPress={() => { setBookmarkOnly((v) => !v); setCityOpen(false); }}
+          >
+            <Ionicons name={bookmarkOnly ? 'star' : 'star-outline'} size={13} color={bookmarkOnly ? '#FFFFFF' : '#F59E0B'} />
+          </TouchableOpacity>
           {[{ key: 'all', label: '전체', emoji: '' }, ...BUSINESS_CATEGORIES].map((c) => {
             const active = category === c.key;
             return (
@@ -438,7 +471,7 @@ export default function BusinessMapScreen({ navigation }) {
         )}
         <TouchableOpacity style={styles.reportFab} activeOpacity={0.9} onPress={() => navigation.navigate('BusinessReport')}>
           <Ionicons name="add" size={18} color="#FFFFFF" />
-          <Text style={styles.reportFabText}>업체 제보</Text>
+          <Text style={styles.reportFabText}>장소 추가</Text>
         </TouchableOpacity>
       </View>
 
@@ -594,7 +627,7 @@ function SheetHeader({ biz, colors, onBookmark }) {
           <View style={[styles.catChip, { backgroundColor: c.soft }]}>
             <Text style={[styles.catChipText, { color: c.color }]}>{c.label}</Text>
           </View>
-          <Text style={styles.sourceText}>{biz.sourceName || sourceLabelOf(biz.source)}</Text>
+          <Text style={styles.sourceText}>{sourceLabelOf(biz.source)}</Text>
         </View>
       </View>
       <TouchableOpacity style={styles.sheetStar} activeOpacity={0.8} onPress={onBookmark}>
@@ -665,7 +698,13 @@ const createStyles = (colors) => StyleSheet.create({
 
   // 상단 컨트롤
   topControls: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 30, gap: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 },
+  searchPill: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.97)', borderRadius: 999, paddingHorizontal: 12, height: 38,
+    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 6, shadowOffset: { width: 0, height: 1 }, elevation: 3,
+  },
+  searchInput: { flex: 1, fontSize: 13, color: '#1A1A1A', paddingVertical: 0 },
   cityBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingVertical: 9, paddingHorizontal: 14, borderRadius: 999,
@@ -703,6 +742,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   chipActive: { backgroundColor: PRIMARY },
   chipInactive: { backgroundColor: 'rgba(255,255,255,0.97)' },
+  chipBookmarkActive: { backgroundColor: '#F59E0B' },
   chipText: { fontSize: 13, fontWeight: '600' },
 
   // 클러스터

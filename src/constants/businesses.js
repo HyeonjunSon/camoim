@@ -7,7 +7,7 @@ export const BUSINESS_CATEGORIES = [
   { key: 'mart',   label: '마트',          emoji: '🛒',  color: '#10B981', soft: '#ECFDF5' },
   { key: 'hair',   label: '미용실',        emoji: '💇',  color: '#8B5CF6', soft: '#F5F3FF' },
   { key: 'clinic', label: '병원·한의원',   emoji: '🏥',  color: '#F43F5E', soft: '#FFF1F2' },
-  { key: 'realty', label: '부동산·이민',   emoji: '🏠',  color: '#3B82F6', soft: '#EFF6FF' },
+  // realty(부동산·이민)는 제외 — 개인 에이전트 핀이 지도를 어지럽혀서 뺌 (서버 스키마 enum엔 유지)
   { key: 'etc',    label: '기타',          emoji: '📍',  color: '#9CA3AF', soft: '#F3F4F6' },
 ];
 
