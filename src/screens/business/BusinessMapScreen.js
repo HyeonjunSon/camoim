@@ -32,13 +32,13 @@ import {
   BUSINESS_REPORT_REASONS,
   formatDistance,
 } from '../../constants/businesses';
-import { getBusinesses, getTrendingBusinesses, toggleBusinessBookmark, reportBusiness } from '../../lib/api';
+import { getBusinesses, toggleBusinessBookmark, reportBusiness } from '../../lib/api';
 import BusinessReviewsSection, { Stars } from './BusinessReviewsSection';
 
 const PRIMARY = '#7F77DD';
 
 // 지도 위 컨트롤(플로팅)은 지도 타일 위에 뜨므로 라이트 고정 스타일 사용
-export default function BusinessMapScreen({ navigation }) {
+export default function BusinessMapScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
@@ -60,7 +60,6 @@ export default function BusinessMapScreen({ navigation }) {
   const [reportOpen, setReportOpen] = useState(false);
 
   const [myLocation, setMyLocation] = useState(null);
-  const [trending, setTrending] = useState([]); // 이번 주 인기 TOP 5
   const [region, setRegion] = useState(() => ({
     ...cityRegion('toronto'),
   }));
@@ -115,16 +114,14 @@ export default function BusinessMapScreen({ navigation }) {
     })();
   }, []);
 
-  // ── 이번 주 인기 TOP 5 ──
-  const loadTrending = useCallback(async () => {
-    try {
-      const res = await getTrendingBusinesses(city);
-      if (res.success) setTrending(res.data || []);
-    } catch {
-      // 랭킹은 부가 기능 — 실패해도 조용히
-    }
-  }, [city]);
-  useEffect(() => { loadTrending(); }, [loadTrending]);
+  // ── 홈 인기 장소 카드에서 진입 시 해당 업체 자동 오픈 (focusId 파라미터) ──
+  useEffect(() => {
+    const focusId = route?.params?.focusId;
+    if (!focusId || businesses.length === 0) return;
+    const target = businesses.find((b) => b.id === focusId);
+    if (target) selectBusiness(target);
+    navigation.setParams({ focusId: undefined }); // 재진입 시 반복 오픈 방지
+  }, [route?.params?.focusId, businesses]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 도시 변경 → 지도 이동 + 선택/드롭다운 초기화
   useEffect(() => {
@@ -245,13 +242,6 @@ export default function BusinessMapScreen({ navigation }) {
 
   const cityLabel = cityLabelOf(city);
 
-  // 트렌딩 탭 → 해당 업체 선택(시트) + 지도 이동
-  const onTrendingPress = useCallback((b) => {
-    // 목록의 최신 상태(북마크 등)가 있으면 그걸 우선 사용
-    const fresh = businesses.find((x) => x.id === b.id) || b;
-    selectBusiness(fresh);
-  }, [businesses, selectBusiness]);
-
   return (
     <View style={styles.container}>
       {/* ── 지도 / 리스트 본문 ── */}
@@ -303,7 +293,8 @@ export default function BusinessMapScreen({ navigation }) {
           data={sortedList}
           keyExtractor={(b) => b.id}
           style={styles.listRoot}
-          contentContainerStyle={{ paddingTop: insets.top + (trending.length ? 140 : 96), paddingBottom: 96, paddingHorizontal: 16 }}
+          // 상단 컨트롤 높이 = 8(top pad) + 38(검색행) + 8(gap) + 38(칩행) = 92 → +8 gap으로 행간 통일
+          contentContainerStyle={{ paddingTop: insets.top + 100, paddingBottom: 96, paddingHorizontal: 16 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={PRIMARY} />}
           renderItem={({ item: b }) => {
             const c = catOf(b.category);
@@ -412,29 +403,6 @@ export default function BusinessMapScreen({ navigation }) {
             );
           })}
         </ScrollView>
-
-        {/* ── 🔥 이번 주 인기 TOP 5 (주간 조회수 기준) ── */}
-        {trending.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.trendRow}
-            pointerEvents="auto"
-          >
-            <View style={styles.trendBadge}>
-              <Text style={styles.trendBadgeText}>🔥 이번 주 인기</Text>
-            </View>
-            {trending.map((b) => (
-              <TouchableOpacity key={b.id} style={styles.trendChip} activeOpacity={0.85} onPress={() => onTrendingPress(b)}>
-                <Text style={styles.trendRank}>{b.rank}</Text>
-                <Text style={styles.trendName} numberOfLines={1}>{b.name}</Text>
-                {b.ratingCount > 0 && (
-                  <Text style={styles.trendRating}>⭐ {b.ratingAvg.toFixed(1)}</Text>
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
       </View>
 
       {/* ── 도시 드롭다운 (최상단 오버레이 — 칩 위로 확실히 뜸) ── */}
@@ -545,7 +513,6 @@ export default function BusinessMapScreen({ navigation }) {
                   onAggregate={(ratingAvg, ratingCount) => {
                     setSelected((s) => (s ? { ...s, ratingAvg, ratingCount } : s));
                     setBusinesses((prev) => prev.map((b) => (b.id === selected.id ? { ...b, ratingAvg, ratingCount } : b)));
-                    loadTrending();
                   }}
                 />
               ) : (
@@ -721,21 +688,6 @@ const createStyles = (colors) => StyleSheet.create({
   cityOptionBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EEEEF2' },
   cityOptionText: { fontSize: 14, color: '#1A1A1A', fontWeight: '500' },
   chipRow: { gap: 8, paddingHorizontal: 14, paddingVertical: 2 },
-  // 이번 주 인기 TOP 5 스트립
-  trendRow: { gap: 7, paddingHorizontal: 14, paddingVertical: 2, alignItems: 'center' },
-  trendBadge: {
-    backgroundColor: '#FF6B4A', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999,
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 1 }, elevation: 2,
-  },
-  trendBadgeText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
-  trendChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: 190,
-    backgroundColor: 'rgba(255,255,255,0.97)', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999,
-    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, shadowOffset: { width: 0, height: 1 }, elevation: 2,
-  },
-  trendRank: { fontSize: 11, fontWeight: '800', color: '#FF6B4A' },
-  trendName: { fontSize: 12, fontWeight: '600', color: '#333333', flexShrink: 1 },
-  trendRating: { fontSize: 11, fontWeight: '600', color: '#888888' },
   chip: {
     paddingVertical: 8, paddingHorizontal: 13, borderRadius: 999,
     shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, shadowOffset: { width: 0, height: 1 }, elevation: 2,

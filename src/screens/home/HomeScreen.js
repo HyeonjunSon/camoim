@@ -24,6 +24,7 @@ import { useLang } from '../../context/LangContext';
 import { useSocket } from '../../context/SocketContext';
 import { getBoardName } from '../../lib/i18n';
 import CurrencyWidget from '../../components/CurrencyWidget';
+import TrendingPlaces from '../../components/TrendingPlaces';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -503,8 +504,11 @@ export default function HomeScreen({ navigation }) {
       {/* 💱 환율 위젯 (KRW ↔ CAD) */}
       <CurrencyWidget refreshKey={currencyKey} />
 
-      {/* 🔥 Hot Topics */}
+      {/* 🔥 Hot Topics (인기글) */}
       <HotTopicsSection />
+
+      {/* 🔥 이번 주 인기 장소 (주간 조회수 TOP 5 — 탭하면 지도에서 열림) */}
+      <TrendingPlaces refreshKey={currencyKey} />
 
       {/* 자유게시판 최신글 */}
       <FreePostsSection />
