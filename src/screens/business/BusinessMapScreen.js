@@ -58,6 +58,7 @@ export default function BusinessMapScreen({ navigation, route }) {
   const [selected, setSelected] = useState(null);
   const [sheetFull, setSheetFull] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [clusterSheet, setClusterSheet] = useState(null); // 클러스터 탭 → 묶인 업체 리스트 (OpenTable식)
 
   const [myLocation, setMyLocation] = useState(null);
   const [region, setRegion] = useState(() => ({
@@ -206,15 +207,14 @@ export default function BusinessMapScreen({ navigation, route }) {
     }
   }, [city, showToast]);
 
+  // 클러스터 탭 → 확대 대신 묶인 업체 리스트 시트 (리뷰 많은 순 정렬)
   const onCluster = useCallback((cl) => {
-    const r = {
-      latitude: cl.lat,
-      longitude: cl.lng,
-      latitudeDelta: Math.max(region.latitudeDelta / 2.5, 0.01),
-      longitudeDelta: Math.max(region.longitudeDelta / 2.5, 0.01),
-    };
-    mapRef.current?.animateToRegion(r, 400);
-  }, [region]);
+    const sorted = [...cl.items].sort(
+      (a, b) => (b.ratingCount - a.ratingCount) || (b.bookmarkCount - a.bookmarkCount) || a.name.localeCompare(b.name)
+    );
+    setClusterSheet(sorted);
+    setCityOpen(false);
+  }, []);
 
   // 길찾기 — 구글맵으로 연동 (앱 설치 시 구글맵 앱, 미설치 시 브라우저로 열림)
   const onDirections = useCallback((biz) => {
@@ -469,6 +469,50 @@ export default function BusinessMapScreen({ navigation, route }) {
         </View>
       )}
 
+      {/* ── 클러스터 리스트 바텀시트 (묶인 업체 N곳) ── */}
+      <Modal visible={!!clusterSheet} transparent animationType="slide" onRequestClose={() => setClusterSheet(null)}>
+        <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setClusterSheet(null)} />
+        {clusterSheet && (
+          <View style={[styles.sheet, { maxHeight: '62%' }]}>
+            <View style={styles.handleWrap}>
+              <View style={styles.handle} />
+            </View>
+            <Text style={styles.clusterSheetTitle}>이 위치의 업체 {clusterSheet.length}곳</Text>
+            <FlatList
+              data={clusterSheet}
+              keyExtractor={(b) => b.id}
+              contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: insets.bottom + 16 }}
+              renderItem={({ item: b, index }) => {
+                const c = catOf(b.category);
+                return (
+                  <TouchableOpacity
+                    style={[styles.clusterRow, index > 0 && styles.clusterRowBorder]}
+                    activeOpacity={0.75}
+                    onPress={() => { setClusterSheet(null); selectBusiness(b); }}
+                  >
+                    <View style={[styles.listEmoji, { backgroundColor: c.soft }]}>
+                      <Text style={{ fontSize: 20 }}>{c.emoji}</Text>
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                      <Text style={styles.listName} numberOfLines={1}>{b.name}</Text>
+                      {b.ratingCount > 0 ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Stars value={b.ratingAvg} size={11} />
+                          <Text style={styles.listRating}>{b.ratingAvg.toFixed(1)} · 리뷰 {b.ratingCount}</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.listRating}>{c.label}</Text>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        )}
+      </Modal>
+
       {/* ── 업체 상세 바텀시트 ── */}
       <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
         <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setSelected(null)} />
@@ -619,25 +663,38 @@ function cityRegion(cityKey) {
   return { latitude: c.latitude, longitude: c.longitude, ...CITY_REGION_DELTA };
 }
 
+// 거리 기반 그리디 클러스터링 — 격자 방식은 경계에 걸친 핀이 옆 묶음으로 갈라져
+// 숫자가 부정확해 보이는 문제가 있어 반경 병합 방식으로 교체
 function clusterBusinesses(items, region) {
   if (!region || !region.latitudeDelta) return { pins: items, clusters: [] };
-  const cell = Math.max(region.latitudeDelta, region.longitudeDelta) / 9;
-  if (!(cell > 0)) return { pins: items, clusters: [] };
-  const groups = new Map();
-  for (const b of items) {
-    const key = `${Math.round(b.lat / cell)}_${Math.round(b.lng / cell)}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(b);
-  }
+  const radius = Math.max(region.latitudeDelta, region.longitudeDelta) / 14; // 화면 크기 대비 병합 반경
+  if (!(radius > 0)) return { pins: items, clusters: [] };
+  const lngScale = Math.cos((region.latitude * Math.PI) / 180) || 1; // 경도 보정 (토론토 위도)
+
+  const used = new Array(items.length).fill(false);
   const pins = [];
   const clusters = [];
-  for (const arr of groups.values()) {
-    if (arr.length === 1) {
-      pins.push(arr[0]);
+
+  for (let i = 0; i < items.length; i++) {
+    if (used[i]) continue;
+    const seed = items[i];
+    const group = [seed];
+    used[i] = true;
+    for (let j = i + 1; j < items.length; j++) {
+      if (used[j]) continue;
+      const dLat = items[j].lat - seed.lat;
+      const dLng = (items[j].lng - seed.lng) * lngScale;
+      if (dLat * dLat + dLng * dLng <= radius * radius) {
+        group.push(items[j]);
+        used[j] = true;
+      }
+    }
+    if (group.length === 1) {
+      pins.push(seed);
     } else {
-      const lat = arr.reduce((s, x) => s + x.lat, 0) / arr.length;
-      const lng = arr.reduce((s, x) => s + x.lng, 0) / arr.length;
-      clusters.push({ id: `c_${arr[0].id}`, lat, lng, count: arr.length, items: arr });
+      const lat = group.reduce((s, x) => s + x.lat, 0) / group.length;
+      const lng = group.reduce((s, x) => s + x.lng, 0) / group.length;
+      clusters.push({ id: `c_${seed.id}`, lat, lng, count: group.length, items: group });
     }
   }
   return { pins, clusters };
@@ -744,6 +801,10 @@ const createStyles = (colors) => StyleSheet.create({
   listAddr: { fontSize: 12, color: colors.textSecondary },
   listDist: { fontSize: 11, fontWeight: '600', color: PRIMARY },
   listRating: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
+  // 클러스터 리스트 시트
+  clusterSheetTitle: { fontSize: 16, fontWeight: '800', color: colors.text, paddingHorizontal: 18, paddingBottom: 10, letterSpacing: -0.3 },
+  clusterRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11 },
+  clusterRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   catChip: { paddingVertical: 1, paddingHorizontal: 7, borderRadius: 999 },
   catChipText: { fontSize: 10, fontWeight: '700' },
   emptyWrap: { alignItems: 'center', paddingTop: 60, gap: 8 },
