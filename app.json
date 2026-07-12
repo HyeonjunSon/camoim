@@ -130,11 +130,11 @@
             "extraPods": [
               {
                 "name": "GoogleUtilities",
-                "modularHeaders": true
+                "modular_headers": true
               },
               {
                 "name": "RecaptchaInterop",
-                "modularHeaders": true
+                "modular_headers": true
               }
             ]
           }
