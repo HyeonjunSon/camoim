@@ -17,6 +17,7 @@ const AdminLog = require('../models/AdminLog');
 const SystemSetting = require('../models/SystemSetting');
 const Business = require('../models/Business');
 const BusinessBookmark = require('../models/BusinessBookmark');
+const DailyActive = require('../models/DailyActive');
 const { geocodeAddress } = require('../utils/geocode');
 const { invalidate: invalidateSystemCache } = require('../middleware/systemGuard');
 const { requireAuth } = require('../middleware/auth');
@@ -857,6 +858,18 @@ router.get('/stats', async (req, res) => {
       { $sort: { _id: 1 } },
     ]);
 
+    // ── DAU (일일 방문자) — 최근 14일, 시드 계정 제외, 토론토 날짜 기준 ──
+    const dayKeys = [...Array(14)].map((_, i) =>
+      new Date(Date.now() - i * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Toronto' })
+    ).reverse();
+    const seedIds = (await User.find({ email: /^seed\d+@/ }).select('_id').lean()).map((u) => u._id);
+    const dauAgg = await DailyActive.aggregate([
+      { $match: { date: { $in: dayKeys }, userId: { $nin: seedIds } } },
+      { $group: { _id: '$date', count: { $sum: 1 } } },
+    ]);
+    const dauMap = Object.fromEntries(dauAgg.map((r) => [r._id, r.count]));
+    const dauTrend = dayKeys.map((d) => ({ date: d, count: dauMap[d] || 0 }));
+
     res.json({
       success: true,
       data: {
@@ -866,6 +879,7 @@ router.get('/stats', async (req, res) => {
         signups: { d1: newUsers24h, d7: newUsers7d, d30: newUsers30d },
         posts: { d1: newPosts24h, d7: newPosts7d },
         signupTrend,
+        dau: { today: dauTrend[dauTrend.length - 1]?.count || 0, trend: dauTrend },
       },
     });
   } catch (err) {

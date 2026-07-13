@@ -1,6 +1,7 @@
 // JWT 인증 미들웨어
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const DailyActive = require('../models/DailyActive');
 
 const requireAuth = async (req, res, next) => {
   // Authorization 헤더에서 Bearer 토큰 추출
@@ -46,6 +47,7 @@ const requireAuth = async (req, res, next) => {
     } catch (e) {
       // 조회 실패는 통과 (DB 일시 장애 시 서비스 중단 방지)
     }
+    DailyActive.track(decoded.id); // 일일 방문 기록 (fire-and-forget, 하루 1회)
     next();
   } catch (err) {
     return res.status(401).json({ success: false, message: '유효하지 않은 토큰입니다.' });
@@ -60,6 +62,7 @@ const optionalAuth = (req, res, next) => {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = { id: decoded.id, email: decoded.email, nickname: decoded.nickname };
+      DailyActive.track(decoded.id); // 일일 방문 기록
     } catch (err) {
       // 토큰 무효 — 비인증 상태로 통과
     }

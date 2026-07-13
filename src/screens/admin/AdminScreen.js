@@ -69,13 +69,34 @@ export default function AdminScreen({ navigation }) {
 
       {/* 핵심 지표 */}
       <View style={styles.statRow}>
+        <StatCard label="오늘 방문" value={stats?.dau?.today} sub="실사용자 (시드 제외)" />
         <StatCard label="활성 유저" value={stats?.users?.active} sub={`전체 ${stats?.users?.total ?? 0}`} />
-        <StatCard label="신규 (24h)" value={stats?.signups?.d1} sub={`주간 ${stats?.signups?.d7 ?? 0}`} />
       </View>
       <View style={styles.statRow}>
+        <StatCard label="신규 (24h)" value={stats?.signups?.d1} sub={`주간 ${stats?.signups?.d7 ?? 0}`} />
         <StatCard label="게시글" value={stats?.content?.posts} sub={`24h ${stats?.posts?.d1 ?? 0}`} />
-        <StatCard label="댓글" value={stats?.content?.comments} />
       </View>
+
+      {/* 📈 최근 14일 방문자 추이 */}
+      {!!stats?.dau?.trend?.length && (
+        <View style={styles.dauCard}>
+          <Text style={styles.dauTitle}>일일 방문자 (최근 14일)</Text>
+          <View style={styles.dauChart}>
+            {stats.dau.trend.map((d) => {
+              const max = Math.max(...stats.dau.trend.map((x) => x.count), 1);
+              const h = Math.max((d.count / max) * 64, d.count > 0 ? 4 : 2);
+              const isToday = d === stats.dau.trend[stats.dau.trend.length - 1];
+              return (
+                <View key={d.date} style={styles.dauBarWrap}>
+                  <Text style={styles.dauBarValue}>{d.count > 0 ? d.count : ''}</Text>
+                  <View style={[styles.dauBar, { height: h, backgroundColor: isToday ? colors.primary : colors.primary + '55' }]} />
+                  <Text style={styles.dauBarLabel}>{d.date.slice(8)}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      )}
 
       {/* 미처리 작업 */}
       <Text style={styles.sectionLabel}>처리 대기</Text>
@@ -149,6 +170,17 @@ const createStyles = (colors) => StyleSheet.create({
   statValue: { fontSize: 22, fontWeight: '800', color: colors.text },
   statLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 4, fontWeight: '600' },
   statSub: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
+  // DAU 차트
+  dauCard: {
+    backgroundColor: colors.surface, borderRadius: 14, padding: 14,
+    marginHorizontal: 16, marginBottom: 10,
+  },
+  dauTitle: { fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 12 },
+  dauChart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 96 },
+  dauBarWrap: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 3 },
+  dauBar: { width: '58%', borderRadius: 3, minHeight: 2 },
+  dauBarValue: { fontSize: 9, fontWeight: '700', color: colors.textSecondary },
+  dauBarLabel: { fontSize: 9, color: colors.textSecondary },
   sectionLabel: {
     fontSize: 13, fontWeight: '700', color: colors.textSecondary,
     paddingHorizontal: 20, marginTop: 20, marginBottom: 10,
