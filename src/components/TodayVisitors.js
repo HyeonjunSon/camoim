@@ -23,11 +23,12 @@ export default function TodayVisitors({ refreshKey = 0 }) {
   if (!count || count < 1) return null; // 0명일 땐 숨김 (썰렁해 보이지 않게)
 
   const styles = createStyles(colors);
+  // 헤더용 컴팩트 배지: 🟢 오늘 12명
   return (
     <View style={styles.wrap}>
       <View style={styles.dot} />
       <Text style={styles.text}>
-        오늘 <Text style={styles.count}>{count}명</Text>의 한인이 다녀갔어요 👋
+        오늘 <Text style={styles.count}>{count}</Text>명
       </Text>
     </View>
   );
@@ -36,12 +37,11 @@ export default function TodayVisitors({ refreshKey = 0 }) {
 const createStyles = (colors) =>
   StyleSheet.create({
     wrap: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-      alignSelf: 'center', marginTop: 2, marginBottom: 10,
-      paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999,
       backgroundColor: colors.primary + '10',
     },
-    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#34C759' },
-    text: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
+    dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#34C759' },
+    text: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },
     count: { color: colors.primary, fontWeight: '800' },
   });

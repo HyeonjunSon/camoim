@@ -449,9 +449,6 @@ export default function HomeScreen({ navigation }) {
       }
       contentContainerStyle={{ paddingBottom: 32 }}
     >
-      {/* 👋 오늘 방문자 (작은 배지) */}
-      <TodayVisitors refreshKey={currencyKey} />
-
       {/* 공지 배너 */}
       {notices.length > 0 && (
         <View style={styles.bannerWrap}>
@@ -539,6 +536,8 @@ export default function HomeScreen({ navigation }) {
       {/* 헤더 */}
       <View style={styles.header}>
         <Text style={styles.appName}>CaMoim</Text>
+        {/* 👋 오늘 방문자 — 로고와 아이콘 사이 컴팩트 배지 */}
+        <TodayVisitors refreshKey={currencyKey} />
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.headerCapsule}
