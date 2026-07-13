@@ -470,6 +470,8 @@ export const getBusiness = (id) => request('GET', `/businesses/${id}`);
 export const createBusiness = (data) => request('POST', '/businesses', data);
 export const toggleBusinessBookmark = (id) => request('POST', `/businesses/${id}/bookmark`);
 export const reportBusiness = (id, reason) => request('POST', `/businesses/${id}/report`, { reason });
+// 오늘 방문자 수 (공개 지표)
+export const getTodayVisitors = () => request('GET', '/stats/today-visitors');
 // 이번 주 인기 TOP 5 (주간 조회수 기준)
 export const getTrendingBusinesses = (city) =>
   request('GET', `/businesses/trending${city ? `?city=${city}` : ''}`);

@@ -25,6 +25,7 @@ import { useSocket } from '../../context/SocketContext';
 import { getBoardName } from '../../lib/i18n';
 import CurrencyWidget from '../../components/CurrencyWidget';
 import TrendingPlaces from '../../components/TrendingPlaces';
+import TodayVisitors from '../../components/TodayVisitors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -448,6 +449,9 @@ export default function HomeScreen({ navigation }) {
       }
       contentContainerStyle={{ paddingBottom: 32 }}
     >
+      {/* 👋 오늘 방문자 (작은 배지) */}
+      <TodayVisitors refreshKey={currencyKey} />
+
       {/* 공지 배너 */}
       {notices.length > 0 && (
         <View style={styles.bannerWrap}>
