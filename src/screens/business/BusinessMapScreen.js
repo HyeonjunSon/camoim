@@ -12,6 +12,9 @@ import {
   Linking,
   TextInput,
   Keyboard,
+  Animated,
+  PanResponder,
+  Dimensions,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -36,6 +39,7 @@ import { getBusinesses, toggleBusinessBookmark, reportBusiness } from '../../lib
 import BusinessReviewsSection, { Stars } from './BusinessReviewsSection';
 
 const PRIMARY = '#7F77DD';
+const SCREEN_H = Dimensions.get('window').height;
 
 // 지도 위 컨트롤(플로팅)은 지도 타일 위에 뜨므로 라이트 고정 스타일 사용
 export default function BusinessMapScreen({ navigation, route }) {
@@ -49,7 +53,6 @@ export default function BusinessMapScreen({ navigation, route }) {
   const [category, setCategory] = useState('all');
   const [query, setQuery] = useState(''); // 업체명/주소 검색
   const [bookmarkOnly, setBookmarkOnly] = useState(false); // ⭐ 즐겨찾기만 보기
-  const [viewMode, setViewMode] = useState('map'); // map | list
   const [businesses, setBusinesses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -150,19 +153,78 @@ export default function BusinessMapScreen({ navigation, route }) {
 
   const pinnable = useMemo(() => filtered.filter((b) => b.lat != null && b.lng != null), [filtered]);
 
+  // ── OpenTable 스타일: 현재 지도에 보이는 영역의 업체 (하단 가로 카드용) ──
+  const visibleBusinesses = useMemo(() => {
+    if (!region?.latitudeDelta) return [];
+    const latMin = region.latitude - region.latitudeDelta / 2;
+    const latMax = region.latitude + region.latitudeDelta / 2;
+    const lngMin = region.longitude - region.longitudeDelta / 2;
+    const lngMax = region.longitude + region.longitudeDelta / 2;
+    const inView = pinnable.filter((b) => b.lat >= latMin && b.lat <= latMax && b.lng >= lngMin && b.lng <= lngMax);
+    inView.sort((a, b) =>
+      (a.distanceKm != null && b.distanceKm != null)
+        ? a.distanceKm - b.distanceKm
+        : (b.ratingCount - a.ratingCount) || (b.ratingAvg - a.ratingAvg) || a.name.localeCompare(b.name)
+    );
+    return { items: inView.slice(0, 80), count: inView.length }; // 리스트는 상위 80, 개수는 실제
+  }, [pinnable, region]);
+
+  // ── OpenTable식 하단 드래그 시트 (지도 위로 리스트가 올라옴) ──
+  const SHEET_TOP = insets.top + 104;      // 검색+칩 아래에서 시트 최상단
+  const SHEET_H = SCREEN_H - SHEET_TOP;
+  const PEEK = 132;                         // 접힘 상태에서 보이는 높이 (핸들+카운트)
+  const fullY = 0;
+  const halfY = Math.round(SHEET_H * 0.46);
+  const peekY = Math.max(SHEET_H - PEEK, 0);
+
+  const sheetY = useRef(new Animated.Value(peekY)).current;
+  const curY = useRef(peekY);
+  const dragFrom = useRef(peekY);
+  const snapRef = useRef('peek');
+  const [snap, setSnap] = useState('peek'); // peek | half | full
+
+  useEffect(() => {
+    const id = sheetY.addListener(({ value }) => { curY.current = value; });
+    return () => sheetY.removeListener(id);
+  }, [sheetY]);
+
+  const snapSheet = useCallback((level) => {
+    const to = level === 'full' ? fullY : level === 'half' ? halfY : peekY;
+    snapRef.current = level;
+    setSnap(level);
+    Animated.spring(sheetY, { toValue: to, useNativeDriver: false, bounciness: 3, speed: 13 }).start();
+  }, [fullY, halfY, peekY, sheetY]);
+
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4,
+      onPanResponderGrant: () => { sheetY.stopAnimation(); dragFrom.current = curY.current; },
+      onPanResponderMove: (_, g) => {
+        const y = Math.max(fullY, Math.min(peekY, dragFrom.current + g.dy));
+        sheetY.setValue(y);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (Math.abs(g.dy) < 5) { // 살짝 탭 → 접힘/반 토글
+          snapSheet(snapRef.current === 'peek' ? 'half' : 'peek');
+          return;
+        }
+        const y = curY.current + g.vy * 90; // 관성 반영
+        const opts = [['full', fullY], ['half', halfY], ['peek', peekY]];
+        opts.sort((a, b) => Math.abs(y - a[1]) - Math.abs(y - b[1]));
+        snapSheet(opts[0][0]);
+      },
+    })
+  ).current;
+
   // 간단한 그리드 클러스터링 (현재 확대 수준 기준)
   const { pins, clusters } = useMemo(() => clusterBusinesses(pinnable, region), [pinnable, region]);
-
-  const sortedList = useMemo(() => {
-    // near가 있으면 서버가 distanceKm 채워 정렬해줌. 카테고리 필터만 유지
-    return filtered;
-  }, [filtered]);
 
   const selectBusiness = useCallback((b) => {
     setSheetFull(false);
     setSelected(b);
     setCityOpen(false);
-  }, []);
+    snapSheet('peek'); // 상세 시트 열 때 리스트 시트는 접기 (지도+상세 같이 보이게)
+  }, [snapSheet]);
 
   // ── 즐겨찾기 토글 (낙관적 업데이트) ──
   const onToggleBookmark = useCallback(async (biz) => {
@@ -242,11 +304,43 @@ export default function BusinessMapScreen({ navigation, route }) {
 
   const cityLabel = cityLabelOf(city);
 
+  // 시트 리스트 카드 (지도에 보이는 업체)
+  const renderCard = useCallback(({ item: b }) => {
+    const c = catOf(b.category);
+    return (
+      <TouchableOpacity style={styles.listCard} activeOpacity={0.85} onPress={() => selectBusiness(b)}>
+        <View style={[styles.listEmoji, { backgroundColor: c.soft }]}>
+          <Text style={{ fontSize: 22 }}>{c.emoji}</Text>
+        </View>
+        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+          <View style={styles.rowCenter}>
+            <Text style={styles.listName} numberOfLines={1}>{b.name}</Text>
+            <View style={[styles.catChip, { backgroundColor: c.soft }]}>
+              <Text style={[styles.catChipText, { color: c.color }]}>{c.label}</Text>
+            </View>
+          </View>
+          {b.ratingCount > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Stars value={b.ratingAvg} size={11} />
+              <Text style={styles.listRating}>{b.ratingAvg.toFixed(1)} · 리뷰 {b.ratingCount}</Text>
+            </View>
+          )}
+          <Text style={styles.listAddr} numberOfLines={1}>{b.address}</Text>
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 5 }}>
+          <TouchableOpacity onPress={() => onToggleBookmark(b)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name={b.bookmarked ? 'star' : 'star-outline'} size={18} color={b.bookmarked ? '#F59E0B' : colors.textSecondary} />
+          </TouchableOpacity>
+          {b.distanceKm != null && <Text style={styles.listDist}>{formatDistance(b.distanceKm)}</Text>}
+        </View>
+      </TouchableOpacity>
+    );
+  }, [styles, selectBusiness, onToggleBookmark, colors]);
+
   return (
     <View style={styles.container}>
       {/* ── 지도 / 리스트 본문 ── */}
-      {viewMode === 'map' ? (
-        <MapView
+      <MapView
           ref={mapRef}
           provider={PROVIDER_DEFAULT}
           style={StyleSheet.absoluteFill}
@@ -288,61 +382,6 @@ export default function BusinessMapScreen({ navigation, route }) {
             </Marker>
           ))}
         </MapView>
-      ) : (
-        <FlatList
-          data={sortedList}
-          keyExtractor={(b) => b.id}
-          style={styles.listRoot}
-          // 상단 컨트롤 높이 = 8(top pad) + 38(검색행) + 8(gap) + 38(칩행) = 92 → +8 gap으로 행간 통일
-          contentContainerStyle={{ paddingTop: insets.top + 100, paddingBottom: 96, paddingHorizontal: 16 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={PRIMARY} />}
-          renderItem={({ item: b }) => {
-            const c = catOf(b.category);
-            return (
-              <TouchableOpacity style={styles.listCard} activeOpacity={0.85} onPress={() => selectBusiness(b)}>
-                <View style={[styles.listEmoji, { backgroundColor: c.soft }]}>
-                  <Text style={{ fontSize: 22 }}>{c.emoji}</Text>
-                </View>
-                <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-                  <View style={styles.rowCenter}>
-                    <Text style={styles.listName} numberOfLines={1}>{b.name}</Text>
-                    <View style={[styles.catChip, { backgroundColor: c.soft }]}>
-                      <Text style={[styles.catChipText, { color: c.color }]}>{c.label}</Text>
-                    </View>
-                  </View>
-                  {b.ratingCount > 0 && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Stars value={b.ratingAvg} size={11} />
-                      <Text style={styles.listRating}>{b.ratingAvg.toFixed(1)} · 리뷰 {b.ratingCount}</Text>
-                    </View>
-                  )}
-                  <Text style={styles.listAddr} numberOfLines={1}>{b.address}</Text>
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 5 }}>
-                  <TouchableOpacity onPress={() => onToggleBookmark(b)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Ionicons name={b.bookmarked ? 'star' : 'star-outline'} size={18} color={b.bookmarked ? '#F59E0B' : colors.textSecondary} />
-                  </TouchableOpacity>
-                  {b.distanceKm != null && <Text style={styles.listDist}>{formatDistance(b.distanceKm)}</Text>}
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-          ListEmptyComponent={
-            loading ? null : (
-              <View style={styles.emptyWrap}>
-                <Text style={{ fontSize: 34 }}>🗭</Text>
-                <Text style={styles.emptyText}>
-                  {bookmarkOnly
-                    ? '즐겨찾기한 곳이 아직 없어요 ⭐'
-                    : query.trim()
-                      ? `"${query.trim()}" 검색 결과가 없어요`
-                      : '이 카테고리에는 아직 업체가 없어요'}
-                </Text>
-              </View>
-            )
-          }
-        />
-      )}
 
       {/* ── 상단 컨트롤 (도시 선택 + 카운트 + 카테고리 칩) ── */}
       <View style={[styles.topControls, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
@@ -430,38 +469,63 @@ export default function BusinessMapScreen({ navigation, route }) {
         </>
       )}
 
-      {/* ── 우하단 FAB ── */}
-      <View style={styles.fabColumn} pointerEvents="box-none">
-        {viewMode === 'map' && (
+      {/* ── 우하단 FAB (시트 위로) — 시트 펼침 시엔 숨김 ── */}
+      {snap !== 'full' && (
+        <View style={[styles.fabColumn, { bottom: PEEK + 16 }]} pointerEvents="box-none">
           <TouchableOpacity style={styles.nearFab} activeOpacity={0.85} onPress={onNear}>
             <Ionicons name="navigate" size={20} color="#3B82F6" />
           </TouchableOpacity>
-        )}
-        <TouchableOpacity style={styles.reportFab} activeOpacity={0.9} onPress={() => navigation.navigate('BusinessReport')}>
-          <Ionicons name="add" size={18} color="#FFFFFF" />
-          <Text style={styles.reportFabText}>장소 추가</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={styles.reportFab} activeOpacity={0.9} onPress={() => navigation.navigate('BusinessReport')}>
+            <Ionicons name="add" size={18} color="#FFFFFF" />
+            <Text style={styles.reportFabText}>장소 추가</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-      {/* ── 지도/리스트 토글 ── */}
-      <View style={styles.segmentWrap}>
+      {/* ── OpenTable식 하단 리스트 시트 (지도 위로 드래그) ── */}
+      <Animated.View style={[styles.bizSheet, { top: SHEET_TOP, height: SHEET_H, transform: [{ translateY: sheetY }] }]}>
+        <View {...pan.panHandlers} style={styles.bizSheetHandleArea}>
+          <View style={styles.bizSheetHandle} />
+          <Text style={styles.bizSheetCount}>
+            이 지역 <Text style={{ color: PRIMARY, fontWeight: '800' }}>{visibleBusinesses.count}곳</Text>
+          </Text>
+        </View>
+        <FlatList
+          data={visibleBusinesses.items}
+          keyExtractor={(b) => b.id}
+          scrollEnabled={snap !== 'peek'}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 24 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={PRIMARY} />}
+          renderItem={renderCard}
+          ListEmptyComponent={
+            loading ? null : (
+              <View style={styles.emptyWrap}>
+                <Text style={{ fontSize: 34 }}>🗺️</Text>
+                <Text style={styles.emptyText}>
+                  {bookmarkOnly
+                    ? '즐겨찾기한 곳이 아직 없어요 ⭐'
+                    : query.trim()
+                      ? `"${query.trim()}" 검색 결과가 없어요`
+                      : '이 지역에는 표시할 업체가 없어요\n지도를 움직여보세요'}
+                </Text>
+              </View>
+            )
+          }
+        />
+      </Animated.View>
+
+      {/* 시트 펼침 시 → 지도로 복귀 버튼 */}
+      {snap === 'full' && (
         <TouchableOpacity
-          style={[styles.segmentBtn, viewMode === 'map' && styles.segmentActive]}
-          activeOpacity={0.85}
-          onPress={() => setViewMode('map')}
+          style={[styles.mapReturnBtn, { bottom: insets.bottom + 18 }]}
+          activeOpacity={0.9}
+          onPress={() => snapSheet('peek')}
         >
-          <Ionicons name="map-outline" size={15} color={viewMode === 'map' ? '#FFFFFF' : '#888888'} />
-          <Text style={[styles.segmentText, { color: viewMode === 'map' ? '#FFFFFF' : '#888888' }]}>지도</Text>
+          <Ionicons name="map" size={16} color="#FFFFFF" />
+          <Text style={styles.mapReturnText}>지도</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.segmentBtn, viewMode === 'list' && styles.segmentActive]}
-          activeOpacity={0.85}
-          onPress={() => { setViewMode('list'); setCityOpen(false); }}
-        >
-          <Ionicons name="list-outline" size={15} color={viewMode === 'list' ? '#FFFFFF' : '#888888'} />
-          <Text style={[styles.segmentText, { color: viewMode === 'list' ? '#FFFFFF' : '#888888' }]}>리스트</Text>
-        </TouchableOpacity>
-      </View>
+      )}
 
       {loading && (
         <View style={styles.loadingOverlay} pointerEvents="none">
@@ -762,6 +826,24 @@ const createStyles = (colors) => StyleSheet.create({
     shadowColor: PRIMARY, shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
   clusterText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
+
+  // OpenTable식 하단 리스트 시트
+  bizSheet: {
+    position: 'absolute', left: 0, right: 0, zIndex: 40,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: -4 }, elevation: 16,
+  },
+  bizSheetHandleArea: { alignItems: 'center', paddingTop: 8, paddingBottom: 10 },
+  bizSheetHandle: { width: 40, height: 5, borderRadius: 3, backgroundColor: colors.border, marginBottom: 8 },
+  bizSheetCount: { fontSize: 15, fontWeight: '700', color: colors.text },
+  mapReturnBtn: {
+    position: 'absolute', alignSelf: 'center', zIndex: 50,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#1A1A1A', paddingVertical: 11, paddingHorizontal: 20, borderRadius: 999,
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 8,
+  },
+  mapReturnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
 
   // FAB
   fabColumn: { position: 'absolute', right: 14, bottom: 74, zIndex: 30, alignItems: 'flex-end', gap: 10 },
