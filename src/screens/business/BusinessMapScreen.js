@@ -471,7 +471,7 @@ export default function BusinessMapScreen({ navigation, route }) {
 
       {/* ── 우하단 FAB (시트 위로) — 시트 펼침 시엔 숨김 ── */}
       {snap !== 'full' && (
-        <View style={[styles.fabColumn, { bottom: PEEK + 16 }]} pointerEvents="box-none">
+        <View style={[styles.fabColumn, { bottom: PEEK - 8 }]} pointerEvents="box-none">
           <TouchableOpacity style={styles.nearFab} activeOpacity={0.85} onPress={onNear}>
             <Ionicons name="navigate" size={20} color="#3B82F6" />
           </TouchableOpacity>
@@ -854,8 +854,8 @@ const createStyles = (colors) => StyleSheet.create({
   },
   reportFab: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingVertical: 13, paddingHorizontal: 18, borderRadius: 999, backgroundColor: PRIMARY,
-    shadowColor: PRIMARY, shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+    paddingVertical: 13, paddingHorizontal: 18, borderRadius: 999, backgroundColor: '#10B981',
+    shadowColor: '#10B981', shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
   reportFabText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 
