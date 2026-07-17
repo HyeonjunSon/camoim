@@ -471,7 +471,7 @@ export default function BusinessMapScreen({ navigation, route }) {
 
       {/* ── 우하단 FAB (시트 위로) — 시트 펼침 시엔 숨김 ── */}
       {snap !== 'full' && (
-        <View style={[styles.fabColumn, { bottom: PEEK - 8 }]} pointerEvents="box-none">
+        <View style={[styles.fabColumn, { bottom: PEEK - 28 }]} pointerEvents="box-none">
           <TouchableOpacity style={styles.nearFab} activeOpacity={0.85} onPress={onNear}>
             <Ionicons name="navigate" size={20} color="#3B82F6" />
           </TouchableOpacity>
