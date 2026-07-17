@@ -138,11 +138,25 @@ npm run dev  # nodemon
 ```
 
 ### 배포
-```bash
-# iOS 프로덕션 빌드
-eas build --platform ios --profile production
 
-# App Store 제출
+#### ⚡ OTA 업데이트 (JS 변경 → 기본 배포 경로, 1.0.6+)
+Expo 개발 서버(`npx expo start`)로 테스트하지 않고, **JS 변경은 `eas update`로 사용자 폰에 즉시 반영**한다 (스토어 심사 X, 비용 0).
+```bash
+git commit + push
+eas update --branch production --message "변경 요약"
+# → 앱 재실행 시 자동 다운로드. runtimeVersion(app.json version)이 같은 빌드만 수신
+```
+- **OTA 가능**: 화면/로직/컴포넌트, i18n·텍스트, 스타일·색상·레이아웃, API 호출, 기존 네비게이션 내 새 화면, require asset
+- **OTA 불가 (새 빌드 + 심사 필요)**: 새 네이티브 모듈, app.json 네이티브 설정(bundleId·permissions·plugins), Expo SDK 업그레이드, `runtimeVersion`(=version) bump
+- `channel` ↔ `branch` 동일 이름 매칭 (`production` 빌드 → `production` 채널 구독)
+- ⚠️ **자동 실행 금지**: 사용자가 "업데이트/출시/전달" 명시할 때만. `eas build`는 특히 명시 명령 필수
+
+#### 📦 네이티브 빌드 (새 버전 출시 시만)
+```bash
+# 1. app.json version bump (예: 1.0.7 → 1.0.8)  ← runtimeVersion 갱신 = OTA 호환 끊김 신호
+# 2. iOS 프로덕션 빌드
+eas build --platform ios --profile production
+# 3. App Store 제출
 eas submit -p ios
 ```
 
