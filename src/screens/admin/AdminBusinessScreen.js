@@ -6,7 +6,7 @@ import { Text } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { catOf, cityLabelOf, sourceLabelOf } from '../../constants/businesses';
-import { adminListBusinesses, adminUpdateBusiness, adminDeleteBusiness } from '../../lib/api';
+import { adminListBusinesses, adminUpdateBusiness, adminDeleteBusiness, startChat } from '../../lib/api';
 
 // 관리자 — 한인 업체 승인/관리
 export default function AdminBusinessScreen({ navigation }) {
@@ -41,6 +41,27 @@ export default function AdminBusinessScreen({ navigation }) {
       if (res.success) await load();
     } catch (e) {
       Alert.alert('오류', e?.message || '처리에 실패했어요.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // 제보자에게 바로 DM 걸기 (관리자 → 유저)
+  const openChat = async (biz) => {
+    if (!biz.submittedBy) {
+      Alert.alert('알림', '제보자 정보가 없는 업체예요.');
+      return;
+    }
+    setBusyId(biz.id);
+    try {
+      const res = await startChat(biz.submittedBy);
+      if (res.success) {
+        navigation.navigate('ChatRoom', { roomId: res.data.id, other: res.data.other });
+      } else {
+        Alert.alert('오류', res.message || '채팅을 시작할 수 없어요.');
+      }
+    } catch (e) {
+      Alert.alert('오류', e?.message || '채팅을 시작할 수 없어요.');
     } finally {
       setBusyId(null);
     }
@@ -121,6 +142,11 @@ export default function AdminBusinessScreen({ navigation }) {
                         <TouchableOpacity style={[styles.actBtn, styles.rejectBtn]} activeOpacity={0.85} disabled={busyId === b.id} onPress={() => setStatus(b, 'rejected')}>
                           <Text style={styles.rejectText}>거절</Text>
                         </TouchableOpacity>
+                        {b.submittedBy ? (
+                          <TouchableOpacity style={[styles.actBtn, styles.chatBtn, { flex: 0, paddingHorizontal: 14 }]} activeOpacity={0.85} disabled={busyId === b.id} onPress={() => openChat(b)}>
+                            <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.primary} />
+                          </TouchableOpacity>
+                        ) : null}
                       </View>
                     </View>
                   );
@@ -151,8 +177,13 @@ export default function AdminBusinessScreen({ navigation }) {
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <Text style={styles.rowName} numberOfLines={1}>{b.name}</Text>
-                          <Text style={styles.subTextSmall}>{cityLabelOf(b.city)} · {sourceLabelOf(b.source)}</Text>
+                          <Text style={styles.subTextSmall}>{cityLabelOf(b.city)} · {sourceLabelOf(b.source)}{!b.hasLocation ? '  · ⚠︎ 좌표 없음' : ''}</Text>
                         </View>
+                        {b.submittedBy ? (
+                          <TouchableOpacity style={styles.rowChatBtn} activeOpacity={0.7} disabled={busyId === b.id} onPress={() => openChat(b)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.primary} />
+                          </TouchableOpacity>
+                        ) : null}
                         <View style={[styles.statusChip, rejected ? styles.statusRejected : styles.statusActive]}>
                           <Text style={[styles.statusText, { color: rejected ? colors.textSecondary : '#2D9E5A' }]}>
                             {rejected ? '거절됨' : '영업중'}
@@ -204,6 +235,8 @@ const createStyles = (colors) => StyleSheet.create({
   approveText: { fontSize: 13, fontWeight: '700', color: '#2D9E5A' },
   rejectBtn: { backgroundColor: '#FEF2F2' },
   rejectText: { fontSize: 13, fontWeight: '700', color: '#FF4444' },
+  chatBtn: { backgroundColor: colors.inputBg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  rowChatBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.inputBg, alignItems: 'center', justifyContent: 'center' },
   listCard: { backgroundColor: colors.surface, borderRadius: 14, overflow: 'hidden' },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 14 },
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },

@@ -1135,6 +1135,7 @@ function formatAdminBusiness(b) {
     status: b.status,
     bookmarkCount: b.bookmarkCount || 0,
     reportCount: b.reportCount || 0,
+    submittedBy: b.submittedBy || null,
     submitterNickname: b.submitterNickname || '',
     sourceName: b.sourceName || '',
     createdAt: b.createdAt,

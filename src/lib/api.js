@@ -365,6 +365,10 @@ export const deleteNotice = (id) => request('DELETE', `/notices/${id}`);
 export const checkChatStatus = (userId) =>
   request('GET', `/chats/check/${userId}`);
 
+// DM 방 생성 or 기존 방 반환 (targetUserId와의 1:1)
+export const startChat = (targetUserId) =>
+  request('POST', '/chats', { targetUserId });
+
 // 차단
 export const getMyBlocks = () =>
   request('GET', '/users/me/blocks');
