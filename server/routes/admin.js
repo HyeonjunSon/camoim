@@ -1168,7 +1168,7 @@ router.put('/businesses/:id', async (req, res) => {
     const b = await Business.findById(req.params.id);
     if (!b) return res.status(404).json({ success: false, message: '업체를 찾을 수 없어요.' });
 
-    const { status, name, category, city, address, phone, hours, description, rejectedReason } = req.body;
+    const { status, name, category, city, address, phone, hours, description, rejectedReason, images, lat, lng } = req.body;
     if (status && ['pending', 'approved', 'rejected'].includes(status)) b.status = status;
     if (typeof name === 'string' && name.trim()) b.name = name.trim();
     if (category && Business.CATEGORIES.includes(category)) b.category = category;
@@ -1177,16 +1177,26 @@ router.put('/businesses/:id', async (req, res) => {
     if (typeof hours === 'string') b.hours = hours.trim();
     if (typeof description === 'string') b.description = description.trim();
     if (typeof rejectedReason === 'string') b.rejectedReason = rejectedReason;
+    if (Array.isArray(images)) b.images = images.filter((u) => typeof u === 'string').slice(0, 10);
 
     let addressChanged = false;
     if (typeof address === 'string' && address.trim() && address.trim() !== b.address) {
       b.address = address.trim();
       addressChanged = true;
     }
-    const hasLoc = b.location && Array.isArray(b.location.coordinates) && b.location.coordinates.length === 2;
-    if (addressChanged || !hasLoc) {
-      const geo = await geocodeAddress(b.address, b.city);
-      if (geo) b.location = { type: 'Point', coordinates: [geo.lng, geo.lat] };
+
+    // 좌표 직접 지정 (지오코딩 실패 업체를 관리자가 수동 핀) — 있으면 지오코딩보다 우선
+    const latNum = Number(lat), lngNum = Number(lng);
+    const manualCoords = Number.isFinite(latNum) && Number.isFinite(lngNum)
+      && latNum >= -90 && latNum <= 90 && lngNum >= -180 && lngNum <= 180;
+    if (manualCoords) {
+      b.location = { type: 'Point', coordinates: [lngNum, latNum] };
+    } else {
+      const hasLoc = b.location && Array.isArray(b.location.coordinates) && b.location.coordinates.length === 2;
+      if (addressChanged || !hasLoc) {
+        const geo = await geocodeAddress(b.address, b.city);
+        if (geo) b.location = { type: 'Point', coordinates: [geo.lng, geo.lat] };
+      }
     }
 
     await b.save();

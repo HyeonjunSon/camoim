@@ -170,7 +170,7 @@ export default function AdminBusinessScreen({ navigation }) {
                         style={[styles.listRow, i > 0 && styles.rowBorder, { opacity: rejected ? 0.55 : 1 }]}
                         activeOpacity={0.7}
                         onLongPress={() => confirmDelete(b)}
-                        onPress={() => rejected && setStatus(b, 'approved')}
+                        onPress={() => navigation.navigate('AdminBusinessEdit', { business: b })}
                       >
                         <View style={[styles.emojiBox, { backgroundColor: c.soft, width: 34, height: 34 }]}>
                           <Text style={{ fontSize: 16 }}>{c.emoji}</Text>
@@ -194,7 +194,7 @@ export default function AdminBusinessScreen({ navigation }) {
                   })
                 )}
               </View>
-              <Text style={styles.hintText}>길게 눌러 삭제 · 거절된 업체는 탭하면 다시 승인돼요</Text>
+              <Text style={styles.hintText}>탭하면 편집(상태·정보·좌표·사진 모두) · 길게 눌러 삭제</Text>
             </View>
           </>
         )}
