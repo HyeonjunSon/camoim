@@ -17,6 +17,7 @@ import AdminBusinessScreen from '../screens/admin/AdminBusinessScreen';
 import NoticeDetailScreen from '../screens/notice/NoticeDetailScreen';
 import NoticeEditScreen from '../screens/notice/NoticeEditScreen';
 import ChatRoomScreen from '../screens/chat/ChatRoomScreen';
+import UserProfileScreen from '../screens/user/UserProfileScreen';
 import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LangContext';
 import { colors } from '../constants/colors'
@@ -53,6 +54,7 @@ export default function AdminStack() {
       <Stack.Screen name="AdminGroups"    component={AdminGroupsScreen}    options={{ title: t('nav.adminGroups') }} />
       <Stack.Screen name="AdminBusiness"  component={AdminBusinessScreen}  options={{ headerShown: false }} />
       <Stack.Screen name="ChatRoom"       component={ChatRoomScreen}       options={{ title: t('tabs.chat') }} />
+      <Stack.Screen name="UserProfile"    component={UserProfileScreen}    options={{ title: t('nav.profile') }} />
     </Stack.Navigator>
   );
 }
