@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthLangToggle from '../../components/AuthLangToggle';
 
 import { CITIES } from '../../constants/cities';
+import { ROLE_ICONS } from '../../lib/icons';
 
 export default function SignupScreen({ navigation }) {
   const { colors } = useTheme();
@@ -34,9 +35,9 @@ export default function SignupScreen({ navigation }) {
   const { t } = useLang();
 
   const ROLE_OPTIONS = [
-    { role: ROLES.STUDENT,         label: t('auth.roleStudent'), emoji: '🎓', desc: t('auth.roleStudentDesc') },
-    { role: ROLES.WORKING_HOLIDAY, label: t('auth.roleWH'),      emoji: '✈️', desc: t('auth.roleWHDesc') },
-    { role: ROLES.GENERAL,         label: t('auth.roleGeneral'), emoji: '🍁', desc: t('auth.roleGeneralDesc') },
+    { role: ROLES.STUDENT,         label: t('auth.roleStudent'), icon: ROLE_ICONS.student,        desc: t('auth.roleStudentDesc') },
+    { role: ROLES.WORKING_HOLIDAY, label: t('auth.roleWH'),      icon: ROLE_ICONS.workingholiday, desc: t('auth.roleWHDesc') },
+    { role: ROLES.GENERAL,         label: t('auth.roleGeneral'), icon: ROLE_ICONS.general,        desc: t('auth.roleGeneralDesc') },
   ];
 
   const [email, setEmail] = useState('');
@@ -383,7 +384,7 @@ export default function SignupScreen({ navigation }) {
               onPress={() => setRole(opt.role)}
               activeOpacity={0.85}
             >
-              <Text style={styles.roleEmoji}>{opt.emoji}</Text>
+              <Ionicons name={opt.icon.ion} size={24} color={opt.icon.color} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.roleLabel, role === opt.role && { color: colors.primary }]}>
                   {opt.label}
@@ -403,7 +404,7 @@ export default function SignupScreen({ navigation }) {
           activeOpacity={0.7}
         >
           <Text style={[styles.cityDropdownText, !city && { color: colors.textSecondary }]}>
-            {city ? `📍 ${t(`city.${city}`) || city}` : t('auth.cityPlaceholder')}
+            {city ? (t(`city.${city}`) || city) : t('auth.cityPlaceholder')}
           </Text>
           <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
         </TouchableOpacity>
@@ -527,7 +528,7 @@ export default function SignupScreen({ navigation }) {
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.cityItemText, city === c && styles.cityItemTextActive]}>
-                    📍 {t(`city.${c}`) || c}
+                    {t(`city.${c}`) || c}
                   </Text>
                   {city === c && <Ionicons name="checkmark" size={18} color={colors.primary} />}
                 </TouchableOpacity>
@@ -612,7 +613,6 @@ const createStyles = (colors) => StyleSheet.create({
     borderWidth: 1.5, borderColor: 'transparent',
   },
   roleBtnActive: { borderColor: colors.primary, backgroundColor: colors.primary + '08' },
-  roleEmoji: { fontSize: 24 },
   roleLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
   roleDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   agreeBox: {

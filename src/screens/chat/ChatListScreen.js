@@ -184,7 +184,7 @@ export default function ChatListScreen({ navigation, route }) {
               end={{ x: 1, y: 1 }}
               style={styles.groupAvatarGradient}
             >
-              <Text style={{ fontSize: 22 }}>🎓</Text>
+              <Ionicons name="school" size={22} color="#fff" />
             </LinearGradient>
             <View style={styles.groupAvatarBadge}>
               <Ionicons name="school" size={9} color="#fff" />
@@ -214,7 +214,7 @@ export default function ChatListScreen({ navigation, route }) {
     if (item.kind === 'group') {
       const g = item.group || {};
       // 모임 이름의 첫 글자로 이니셜 — 커버 없을 때 폴백
-      const initial = (g.name || '').trim().charAt(0).toUpperCase() || '👥';
+      const initial = (g.name || '').trim().charAt(0).toUpperCase();
       // 모임 이름 기반 안정적 색상 그라데이션 (같은 모임은 항상 같은 색)
       const palettes = [
         ['#A78BFA', '#7C3AED'], // purple
@@ -246,7 +246,11 @@ export default function ChatListScreen({ navigation, route }) {
                 end={{ x: 1, y: 1 }}
                 style={styles.groupAvatarGradient}
               >
-                <Text style={styles.groupAvatarInitial}>{initial}</Text>
+                {initial ? (
+                  <Text style={styles.groupAvatarInitial}>{initial}</Text>
+                ) : (
+                  <Ionicons name="people" size={20} color="#fff" />
+                )}
               </LinearGradient>
             )}
             {/* 그룹 표시 작은 뱃지 */}

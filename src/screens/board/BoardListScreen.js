@@ -21,27 +21,16 @@ import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { getBoardName } from '../../lib/i18n';
 import { toShortUniversityName } from '../../lib/university';
+import { BOARD_ICONS } from '../../lib/icons';
 import GroupListScreen from '../group/GroupListScreen';
 
 const PINNED_KEY = '@camoim_pinned_boards';
 
-// 게시판 slug별 색·아이콘
-const BOARD_META = {
-  free:           { bg: '#EEF2FF', text: '#6366F1', icon: '💬' },
-  anonymous:      { bg: '#F5F3FF', text: '#8B5CF6', icon: '🎭' },
-  meetup:         { bg: '#FFF4ED', text: '#FB923C', icon: '🤝' },
-  immigration:    { bg: '#ECFEFF', text: '#0891B2', icon: '🛂' },
-  study:          { bg: '#EFF6FF', text: '#3B82F6', icon: '📚' },
-  workingholiday: { bg: '#FEF3C7', text: '#D97706', icon: '✈️' },
-  market:         { bg: '#FFF7ED', text: '#F97316', icon: '🛍️' },
-  car:            { bg: '#F1F5F9', text: '#475569', icon: '🚗' },
-  giveaway:       { bg: '#ECFDF5', text: '#10B981', icon: '🎁' },
-  jobs:           { bg: '#ECFDF5', text: '#10B981', icon: '💼' },
-  realestate:     { bg: '#FFF1F2', text: '#F43F5E', icon: '🏠' },
-  roomrent:       { bg: '#FEF2F2', text: '#EF4444', icon: '🛏️' },
-  exchange:       { bg: '#FEFCE8', text: '#CA8A04', icon: '💱' },
+// 게시판 slug별 색·아이콘 — lib/icons.js 단일 소스에서 파생 (소프트 배경 = 아이콘 색 틴트)
+const metaFor = (slug) => {
+  const ic = BOARD_ICONS[slug] || BOARD_ICONS.default;
+  return { bg: ic.color + '1A', text: ic.color, ion: ic.ion };
 };
-const DEFAULT_META = { bg: '#F3F4F6', text: '#6B7280', icon: '📋' };
 
 // 필터 정의 (slug 기반) - labels via t()
 const FILTER_DEFS = [
@@ -165,7 +154,7 @@ export default function BoardListScreen({ navigation }) {
 
   // ── 컴팩트 게시판 행
   function renderBoardRow(board) {
-    const meta = BOARD_META[board.slug] ?? DEFAULT_META;
+    const meta = metaFor(board.slug);
     const latest = latestMap[String(board.id)];
     const isPinned = pinned.includes(String(board.id));
 
@@ -177,7 +166,7 @@ export default function BoardListScreen({ navigation }) {
         activeOpacity={0.7}
       >
         <View style={[styles.iconBox, { backgroundColor: meta.bg }]}>
-          <Text style={styles.icon}>{meta.icon}</Text>
+          <Ionicons name={meta.ion} size={20} color={meta.text} />
         </View>
 
         <View style={styles.rowContent}>
@@ -220,7 +209,7 @@ export default function BoardListScreen({ navigation }) {
           {/* 상단 하이라이트 선 (유리광택) */}
           <View style={styles.schoolBannerShine} pointerEvents="none" />
           <View style={styles.schoolIconBadge}>
-            <Text style={styles.schoolIconEmoji}>{isAdmin ? '🛡️' : '🎓'}</Text>
+            <Ionicons name={isAdmin ? 'shield' : 'school'} size={18} color={colors.white} />
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={styles.schoolTitleRow}>
@@ -344,7 +333,10 @@ export default function BoardListScreen({ navigation }) {
             <View style={styles.verifyCard}>
               <View style={styles.verifyRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.verifyCardTitle}>🎓 {t('board.verifyTitle')}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Ionicons name={BOARD_ICONS.university.ion} size={15} color={BOARD_ICONS.university.color} />
+                    <Text style={styles.verifyCardTitle}>{t('board.verifyTitle')}</Text>
+                  </View>
                   <Text style={styles.verifyCardDesc}>{t('board.verifyDesc')}</Text>
                 </View>
                 <TouchableOpacity
@@ -371,9 +363,12 @@ export default function BoardListScreen({ navigation }) {
           </View>
         ) : (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyEmoji}>
-              {filter === 'pinned' ? '⭐' : '📭'}
-            </Text>
+            <Ionicons
+              name={filter === 'pinned' ? 'star-outline' : 'mail-open-outline'}
+              size={36}
+              color={colors.textSecondary}
+              style={{ marginBottom: 4 }}
+            />
             <Text style={styles.emptyText}>
               {filter === 'pinned' ? t('board.pinnedEmpty') : t('board.empty')}
             </Text>
@@ -415,7 +410,7 @@ export default function BoardListScreen({ navigation }) {
               bounces={false}
             >
               {generalBoards.map((board, idx) => {
-                const meta = BOARD_META[board.slug] ?? DEFAULT_META;
+                const meta = metaFor(board.slug);
                 return (
                   <TouchableOpacity
                     key={String(board.id)}
@@ -424,7 +419,7 @@ export default function BoardListScreen({ navigation }) {
                     activeOpacity={0.7}
                   >
                     <View style={[styles.modalIconBox, { backgroundColor: meta.bg }]}>
-                      <Text style={styles.modalIcon}>{meta.icon}</Text>
+                      <Ionicons name={meta.ion} size={21} color={meta.text} />
                     </View>
                     <Text style={styles.modalBoardName}>{getBoardName(board.slug, board.name, t)}</Text>
                     <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
@@ -544,7 +539,6 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  schoolIconEmoji: { fontSize: 18 },
   schoolTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -618,7 +612,6 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: { fontSize: 19 },
   rowContent: {
     flex: 1,
     minWidth: 0,
@@ -654,7 +647,6 @@ const createStyles = (colors) => StyleSheet.create({
     paddingTop: 60,
     gap: 6,
   },
-  emptyEmoji: { fontSize: 36, marginBottom: 4 },
   emptyText: { fontSize: 14, fontWeight: '700', color: colors.text },
   emptySub: { fontSize: 12, color: colors.textSecondary },
 
@@ -721,7 +713,6 @@ const createStyles = (colors) => StyleSheet.create({
     width: 40, height: 40, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
   },
-  modalIcon: { fontSize: 20 },
   modalBoardName: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
   modalCancel: {
     marginTop: 8, marginHorizontal: 20,

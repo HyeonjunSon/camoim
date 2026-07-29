@@ -89,7 +89,7 @@ export default function BookmarkedPostsScreen({ navigation }) {
         )}
         ListEmptyComponent={() => (
           <EmptyState
-            emoji="🔖"
+            icon="bookmark-outline"
             title={t('emptyState.noBookmarks')}
             description={t('emptyState.noBookmarksCta')}
           />

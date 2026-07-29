@@ -9,6 +9,7 @@ import {
   Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
@@ -18,25 +19,25 @@ const ONBOARDING_KEY = '@camoim_onboarding_done';
 
 const SLIDES = [
   {
-    emoji: '🇨🇦',
+    ion: 'leaf',
     titleKey: 'onboarding.s1Title',
     descKey: 'onboarding.s1Desc',
     bg: '#4F46E5',
   },
   {
-    emoji: '💬',
+    ion: 'chatbubble-ellipses',
     titleKey: 'onboarding.s2Title',
     descKey: 'onboarding.s2Desc',
     bg: '#7C3AED',
   },
   {
-    emoji: '🎓',
+    ion: 'school',
     titleKey: 'onboarding.s3Title',
     descKey: 'onboarding.s3Desc',
     bg: '#2563EB',
   },
   {
-    emoji: '🤝',
+    ion: 'people',
     titleKey: 'onboarding.s4Title',
     descKey: 'onboarding.s4Desc',
     bg: '#059669',
@@ -92,7 +93,9 @@ export default function OnboardingScreen({ onDone }) {
         viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
         renderItem={({ item }) => (
           <View style={[styles.slide, { width, backgroundColor: item.bg }]}>
-            <Text style={styles.emoji}>{item.emoji}</Text>
+            <View style={styles.iconBadge}>
+              <Ionicons name={item.ion} size={56} color="#FFFFFF" />
+            </View>
             <Text style={styles.title}>{t(item.titleKey)}</Text>
             <Text style={styles.desc}>{t(item.descKey)}</Text>
           </View>
@@ -161,8 +164,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 36,
   },
-  emoji: {
-    fontSize: 72,
+  iconBadge: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 24,
   },
   title: {

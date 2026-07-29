@@ -182,7 +182,8 @@ export default function AdminBusinessEditScreen({ navigation, route }) {
                     activeOpacity={0.8}
                     onPress={() => setCategory(c.key)}
                   >
-                    <Text style={[styles.selectChipText, { color: active ? PRIMARY : colors.textSecondary }]}>{c.emoji} {c.label}</Text>
+                    <Ionicons name={c.ion} size={13} color={active ? PRIMARY : c.color} style={{ marginRight: 4 }} />
+                    <Text style={[styles.selectChipText, { color: active ? PRIMARY : colors.textSecondary }]}>{c.label}</Text>
                   </TouchableOpacity>
                 );
               })}

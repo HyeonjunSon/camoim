@@ -1,14 +1,15 @@
 // 한인 업체 지도 — 공통 상수 (지도/제보/관리 화면이 모두 여기서 import)
-// 카테고리 색상은 테마 무관 고정값 (핀·칩 브랜드 컬러)
+// 카테고리 색상은 테마 무관 고정값 (핀·칩 브랜드 컬러), 아이콘은 lib/icons.js 단일 소스
+import { BIZ_CATEGORY_ICONS } from '../lib/icons';
 
 export const BUSINESS_CATEGORIES = [
-  { key: 'food',   label: '음식점',        emoji: '🍽️', color: '#FB923C', soft: '#FFF4ED' },
-  { key: 'cafe',   label: '카페·베이커리', emoji: '☕',  color: '#D97706', soft: '#FEF3C7' },
-  { key: 'mart',   label: '마트',          emoji: '🛒',  color: '#10B981', soft: '#ECFDF5' },
-  { key: 'hair',   label: '미용실',        emoji: '💇',  color: '#8B5CF6', soft: '#F5F3FF' },
-  { key: 'clinic', label: '병원·한의원',   emoji: '🏥',  color: '#F43F5E', soft: '#FFF1F2' },
+  { key: 'food',   label: '음식점',        ion: BIZ_CATEGORY_ICONS.food.ion,   color: '#FB923C', soft: '#FFF4ED' },
+  { key: 'cafe',   label: '카페·베이커리', ion: BIZ_CATEGORY_ICONS.cafe.ion,   color: '#D97706', soft: '#FEF3C7' },
+  { key: 'mart',   label: '마트',          ion: BIZ_CATEGORY_ICONS.mart.ion,   color: '#10B981', soft: '#ECFDF5' },
+  { key: 'hair',   label: '미용실',        ion: BIZ_CATEGORY_ICONS.hair.ion,   color: '#8B5CF6', soft: '#F5F3FF' },
+  { key: 'clinic', label: '병원·한의원',   ion: BIZ_CATEGORY_ICONS.clinic.ion, color: '#F43F5E', soft: '#FFF1F2' },
   // realty(부동산·이민)는 제외 — 개인 에이전트 핀이 지도를 어지럽혀서 뺌 (서버 스키마 enum엔 유지)
-  { key: 'etc',    label: '기타',          emoji: '📍',  color: '#9CA3AF', soft: '#F3F4F6' },
+  { key: 'etc',    label: '기타',          ion: BIZ_CATEGORY_ICONS.etc.ion,    color: '#9CA3AF', soft: '#F3F4F6' },
 ];
 
 // 지원 도시 + 지도 중심 좌표 (recenter 기준)

@@ -122,7 +122,7 @@ export default function AdminBusinessScreen({ navigation }) {
                     <View key={b.id} style={styles.pendingCard}>
                       <View style={styles.rowTop}>
                         <View style={[styles.emojiBox, { backgroundColor: c.soft, width: 40, height: 40 }]}>
-                          <Text style={{ fontSize: 19 }}>{c.emoji}</Text>
+                          <Ionicons name={c.ion} size={19} color={c.color} />
                         </View>
                         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
                           <View style={styles.rowCenter}>
@@ -173,7 +173,7 @@ export default function AdminBusinessScreen({ navigation }) {
                         onPress={() => navigation.navigate('AdminBusinessEdit', { business: b })}
                       >
                         <View style={[styles.emojiBox, { backgroundColor: c.soft, width: 34, height: 34 }]}>
-                          <Text style={{ fontSize: 16 }}>{c.emoji}</Text>
+                          <Ionicons name={c.ion} size={16} color={c.color} />
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <Text style={styles.rowName} numberOfLines={1}>{b.name}</Text>

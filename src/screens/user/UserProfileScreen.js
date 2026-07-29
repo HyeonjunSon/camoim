@@ -231,7 +231,7 @@ export default function UserProfileScreen({ route, navigation }) {
             <Text style={styles.nickname} numberOfLines={1}>{profile.nickname}</Text>
             {profile.tradeSoldCount > 0 && (
               <View style={styles.trustChip}>
-                <Text style={styles.trustChipText}>🤝 {profile.tradeSoldCount}{t('profile.tradeUnit')}</Text>
+                <Text style={styles.trustChipText}><Ionicons name="swap-horizontal" size={11} color="#92400E" /> {profile.tradeSoldCount}{t('profile.tradeUnit')}</Text>
               </View>
             )}
           </View>
@@ -240,8 +240,8 @@ export default function UserProfileScreen({ route, navigation }) {
               <Text style={styles.roleText}>{ROLE_LABEL[profile.role] ?? profile.role}</Text>
             </View>
           )}
-          {profile.school && <Text style={styles.subText}>🎓 {profile.school}</Text>}
-          {profile.city && <Text style={styles.subText}>📍 {profile.city}</Text>}
+          {profile.school && <Text style={styles.subText}><Ionicons name="school" size={12} color={colors.textSecondary} /> {profile.school}</Text>}
+          {profile.city && <Text style={styles.subText}><Ionicons name="location" size={12} color={colors.textSecondary} /> {profile.city}</Text>}
           <Text style={styles.subText}>{t('profile.joined')} {formatDate(profile.createdAt)}</Text>
         </View>
       </View>
@@ -321,8 +321,8 @@ export default function UserProfileScreen({ route, navigation }) {
               )}
             </View>
             <View style={styles.postMeta}>
-              <Text style={styles.postMetaText}>❤️ {post.likeCount}</Text>
-              <Text style={styles.postMetaText}>💬 {post.commentCount}</Text>
+              <Text style={styles.postMetaText}><Ionicons name="heart" size={11} color="#FF4444" /> {post.likeCount}</Text>
+              <Text style={styles.postMetaText}><Ionicons name="chatbubble" size={11} color={colors.textSecondary} /> {post.commentCount}</Text>
               <Text style={[styles.postMetaText, { marginLeft: 'auto' }]}>{formatTime(post.createdAt, t)}</Text>
             </View>
           </TouchableOpacity>

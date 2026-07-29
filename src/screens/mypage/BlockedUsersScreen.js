@@ -9,6 +9,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
@@ -90,8 +91,8 @@ export default function BlockedUsersScreen({ navigation }) {
             <View style={{ flex: 1 }}>
               <Text style={styles.nick}>{item.nickname}</Text>
               <View style={styles.tagRow}>
-                {item.blockChat && <Text style={styles.tag}>💬 {t('block.optChat')}</Text>}
-                {item.hideContent && <Text style={styles.tag}>🙈 {t('block.optHide')}</Text>}
+                {item.blockChat && <Text style={styles.tag}><Ionicons name="chatbubble" size={10} color={colors.textSecondary} /> {t('block.optChat')}</Text>}
+                {item.hideContent && <Text style={styles.tag}><Ionicons name="eye-off" size={10} color={colors.textSecondary} /> {t('block.optHide')}</Text>}
               </View>
               <Text style={styles.date}>{t('block.since')} {formatDate(item.createdAt)}</Text>
             </View>

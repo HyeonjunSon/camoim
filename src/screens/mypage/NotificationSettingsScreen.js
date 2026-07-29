@@ -8,16 +8,17 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLang } from '../../context/LangContext';
 import { useTheme } from '../../context/ThemeContext';
 import { getNotificationSettings, updateNotificationSettings } from '../../lib/api';
 
 const ITEMS = [
-  { key: 'comment', icon: '💬' },
-  { key: 'reply',   icon: '↩️' },
-  { key: 'like',    icon: '❤️' },
-  { key: 'chat',    icon: '✉️' },
-  { key: 'notice',  icon: '📢' },
+  { key: 'comment', ion: 'chatbubble-ellipses', color: '#6366F1' },
+  { key: 'reply',   ion: 'arrow-undo',          color: '#8B5CF6' },
+  { key: 'like',    ion: 'heart',               color: '#FF4444' },
+  { key: 'chat',    ion: 'mail',                color: '#3B82F6' },
+  { key: 'notice',  ion: 'megaphone',           color: '#F97316' },
 ];
 
 export default function NotificationSettingsScreen() {
@@ -74,7 +75,8 @@ export default function NotificationSettingsScreen() {
       {/* 마스터 토글 */}
       <View style={styles.section}>
         <Row
-          icon="🔔"
+          ion="notifications"
+          color="#F59E0B"
           title={t('notifSet.enabled')}
           desc={t('notifSet.enabledDesc')}
           value={settings.enabled !== false}
@@ -88,7 +90,8 @@ export default function NotificationSettingsScreen() {
         {ITEMS.map((it, idx) => (
           <View key={it.key}>
             <Row
-              icon={it.icon}
+              ion={it.ion}
+              color={it.color}
               title={t(`notifSet.${it.key}`)}
               desc={t(`notifSet.${it.key}Desc`)}
               value={settings[it.key] !== false}
@@ -103,10 +106,10 @@ export default function NotificationSettingsScreen() {
   );
 }
 
-function Row({ icon, title, desc, value, onValueChange, disabled }) {
+function Row({ ion, color, title, desc, value, onValueChange, disabled }) {
   return (
     <View style={rowStyles.row}>
-      <Text style={rowStyles.icon}>{icon}</Text>
+      <Ionicons name={ion} size={21} color={color} style={rowStyles.icon} />
       <View style={{ flex: 1 }}>
         <Text style={rowStyles.title}>{title}</Text>
         <Text style={rowStyles.desc}>{desc}</Text>
@@ -122,7 +125,7 @@ function Row({ icon, title, desc, value, onValueChange, disabled }) {
 
 const rowStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 4 },
-  icon: { fontSize: 22 },
+  icon: { width: 24, textAlign: 'center' },
   title: { fontSize: 14, fontWeight: '600', color: '#1A1A1A' },
   desc: { fontSize: 12, color: '#888888', marginTop: 2 },
 });

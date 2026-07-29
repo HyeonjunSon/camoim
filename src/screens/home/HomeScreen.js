@@ -23,6 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { useSocket } from '../../context/SocketContext';
 import { getBoardName } from '../../lib/i18n';
+import { BOARD_ICONS, SECTION_ICONS } from '../../lib/icons';
 import CurrencyWidget from '../../components/CurrencyWidget';
 import TrendingPlaces from '../../components/TrendingPlaces';
 import TodayVisitors from '../../components/TodayVisitors';
@@ -53,17 +54,11 @@ function getPreview(content) {
     .trim();
 }
 
-// 게시판 slug별 아이콘 — 색은 테마(boardColors)에서 가져옴
-const BOARD_ICONS = {
-  free: '💬', anonymous: '🎭', meetup: '🤝', immigration: '🛂',
-  study: '📚', workingholiday: '✈️', market: '🛍️', car: '🚗',
-  giveaway: '🎁', jobs: '💼', realestate: '🏠', roomrent: '🛏️',
-  exchange: '💱', university: '🎓',
-};
+// 게시판 slug별 아이콘 — Ionicons 이름은 lib/icons.js 단일 소스, 색은 테마(boardColors)에서 가져옴
 const BOARD_BG_ALPHA = '22'; // ~13% — 라이트/다크 둘 다 자연스럽게 깔림
 const buildBoardMeta = (themeColors) => (slug) => {
   const text = themeColors.boardColors?.[slug] || themeColors.boardColors?.default || themeColors.textSecondary;
-  return { bg: text + BOARD_BG_ALPHA, text, icon: BOARD_ICONS[slug] || '📋' };
+  return { bg: text + BOARD_BG_ALPHA, text, ion: (BOARD_ICONS[slug] || BOARD_ICONS.default).ion };
 };
 
 const MARKET_CARD_WIDTH = SCREEN_WIDTH * 0.42;
@@ -217,6 +212,8 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.sectionWrap}>
         <SectionHeader
           title={t('home.popular')}
+          icon={SECTION_ICONS.hot.ion}
+          iconColor={SECTION_ICONS.hot.color}
           onPress={() => navigation.navigate('Board')}
         />
         <View style={styles.hotCard}>
@@ -319,7 +316,9 @@ export default function HomeScreen({ navigation }) {
       <View style={[styles.sectionWrap, { paddingHorizontal: 0 }]}>
         <View style={{ paddingHorizontal: 16 }}>
           <SectionHeader
-            title={cityLabel ? `🛍️ ${cityLabel} ${t('home.marketLocal')}` : t('home.marketHighlight')}
+            title={cityLabel ? `${cityLabel} ${t('home.marketLocal')}` : t('home.marketHighlight')}
+            icon={SECTION_ICONS.market.ion}
+            iconColor={SECTION_ICONS.market.color}
             onPress={() => goToBoardBySlug('market')}
           />
         </View>
@@ -348,7 +347,7 @@ export default function HomeScreen({ navigation }) {
                   />
                 ) : (
                   <View style={[styles.marketImage, styles.marketImagePlaceholder]}>
-                    <Text style={styles.marketImagePlaceholderIcon}>🛍️</Text>
+                    <Ionicons name={SECTION_ICONS.market.ion} size={32} color={colors.textSecondary} />
                   </View>
                 )}
                 <View style={styles.marketCardBody}>
@@ -372,7 +371,9 @@ export default function HomeScreen({ navigation }) {
     return (
       <View style={styles.sectionWrap}>
         <SectionHeader
-          title={cityLabel ? `💼 ${cityLabel} ${t('home.jobsLocal')}` : t('home.jobsHighlight')}
+          title={cityLabel ? `${cityLabel} ${t('home.jobsLocal')}` : t('home.jobsHighlight')}
+          icon={SECTION_ICONS.jobs.ion}
+          iconColor={SECTION_ICONS.jobs.color}
           onPress={() => goToBoardBySlug('jobs')}
         />
         <View style={styles.jobsCard}>
@@ -386,7 +387,7 @@ export default function HomeScreen({ navigation }) {
                 activeOpacity={0.7}
               >
                 <View style={styles.jobIconBox}>
-                  <Text style={styles.jobIcon}>💼</Text>
+                  <Ionicons name={SECTION_ICONS.jobs.ion} size={20} color={SECTION_ICONS.jobs.color} />
                 </View>
                 <View style={styles.jobContent}>
                   <Text style={styles.jobTitle} numberOfLines={1}>{post.title}</Text>
@@ -425,7 +426,7 @@ export default function HomeScreen({ navigation }) {
                 activeOpacity={0.7}
               >
                 <View style={[styles.chipIconBox, { backgroundColor: meta.bg }]}>
-                  <Text style={styles.chipIcon}>{meta.icon}</Text>
+                  <Ionicons name={meta.ion} size={24} color={meta.text} />
                 </View>
                 <Text style={styles.chipLabel} numberOfLines={1}>{getBoardName(board.slug, board.name, t)}</Text>
               </TouchableOpacity>
@@ -453,7 +454,10 @@ export default function HomeScreen({ navigation }) {
       {notices.length > 0 && (
         <View style={styles.bannerWrap}>
           <View style={styles.bannerHeader}>
-            <Text style={styles.bannerHeaderText}>{t('home.notices')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Ionicons name={SECTION_ICONS.notice.ion} size={15} color={SECTION_ICONS.notice.color} />
+              <Text style={styles.bannerHeaderText}>{t('home.notices')}</Text>
+            </View>
             <TouchableOpacity onPress={() => navigation.navigate('Notices')} activeOpacity={0.7}>
               <Text style={styles.viewAllText}>{t('home.viewAll')} ›</Text>
             </TouchableOpacity>
@@ -523,7 +527,7 @@ export default function HomeScreen({ navigation }) {
       {/* 글이 하나도 없는 경우 */}
       {hotPosts.length === 0 && freePosts.length === 0 && marketPosts.length === 0 && jobsPosts.length === 0 && !loading && (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>📭</Text>
+          <Ionicons name="mail-open-outline" size={44} color={colors.textSecondary} style={{ marginBottom: 12 }} />
           <Text style={styles.emptyText}>{t('home.noPostYet')}</Text>
           <Text style={styles.emptySubText}>{t('home.writeFirst')}</Text>
         </View>
@@ -716,7 +720,6 @@ const createStyles = (colors) => StyleSheet.create({
   marketImagePlaceholder: {
     alignItems: 'center', justifyContent: 'center',
   },
-  marketImagePlaceholderIcon: { fontSize: 32 },
   marketCardBody: { padding: 10 },
   marketTitle: { fontSize: 13, fontWeight: '700', color: colors.text, lineHeight: 18 },
   marketPreview: { fontSize: 11, color: colors.textSecondary, marginTop: 3 },
@@ -729,7 +732,6 @@ const createStyles = (colors) => StyleSheet.create({
     width: 40, height: 40, borderRadius: 10, backgroundColor: colors.successSoft,
     alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
-  jobIcon: { fontSize: 18 },
   jobContent: { flex: 1 },
   jobTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
   jobPreview: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
@@ -742,12 +744,10 @@ const createStyles = (colors) => StyleSheet.create({
     width: 48, height: 48, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center', marginBottom: 6,
   },
-  chipIcon: { fontSize: 22 },
   chipLabel: { fontSize: 11, color: colors.text, fontWeight: '600', textAlign: 'center' },
 
   // 빈 상태
   emptyContainer: { alignItems: 'center', padding: 40, marginTop: 40 },
-  emptyEmoji: { fontSize: 44, marginBottom: 12 },
   emptyText: { fontSize: 15, color: colors.textSecondary, fontWeight: '600' },
   emptySubText: { fontSize: 13, color: colors.textSecondary, marginTop: 6 },
 

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { Text } from '../../components/StyledText';
 import {
   View,
@@ -85,8 +86,8 @@ export default function AdminVerifyScreen({ navigation }) {
                     <Text style={[styles.badgeText, { color: sc.text }]}>{item.status}</Text>
                   </View>
                 </View>
-                <Text style={styles.meta}>🏫 {item.university} · {item.studentType}</Text>
-                <Text style={styles.meta}>📅 {new Date(item.createdAt).toLocaleDateString()}</Text>
+                <Text style={styles.meta}><Ionicons name="business" size={11} color={colors.textSecondary} /> {item.university} · {item.studentType}</Text>
+                <Text style={styles.meta}><Ionicons name="calendar" size={11} color={colors.textSecondary} /> {new Date(item.createdAt).toLocaleDateString()}</Text>
               </TouchableOpacity>
             );
           }}

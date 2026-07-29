@@ -14,13 +14,15 @@ import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { getGroup, updateGroup, uploadGroupCover } from '../../lib/api';
 
+import { GROUP_CATEGORY_ICONS } from '../../lib/icons';
+
 const CATEGORIES = [
-  { key: 'hobby', labelKey: 'group.catHobby', emoji: '🎨' },
-  { key: 'study', labelKey: 'group.catStudy', emoji: '📚' },
-  { key: 'local', labelKey: 'group.catLocal', emoji: '📍' },
-  { key: 'job', labelKey: 'group.catJob', emoji: '💼' },
-  { key: 'workinghol', labelKey: 'group.catWorkinghol', emoji: '✈️' },
-  { key: 'general', labelKey: 'group.catGeneral', emoji: '💬' },
+  { key: 'hobby', labelKey: 'group.catHobby' },
+  { key: 'study', labelKey: 'group.catStudy' },
+  { key: 'local', labelKey: 'group.catLocal' },
+  { key: 'job', labelKey: 'group.catJob' },
+  { key: 'workinghol', labelKey: 'group.catWorkinghol' },
+  { key: 'general', labelKey: 'group.catGeneral' },
 ];
 
 import { CITIES } from '../../constants/cities';
@@ -208,7 +210,7 @@ export default function GroupEditScreen({ route, navigation }) {
                 onPress={() => setCategory(c.key)}
                 activeOpacity={0.75}
               >
-                <Text style={styles.catEmoji}>{c.emoji}</Text>
+                <Ionicons name={GROUP_CATEGORY_ICONS[c.key].ion} size={14} color={GROUP_CATEGORY_ICONS[c.key].color} />
                 <Text style={[styles.catText, active && styles.catTextActive]}>{t(c.labelKey)}</Text>
               </TouchableOpacity>
             );
@@ -294,7 +296,7 @@ export default function GroupEditScreen({ route, navigation }) {
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.cityItemText, city === c && styles.cityItemTextActive]}>
-                    📍 {t(`city.${c}`) || c}
+                    {t(`city.${c}`) || c}
                   </Text>
                   {city === c && <Ionicons name="checkmark" size={18} color={colors.primary} />}
                 </TouchableOpacity>
@@ -347,7 +349,6 @@ const createStyles = (colors) => StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   catBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  catEmoji: { fontSize: 14 },
   catText: { fontSize: 13, color: colors.text, fontWeight: '600' },
   catTextActive: { color: colors.white },
 

@@ -19,13 +19,14 @@ import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { getBoardName, getBoardDescription } from '../../lib/i18n';
 import { toShortUniversityName } from '../../lib/university';
+import { BOARD_ICONS } from '../../lib/icons';
 
-// 게시판 slugSuffix별 아이콘·색상 매핑
+// 게시판 slugSuffix별 아이콘·색상 매핑 — lib/icons.js 단일 소스
 const BOARD_META = {
-  free:      { icon: '💬', color: '#7F77DD' },
-  anonymous: { icon: '🎭', color: '#888888' },
-  meetup:    { icon: '🤝', color: '#FF8A65' },
-  info:      { icon: '💡', color: '#4ECDC4' },
+  free: BOARD_ICONS.free,
+  anonymous: BOARD_ICONS.anonymous,
+  meetup: BOARD_ICONS.meetup,
+  info: BOARD_ICONS.info,
 };
 
 // slug에서 마지막 suffix 추출 (예: 'uoft-free' → 'free')
@@ -177,7 +178,7 @@ export default function UniversityBoardScreen({ navigation }) {
   // 게시판 카드 렌더링 헬퍼
   function renderBoardCard(board) {
     const suffix = getSuffix(board.slug);
-    const meta = BOARD_META[suffix] ?? { icon: '📋', color: colors.primary };
+    const meta = BOARD_META[suffix] ?? BOARD_ICONS.default;
     return (
       <TouchableOpacity
         key={String(board.id)}
@@ -186,7 +187,7 @@ export default function UniversityBoardScreen({ navigation }) {
         onPress={() => navigation.navigate('BoardFeed', { boardId: board.id, boardName: getBoardName(board.slug, board.name, t), isUniversityBoard: true })}
       >
         <View style={[styles.cardIconWrap, { backgroundColor: meta.color + '22' }]}>
-          <Text style={styles.cardIcon}>{meta.icon}</Text>
+          <Ionicons name={meta.ion} size={22} color={meta.color} />
         </View>
         <Text style={styles.cardName} numberOfLines={2}>{getBoardName(board.slug, board.name, t)}</Text>
         {board.description ? <Text style={styles.cardDesc} numberOfLines={2}>{getBoardDescription(board.slug, board.description, t)}</Text> : null}
@@ -211,7 +212,7 @@ export default function UniversityBoardScreen({ navigation }) {
           <View style={styles.heroShine} pointerEvents="none" />
           <View style={styles.heroTopRow}>
             <View style={styles.heroIconBadge}>
-              <Text style={styles.heroIconEmoji}>{isAdmin ? '🛡️' : '🎓'}</Text>
+              <Ionicons name={isAdmin ? 'shield' : 'school'} size={22} color={colors.white} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <View style={styles.heroTitleRow}>
@@ -377,7 +378,8 @@ export default function UniversityBoardScreen({ navigation }) {
                       size={16}
                       color={colors.text}
                     />
-                    <Text style={styles.univGroupTitle}>🏫 {univName}</Text>
+                    <Ionicons name="business" size={13} color={colors.text} style={{ marginLeft: 2 }} />
+                    <Text style={styles.univGroupTitle}> {univName}</Text>
                     <Text style={styles.univGroupCount}>{univBoards.length}</Text>
                   </TouchableOpacity>
                   {open && (
@@ -431,7 +433,7 @@ export default function UniversityBoardScreen({ navigation }) {
 
           {schoolGroups.length === 0 ? (
             <View style={styles.clubsEmpty}>
-              <Text style={styles.clubsEmptyEmoji}>🎪</Text>
+              <Ionicons name="sparkles" size={34} color="#EC4899" style={{ marginBottom: 8 }} />
               <Text style={styles.clubsEmptyText}>아직 동아리가 없어요</Text>
               <Text style={styles.clubsEmptyHint}>같은 학교 친구들과 첫 동아리를 만들어보세요</Text>
               <TouchableOpacity
@@ -456,7 +458,7 @@ export default function UniversityBoardScreen({ navigation }) {
                     <Image source={{ uri: g.coverImage }} style={styles.clubCover} contentFit="cover" />
                   ) : (
                     <View style={[styles.clubCover, { backgroundColor: colors.primary + '15', alignItems: 'center', justifyContent: 'center' }]}>
-                      <Text style={{ fontSize: 22 }}>👥</Text>
+                      <Ionicons name="people" size={22} color={colors.primary} />
                     </View>
                   )}
                   <View style={{ flex: 1, minWidth: 0 }}>
@@ -535,7 +537,6 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroIconEmoji: { fontSize: 22 },
   heroTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -809,9 +810,6 @@ const createStyles = (colors) => StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 10,
   },
-  cardIcon: {
-    fontSize: 22,
-  },
   cardName: {
     fontSize: 15,
     fontWeight: '700',
@@ -850,7 +848,6 @@ const createStyles = (colors) => StyleSheet.create({
     borderColor: colors.border,
     borderStyle: 'dashed',
   },
-  clubsEmptyEmoji: { fontSize: 36, marginBottom: 8 },
   clubsEmptyText: {
     fontSize: 15,
     fontWeight: '700',

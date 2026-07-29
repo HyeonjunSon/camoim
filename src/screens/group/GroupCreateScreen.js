@@ -11,13 +11,15 @@ import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
 import { createGroup } from '../../lib/api';
 
+import { GROUP_CATEGORY_ICONS } from '../../lib/icons';
+
 const CATEGORIES = [
-  { key: 'hobby', labelKey: 'group.catHobby', emoji: '🎨' },
-  { key: 'study', labelKey: 'group.catStudy', emoji: '📚' },
-  { key: 'local', labelKey: 'group.catLocal', emoji: '📍' },
-  { key: 'job', labelKey: 'group.catJob', emoji: '💼' },
-  { key: 'workinghol', labelKey: 'group.catWorkinghol', emoji: '✈️' },
-  { key: 'general', labelKey: 'group.catGeneral', emoji: '💬' },
+  { key: 'hobby', labelKey: 'group.catHobby' },
+  { key: 'study', labelKey: 'group.catStudy' },
+  { key: 'local', labelKey: 'group.catLocal' },
+  { key: 'job', labelKey: 'group.catJob' },
+  { key: 'workinghol', labelKey: 'group.catWorkinghol' },
+  { key: 'general', labelKey: 'group.catGeneral' },
 ];
 
 import { CITIES } from '../../constants/cities';
@@ -130,7 +132,7 @@ export default function GroupCreateScreen({ navigation, route }) {
                 onPress={() => setCategory(c.key)}
                 activeOpacity={0.75}
               >
-                <Text style={styles.catEmoji}>{c.emoji}</Text>
+                <Ionicons name={GROUP_CATEGORY_ICONS[c.key].ion} size={14} color={GROUP_CATEGORY_ICONS[c.key].color} />
                 <Text style={[styles.catText, active && styles.catTextActive]}>{t(c.labelKey)}</Text>
               </TouchableOpacity>
             );
@@ -180,7 +182,7 @@ export default function GroupCreateScreen({ navigation, route }) {
         {/* 학교 컨텍스트에서 진입했으면 안내 배너만 표시 (토글 없음 — 자동으로 학교 동아리) */}
         {isSchoolContext && user?.university && (
           <View style={styles.schoolToggleBox}>
-            <Text style={styles.schoolToggleLabel}>🎓 학교 동아리</Text>
+            <Text style={styles.schoolToggleLabel}><Ionicons name="school" size={13} color={colors.primary} /> 학교 동아리</Text>
             <Text style={styles.schoolToggleHint}>
               {`${user.university} 인증 회원만 가입할 수 있어요`}
             </Text>
@@ -230,7 +232,7 @@ export default function GroupCreateScreen({ navigation, route }) {
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.cityItemText, city === c && styles.cityItemTextActive]}>
-                    📍 {t(`city.${c}`) || c}
+                    {t(`city.${c}`) || c}
                   </Text>
                   {city === c && <Ionicons name="checkmark" size={18} color={colors.primary} />}
                 </TouchableOpacity>
@@ -264,7 +266,6 @@ const createStyles = (colors) => StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   catBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  catEmoji: { fontSize: 14 },
   catText: { fontSize: 13, color: colors.text, fontWeight: '600' },
   catTextActive: { color: colors.white },
   policyRow: { flexDirection: 'row', gap: 8 },

@@ -63,7 +63,7 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
     try {
       const res = await upsertBusinessReview(biz.id, { rating: myRating, text: myText.trim() });
       if (res.success) {
-        showToast(mine ? '리뷰를 수정했어요.' : '리뷰가 등록되었어요. 감사합니다! 🙌');
+        showToast(mine ? '리뷰를 수정했어요.' : '리뷰가 등록되었어요. 감사합니다!');
         setEditing(false); // 저장 후 작성창 닫기
         onAggregate?.(res.ratingAvg, res.ratingCount);
         load();
@@ -162,7 +162,7 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
       {reviews === null ? (
         <ActivityIndicator size="small" color={PRIMARY} style={{ marginVertical: 8 }} />
       ) : reviews.length === 0 ? (
-        <Text style={s.emptyText}>아직 리뷰가 없어요. 첫 리뷰를 남겨보세요! ✍️</Text>
+        <Text style={s.emptyText}>아직 리뷰가 없어요. 첫 리뷰를 남겨보세요!</Text>
       ) : (
         <View style={{ gap: 0 }}>
           {reviews.map((r, i) => (

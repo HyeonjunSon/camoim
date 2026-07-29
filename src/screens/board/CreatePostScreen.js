@@ -592,7 +592,7 @@ export default function CreatePostScreen({ route, navigation }) {
         <View style={styles.boardRow}>
           <View style={styles.boardSelect}>
             <Text style={styles.boardSelectText}>
-              {isGroupPost ? `👥 ${groupName}` : boardName}
+              {isGroupPost && <Ionicons name="people" size={13} color={colors.textSecondary} />}{isGroupPost ? ` ${groupName}` : boardName}
             </Text>
           </View>
           {isLocalBoard && !isGroupPost && (

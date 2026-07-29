@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
@@ -89,9 +90,9 @@ export default function LikedPostsScreen({ navigation }) {
         )}
         ListEmptyComponent={() => (
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>❤️</Text>
+            <Ionicons name="heart" size={40} color="#FF4444" style={{ marginBottom: 8 }} />
             <Text style={styles.emptyText}>{t('mypage.noLiked')}</Text>
-            <Text style={styles.emptySub}>❤️</Text>
+            <Ionicons name="heart-outline" size={16} color={colors.textSecondary} style={{ marginTop: 4 }} />
           </View>
         )}
         ListFooterComponent={() => loadingMore

@@ -363,11 +363,11 @@ export default function VerifyStudentScreen({ navigation }) {
         ) : (
           <View style={styles.filePickerRow}>
             <TouchableOpacity style={styles.filePickerBtn} onPress={pickDocument} activeOpacity={0.8}>
-              <Text style={styles.filePickerIcon}>🖼️</Text>
+              <Ionicons name="image-outline" size={26} color={colors.textSecondary} style={{ marginBottom: 6 }} />
               <Text style={styles.filePickerText}>{t('verify.gallery')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.filePickerBtn} onPress={takePhoto} activeOpacity={0.8}>
-              <Text style={styles.filePickerIcon}>📷</Text>
+              <Ionicons name="camera-outline" size={26} color={colors.textSecondary} style={{ marginBottom: 6 }} />
               <Text style={styles.filePickerText}>{t('verify.camera')}</Text>
             </TouchableOpacity>
           </View>
@@ -443,7 +443,6 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.inputBg, borderRadius: 14, padding: 20,
     borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed',
   },
-  filePickerIcon: { fontSize: 28, marginBottom: 6 },
   filePickerText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
   filePreviewBox: { borderRadius: 14, overflow: 'hidden' },
   filePreview: { width: '100%', height: 200, borderRadius: 14 },

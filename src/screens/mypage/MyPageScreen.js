@@ -278,10 +278,10 @@ export default function MyPageScreen({ navigation }) {
           {/* 학교 또는 도시 */}
           {user?.university ? (
             <Text style={styles.subInfo}>
-              🎓 {user.university} {user?.verified ? '✓' : ''}
+              <Ionicons name="school" size={13} color={colors.textSecondary} /> {user.university} {user?.verified ? '✓' : ''}
             </Text>
           ) : user?.city ? (
-            <Text style={styles.subInfo}>📍 {user.city}</Text>
+            <Text style={styles.subInfo}><Ionicons name="location" size={13} color={colors.textSecondary} /> {user.city}</Text>
           ) : null}
         </View>
 
@@ -545,7 +545,7 @@ export default function MyPageScreen({ navigation }) {
                     // 인증된 사용자: 학교 read-only + 변경 버튼
                     <View>
                       <View style={styles.schoolReadOnly}>
-                        <Text style={styles.schoolReadOnlyText}>🎓 {user.university}</Text>
+                        <Text style={styles.schoolReadOnlyText}><Ionicons name="school" size={14} color={colors.textSecondary} /> {user.university}</Text>
                         <View style={styles.verifiedBadge}>
                           <Ionicons name="checkmark-circle" size={14} color={colors.success} />
                           <Text style={styles.verifiedBadgeText}>{t('mypage.schoolVerified')}</Text>
@@ -620,7 +620,7 @@ export default function MyPageScreen({ navigation }) {
                     activeOpacity={0.7}
                   >
                     <Text style={[styles.pickerItemText, editForm.city === c && styles.pickerItemTextActive]}>
-                      📍 {t(`city.${c}`) || c}
+                      {t(`city.${c}`) || c}
                     </Text>
                     {editForm.city === c && <Ionicons name="checkmark" size={18} color={colors.primary} />}
                   </TouchableOpacity>

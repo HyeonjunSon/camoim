@@ -271,13 +271,13 @@ export default function AdminPostsScreen({ navigation }) {
                 onPress={() => navigation.navigate('Home', { screen: 'PostDetail', params: { postId: item.id } })}
               >
                 <Text style={styles.title} numberOfLines={2}>
-                  {item.pinned && '📌 '}{item.title}
+                  {item.pinned && <Ionicons name="pin" size={12} color="#EF4444" />}{item.pinned ? ' ' : ''}{item.title}
                 </Text>
                 <Text style={styles.meta}>
                   {item.boardId?.name} · {item.userId?.nickname} · {new Date(item.createdAt).toLocaleDateString()}
                 </Text>
                 <Text style={styles.stats}>
-                  ♥ {item.likeCount} · 💬 {item.commentCount} · 👁 {item.viewCount ?? 0}
+                  <Ionicons name="heart" size={11} color="#FF4444" /> {item.likeCount} · <Ionicons name="chatbubble" size={11} color={colors.textSecondary} /> {item.commentCount} · <Ionicons name="eye" size={11} color={colors.textSecondary} /> {item.viewCount ?? 0}
                 </Text>
               </TouchableOpacity>
             </View>

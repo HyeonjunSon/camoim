@@ -566,8 +566,8 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     const L = {
       share: t('post.sharePost'),
       edit: t('post.editPostMenu'),
-      pin: '📌 고정',
-      unpin: '📌 고정 해제',
+      pin: '고정',
+      unpin: '고정 해제',
       del: t('common.delete'),
       report: t('common.report'),
       block: '작성자 차단',

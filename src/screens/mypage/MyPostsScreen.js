@@ -138,7 +138,7 @@ export default function MyPostsScreen({ navigation }) {
         )}
         ListEmptyComponent={() => (
           <EmptyState
-            emoji="📝"
+            icon="create-outline"
             title={t('emptyState.noPosts')}
             description={t('emptyState.noPostsCta')}
             ctaLabel={t('emptyState.writeFirst')}

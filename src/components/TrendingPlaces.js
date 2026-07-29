@@ -33,7 +33,7 @@ export default function TrendingPlaces({ refreshKey = 0 }) {
     <View style={styles.wrap}>
       <View style={styles.headerRow}>
         <View style={styles.titleRow}>
-          <Text style={{ fontSize: 16 }}>🔥</Text>
+          <Ionicons name="flame" size={16} color="#EF4444" />
           <Text style={styles.title}>이번 주 인기 장소</Text>
         </View>
         <TouchableOpacity
@@ -57,7 +57,7 @@ export default function TrendingPlaces({ refreshKey = 0 }) {
             >
               <View style={styles.cardTop}>
                 <View style={[styles.emojiTile, { backgroundColor: c.soft }]}>
-                  <Text style={{ fontSize: 24 }}>{c.emoji}</Text>
+                  <Ionicons name={c.ion} size={24} color={c.color} />
                 </View>
                 <View style={styles.rankBadge}>
                   <Text style={styles.rankText}>{b.rank}</Text>

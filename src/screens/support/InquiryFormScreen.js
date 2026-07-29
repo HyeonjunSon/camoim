@@ -1,4 +1,5 @@
 import { useState, useLayoutEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { Text, TextInput } from '../../components/StyledText';
 import {
   View,
@@ -73,7 +74,7 @@ export default function InquiryFormScreen({ navigation, route }) {
         {isAd && (
           <View style={styles.adHint}>
             <Text style={styles.adHintText}>{t('support.adIntro')}</Text>
-            <Text style={styles.adHintMail}>📧 {t('support.adMail')}</Text>
+            <Text style={styles.adHintMail}><Ionicons name="mail" size={12} color="#3B82F6" /> {t('support.adMail')}</Text>
           </View>
         )}
 
@@ -118,7 +119,7 @@ export default function InquiryFormScreen({ navigation, route }) {
           maxLength={5000}
         />
 
-        <Text style={styles.notice}>ℹ️ {t('inquiry.autoNotice')}</Text>
+        <Text style={styles.notice}><Ionicons name="information-circle" size={12} color={colors.textSecondary} /> {t('inquiry.autoNotice')}</Text>
 
         <TouchableOpacity
           style={[styles.submitBtn, submitting && { opacity: 0.6 }]}

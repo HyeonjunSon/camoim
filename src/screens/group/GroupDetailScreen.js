@@ -220,7 +220,7 @@ export default function GroupDetailScreen({ route, navigation }) {
             </View>
           ) : (
             <View style={[styles.cover, { backgroundColor: colors.primary + '20', alignItems: 'center', justifyContent: 'center' }]}>
-              <Text style={{ fontSize: 56 }}>👥</Text>
+              <Ionicons name="people" size={56} color={colors.primary} />
             </View>
           )}
           {isOwner && (
@@ -431,7 +431,7 @@ export default function GroupDetailScreen({ route, navigation }) {
                   >
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={styles.postTitle} numberOfLines={1}>
-                        {p.pinned ? '📌 ' : ''}{p.title}
+                        {p.pinned && <Ionicons name="pin" size={12} color="#EF4444" />}{p.pinned ? ' ' : ''}{p.title}
                       </Text>
                       {!!p.content && (
                         <Text style={styles.postPreview} numberOfLines={1}>{p.content}</Text>

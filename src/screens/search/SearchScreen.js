@@ -217,13 +217,13 @@ export default function SearchScreen({ navigation }) {
         <View style={styles.resultBody}>
           <View style={styles.resultTopRow}>
             <Text style={styles.resultKindBadge}>{t('search.kindGroup')}</Text>
-            {!!item.university && <Text style={styles.resultMetaSmall}>🎓 {item.university}</Text>}
+            {!!item.university && <Text style={styles.resultMetaSmall}><Ionicons name="school" size={11} color={colors.textSecondary} /> {item.university}</Text>}
           </View>
           <Text style={styles.resultTitle} numberOfLines={1}>{item.name}</Text>
           {!!item.description && (
             <Text style={styles.resultDesc} numberOfLines={1}>{item.description}</Text>
           )}
-          <Text style={styles.resultMetaSmall}>👥 {item.memberCount}{!!item.city ? ` · ${item.city}` : ''}</Text>
+          <Text style={styles.resultMetaSmall}><Ionicons name="people" size={11} color={colors.textSecondary} /> {item.memberCount}{!!item.city ? ` · ${item.city}` : ''}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -246,7 +246,7 @@ export default function SearchScreen({ navigation }) {
         <Text style={styles.resultTitle} numberOfLines={1}>
           {item.nickname}{item.verified ? ' ✓' : ''}
         </Text>
-        {!!item.university && <Text style={styles.resultDesc} numberOfLines={1}>🎓 {item.university}</Text>}
+        {!!item.university && <Text style={styles.resultDesc} numberOfLines={1}><Ionicons name="school" size={11} color={colors.textSecondary} /> {item.university}</Text>}
       </View>
     </TouchableOpacity>
   );

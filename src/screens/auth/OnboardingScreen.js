@@ -25,6 +25,7 @@ import { TERMS_OF_SERVICE, PRIVACY_POLICY } from '../../constants/legal';
 import AuthLangToggle from '../../components/AuthLangToggle';
 
 import { CITIES } from '../../constants/cities';
+import { ROLE_ICONS } from '../../lib/icons';
 
 export default function OnboardingScreen({ route, navigation }) {
   const { colors } = useTheme();
@@ -52,9 +53,9 @@ export default function OnboardingScreen({ route, navigation }) {
   const [error, setError] = useState('');
 
   const ROLE_OPTIONS = [
-    { role: ROLES.STUDENT,         label: t('auth.roleStudent'), emoji: '🎓', desc: t('auth.roleStudentDesc') },
-    { role: ROLES.WORKING_HOLIDAY, label: t('auth.roleWH'),      emoji: '✈️', desc: t('auth.roleWHDesc') },
-    { role: ROLES.GENERAL,         label: t('auth.roleGeneral'), emoji: '🍁', desc: t('auth.roleGeneralDesc') },
+    { role: ROLES.STUDENT,         label: t('auth.roleStudent'), icon: ROLE_ICONS.student,        desc: t('auth.roleStudentDesc') },
+    { role: ROLES.WORKING_HOLIDAY, label: t('auth.roleWH'),      icon: ROLE_ICONS.workingholiday, desc: t('auth.roleWHDesc') },
+    { role: ROLES.GENERAL,         label: t('auth.roleGeneral'), icon: ROLE_ICONS.general,        desc: t('auth.roleGeneralDesc') },
   ];
 
   const allAgreed = agreeTerms && agreePrivacy && agreeAge;
@@ -186,7 +187,7 @@ export default function OnboardingScreen({ route, navigation }) {
               onPress={() => setRole(opt.role)}
               activeOpacity={0.85}
             >
-              <Text style={styles.roleEmoji}>{opt.emoji}</Text>
+              <Ionicons name={opt.icon.ion} size={24} color={opt.icon.color} style={{ marginBottom: 4 }} />
               <Text style={[styles.roleLabel, role === opt.role && styles.roleLabelActive]}>
                 {opt.label}
               </Text>
@@ -294,7 +295,7 @@ export default function OnboardingScreen({ route, navigation }) {
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.pickerItemText, city === c && styles.pickerItemTextActive]}>
-                    📍 {t(`city.${c}`) || c}
+                    {t(`city.${c}`) || c}
                   </Text>
                   {city === c && <Ionicons name="checkmark" size={18} color={colors.primary} />}
                 </TouchableOpacity>
@@ -368,7 +369,6 @@ const createStyles = (colors) => StyleSheet.create({
     borderWidth: 1.5, borderColor: 'transparent',
   },
   roleCardActive: { borderColor: colors.primary, backgroundColor: colors.primary + '10' },
-  roleEmoji: { fontSize: 24, marginBottom: 4 },
   roleLabel: { fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 2 },
   roleLabelActive: { color: colors.primary },
   roleDesc: { fontSize: 10, color: colors.textSecondary, textAlign: 'center', lineHeight: 14 },

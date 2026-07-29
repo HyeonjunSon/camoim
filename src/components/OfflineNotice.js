@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Text } from './StyledText';
 import NetInfo from '@react-native-community/netinfo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -104,7 +105,7 @@ export default function OfflineNotice() {
         { paddingTop: insets.top + 4, transform: [{ translateY: slideAnim }] },
       ]}
     >
-      <Text style={styles.icon}>📡</Text>
+      <Ionicons name="cloud-offline" size={15} color="#FFFFFF" style={styles.icon} />
       <Text style={styles.text}>{t('offline.title')}</Text>
     </Animated.View>
   );
@@ -124,9 +125,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     gap: 8,
   },
-  icon: {
-    fontSize: 14,
-  },
+  icon: {},
   text: {
     fontSize: 13,
     fontWeight: '700',

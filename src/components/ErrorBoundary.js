@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Text } from './StyledText';
 import { useLang } from '../context/LangContext';
 
@@ -39,7 +40,7 @@ function ErrorFallback({ onRetry }) {
   };
   return (
     <View style={styles.container}>
-      <Text style={styles.emoji}>😵</Text>
+      <Ionicons name="alert-circle" size={56} color="#EF4444" style={{ marginBottom: 16 }} />
       <Text style={styles.title}>{safe('errorBoundary.title', 'Something went wrong')}</Text>
       <Text style={styles.desc}>
         {safe('errorBoundary.desc', 'An unexpected error occurred.\nPlease restart the app.')}
@@ -58,10 +59,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
     paddingHorizontal: 32,
-  },
-  emoji: {
-    fontSize: 56,
-    marginBottom: 16,
   },
   title: {
     fontSize: 20,

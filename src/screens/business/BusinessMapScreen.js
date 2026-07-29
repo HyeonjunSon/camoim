@@ -310,7 +310,7 @@ export default function BusinessMapScreen({ navigation, route }) {
     return (
       <TouchableOpacity style={styles.listCard} activeOpacity={0.85} onPress={() => selectBusiness(b)}>
         <View style={[styles.listEmoji, { backgroundColor: c.soft }]}>
-          <Text style={{ fontSize: 22 }}>{c.emoji}</Text>
+          <Ionicons name={c.ion} size={22} color={c.color} />
         </View>
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
           <View style={styles.rowCenter}>
@@ -426,7 +426,7 @@ export default function BusinessMapScreen({ navigation, route }) {
           >
             <Ionicons name={bookmarkOnly ? 'star' : 'star-outline'} size={13} color={bookmarkOnly ? '#FFFFFF' : '#F59E0B'} />
           </TouchableOpacity>
-          {[{ key: 'all', label: '전체', emoji: '' }, ...BUSINESS_CATEGORIES].map((c) => {
+          {[{ key: 'all', label: '전체', ion: null }, ...BUSINESS_CATEGORIES].map((c) => {
             const active = category === c.key;
             return (
               <TouchableOpacity
@@ -435,8 +435,11 @@ export default function BusinessMapScreen({ navigation, route }) {
                 activeOpacity={0.8}
                 onPress={() => { setCategory(c.key); setCityOpen(false); }}
               >
+                {!!c.ion && (
+                  <Ionicons name={c.ion} size={13} color={active ? '#FFFFFF' : c.color} style={{ marginRight: 4 }} />
+                )}
                 <Text style={[styles.chipText, { color: active ? '#FFFFFF' : '#555555' }]}>
-                  {c.emoji ? `${c.emoji} ` : ''}{c.label}
+                  {c.label}
                 </Text>
               </TouchableOpacity>
             );
@@ -501,10 +504,10 @@ export default function BusinessMapScreen({ navigation, route }) {
           ListEmptyComponent={
             loading ? null : (
               <View style={styles.emptyWrap}>
-                <Text style={{ fontSize: 34 }}>🗺️</Text>
+                <Ionicons name="map-outline" size={34} color="#9CA3AF" />
                 <Text style={styles.emptyText}>
                   {bookmarkOnly
-                    ? '즐겨찾기한 곳이 아직 없어요 ⭐'
+                    ? '즐겨찾기한 곳이 아직 없어요'
                     : query.trim()
                       ? `"${query.trim()}" 검색 결과가 없어요`
                       : '이 지역에는 표시할 업체가 없어요\n지도를 움직여보세요'}
@@ -555,7 +558,7 @@ export default function BusinessMapScreen({ navigation, route }) {
                     onPress={() => { setClusterSheet(null); selectBusiness(b); }}
                   >
                     <View style={[styles.listEmoji, { backgroundColor: c.soft }]}>
-                      <Text style={{ fontSize: 20 }}>{c.emoji}</Text>
+                      <Ionicons name={c.ion} size={20} color={c.color} />
                     </View>
                     <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
                       <Text style={styles.listName} numberOfLines={1}>{b.name}</Text>
@@ -676,7 +679,7 @@ function Pin({ cat, selected }) {
           -[AIRMap insertReactSubview:] nil 크래시 발생 → 항상 렌더하고 opacity로 숨김 */}
       <View style={[pinStyles.ring, { borderColor: 'rgba(127,119,221,0.9)', opacity: selected ? 1 : 0 }]} />
       <View style={[pinStyles.pin, { backgroundColor: cat.color, width: selected ? 36 : 30, height: selected ? 36 : 30 }]}>
-        <Text style={{ fontSize: selected ? 16 : 14 }}>{cat.emoji}</Text>
+        <Ionicons name={cat.ion} size={selected ? 17 : 15} color="#FFFFFF" />
       </View>
     </View>
   );
@@ -688,7 +691,7 @@ function SheetHeader({ biz, colors, onBookmark }) {
   return (
     <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
       <View style={[styles.sheetEmoji, { backgroundColor: c.soft }]}>
-        <Text style={{ fontSize: 30 }}>{c.emoji}</Text>
+        <Ionicons name={c.ion} size={30} color={c.color} />
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
         <Text style={styles.sheetName} numberOfLines={2}>{biz.name}</Text>
@@ -810,6 +813,7 @@ const createStyles = (colors) => StyleSheet.create({
   cityOptionText: { fontSize: 14, color: '#1A1A1A', fontWeight: '500' },
   chipRow: { gap: 8, paddingHorizontal: 14, paddingVertical: 2 },
   chip: {
+    flexDirection: 'row', alignItems: 'center',
     paddingVertical: 8, paddingHorizontal: 13, borderRadius: 999,
     shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, shadowOffset: { width: 0, height: 1 }, elevation: 2,
   },

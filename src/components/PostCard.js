@@ -89,7 +89,7 @@ export default function PostCard({ post, onPress }) {
         {post.city ? (
           <>
             <Text style={styles.dot}>·</Text>
-            <Text style={styles.cityTag}>📍{t(`city.${post.city}`) || post.city}</Text>
+            <Text style={styles.cityTag}><Ionicons name="location" size={10} color={colors.textSecondary} />{t(`city.${post.city}`) || post.city}</Text>
           </>
         ) : null}
         <View style={styles.stats}>

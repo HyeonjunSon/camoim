@@ -8,6 +8,7 @@ import EmptyState from '../../components/EmptyState';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { getGroups } from '../../lib/api';
+import { GROUP_CATEGORY_ICONS } from '../../lib/icons';
 
 const CATEGORIES = [
   { key: 'all', labelKey: 'group.categoryAll' },
@@ -19,13 +20,10 @@ const CATEGORIES = [
   { key: 'general', labelKey: 'group.catGeneral' },
 ];
 
-const CATEGORY_META = {
-  hobby:      { bg: '#FEF3C7', emoji: '🎨' },
-  study:      { bg: '#EFF6FF', emoji: '📚' },
-  local:      { bg: '#ECFDF5', emoji: '📍' },
-  job:        { bg: '#F5F3FF', emoji: '💼' },
-  workinghol: { bg: '#FEF3C7', emoji: '✈️' },
-  general:    { bg: '#F3F4F6', emoji: '💬' },
+// 카테고리 아이콘·색 — lib/icons.js 단일 소스 (소프트 배경 = 아이콘 색 틴트)
+const catMetaFor = (key) => {
+  const ic = GROUP_CATEGORY_ICONS[key] || GROUP_CATEGORY_ICONS.general;
+  return { bg: ic.color + '1A', ion: ic.ion, color: ic.color };
 };
 
 // embedded=true: BoardListScreen에서 토글로 끼워 넣는 모드 (헤더/탭바 없이)
@@ -63,7 +61,7 @@ export default function GroupListScreen({ navigation, embedded = false }) {
   const onRefresh = () => { setRefreshing(true); fetchGroups(); };
 
   const renderRow = (g) => {
-    const meta = CATEGORY_META[g.category] || CATEGORY_META.general;
+    const meta = catMetaFor(g.category);
     return (
       <TouchableOpacity
         key={String(g.id)}
@@ -75,7 +73,7 @@ export default function GroupListScreen({ navigation, embedded = false }) {
           <Image source={{ uri: g.coverImage }} style={styles.cover} contentFit="cover" />
         ) : (
           <View style={[styles.cover, { backgroundColor: meta.bg, alignItems: 'center', justifyContent: 'center' }]}>
-            <Text style={{ fontSize: 22 }}>{meta.emoji}</Text>
+            <Ionicons name={meta.ion} size={22} color={meta.color} />
           </View>
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -171,7 +169,7 @@ export default function GroupListScreen({ navigation, embedded = false }) {
             </View>
           ) : (
             <EmptyState
-              emoji="👥"
+              icon="people-outline"
               title={t('group.empty')}
               description={t('group.emptyHint')}
               ctaLabel={t('group.createBtn')}
