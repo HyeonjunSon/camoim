@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLang } from '../../context/LangContext';
 import {
   getBusinessReviews,
   upsertBusinessReview,
@@ -32,6 +33,7 @@ export function Stars({ value = 0, size = 14, onRate }) {
 }
 
 export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggregate, showToast }) {
+  const { t } = useLang();
   const [reviews, setReviews] = useState(null); // null = 로딩 중
   const [myRating, setMyRating] = useState(0);
   const [myText, setMyText] = useState('');
@@ -58,28 +60,28 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
   useEffect(() => { load(); }, [load]);
 
   const onSubmit = useCallback(async () => {
-    if (!myRating) { showToast('별점을 선택해주세요.'); return; }
+    if (!myRating) { showToast(t('biz.pickRating')); return; }
     setSaving(true);
     try {
       const res = await upsertBusinessReview(biz.id, { rating: myRating, text: myText.trim() });
       if (res.success) {
-        showToast(mine ? '리뷰를 수정했어요.' : '리뷰가 등록되었어요. 감사합니다!');
+        showToast(mine ? t('biz.reviewUpdated') : t('biz.reviewAdded'));
         setEditing(false); // 저장 후 작성창 닫기
         onAggregate?.(res.ratingAvg, res.ratingCount);
         load();
       }
     } catch (e) {
-      showToast(e?.message || '리뷰 저장에 실패했어요.');
+      showToast(t('biz.reviewSaveFail'));
     } finally {
       setSaving(false);
     }
-  }, [biz.id, myRating, myText, mine, onAggregate, showToast, load]);
+  }, [biz.id, myRating, myText, mine, onAggregate, showToast, load, t]);
 
   const onDelete = useCallback(() => {
-    Alert.alert('리뷰 삭제', '내 리뷰를 삭제할까요?', [
-      { text: '취소', style: 'cancel' },
+    Alert.alert(t('biz.deleteReviewTitle'), t('biz.deleteReviewMsg'), [
+      { text: t('biz.cancel'), style: 'cancel' },
       {
-        text: '삭제', style: 'destructive',
+        text: t('biz.delete'), style: 'destructive',
         onPress: async () => {
           try {
             const res = await deleteBusinessReview(biz.id);
@@ -88,26 +90,26 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
               onAggregate?.(res.ratingAvg, res.ratingCount);
               load();
             }
-          } catch (e) { showToast(e?.message || '삭제에 실패했어요.'); }
+          } catch (e) { showToast(t('biz.deleteFail')); }
         },
       },
     ]);
-  }, [biz.id, onAggregate, showToast, load]);
+  }, [biz.id, onAggregate, showToast, load, t]);
 
   const onReport = useCallback((review) => {
-    Alert.alert('리뷰 신고', '이 리뷰를 신고할까요?', [
-      { text: '취소', style: 'cancel' },
+    Alert.alert(t('biz.reportReviewTitle'), t('biz.reportReviewMsg'), [
+      { text: t('biz.cancel'), style: 'cancel' },
       {
-        text: '신고', style: 'destructive',
+        text: t('biz.report'), style: 'destructive',
         onPress: async () => {
           try {
             await reportBusinessReview(biz.id, review.id);
-            showToast('신고가 접수되었어요.');
-          } catch (e) { showToast(e?.message || '신고에 실패했어요.'); }
+            showToast(t('biz.reportReviewDone'));
+          } catch (e) { showToast(t('biz.reportFail')); }
         },
       },
     ]);
-  }, [biz.id, showToast]);
+  }, [biz.id, showToast, t]);
 
   const s = createStyles(colors);
 
@@ -115,15 +117,15 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
     <View style={{ gap: 14 }}>
       {/* 섹션 구분선 + 제목 (별점은 헤더에 이미 있으니 개수만) */}
       <View style={s.divider} />
-      <Text style={s.title}>리뷰 {reviews?.length ? reviews.length : ''}</Text>
+      <Text style={s.title}>{t('biz.reviewsTitle')} {reviews?.length ? reviews.length : ''}</Text>
 
       {/* 작성창 — 리뷰가 없을 때(신규) 또는 수정 모드일 때만 */}
       {!isLoggedIn ? (
-        <Text style={s.loginHint}>로그인하면 리뷰를 남길 수 있어요.</Text>
+        <Text style={s.loginHint}>{t('biz.loginToReview')}</Text>
       ) : showComposer ? (
         <View style={s.writeBox}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={s.writePrompt}>{editing ? '내 리뷰 수정' : '이곳, 어땠나요?'}</Text>
+            <Text style={s.writePrompt}>{editing ? t('biz.editMyReview') : t('biz.howWasIt')}</Text>
             {editing && (
               <TouchableOpacity
                 onPress={() => {
@@ -134,7 +136,7 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
                 }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={s.cancelText}>취소</Text>
+                <Text style={s.cancelText}>{t('biz.cancel')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -144,14 +146,14 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
               style={s.input}
               value={myText}
               onChangeText={setMyText}
-              placeholder="한 줄 평 남기기 (선택)"
+              placeholder={t('biz.reviewPh')}
               placeholderTextColor={colors.textSecondary}
               maxLength={300}
               multiline
             />
             <TouchableOpacity style={[s.submitBtn, (!myRating || saving) && { opacity: 0.4 }]} disabled={!myRating || saving} onPress={onSubmit}>
               {saving ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
-                <Text style={s.submitText}>{editing ? '완료' : '등록'}</Text>
+                <Text style={s.submitText}>{editing ? t('biz.done') : t('biz.submit')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -162,7 +164,7 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
       {reviews === null ? (
         <ActivityIndicator size="small" color={PRIMARY} style={{ marginVertical: 8 }} />
       ) : reviews.length === 0 ? (
-        <Text style={s.emptyText}>아직 리뷰가 없어요. 첫 리뷰를 남겨보세요!</Text>
+        <Text style={s.emptyText}>{t('biz.noReviews')}</Text>
       ) : (
         <View style={{ gap: 0 }}>
           {reviews.map((r, i) => (
@@ -172,7 +174,7 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
                   <Text style={s.avatarText}>{(r.nickname || '?').slice(0, 1).toUpperCase()}</Text>
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={s.nickname} numberOfLines={1}>{r.nickname}{r.mine ? ' (나)' : ''}</Text>
+                  <Text style={s.nickname} numberOfLines={1}>{r.nickname}{r.mine ? ` ${t('biz.me')}` : ''}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                     <Stars value={r.rating} size={10} />
                     <Text style={s.dateText}>{formatDate(r.createdAt)}</Text>
@@ -185,10 +187,10 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
                       onPress={() => { setEditing(true); setMyRating(r.rating); setMyText(r.text); }}
                       hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                     >
-                      <Text style={s.editText}>수정</Text>
+                      <Text style={s.editText}>{t('biz.edit')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={onDelete} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-                      <Text style={s.deleteText}>삭제</Text>
+                      <Text style={s.deleteText}>{t('biz.delete')}</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (

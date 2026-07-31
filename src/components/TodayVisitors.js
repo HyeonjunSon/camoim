@@ -3,10 +3,12 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from './StyledText';
 import { useTheme } from '../context/ThemeContext';
+import { useLang } from '../context/LangContext';
 import { getTodayVisitors } from '../lib/api';
 
 export default function TodayVisitors({ refreshKey = 0 }) {
   const { colors } = useTheme();
+  const { t } = useLang();
   const [count, setCount] = useState(null);
 
   useEffect(() => {
@@ -28,7 +30,7 @@ export default function TodayVisitors({ refreshKey = 0 }) {
     <View style={styles.wrap}>
       <View style={styles.dot} />
       <Text style={styles.text}>
-        오늘 <Text style={styles.count}>{count}</Text>명
+        {t('biz.todayPre')}<Text style={styles.count}>{count}</Text>{t('biz.todayPost')}
       </Text>
     </View>
   );

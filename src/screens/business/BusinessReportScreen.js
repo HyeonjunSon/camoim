@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, TextInput } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
+import { useLang } from '../../context/LangContext';
 import { BUSINESS_CATEGORIES, BUSINESS_CITIES } from '../../constants/businesses';
 import { createBusiness, uploadBusinessImage } from '../../lib/api';
 
@@ -18,6 +19,7 @@ const MAX_PHOTOS = 5;
 // 업체 제보 폼 — 유저가 한인 업체 정보를 제출 → 관리자 승인 후 지도 노출
 export default function BusinessReportScreen({ navigation, route }) {
   const { colors } = useTheme();
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
 
@@ -36,7 +38,7 @@ export default function BusinessReportScreen({ navigation, route }) {
     if (images.length >= MAX_PHOTOS) return;
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('권한 필요', '사진을 첨부하려면 갤러리 접근 권한이 필요해요.');
+      Alert.alert(t('biz.permNeedTitle'), t('biz.permNeedMsg'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -54,9 +56,9 @@ export default function BusinessReportScreen({ navigation, route }) {
       );
       const res = await uploadBusinessImage({ uri: manipulated.uri, filename: `biz_${Date.now()}.jpg`, type: 'image/jpeg' });
       if (res?.success && res.url) setImages((prev) => [...prev, res.url]);
-      else Alert.alert('오류', res?.message || '이미지 업로드에 실패했어요.');
+      else Alert.alert(t('biz.errorTitle'), t('biz.uploadFail'));
     } catch (e) {
-      Alert.alert('오류', e?.message || '이미지 업로드에 실패했어요.');
+      Alert.alert(t('biz.errorTitle'), t('biz.uploadFail'));
     } finally {
       setUploading(false);
     }
@@ -77,14 +79,14 @@ export default function BusinessReportScreen({ navigation, route }) {
         images,
       });
       if (res?.success) {
-        Alert.alert('추가 완료', '장소가 접수되었어요. 운영진 확인 후 지도에 표시돼요.', [
-          { text: '확인', onPress: () => navigation.goBack() },
+        Alert.alert(t('biz.addedTitle'), t('biz.addedMsg'), [
+          { text: t('biz.confirmOk'), onPress: () => navigation.goBack() },
         ]);
       } else {
-        Alert.alert('오류', res?.message || '등록에 실패했어요.');
+        Alert.alert(t('biz.errorTitle'), t('biz.submitFail'));
       }
     } catch (e) {
-      Alert.alert('오류', e?.message || '등록에 실패했어요.');
+      Alert.alert(t('biz.errorTitle'), t('biz.submitFail'));
     } finally {
       setSubmitting(false);
     }
@@ -92,7 +94,7 @@ export default function BusinessReportScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <CustomHeader navigation={navigation} title="장소 추가" />
+      <CustomHeader navigation={navigation} title={t('biz.addPlace')} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
         <ScrollView
           style={{ flex: 1 }}
@@ -100,15 +102,15 @@ export default function BusinessReportScreen({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.notice}>
-            <Text style={styles.noticeText}>알고 계신 한인 업체·장소를 추가해주세요. 운영진 확인 후 지도에 표시돼요.</Text>
+            <Text style={styles.noticeText}>{t('biz.formNotice')}</Text>
           </View>
 
           {/* 업체명 */}
-          <Field label="업체명" required>
+          <Field label={t('biz.fName')} required>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="예: 북창동순두부"
+              placeholder={t('biz.fNamePh')}
               placeholderTextColor={colors.textSecondary}
               style={styles.input}
               maxLength={100}
@@ -116,7 +118,7 @@ export default function BusinessReportScreen({ navigation, route }) {
           </Field>
 
           {/* 카테고리 */}
-          <Field label="카테고리" required>
+          <Field label={t('biz.fCategory')} required>
             <View style={styles.chipWrap}>
               {BUSINESS_CATEGORIES.map((c) => {
                 const active = category === c.key;
@@ -129,7 +131,7 @@ export default function BusinessReportScreen({ navigation, route }) {
                   >
                     <Ionicons name={c.ion} size={13} color={active ? PRIMARY : c.color} style={{ marginRight: 4 }} />
                     <Text style={[styles.selectChipText, { color: active ? PRIMARY : colors.textSecondary }]}>
-                      {c.label}
+                      {t(c.labelKey)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -138,7 +140,7 @@ export default function BusinessReportScreen({ navigation, route }) {
           </Field>
 
           {/* 도시 */}
-          <Field label="도시" required>
+          <Field label={t('biz.fCity')} required>
             <View style={{ flexDirection: 'row', gap: 7 }}>
               {BUSINESS_CITIES.map((c) => {
                 const active = city === c.key;
@@ -149,7 +151,7 @@ export default function BusinessReportScreen({ navigation, route }) {
                     activeOpacity={0.8}
                     onPress={() => setCity(c.key)}
                   >
-                    <Text style={[styles.selectChipText, { color: active ? PRIMARY : colors.textSecondary }]}>{c.label}</Text>
+                    <Text style={[styles.selectChipText, { color: active ? PRIMARY : colors.textSecondary }]}>{t(c.labelKey)}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -157,11 +159,11 @@ export default function BusinessReportScreen({ navigation, route }) {
           </Field>
 
           {/* 주소 */}
-          <Field label="주소" required>
+          <Field label={t('biz.fAddress')} required>
             <TextInput
               value={address}
               onChangeText={setAddress}
-              placeholder="예: 691 Bloor St W, Toronto"
+              placeholder={t('biz.fAddressPh')}
               placeholderTextColor={colors.textSecondary}
               style={styles.input}
               maxLength={200}
@@ -169,11 +171,11 @@ export default function BusinessReportScreen({ navigation, route }) {
           </Field>
 
           {/* 전화번호 */}
-          <Field label="전화번호" optional>
+          <Field label={t('biz.fPhone')} optional>
             <TextInput
               value={phone}
               onChangeText={setPhone}
-              placeholder="예: (416) 000-0000"
+              placeholder={t('biz.fPhonePh')}
               placeholderTextColor={colors.textSecondary}
               style={styles.input}
               keyboardType="phone-pad"
@@ -182,7 +184,7 @@ export default function BusinessReportScreen({ navigation, route }) {
           </Field>
 
           {/* 사진 */}
-          <Field label="사진" optional>
+          <Field label={t('biz.fPhotos')} optional>
             <View style={styles.photoRow}>
               {images.map((url) => (
                 <View key={url} style={styles.photoThumb}>
@@ -216,7 +218,7 @@ export default function BusinessReportScreen({ navigation, route }) {
             {submitting ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.submitText}>추가하기</Text>
+              <Text style={styles.submitText}>{t('biz.submitAdd')}</Text>
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -227,13 +229,14 @@ export default function BusinessReportScreen({ navigation, route }) {
 
 function Field({ label, required, optional, children }) {
   const { colors } = useTheme();
+  const { t } = useLang();
   const styles = createStyles(colors);
   return (
     <View style={{ gap: 7 }}>
       <Text style={styles.label}>
         {label}
         {required && <Text style={{ color: '#FF4444' }}> *</Text>}
-        {optional && <Text style={{ color: colors.textSecondary, fontWeight: '500' }}> (선택)</Text>}
+        {optional && <Text style={{ color: colors.textSecondary, fontWeight: '500' }}> {t('biz.optional')}</Text>}
       </Text>
       {children}
     </View>

@@ -6,11 +6,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Text } from './StyledText';
 import { useTheme } from '../context/ThemeContext';
+import { useLang } from '../context/LangContext';
 import { catOf } from '../constants/businesses';
 import { getTrendingBusinesses } from '../lib/api';
 
 export default function TrendingPlaces({ refreshKey = 0 }) {
   const { colors } = useTheme();
+  const { t } = useLang();
   const navigation = useNavigation();
   const [list, setList] = useState([]);
 
@@ -34,14 +36,14 @@ export default function TrendingPlaces({ refreshKey = 0 }) {
       <View style={styles.headerRow}>
         <View style={styles.titleRow}>
           <Ionicons name="flame" size={16} color="#EF4444" />
-          <Text style={styles.title}>이번 주 인기 장소</Text>
+          <Text style={styles.title}>{t('biz.trendingTitle')}</Text>
         </View>
         <TouchableOpacity
           onPress={() => navigation.navigate('Map')}
           activeOpacity={0.7}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Text style={styles.viewAll}>지도 보기 ›</Text>
+          <Text style={styles.viewAll}>{t('biz.viewMap')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -71,7 +73,7 @@ export default function TrendingPlaces({ refreshKey = 0 }) {
                     <Text style={styles.metaText}>{b.ratingAvg.toFixed(1)} ({b.ratingCount})</Text>
                   </>
                 ) : (
-                  <Text style={styles.metaText}>{c.label}</Text>
+                  <Text style={styles.metaText}>{t(c.labelKey)}</Text>
                 )}
               </View>
             </TouchableOpacity>

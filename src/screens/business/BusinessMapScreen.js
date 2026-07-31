@@ -24,14 +24,15 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../components/StyledText';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { useLang } from '../../context/LangContext';
 import {
   BUSINESS_CATEGORIES,
   BUSINESS_CITIES,
   CITY_REGION_DELTA,
   catOf,
   cityOf,
-  cityLabelOf,
-  sourceLabelOf,
+  cityLabelKeyOf,
+  sourceKeyOf,
   BUSINESS_REPORT_REASONS,
   formatDistance,
 } from '../../constants/businesses';
@@ -45,6 +46,13 @@ const SCREEN_H = Dimensions.get('window').height;
 export default function BusinessMapScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { user } = useAuth();
+  const { t } = useLang();
+  // 개수/검색어 등 값이 들어가는 문구는 {n}/{q} 치환 (t는 보간 미지원)
+  const tn = useCallback((key, vars) => {
+    let s = t(key);
+    if (vars) for (const k in vars) s = s.split(`{${k}}`).join(vars[k]);
+    return s;
+  }, [t]);
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
   const mapRef = useRef(null);
@@ -86,12 +94,12 @@ export default function BusinessMapScreen({ navigation, route }) {
       const res = await getBusinesses({ city, near });
       if (res.success) setBusinesses(res.data || []);
     } catch (e) {
-      showToast(e?.message || '업체를 불러오지 못했어요.');
+      showToast(t('biz.loadFail'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [city, myLocation, showToast]);
+  }, [city, myLocation, showToast, t]);
 
   useEffect(() => {
     setLoading(true);
@@ -234,7 +242,7 @@ export default function BusinessMapScreen({ navigation, route }) {
       prev.map((b) => (b.id === id ? { ...b, bookmarked: nextOn, bookmarkCount: Math.max(0, (b.bookmarkCount || 0) + (nextOn ? 1 : -1)) } : b))
     );
     setSelected((s) => (s && s.id === id ? { ...s, bookmarked: nextOn } : s));
-    showToast(nextOn ? '즐겨찾기에 추가했어요.' : '즐겨찾기에서 삭제했어요.');
+    showToast(nextOn ? t('biz.bookmarkAdded') : t('biz.bookmarkRemoved'));
     try {
       const res = await toggleBusinessBookmark(id);
       if (res?.success) {
@@ -246,7 +254,7 @@ export default function BusinessMapScreen({ navigation, route }) {
         prev.map((b) => (b.id === id ? { ...b, bookmarked: !nextOn, bookmarkCount: Math.max(0, (b.bookmarkCount || 0) + (nextOn ? -1 : 1)) } : b))
       );
     }
-  }, [showToast]);
+  }, [showToast, t]);
 
   // ── 내 주변 ──
   const onNear = useCallback(async () => {
@@ -256,18 +264,18 @@ export default function BusinessMapScreen({ navigation, route }) {
         // 권한 거부 → 도시 중심으로 fallback (QA 항목)
         const r = cityRegion(city);
         mapRef.current?.animateToRegion(r, 500);
-        showToast('위치 권한이 없어 도시 중심으로 이동했어요.');
+        showToast(t('biz.locNoPermCity'));
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
       setMyLocation(loc);
       mapRef.current?.animateToRegion({ ...loc, latitudeDelta: 0.05, longitudeDelta: 0.05 }, 600);
-      showToast('현재 위치 기준으로 표시했어요.');
+      showToast(t('biz.locShown'));
     } catch {
-      showToast('위치를 가져오지 못했어요.');
+      showToast(t('biz.locFail'));
     }
-  }, [city, showToast]);
+  }, [city, showToast, t]);
 
   // 클러스터 탭 → 확대 대신 묶인 업체 리스트 시트 (리뷰 많은 순 정렬)
   const onCluster = useCallback((cl) => {
@@ -287,8 +295,8 @@ export default function BusinessMapScreen({ navigation, route }) {
       const q = encodeURIComponent(`${biz.name || ''} ${biz.address || ''}`.trim());
       url = `https://www.google.com/maps/search/?api=1&query=${q}`;
     }
-    Linking.openURL(url).catch(() => showToast('지도 앱을 열지 못했어요.'));
-  }, [showToast]);
+    Linking.openURL(url).catch(() => showToast(t('biz.mapOpenFail')));
+  }, [showToast, t]);
 
   const onSubmitReport = useCallback(async (reasonKey) => {
     setReportOpen(false);
@@ -296,13 +304,13 @@ export default function BusinessMapScreen({ navigation, route }) {
     if (!target) return;
     try {
       await reportBusiness(target.id, reasonKey);
-      showToast('신고가 접수되었어요. 운영진이 확인할게요.');
+      showToast(t('biz.reportReceived'));
     } catch (e) {
-      showToast(e?.message || '신고에 실패했어요.');
+      showToast(t('biz.reportFail'));
     }
-  }, [selected, showToast]);
+  }, [selected, showToast, t]);
 
-  const cityLabel = cityLabelOf(city);
+  const cityLabel = t(cityLabelKeyOf(city));
 
   // 시트 리스트 카드 (지도에 보이는 업체)
   const renderCard = useCallback(({ item: b }) => {
@@ -316,13 +324,13 @@ export default function BusinessMapScreen({ navigation, route }) {
           <View style={styles.rowCenter}>
             <Text style={styles.listName} numberOfLines={1}>{b.name}</Text>
             <View style={[styles.catChip, { backgroundColor: c.soft }]}>
-              <Text style={[styles.catChipText, { color: c.color }]}>{c.label}</Text>
+              <Text style={[styles.catChipText, { color: c.color }]}>{t(c.labelKey)}</Text>
             </View>
           </View>
           {b.ratingCount > 0 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Stars value={b.ratingAvg} size={11} />
-              <Text style={styles.listRating}>{b.ratingAvg.toFixed(1)} · 리뷰 {b.ratingCount}</Text>
+              <Text style={styles.listRating}>{b.ratingAvg.toFixed(1)} · {tn('biz.reviewsN', { n: b.ratingCount })}</Text>
             </View>
           )}
           <Text style={styles.listAddr} numberOfLines={1}>{b.address}</Text>
@@ -335,7 +343,7 @@ export default function BusinessMapScreen({ navigation, route }) {
         </View>
       </TouchableOpacity>
     );
-  }, [styles, selectBusiness, onToggleBookmark, colors]);
+  }, [styles, selectBusiness, onToggleBookmark, colors, t, tn]);
 
   return (
     <View style={styles.container}>
@@ -398,7 +406,7 @@ export default function BusinessMapScreen({ navigation, route }) {
               style={styles.searchInput}
               value={query}
               onChangeText={setQuery}
-              placeholder="업체명·주소 검색"
+              placeholder={t('biz.searchPh')}
               placeholderTextColor="#999999"
               returnKeyType="search"
               onSubmitEditing={Keyboard.dismiss}
@@ -426,7 +434,7 @@ export default function BusinessMapScreen({ navigation, route }) {
           >
             <Ionicons name={bookmarkOnly ? 'star' : 'star-outline'} size={13} color={bookmarkOnly ? '#FFFFFF' : '#F59E0B'} />
           </TouchableOpacity>
-          {[{ key: 'all', label: '전체', ion: null }, ...BUSINESS_CATEGORIES].map((c) => {
+          {[{ key: 'all', labelKey: 'biz.catAll', ion: null }, ...BUSINESS_CATEGORIES].map((c) => {
             const active = category === c.key;
             return (
               <TouchableOpacity
@@ -439,7 +447,7 @@ export default function BusinessMapScreen({ navigation, route }) {
                   <Ionicons name={c.ion} size={13} color={active ? '#FFFFFF' : c.color} style={{ marginRight: 4 }} />
                 )}
                 <Text style={[styles.chipText, { color: active ? '#FFFFFF' : '#555555' }]}>
-                  {c.label}
+                  {t(c.labelKey)}
                 </Text>
               </TouchableOpacity>
             );
@@ -463,7 +471,7 @@ export default function BusinessMapScreen({ navigation, route }) {
                   activeOpacity={0.7}
                   onPress={() => setCity(c.key)}
                 >
-                  <Text style={[styles.cityOptionText, active && { color: PRIMARY, fontWeight: '700' }]}>{c.label}</Text>
+                  <Text style={[styles.cityOptionText, active && { color: PRIMARY, fontWeight: '700' }]}>{t(c.labelKey)}</Text>
                   {active && <Ionicons name="checkmark" size={16} color={PRIMARY} />}
                 </TouchableOpacity>
               );
@@ -480,7 +488,7 @@ export default function BusinessMapScreen({ navigation, route }) {
           </TouchableOpacity>
           <TouchableOpacity style={styles.reportFab} activeOpacity={0.9} onPress={() => navigation.navigate('BusinessReport')}>
             <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.reportFabText}>장소 추가</Text>
+            <Text style={styles.reportFabText}>{t('biz.addPlace')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -490,7 +498,7 @@ export default function BusinessMapScreen({ navigation, route }) {
         <View {...pan.panHandlers} style={styles.bizSheetHandleArea}>
           <View style={styles.bizSheetHandle} />
           <Text style={styles.bizSheetCount}>
-            이 지역 <Text style={{ color: PRIMARY, fontWeight: '800' }}>{visibleBusinesses.count}곳</Text>
+            {tn('biz.thisArea', { n: visibleBusinesses.count })}
           </Text>
         </View>
         <FlatList
@@ -507,10 +515,10 @@ export default function BusinessMapScreen({ navigation, route }) {
                 <Ionicons name="map-outline" size={34} color="#9CA3AF" />
                 <Text style={styles.emptyText}>
                   {bookmarkOnly
-                    ? '즐겨찾기한 곳이 아직 없어요'
+                    ? t('biz.noBookmarks')
                     : query.trim()
-                      ? `"${query.trim()}" 검색 결과가 없어요`
-                      : '이 지역에는 표시할 업체가 없어요\n지도를 움직여보세요'}
+                      ? tn('biz.noSearch', { q: query.trim() })
+                      : t('biz.noneHere')}
                 </Text>
               </View>
             )
@@ -526,7 +534,7 @@ export default function BusinessMapScreen({ navigation, route }) {
           onPress={() => snapSheet('peek')}
         >
           <Ionicons name="map" size={16} color="#FFFFFF" />
-          <Text style={styles.mapReturnText}>지도</Text>
+          <Text style={styles.mapReturnText}>{t('biz.mapBtn')}</Text>
         </TouchableOpacity>
       )}
 
@@ -544,7 +552,7 @@ export default function BusinessMapScreen({ navigation, route }) {
             <View style={styles.handleWrap}>
               <View style={styles.handle} />
             </View>
-            <Text style={styles.clusterSheetTitle}>이 위치의 업체 {clusterSheet.length}곳</Text>
+            <Text style={styles.clusterSheetTitle}>{tn('biz.clusterTitle', { n: clusterSheet.length })}</Text>
             <FlatList
               data={clusterSheet}
               keyExtractor={(b) => b.id}
@@ -565,10 +573,10 @@ export default function BusinessMapScreen({ navigation, route }) {
                       {b.ratingCount > 0 ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                           <Stars value={b.ratingAvg} size={11} />
-                          <Text style={styles.listRating}>{b.ratingAvg.toFixed(1)} · 리뷰 {b.ratingCount}</Text>
+                          <Text style={styles.listRating}>{b.ratingAvg.toFixed(1)} · {tn('biz.reviewsN', { n: b.ratingCount })}</Text>
                         </View>
                       ) : (
-                        <Text style={styles.listRating}>{c.label}</Text>
+                        <Text style={styles.listRating}>{t(c.labelKey)}</Text>
                       )}
                     </View>
                     <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
@@ -593,11 +601,11 @@ export default function BusinessMapScreen({ navigation, route }) {
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: insets.bottom + 20, gap: 14 }}
             >
-              <SheetHeader biz={selected} colors={colors} onBookmark={() => onToggleBookmark(selected)} />
+              <SheetHeader biz={selected} colors={colors} t={t} tn={tn} onBookmark={() => onToggleBookmark(selected)} />
               <View style={{ gap: 10 }}>
                 <InfoRow icon="location-outline" text={selected.address} colors={colors} />
-                <InfoRow icon="call-outline" text={selected.phone || '전화번호 미등록'} colors={colors} />
-                <InfoRow icon="time-outline" text={selected.hours || '영업시간 미등록'} colors={colors} />
+                <InfoRow icon="call-outline" text={selected.phone || t('biz.noPhone')} colors={colors} />
+                <InfoRow icon="time-outline" text={selected.hours || t('biz.noHours')} colors={colors} />
               </View>
               {sheetFull && !!selected.description && (
                 <View style={styles.descBox}>
@@ -607,11 +615,11 @@ export default function BusinessMapScreen({ navigation, route }) {
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <TouchableOpacity style={styles.dirBtn} activeOpacity={0.9} onPress={() => onDirections(selected)}>
                   <Ionicons name="navigate" size={16} color="#FFFFFF" />
-                  <Text style={styles.dirBtnText}>길찾기</Text>
+                  <Text style={styles.dirBtnText}>{t('biz.directions')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.reportBtn} activeOpacity={0.85} onPress={() => setReportOpen(true)}>
                   <Ionicons name="flag-outline" size={15} color="#FF4444" />
-                  <Text style={styles.reportBtnText}>신고</Text>
+                  <Text style={styles.reportBtnText}>{t('biz.report')}</Text>
                 </TouchableOpacity>
               </View>
               {/* ── 리뷰 (시트 확장 시) ── */}
@@ -631,8 +639,8 @@ export default function BusinessMapScreen({ navigation, route }) {
                   <Stars value={selected.ratingAvg} size={13} />
                   <Text style={styles.reviewPeekText}>
                     {selected.ratingCount > 0
-                      ? `${selected.ratingAvg.toFixed(1)} · 리뷰 ${selected.ratingCount}개 보기`
-                      : '첫 리뷰를 남겨보세요'}
+                      ? `${selected.ratingAvg.toFixed(1)} · ${tn('biz.seeReviewsN', { n: selected.ratingCount })}`
+                      : t('biz.firstReview')}
                   </Text>
                   <Ionicons name="chevron-up" size={14} color={colors.textSecondary} />
                 </TouchableOpacity>
@@ -646,15 +654,15 @@ export default function BusinessMapScreen({ navigation, route }) {
       <Modal visible={reportOpen} transparent animationType="fade" onRequestClose={() => setReportOpen(false)}>
         <TouchableOpacity style={styles.reportBackdrop} activeOpacity={1} onPress={() => setReportOpen(false)}>
           <View style={styles.reportCard}>
-            <Text style={styles.reportTitle}>무엇이 문제인가요?</Text>
+            <Text style={styles.reportTitle}>{t('biz.reportTitle')}</Text>
             <View style={{ gap: 4 }}>
               {BUSINESS_REPORT_REASONS.map((r) => (
                 <TouchableOpacity key={r.key} style={styles.reportReason} activeOpacity={0.8} onPress={() => onSubmitReport(r.key)}>
-                  <Text style={styles.reportReasonText}>{r.label}</Text>
+                  <Text style={styles.reportReasonText}>{t(r.labelKey)}</Text>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity style={styles.reportCancel} activeOpacity={0.8} onPress={() => setReportOpen(false)}>
-                <Text style={styles.reportCancelText}>취소</Text>
+                <Text style={styles.reportCancelText}>{t('biz.cancel')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -685,7 +693,7 @@ function Pin({ cat, selected }) {
   );
 }
 
-function SheetHeader({ biz, colors, onBookmark }) {
+function SheetHeader({ biz, colors, onBookmark, t, tn }) {
   const c = catOf(biz.category);
   const styles = createStyles(colors);
   return (
@@ -698,14 +706,14 @@ function SheetHeader({ biz, colors, onBookmark }) {
         {biz.ratingCount > 0 && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <Stars value={biz.ratingAvg} size={13} />
-            <Text style={styles.sheetRating}>{biz.ratingAvg.toFixed(1)} · 리뷰 {biz.ratingCount}</Text>
+            <Text style={styles.sheetRating}>{biz.ratingAvg.toFixed(1)} · {tn('biz.reviewsN', { n: biz.ratingCount })}</Text>
           </View>
         )}
         <View style={styles.rowCenter}>
           <View style={[styles.catChip, { backgroundColor: c.soft }]}>
-            <Text style={[styles.catChipText, { color: c.color }]}>{c.label}</Text>
+            <Text style={[styles.catChipText, { color: c.color }]}>{t(c.labelKey)}</Text>
           </View>
-          <Text style={styles.sourceText}>{sourceLabelOf(biz.source)}</Text>
+          <Text style={styles.sourceText}>{t(sourceKeyOf(biz.source))}</Text>
         </View>
       </View>
       <TouchableOpacity style={styles.sheetStar} activeOpacity={0.8} onPress={onBookmark}>
