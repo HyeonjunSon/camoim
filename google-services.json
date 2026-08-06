@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "599256893701",
+    "project_id": "camoim",
+    "storage_bucket": "camoim.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:599256893701:android:bf5b5d1b38c741f92a0f6c",
+        "android_client_info": {
+          "package_name": "com.hyeonjun122.cahanin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "599256893701-cpg5it6dlss6j5b4dfcddlrr9tbcplvq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADt0FIWeL3D3BqiZGwuvos2fhSmZkKuGo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "599256893701-cpg5it6dlss6j5b4dfcddlrr9tbcplvq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "599256893701-02af8na9prs8abuh8cgpvv7addjm8u46.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.hyeonjun122.cahanin"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

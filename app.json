@@ -77,6 +77,7 @@
     },
     "android": {
       "package": "com.hyeonjun122.cahanin",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -84,7 +85,7 @@
       "edgeToEdgeEnabled": true,
       "config": {
         "googleMaps": {
-          "apiKey": "REPLACE_WITH_ANDROID_GOOGLE_MAPS_API_KEY"
+          "apiKey": "AIzaSyA-2XU2b9dlf-L56-nLP3H_LA_9d1-JO-I"
         }
       },
       "permissions": [
