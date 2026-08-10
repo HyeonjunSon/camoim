@@ -178,9 +178,12 @@ export default function BusinessMapScreen({ navigation, route }) {
   }, [pinnable, region]);
 
   // ── OpenTable식 하단 드래그 시트 (지도 위로 리스트가 올라옴) ──
+  // 탭바를 제외한 실제 렌더 영역은 onLayout으로 측정 — Dimensions 창 높이 기준이면
+  // 탭바 높이만큼 시트가 아래로 밀려 FAB가 가려짐 (iOS/Android 탭바 높이가 달라 상수 보정 불가)
+  const [containerH, setContainerH] = useState(SCREEN_H);
   const SHEET_TOP = insets.top + 104;      // 검색+칩 아래에서 시트 최상단
-  const SHEET_H = SCREEN_H - SHEET_TOP;
-  const PEEK = 132;                         // 접힘 상태에서 보이는 높이 (핸들+카운트)
+  const SHEET_H = containerH - SHEET_TOP;
+  const PEEK = 118;                         // 접힘 상태에서 보이는 높이 (핸들+카운트)
   const fullY = 0;
   const halfY = Math.round(SHEET_H * 0.46);
   const peekY = Math.max(SHEET_H - PEEK, 0);
@@ -201,6 +204,12 @@ export default function BusinessMapScreen({ navigation, route }) {
     snapRef.current = level;
     setSnap(level);
     Animated.spring(sheetY, { toValue: to, useNativeDriver: false, bounciness: 3, speed: 13 }).start();
+  }, [fullY, halfY, peekY, sheetY]);
+
+  // 컨테이너 높이 측정/회전으로 스냅 좌표가 바뀌면 현재 스냅 위치로 즉시 재정렬
+  useEffect(() => {
+    const to = snapRef.current === 'full' ? fullY : snapRef.current === 'half' ? halfY : peekY;
+    sheetY.setValue(to);
   }, [fullY, halfY, peekY, sheetY]);
 
   const pan = useRef(
@@ -346,7 +355,7 @@ export default function BusinessMapScreen({ navigation, route }) {
   }, [styles, selectBusiness, onToggleBookmark, colors, t, tn]);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={(e) => setContainerH(e.nativeEvent.layout.height)}>
       {/* ── 지도 / 리스트 본문 ── */}
       <MapView
           ref={mapRef}
@@ -482,7 +491,7 @@ export default function BusinessMapScreen({ navigation, route }) {
 
       {/* ── 우하단 FAB (시트 위로) — 시트 펼침 시엔 숨김 ── */}
       {snap !== 'full' && (
-        <View style={[styles.fabColumn, { bottom: PEEK - 28 }]} pointerEvents="box-none">
+        <View style={[styles.fabColumn, { bottom: PEEK + 12 }]} pointerEvents="box-none">
           <TouchableOpacity style={styles.nearFab} activeOpacity={0.85} onPress={onNear}>
             <Ionicons name="navigate" size={20} color="#3B82F6" />
           </TouchableOpacity>
