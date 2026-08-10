@@ -183,7 +183,7 @@ export default function BusinessMapScreen({ navigation, route }) {
   const [containerH, setContainerH] = useState(SCREEN_H);
   const SHEET_TOP = insets.top + 104;      // 검색+칩 아래에서 시트 최상단
   const SHEET_H = containerH - SHEET_TOP;
-  const PEEK = 118;                         // 접힘 상태에서 보이는 높이 (핸들+카운트)
+  const PEEK = 58;                          // 접힘 상태에서 보이는 높이 (핸들+카운트만, 카드 숨김)
   const fullY = 0;
   const halfY = Math.round(SHEET_H * 0.46);
   const peekY = Math.max(SHEET_H - PEEK, 0);
