@@ -185,7 +185,7 @@ export default function BusinessMapScreen({ navigation, route }) {
   const SHEET_H = containerH - SHEET_TOP;
   const PEEK = 58;                          // 접힘 상태에서 보이는 높이 (핸들+카운트만, 카드 숨김)
   const fullY = 0;
-  const halfY = Math.round(SHEET_H * 0.46);
+  const halfY = Math.max(SHEET_H - (PEEK + 80), 0); // 중간 스냅: 카운트 + 카드 1장만
   const peekY = Math.max(SHEET_H - PEEK, 0);
 
   const sheetY = useRef(new Animated.Value(peekY)).current;
@@ -212,23 +212,31 @@ export default function BusinessMapScreen({ navigation, route }) {
     sheetY.setValue(to);
   }, [fullY, halfY, peekY, sheetY]);
 
+  // PanResponder는 한 번만 생성되므로 최신 스냅 좌표는 ref로 전달 (stale closure 방지)
+  const snapsRef = useRef({ fullY, halfY, peekY });
+  useEffect(() => { snapsRef.current = { fullY, halfY, peekY }; }, [fullY, halfY, peekY]);
+  const snapSheetRef = useRef(snapSheet);
+  useEffect(() => { snapSheetRef.current = snapSheet; }, [snapSheet]);
+
   const pan = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4,
       onPanResponderGrant: () => { sheetY.stopAnimation(); dragFrom.current = curY.current; },
       onPanResponderMove: (_, g) => {
-        const y = Math.max(fullY, Math.min(peekY, dragFrom.current + g.dy));
+        const s = snapsRef.current;
+        const y = Math.max(s.fullY, Math.min(s.peekY, dragFrom.current + g.dy));
         sheetY.setValue(y);
       },
       onPanResponderRelease: (_, g) => {
         if (Math.abs(g.dy) < 5) { // 살짝 탭 → 접힘/반 토글
-          snapSheet(snapRef.current === 'peek' ? 'half' : 'peek');
+          snapSheetRef.current(snapRef.current === 'peek' ? 'half' : 'peek');
           return;
         }
+        const s = snapsRef.current;
         const y = curY.current + g.vy * 90; // 관성 반영
-        const opts = [['full', fullY], ['half', halfY], ['peek', peekY]];
+        const opts = [['full', s.fullY], ['half', s.halfY], ['peek', s.peekY]];
         opts.sort((a, b) => Math.abs(y - a[1]) - Math.abs(y - b[1]));
-        snapSheet(opts[0][0]);
+        snapSheetRef.current(opts[0][0]);
       },
     })
   ).current;
