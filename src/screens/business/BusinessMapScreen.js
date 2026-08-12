@@ -183,9 +183,9 @@ export default function BusinessMapScreen({ navigation, route }) {
   const [containerH, setContainerH] = useState(SCREEN_H);
   const SHEET_TOP = insets.top + 104;      // 검색+칩 아래에서 시트 최상단
   const SHEET_H = containerH - SHEET_TOP;
-  const PEEK = 58;                          // 접힘 상태에서 보이는 높이 (핸들+카운트만, 카드 숨김)
+  const PEEK = 76;                          // 접힘: 핸들+카운트 + 첫 카드 상단 살짝 (내용 힌트)
   const fullY = 0;
-  const halfY = Math.max(SHEET_H - (PEEK + 80), 0); // 중간 스냅: 카운트 + 카드 1장만
+  const halfY = Math.max(SHEET_H - 290, 0); // 중간 스냅: 카운트 + 카드 3장
   const peekY = Math.max(SHEET_H - PEEK, 0);
 
   const sheetY = useRef(new Animated.Value(peekY)).current;
