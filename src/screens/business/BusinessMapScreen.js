@@ -843,7 +843,7 @@ const createStyles = (colors) => StyleSheet.create({
     paddingVertical: 8, paddingHorizontal: 13, borderRadius: 999,
     shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, shadowOffset: { width: 0, height: 1 }, elevation: 2,
   },
-  chipActive: { backgroundColor: PRIMARY },
+  chipActive: { backgroundColor: '#334155' },
   chipInactive: { backgroundColor: 'rgba(255,255,255,0.97)' },
   chipBookmarkActive: { backgroundColor: '#F59E0B' },
   chipText: { fontSize: 13, fontWeight: '600' },
@@ -851,9 +851,9 @@ const createStyles = (colors) => StyleSheet.create({
   // 클러스터
   cluster: {
     minWidth: 42, height: 42, borderRadius: 21, paddingHorizontal: 8,
-    backgroundColor: '#334155', borderWidth: 3, borderColor: '#FFFFFF',
+    backgroundColor: PRIMARY, borderWidth: 3, borderColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#334155', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+    shadowColor: PRIMARY, shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
   clusterText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
 
