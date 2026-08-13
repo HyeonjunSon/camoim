@@ -183,7 +183,8 @@ export default function BusinessMapScreen({ navigation, route }) {
   const [containerH, setContainerH] = useState(SCREEN_H);
   const SHEET_TOP = insets.top + 104;      // 검색+칩 아래에서 시트 최상단
   const SHEET_H = containerH - SHEET_TOP;
-  const PEEK = 76;                          // 접힘: 핸들+카운트 + 첫 카드 상단 살짝 (내용 힌트)
+  const [handleH, setHandleH] = useState(50);   // 핸들+카운트 영역 실측 높이
+  const PEEK = handleH + 10;                // 접힘: 핸들+카운트 + 카드 윗모서리 10dp만 (텍스트 안 잘림)
   const fullY = 0;
   const halfY = Math.max(SHEET_H - 290, 0); // 중간 스냅: 카운트 + 카드 3장
   const peekY = Math.max(SHEET_H - PEEK, 0);
@@ -512,7 +513,7 @@ export default function BusinessMapScreen({ navigation, route }) {
 
       {/* ── OpenTable식 하단 리스트 시트 (지도 위로 드래그) ── */}
       <Animated.View style={[styles.bizSheet, { top: SHEET_TOP, height: SHEET_H, transform: [{ translateY: sheetY }] }]}>
-        <View {...pan.panHandlers} style={styles.bizSheetHandleArea}>
+        <View {...pan.panHandlers} style={styles.bizSheetHandleArea} onLayout={(e) => setHandleH(Math.round(e.nativeEvent.layout.height))}>
           <View style={styles.bizSheetHandle} />
           <Text style={styles.bizSheetCount}>
             {tn('biz.thisArea', { n: visibleBusinesses.count })}
@@ -850,9 +851,9 @@ const createStyles = (colors) => StyleSheet.create({
   // 클러스터
   cluster: {
     minWidth: 42, height: 42, borderRadius: 21, paddingHorizontal: 8,
-    backgroundColor: PRIMARY, borderWidth: 3, borderColor: '#FFFFFF',
+    backgroundColor: '#334155', borderWidth: 3, borderColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: PRIMARY, shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+    shadowColor: '#334155', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
   clusterText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
 
