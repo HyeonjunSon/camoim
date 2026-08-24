@@ -24,10 +24,13 @@ export default function StayCreateScreen({ navigation, route }) {
   const styles = createStyles(colors);
 
   const editing = route?.params?.stay || null; // 수정 모드면 기존 숙소 객체
+  // 게시판(roomrent) 글에서 "지도에 등록"으로 넘어온 경우 초기값 채우기
+  const prefill = route?.params?.prefill || null;
+  const validCity = (k) => (STAY_CITIES.some((c) => c.key === k) ? k : null);
 
-  const [title, setTitle] = useState(editing?.title || '');
+  const [title, setTitle] = useState(editing?.title || prefill?.title || '');
   const [stayType, setStayType] = useState(editing?.stayType || '');
-  const [city, setCity] = useState(editing?.city || route?.params?.city || 'toronto');
+  const [city, setCity] = useState(editing?.city || validCity(prefill?.city) || route?.params?.city || 'toronto');
   const [price, setPrice] = useState(editing?.price ? String(editing.price) : '');
   const [deposit, setDeposit] = useState(editing?.deposit ? String(editing.deposit) : '');
   const [address, setAddress] = useState(editing?.address || ''); // 수정 시 서버는 주소를 안 내려줌 → 빈값 = 유지
@@ -36,8 +39,8 @@ export default function StayCreateScreen({ navigation, route }) {
   const [moveInDate, setMoveInDate] = useState(editing?.moveInDate || '');
   const [minLease, setMinLease] = useState(editing?.minLeaseMonths ? String(editing.minLeaseMonths) : '');
   const [includes, setIncludes] = useState(editing?.includes || '');
-  const [description, setDescription] = useState(editing?.description || '');
-  const [images, setImages] = useState(editing?.images || []);
+  const [description, setDescription] = useState(editing?.description || (prefill?.content ? String(prefill.content).slice(0, 2000) : ''));
+  const [images, setImages] = useState(editing?.images || prefill?.images || []);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 

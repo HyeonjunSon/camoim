@@ -482,6 +482,16 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     }
   };
 
+  // 룸렌트·민박 글 → 지도 숙소로 등록 (작성자 전용). roomrent 글로버 + 학교 roomrent 보드 모두
+  const isRoomrentBoard = post?.boardSlug === 'roomrent' || String(post?.boardSlug || '').endsWith('-roomrent');
+  const showListOnMap = isPostAuthor && isRoomrentBoard;
+  const listOnStayMap = () => {
+    navigation.navigate('Map', {
+      screen: 'StayCreate',
+      params: { prefill: { title: post.title, city: post.city, images: post.images || [], content: post.content } },
+    });
+  };
+
   // 거래 상태 토글 — 작성자 전용 (마켓 류 게시판에서만)
   const showTradeButton = isPostAuthor && isTradeBoard(post?.boardSlug);
   const isSold = post?.tradeStatus === 'sold';
@@ -689,6 +699,15 @@ export default function BoardPostDetailScreen({ route, navigation }) {
 
           {/* 제목 */}
           <Text selectable style={[styles.title, isSold && { color: colors.textSecondary }]}>{post.title}</Text>
+
+          {/* 룸렌트·민박 글 → 지도에 숙소로 등록 (작성자) */}
+          {showListOnMap && (
+            <TouchableOpacity style={styles.listMapBtn} activeOpacity={0.85} onPress={listOnStayMap}>
+              <Ionicons name="map" size={15} color="#3B82F6" />
+              <Text style={styles.listMapBtnText}>{t('stay.listFromPost')}</Text>
+              <Ionicons name="chevron-forward" size={14} color="#3B82F6" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          )}
 
           {/* 작성자 행 */}
           <TouchableOpacity
@@ -934,6 +953,12 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: 10,
   },
   // 거래 상태 칩 — 게시판 태그 옆 인라인
+  listMapBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    marginTop: 12, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12,
+    backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE',
+  },
+  listMapBtnText: { fontSize: 13, fontWeight: '700', color: '#3B82F6' },
   tradeStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',
