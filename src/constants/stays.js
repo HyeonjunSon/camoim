@@ -32,6 +32,13 @@ export const STAY_CONDITIONS = [
   { key: 'immediate',    labelKey: 'stay.cImmediate' },
 ];
 
+// 가격 단위 — 월세 / 1박(민박)
+export const PRICE_UNITS = [
+  { key: 'month', labelKey: 'stay.unitMonth' },
+  { key: 'night', labelKey: 'stay.unitNight' },
+];
+export const priceUnitKey = (unit) => (unit === 'night' ? 'stay.perNight' : 'stay.perMonth');
+
 // 숙소 신고 사유 (서버 reason 키와 매핑)
 export const STAY_REPORT_REASONS = [
   { key: 'taken', label: '이미 나간 방이에요',   labelKey: 'stay.reasonTaken' },

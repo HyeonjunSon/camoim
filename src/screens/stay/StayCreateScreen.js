@@ -12,7 +12,7 @@ import { Text, TextInput } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { STAY_TYPES, STAY_CITIES, STAY_CONDITIONS, STAY_ACCENT, htmlToPlain, formatMoveIn } from '../../constants/stays';
+import { STAY_TYPES, STAY_CITIES, STAY_CONDITIONS, STAY_ACCENT, PRICE_UNITS, htmlToPlain, formatMoveIn } from '../../constants/stays';
 import StayDatePickerModal from '../../components/StayDatePickerModal';
 import { createStay, updateStay, uploadStayImage } from '../../lib/api';
 
@@ -34,6 +34,7 @@ export default function StayCreateScreen({ navigation, route }) {
   const [stayType, setStayType] = useState(editing?.stayType || '');
   const [city, setCity] = useState(editing?.city || validCity(prefill?.city) || route?.params?.city || 'toronto');
   const [price, setPrice] = useState(editing?.price ? String(editing.price) : '');
+  const [priceUnit, setPriceUnit] = useState(editing?.priceUnit || 'month'); // 월세/1박
   const [deposit, setDeposit] = useState(editing?.deposit ? String(editing.deposit) : '');
   const [address, setAddress] = useState(editing?.address || ''); // 수정 시 서버는 주소를 안 내려줌 → 빈값 = 유지
   const [neighborhood, setNeighborhood] = useState(editing?.neighborhood || '');
@@ -93,6 +94,7 @@ export default function StayCreateScreen({ navigation, route }) {
       stayType,
       city,
       price: Number(price),
+      priceUnit,
       deposit: Number(deposit) || 0,
       conditions,
       neighborhood: neighborhood.trim(),
@@ -161,7 +163,8 @@ export default function StayCreateScreen({ navigation, route }) {
                 return (
                   <TouchableOpacity key={c.key}
                     style={[styles.selectChip, active ? styles.selectChipActive : styles.selectChipInactive]}
-                    activeOpacity={0.8} onPress={() => setStayType(c.key)}>
+                    activeOpacity={0.8}
+                    onPress={() => { setStayType(c.key); setPriceUnit(c.key === 'minbak' ? 'night' : 'month'); }}>
                     <Ionicons name={c.ion} size={13} color={active ? STAY_ACCENT : c.color} style={{ marginRight: 4 }} />
                     <Text style={[styles.selectChipText, { color: active ? STAY_ACCENT : colors.textSecondary }]}>{t(c.labelKey)}</Text>
                   </TouchableOpacity>
@@ -185,20 +188,28 @@ export default function StayCreateScreen({ navigation, route }) {
             </View>
           </Field>
 
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <View style={{ flex: 1 }}>
-              <Field label={t('stay.fPrice')} required>
-                <TextInput value={price} onChangeText={setPrice} placeholder={t('stay.fPricePh')}
-                  placeholderTextColor={colors.textSecondary} style={styles.input} keyboardType="number-pad" maxLength={7} />
-              </Field>
+          <Field label={t('stay.fPrice')} required>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TextInput value={price} onChangeText={setPrice} placeholder={t('stay.fPricePh')}
+                placeholderTextColor={colors.textSecondary} style={[styles.input, { flex: 1 }]} keyboardType="number-pad" maxLength={7} />
+              <View style={styles.unitToggle}>
+                {PRICE_UNITS.map((u) => {
+                  const active = priceUnit === u.key;
+                  return (
+                    <TouchableOpacity key={u.key} style={[styles.unitChip, active && styles.unitChipActive]}
+                      activeOpacity={0.8} onPress={() => setPriceUnit(u.key)}>
+                      <Text style={[styles.unitChipText, { color: active ? '#FFFFFF' : colors.textSecondary }]}>{t(u.labelKey)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Field label={t('stay.fDeposit')} optional>
-                <TextInput value={deposit} onChangeText={setDeposit} placeholder={t('stay.fDepositPh')}
-                  placeholderTextColor={colors.textSecondary} style={styles.input} keyboardType="number-pad" maxLength={7} />
-              </Field>
-            </View>
-          </View>
+          </Field>
+
+          <Field label={t('stay.fDeposit')} optional>
+            <TextInput value={deposit} onChangeText={setDeposit} placeholder={t('stay.fDepositPh')}
+              placeholderTextColor={colors.textSecondary} style={styles.input} keyboardType="number-pad" maxLength={7} />
+          </Field>
 
           <Field label={t('stay.fAddress')} required={!editing}>
             <TextInput value={address} onChangeText={setAddress}
@@ -328,6 +339,10 @@ const createStyles = (colors) => StyleSheet.create({
   selectChipText: { fontSize: 13, fontWeight: '600' },
   condChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
   condChipActive: { borderColor: STAY_ACCENT, backgroundColor: STAY_ACCENT },
+  unitToggle: { flexDirection: 'row', backgroundColor: colors.inputBg, borderRadius: 10, padding: 3, gap: 2 },
+  unitChip: { paddingVertical: 9, paddingHorizontal: 14, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  unitChipActive: { backgroundColor: STAY_ACCENT },
+  unitChipText: { fontSize: 13, fontWeight: '700' },
   photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   photoThumb: { width: 76, height: 76, borderRadius: 12, overflow: 'hidden' },
   photoImg: { width: '100%', height: '100%' },

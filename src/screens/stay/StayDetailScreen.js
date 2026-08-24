@@ -13,7 +13,7 @@ import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
-import { stayTypeOf, stayCondOf, STAY_ACCENT, formatPrice, htmlToPlain, formatMoveIn } from '../../constants/stays';
+import { stayTypeOf, stayCondOf, STAY_ACCENT, formatPrice, htmlToPlain, formatMoveIn, priceUnitKey } from '../../constants/stays';
 import { STAY_REPORT_REASONS } from '../../constants/stays';
 import { getStay, toggleStayBookmark, setStayStatus, deleteStay, reportStay, startChat } from '../../lib/api';
 
@@ -164,7 +164,7 @@ export default function StayDetailScreen({ navigation, route }) {
           {!!stay.neighborhood && <Text style={styles.neighborhood}>{stay.neighborhood}</Text>}
           <View style={styles.priceRow}>
             <Text style={styles.price}>{formatPrice(stay.price)}</Text>
-            <Text style={styles.priceUnit}>{t('stay.perMonth')}</Text>
+            <Text style={styles.priceUnit}>{t(priceUnitKey(stay.priceUnit))}</Text>
           </View>
           {stay.conditions?.length > 0 && (
             <View style={styles.condRow}>

@@ -56,6 +56,7 @@ function formatStay(s, bookmarkedSet, viewer) {
     stayType: s.stayType,
     city: s.city,
     price: s.price,
+    priceUnit: s.priceUnit || 'month',
     deposit: s.deposit || 0,
     conditions: Array.isArray(s.conditions) ? s.conditions : [],
     description: s.description || '',
@@ -169,6 +170,7 @@ router.post('/', requireAuth, async (req, res) => {
       stayType,
       city,
       price,
+      priceUnit: req.body.priceUnit === 'night' ? 'night' : 'month',
       deposit: Number.isFinite(Number(req.body.deposit)) ? Math.max(0, Number(req.body.deposit)) : 0,
       conditions: sanitizeConditions(req.body.conditions),
       description: (req.body.description || '').trim(),
@@ -237,6 +239,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     if (b.title != null) s.title = String(b.title).trim().slice(0, 100);
     if (STAY_TYPES.includes(b.stayType)) s.stayType = b.stayType;
     if (Number.isFinite(Number(b.price))) s.price = Math.max(0, Number(b.price));
+    if (b.priceUnit === 'month' || b.priceUnit === 'night') s.priceUnit = b.priceUnit;
     if (Number.isFinite(Number(b.deposit))) s.deposit = Math.max(0, Number(b.deposit));
     if (b.conditions != null) s.conditions = sanitizeConditions(b.conditions);
     if (b.description != null) s.description = String(b.description).trim().slice(0, 2000);

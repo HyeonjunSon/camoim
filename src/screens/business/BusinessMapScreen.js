@@ -41,6 +41,7 @@ import {
   stayTypeOf,
   stayCondOf,
   formatPrice,
+  priceUnitKey,
 } from '../../constants/stays';
 import { getBusinesses, toggleBusinessBookmark, reportBusiness, getStays, toggleStayBookmark } from '../../lib/api';
 import BusinessReviewsSection, { Stars } from './BusinessReviewsSection';
@@ -457,7 +458,7 @@ export default function BusinessMapScreen({ navigation, route }) {
             </View>
           </View>
           <Text style={styles.stayMeta} numberOfLines={1}>
-            <Text style={styles.stayPrice}>{formatPrice(s.price)}{t('stay.perMonth')}</Text>
+            <Text style={styles.stayPrice}>{formatPrice(s.price)}{t(priceUnitKey(s.priceUnit))}</Text>
             {condLabels.length > 0 ? ` · ${condLabels.join(' · ')}` : ''}
           </Text>
           {!!s.neighborhood && <Text style={styles.listAddr} numberOfLines={1}>{s.neighborhood}</Text>}

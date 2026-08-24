@@ -8,7 +8,7 @@ import { Text } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { stayTypeOf, STAY_ACCENT, formatPrice } from '../../constants/stays';
+import { stayTypeOf, STAY_ACCENT, formatPrice, priceUnitKey } from '../../constants/stays';
 import { getMyStays } from '../../lib/api';
 
 export default function StayMyListScreen({ navigation }) {
@@ -52,7 +52,7 @@ export default function StayMyListScreen({ navigation }) {
             </View>
           </View>
           <Text style={styles.meta} numberOfLines={1}>
-            <Text style={styles.price}>{formatPrice(s.price)}{t('stay.perMonth')}</Text>
+            <Text style={styles.price}>{formatPrice(s.price)}{t(priceUnitKey(s.priceUnit))}</Text>
             {s.neighborhood ? ` · ${s.neighborhood}` : ''}
           </Text>
         </View>
