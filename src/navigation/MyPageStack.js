@@ -3,6 +3,9 @@ import MyPageScreen from '../screens/mypage/MyPageScreen';
 import MyPostsScreen from '../screens/mypage/MyPostsScreen';
 import LikedPostsScreen from '../screens/mypage/LikedPostsScreen';
 import BookmarkedPostsScreen from '../screens/mypage/BookmarkedPostsScreen';
+import StayMyListScreen from '../screens/stay/StayMyListScreen';
+import StayDetailScreen from '../screens/stay/StayDetailScreen';
+import StayCreateScreen from '../screens/stay/StayCreateScreen';
 import VerifyStudentScreen from '../screens/auth/VerifyStudentScreen';
 import NotificationSettingsScreen from '../screens/mypage/NotificationSettingsScreen';
 import BlockedUsersScreen from '../screens/mypage/BlockedUsersScreen';
@@ -40,6 +43,9 @@ export default function MyPageStack() {
       <Stack.Screen name="MyPosts"       component={MyPostsScreen}       options={{ title: t('mypage.myPosts') }} />
       <Stack.Screen name="LikedPosts"    component={LikedPostsScreen}    options={{ title: t('mypage.likedPosts') }} />
       <Stack.Screen name="BookmarkedPosts" component={BookmarkedPostsScreen} options={{ title: t('mypage.bookmarkedPosts') }} />
+      <Stack.Screen name="StayMyList" component={StayMyListScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="StayDetail" component={StayDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="StayCreate" component={StayCreateScreen} options={{ headerShown: false }} />
       <Stack.Screen name="VerifyStudent" component={VerifyStudentScreen} options={{ title: t('mypage.verifyStudent') }} />
       <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: t('mypage.notifSettings') }} />
       <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ title: t('mypage.blockedUsers') }} />

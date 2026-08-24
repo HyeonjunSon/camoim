@@ -328,6 +328,11 @@ export default function MyPageScreen({ navigation }) {
             icon="bookmark-outline"
             label={t('mypage.bookmarkedPosts')}
             onPress={() => navigation.navigate('BookmarkedPosts')}
+          />
+          <MenuItem
+            icon="bed-outline"
+            label={t('mypage.myStays')}
+            onPress={() => navigation.navigate('StayMyList')}
             last
           />
         </View>
