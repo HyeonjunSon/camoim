@@ -246,7 +246,7 @@ export default function StayDetailScreen({ navigation, route }) {
       </ScrollView>
 
       {/* 하단 CTA */}
-      <View style={[styles.ctaBar, { paddingBottom: insets.bottom + 12 }]}>
+      <View style={[styles.ctaBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
         {isMine ? (
           <TouchableOpacity style={styles.ctaMain} activeOpacity={0.9} onPress={onToggleStatus}>
             <Ionicons name={stay.status === 'active' ? 'checkmark-done' : 'refresh'} size={17} color="#FFFFFF" />
