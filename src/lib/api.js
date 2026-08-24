@@ -503,6 +503,40 @@ export const uploadBusinessImage = async (asset, onProgress) => {
   });
 };
 
+// 숙소 지도 (Stays) — 유저 등록형 마켓플레이스
+export const getStays = ({ city, type, near } = {}) => {
+  const params = new URLSearchParams();
+  if (city) params.set('city', city);
+  if (type && type !== 'all') params.set('type', type);
+  if (near) params.set('near', near); // "lng,lat"
+  const q = params.toString();
+  return request('GET', `/stays${q ? `?${q}` : ''}`);
+};
+export const getStay = (id) => request('GET', `/stays/${id}`);
+export const getMyStays = () => request('GET', '/stays/mine');
+export const createStay = (data) => request('POST', '/stays', data);
+export const updateStay = (id, data) => request('PUT', `/stays/${id}`, data);
+export const deleteStay = (id) => request('DELETE', `/stays/${id}`);
+export const setStayStatus = (id, status) => request('PUT', `/stays/${id}/status`, { status });
+export const toggleStayBookmark = (id) => request('POST', `/stays/${id}/bookmark`);
+export const reportStay = (id, reason) => request('POST', `/stays/${id}/report`, { reason });
+
+export const uploadStayImage = async (asset, onProgress) => {
+  const token = await getToken();
+  const formData = new FormData();
+  formData.append('image', {
+    uri: asset.uri,
+    name: asset.filename ?? `stay_img_${Date.now()}.jpg`,
+    type: asset.type ?? 'image/jpeg',
+  });
+  return uploadWithProgress({
+    url: `${BASE_URL}/stays/upload-image`,
+    formData,
+    token,
+    onProgress,
+  });
+};
+
 // 관리자 — 업체 승인/관리
 export const adminListBusinesses = (status) =>
   request('GET', `/admin/businesses${status ? `?status=${status}` : ''}`);

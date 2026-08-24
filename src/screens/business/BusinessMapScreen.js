@@ -36,7 +36,13 @@ import {
   BUSINESS_REPORT_REASONS,
   formatDistance,
 } from '../../constants/businesses';
-import { getBusinesses, toggleBusinessBookmark, reportBusiness } from '../../lib/api';
+import {
+  STAY_ACCENT,
+  stayTypeOf,
+  stayCondOf,
+  formatPrice,
+} from '../../constants/stays';
+import { getBusinesses, toggleBusinessBookmark, reportBusiness, getStays, toggleStayBookmark } from '../../lib/api';
 import BusinessReviewsSection, { Stars } from './BusinessReviewsSection';
 
 const PRIMARY = '#7F77DD';
@@ -62,8 +68,10 @@ export default function BusinessMapScreen({ navigation, route }) {
   const [query, setQuery] = useState(''); // 업체명/주소 검색
   const [bookmarkOnly, setBookmarkOnly] = useState(false); // ⭐ 즐겨찾기만 보기
   const [businesses, setBusinesses] = useState([]);
+  const [stays, setStays] = useState([]); // 숙소 (category==='stay'일 때 사용)
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const isStay = category === 'stay'; // 숙소 모드 — 별도 데이터/핀/카드/상세화면 사용
 
   const [cityOpen, setCityOpen] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -101,13 +109,31 @@ export default function BusinessMapScreen({ navigation, route }) {
     }
   }, [city, myLocation, showToast, t]);
 
+  // ── 숙소 로드 (숙소 모드에서만) ──
+  const loadStays = useCallback(async () => {
+    try {
+      const near = myLocation ? `${myLocation.longitude},${myLocation.latitude}` : undefined;
+      const res = await getStays({ city, near });
+      if (res.success) setStays(res.data || []);
+    } catch (e) {
+      showToast(t('stay.loadFail'));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [city, myLocation, showToast, t]);
+
   useEffect(() => {
     setLoading(true);
-    load();
-  }, [load]);
+    if (isStay) loadStays();
+    else load();
+  }, [isStay, load, loadStays]);
 
-  // 화면 재진입 시 새 제보 반영
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  // 화면 재진입 시 새 등록 반영 (모드에 맞는 데이터만)
+  useFocusEffect(useCallback(() => {
+    if (isStay) loadStays();
+    else load();
+  }, [isStay, load, loadStays]));
 
   // ── 첫 진입 시 현재 위치 기반으로 시작 (OpenTable 스타일) ──
   // 권한 요청 → 허용 시 내 위치 중심 + 거리순 정렬(near). 거부 시 도시 중심 유지 (조용히)
@@ -144,20 +170,34 @@ export default function BusinessMapScreen({ navigation, route }) {
     setCityOpen(false);
   }, [city]);
 
+  // 모드(카테고리) 전환 시 업체 상세/클러스터 시트 정리 (숙소↔업체 잔상 방지)
+  useEffect(() => {
+    setSelected(null);
+    setClusterSheet(null);
+    setBookmarkOnly(false);
+  }, [category]);
+
   // 마커 리렌더 최소화: 데이터/선택 변화 후 잠깐만 tracking on
   useEffect(() => {
     setMarkerTracking(true);
     const t = setTimeout(() => setMarkerTracking(false), 900);
     return () => clearTimeout(t);
-  }, [businesses, selected?.id, category, city]);
+  }, [businesses, stays, selected?.id, category, city]);
 
   const filtered = useMemo(() => {
-    let list = category === 'all' ? businesses : businesses.filter((b) => b.category === category);
+    let list = isStay
+      ? stays
+      : category === 'all' ? businesses : businesses.filter((b) => b.category === category);
     if (bookmarkOnly) list = list.filter((b) => b.bookmarked);
     const q = query.trim().toLowerCase();
-    if (q) list = list.filter((b) => (b.name || '').toLowerCase().includes(q) || (b.address || '').toLowerCase().includes(q));
+    if (q) {
+      list = list.filter((b) => {
+        const hay = isStay ? `${b.title || ''} ${b.neighborhood || ''}` : `${b.name || ''} ${b.address || ''}`;
+        return hay.toLowerCase().includes(q);
+      });
+    }
     return list;
-  }, [businesses, category, bookmarkOnly, query]);
+  }, [businesses, stays, isStay, category, bookmarkOnly, query]);
 
   const pinnable = useMemo(() => filtered.filter((b) => b.lat != null && b.lng != null), [filtered]);
 
@@ -172,7 +212,8 @@ export default function BusinessMapScreen({ navigation, route }) {
     inView.sort((a, b) =>
       (a.distanceKm != null && b.distanceKm != null)
         ? a.distanceKm - b.distanceKm
-        : (b.ratingCount - a.ratingCount) || (b.ratingAvg - a.ratingAvg) || a.name.localeCompare(b.name)
+        : ((b.ratingCount || 0) - (a.ratingCount || 0)) || ((b.ratingAvg || 0) - (a.ratingAvg || 0))
+          || (a.name || a.title || '').localeCompare(b.name || b.title || '')
     );
     return { items: inView.slice(0, 80), count: inView.length }; // 리스트는 상위 80, 개수는 실제
   }, [pinnable, region]);
@@ -252,6 +293,26 @@ export default function BusinessMapScreen({ navigation, route }) {
     snapSheet('peek'); // 상세 시트 열 때 리스트 시트는 접기 (지도+상세 같이 보이게)
   }, [snapSheet]);
 
+  // 숙소는 바텀시트가 아니라 전용 상세 화면으로 이동
+  const openStay = useCallback((s) => {
+    setCityOpen(false);
+    navigation.navigate('StayDetail', { id: s.id, stay: s });
+  }, [navigation]);
+
+  // 숙소 즐겨찾기 토글 (낙관적)
+  const onToggleStayBookmark = useCallback(async (s) => {
+    const id = s.id;
+    const nextOn = !s.bookmarked;
+    setStays((prev) => prev.map((x) => (x.id === id ? { ...x, bookmarked: nextOn, bookmarkCount: Math.max(0, (x.bookmarkCount || 0) + (nextOn ? 1 : -1)) } : x)));
+    showToast(nextOn ? t('biz.bookmarkAdded') : t('biz.bookmarkRemoved'));
+    try {
+      const res = await toggleStayBookmark(id);
+      if (res?.success) setStays((prev) => prev.map((x) => (x.id === id ? { ...x, bookmarked: res.bookmarked, bookmarkCount: res.bookmarkCount } : x)));
+    } catch {
+      setStays((prev) => prev.map((x) => (x.id === id ? { ...x, bookmarked: !nextOn, bookmarkCount: Math.max(0, (x.bookmarkCount || 0) + (nextOn ? -1 : 1)) } : x)));
+    }
+  }, [showToast, t]);
+
   // ── 즐겨찾기 토글 (낙관적 업데이트) ──
   const onToggleBookmark = useCallback(async (biz) => {
     const id = biz.id;
@@ -295,14 +356,21 @@ export default function BusinessMapScreen({ navigation, route }) {
     }
   }, [city, showToast, t]);
 
-  // 클러스터 탭 → 확대 대신 묶인 업체 리스트 시트 (리뷰 많은 순 정렬)
+  // 클러스터 탭 → (업체) 묶인 리스트 시트 / (숙소) 확대
   const onCluster = useCallback((cl) => {
+    setCityOpen(false);
+    if (isStay) {
+      mapRef.current?.animateToRegion(
+        { latitude: cl.lat, longitude: cl.lng, latitudeDelta: Math.max((region.latitudeDelta || 0.1) / 2.4, 0.01), longitudeDelta: Math.max((region.longitudeDelta || 0.1) / 2.4, 0.01) },
+        400
+      );
+      return;
+    }
     const sorted = [...cl.items].sort(
       (a, b) => (b.ratingCount - a.ratingCount) || (b.bookmarkCount - a.bookmarkCount) || a.name.localeCompare(b.name)
     );
     setClusterSheet(sorted);
-    setCityOpen(false);
-  }, []);
+  }, [isStay, region]);
 
   // 길찾기 — 구글맵으로 연동 (앱 설치 시 구글맵 앱, 미설치 시 브라우저로 열림)
   const onDirections = useCallback((biz) => {
@@ -363,6 +431,38 @@ export default function BusinessMapScreen({ navigation, route }) {
     );
   }, [styles, selectBusiness, onToggleBookmark, colors, t, tn]);
 
+  // 시트 리스트 카드 (숙소) — 가격 + 조건 요약
+  const renderStayCard = useCallback(({ item: s }) => {
+    const c = stayTypeOf(s.stayType);
+    const condLabels = (s.conditions || []).slice(0, 2).map((k) => stayCondOf(k)?.labelKey).filter(Boolean).map((lk) => t(lk));
+    return (
+      <TouchableOpacity style={styles.listCard} activeOpacity={0.85} onPress={() => openStay(s)}>
+        <View style={[styles.listEmoji, { backgroundColor: c.soft }]}>
+          <Ionicons name={c.ion} size={22} color={c.color} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+          <View style={styles.rowCenter}>
+            <Text style={styles.listName} numberOfLines={1}>{s.title}</Text>
+            <View style={[styles.catChip, { backgroundColor: c.soft }]}>
+              <Text style={[styles.catChipText, { color: c.color }]}>{t(c.labelKey)}</Text>
+            </View>
+          </View>
+          <Text style={styles.stayMeta} numberOfLines={1}>
+            <Text style={styles.stayPrice}>{formatPrice(s.price)}{t('stay.perMonth')}</Text>
+            {condLabels.length > 0 ? ` · ${condLabels.join(' · ')}` : ''}
+          </Text>
+          {!!s.neighborhood && <Text style={styles.listAddr} numberOfLines={1}>{s.neighborhood}</Text>}
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 5 }}>
+          <TouchableOpacity onPress={() => onToggleStayBookmark(s)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name={s.bookmarked ? 'star' : 'star-outline'} size={18} color={s.bookmarked ? '#F59E0B' : colors.textSecondary} />
+          </TouchableOpacity>
+          {s.distanceKm != null && <Text style={styles.listDist}>{formatDistance(s.distanceKm)}</Text>}
+        </View>
+      </TouchableOpacity>
+    );
+  }, [styles, openStay, onToggleStayBookmark, colors, t]);
+
   return (
     <View style={styles.container} onLayout={(e) => setContainerH(e.nativeEvent.layout.height)}>
       {/* ── 지도 / 리스트 본문 ── */}
@@ -380,13 +480,13 @@ export default function BusinessMapScreen({ navigation, route }) {
           toolbarEnabled={false}
         >
           {mapReady && pins.map((b) => {
-            const c = catOf(b.category);
-            const isSel = selected?.id === b.id;
+            const c = isStay ? { color: STAY_ACCENT, ion: 'bed' } : catOf(b.category);
+            const isSel = !isStay && selected?.id === b.id;
             return (
               <Marker
                 key={b.id}
                 coordinate={{ latitude: b.lat, longitude: b.lng }}
-                onPress={() => selectBusiness(b)}
+                onPress={() => (isStay ? openStay(b) : selectBusiness(b))}
                 anchor={{ x: 0.5, y: 1 }}
                 tracksViewChanges={markerTracking}
               >
@@ -452,12 +552,17 @@ export default function BusinessMapScreen({ navigation, route }) {
           >
             <Ionicons name={bookmarkOnly ? 'star' : 'star-outline'} size={13} color={bookmarkOnly ? '#FFFFFF' : '#F59E0B'} />
           </TouchableOpacity>
-          {[{ key: 'all', labelKey: 'biz.catAll', ion: null }, ...BUSINESS_CATEGORIES].map((c) => {
+          {[
+            { key: 'all', labelKey: 'biz.catAll', ion: null },
+            { key: 'stay', labelKey: 'stay.mapChip', ion: 'bed', color: STAY_ACCENT },
+            ...BUSINESS_CATEGORIES,
+          ].map((c) => {
             const active = category === c.key;
+            const activeBg = c.key === 'stay' ? styles.chipStayActive : styles.chipActive;
             return (
               <TouchableOpacity
                 key={c.key}
-                style={[styles.chip, active ? styles.chipActive : styles.chipInactive]}
+                style={[styles.chip, active ? activeBg : styles.chipInactive]}
                 activeOpacity={0.8}
                 onPress={() => { setCategory(c.key); setCityOpen(false); }}
               >
@@ -504,9 +609,13 @@ export default function BusinessMapScreen({ navigation, route }) {
           <TouchableOpacity style={styles.nearFab} activeOpacity={0.85} onPress={onNear}>
             <Ionicons name="navigate" size={20} color="#3B82F6" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.reportFab} activeOpacity={0.9} onPress={() => navigation.navigate('BusinessReport')}>
+          <TouchableOpacity
+            style={[styles.reportFab, isStay && styles.reportFabStay]}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate(isStay ? 'StayCreate' : 'BusinessReport', isStay ? { city } : undefined)}
+          >
             <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.reportFabText}>{t('biz.addPlace')}</Text>
+            <Text style={styles.reportFabText}>{isStay ? t('stay.registerFab') : t('biz.addPlace')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -516,7 +625,7 @@ export default function BusinessMapScreen({ navigation, route }) {
         <View {...pan.panHandlers} style={styles.bizSheetHandleArea} onLayout={(e) => setHandleH(Math.round(e.nativeEvent.layout.height))}>
           <View style={styles.bizSheetHandle} />
           <Text style={styles.bizSheetCount}>
-            {tn('biz.thisArea', { n: visibleBusinesses.count })}
+            {isStay ? tn('stay.areaCount', { n: visibleBusinesses.count }) : tn('biz.thisArea', { n: visibleBusinesses.count })}
           </Text>
         </View>
         <FlatList
@@ -525,18 +634,18 @@ export default function BusinessMapScreen({ navigation, route }) {
           scrollEnabled={snap !== 'peek'}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 24 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={PRIMARY} />}
-          renderItem={renderCard}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); isStay ? loadStays() : load(); }} tintColor={PRIMARY} />}
+          renderItem={isStay ? renderStayCard : renderCard}
           ListEmptyComponent={
             loading ? null : (
               <View style={styles.emptyWrap}>
-                <Ionicons name="map-outline" size={34} color="#9CA3AF" />
+                <Ionicons name={isStay ? 'bed-outline' : 'map-outline'} size={34} color="#9CA3AF" />
                 <Text style={styles.emptyText}>
                   {bookmarkOnly
                     ? t('biz.noBookmarks')
                     : query.trim()
                       ? tn('biz.noSearch', { q: query.trim() })
-                      : t('biz.noneHere')}
+                      : isStay ? t('stay.noneHere') : t('biz.noneHere')}
                 </Text>
               </View>
             )
@@ -844,6 +953,7 @@ const createStyles = (colors) => StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, shadowOffset: { width: 0, height: 1 }, elevation: 2,
   },
   chipActive: { backgroundColor: '#334155' },
+  chipStayActive: { backgroundColor: STAY_ACCENT },
   chipInactive: { backgroundColor: 'rgba(255,255,255,0.97)' },
   chipBookmarkActive: { backgroundColor: '#F59E0B' },
   chipText: { fontSize: 13, fontWeight: '600' },
@@ -887,6 +997,7 @@ const createStyles = (colors) => StyleSheet.create({
     paddingVertical: 13, paddingHorizontal: 18, borderRadius: 999, backgroundColor: '#10B981',
     shadowColor: '#10B981', shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
+  reportFabStay: { backgroundColor: STAY_ACCENT, shadowColor: STAY_ACCENT },
   reportFabText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 
   // 지도/리스트 세그먼트
@@ -912,6 +1023,8 @@ const createStyles = (colors) => StyleSheet.create({
   listName: { fontSize: 14, fontWeight: '700', color: colors.text, flexShrink: 1 },
   listAddr: { fontSize: 12, color: colors.textSecondary },
   listDist: { fontSize: 11, fontWeight: '600', color: PRIMARY },
+  stayMeta: { fontSize: 13, color: colors.textSecondary },
+  stayPrice: { fontSize: 13, fontWeight: '800', color: STAY_ACCENT },
   listRating: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
   // 클러스터 리스트 시트
   clusterSheetTitle: { fontSize: 16, fontWeight: '800', color: colors.text, paddingHorizontal: 18, paddingBottom: 10, letterSpacing: -0.3 },
