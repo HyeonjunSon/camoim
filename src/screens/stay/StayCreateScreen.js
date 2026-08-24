@@ -1,7 +1,7 @@
 // 숙소 등록/수정 폼 — 유저가 본인 방·민박을 등록 → 지도에 즉시 노출 (승인 없음)
 // 프라이버시: 정확 주소는 서버 전용, 지도엔 대략 위치만. route.params.stay 있으면 수정 모드.
 import { useState } from 'react';
-import { View, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Linking } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -55,7 +55,10 @@ export default function StayCreateScreen({ navigation, route }) {
     if (images.length >= MAX_PHOTOS) return;
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(t('biz.permNeedTitle'), t('biz.permNeedMsg'));
+      Alert.alert(t('biz.permNeedTitle'), t('biz.permNeedMsg'), [
+        { text: t('biz.cancel'), style: 'cancel' },
+        { text: t('biz.openSettings'), onPress: () => Linking.openSettings() },
+      ]);
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });

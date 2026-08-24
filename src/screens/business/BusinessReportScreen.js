@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Linking } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -38,7 +38,10 @@ export default function BusinessReportScreen({ navigation, route }) {
     if (images.length >= MAX_PHOTOS) return;
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(t('biz.permNeedTitle'), t('biz.permNeedMsg'));
+      Alert.alert(t('biz.permNeedTitle'), t('biz.permNeedMsg'), [
+        { text: t('biz.cancel'), style: 'cancel' },
+        { text: t('biz.openSettings'), onPress: () => Linking.openSettings() },
+      ]);
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({

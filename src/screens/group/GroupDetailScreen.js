@@ -114,7 +114,10 @@ export default function GroupDetailScreen({ route, navigation }) {
     if (uploadingCover) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert(t('post.permRequired'), t('post.permPhotoMsg'));
+      Alert.alert(t('post.permRequired'), t('post.permPhotoMsg'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
+      ]);
       return;
     }
     // iOS는 allowsEditing=true일 때 aspect를 무시하고 정사각형 크롭 강제 → 비활성화

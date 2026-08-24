@@ -11,6 +11,7 @@ import {
   Keyboard,
   Modal,
   FlatList,
+  Linking,
   useWindowDimensions,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -232,7 +233,10 @@ export default function CreatePostScreen({ route, navigation }) {
   const handlePickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(t('post.permRequired'), t('post.permPhotoMsg'));
+      Alert.alert(t('post.permRequired'), t('post.permPhotoMsg'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
+      ]);
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({

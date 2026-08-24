@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
   Image,
+  Linking,
   Platform,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -93,7 +94,10 @@ export default function VerifyStudentScreen({ navigation }) {
 
       if (status !== 'granted') {
         if (!canAskAgain) {
-          Alert.alert(t('verify.galleryPermTitle'), t('verify.galleryPermMsg'));
+          Alert.alert(t('verify.galleryPermTitle'), t('verify.galleryPermMsg'), [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
+          ]);
         } else {
           Alert.alert(t('verify.permRequired'), t('verify.galleryRequired'));
         }
@@ -122,7 +126,10 @@ export default function VerifyStudentScreen({ navigation }) {
 
       if (status !== 'granted') {
         if (!canAskAgain) {
-          Alert.alert(t('verify.cameraPermTitle'), t('verify.cameraPermMsg'));
+          Alert.alert(t('verify.cameraPermTitle'), t('verify.cameraPermMsg'), [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
+          ]);
         } else {
           Alert.alert(t('verify.permRequired'), t('verify.cameraRequired'));
         }

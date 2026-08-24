@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   FlatList,
+  Linking,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
@@ -154,7 +155,10 @@ export default function MyPageScreen({ navigation }) {
   const handleChangeAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(t('post.permRequired'), t('post.permPhotoMsg'));
+      Alert.alert(t('post.permRequired'), t('post.permPhotoMsg'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
+      ]);
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
