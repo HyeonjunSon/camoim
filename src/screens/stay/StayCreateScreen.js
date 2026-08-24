@@ -147,7 +147,7 @@ export default function StayCreateScreen({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.notice}>
-            <Ionicons name="lock-closed" size={15} color={STAY_ACCENT} style={{ marginTop: 1 }} />
+            <Ionicons name="location" size={15} color={STAY_ACCENT} style={{ marginTop: 1 }} />
             <Text style={styles.noticeText}>{t('stay.formNotice')}</Text>
           </View>
 
@@ -216,7 +216,7 @@ export default function StayCreateScreen({ navigation, route }) {
               placeholder={editing ? t('stay.fAddressHint') : t('stay.fAddressPh')}
               placeholderTextColor={colors.textSecondary} style={styles.input} maxLength={200} />
             <View style={styles.hintRow}>
-              <Ionicons name="eye-off-outline" size={12} color={colors.textSecondary} />
+              <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
               <Text style={styles.hintText}>{t('stay.fAddressHint')}</Text>
             </View>
           </Field>
