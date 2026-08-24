@@ -37,6 +37,10 @@ const HIDE_TAB_ROUTES = new Set([
   'GroupCommunityEdit',
   'NoticeEdit',
   'ChatRoom',
+  // 숙소 화면 — 하단 CTA(입주완료/문의)가 탭바 위에 뜨지 않게 탭바 숨김
+  'StayCreate',
+  'StayDetail',
+  'StayMyList',
 ]);
 
 function getTabBarStyle(route, defaultStyle) {
