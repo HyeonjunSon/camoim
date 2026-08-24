@@ -44,6 +44,9 @@ const stayListingSchema = new mongoose.Schema({
   host:         { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   hostNickname: { type: String, default: '' }, // 등록 시점 스냅샷
 
+  // roomrent 게시글에서 만든 숙소면 원본 글 ID. 글의 입주완료 토글과 상태 동기화용
+  sourcePostId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', default: null, index: true },
+
   status: { type: String, enum: ['active', 'closed'], default: 'active', index: true }, // 입주가능 / 입주완료
   bookmarkCount: { type: Number, default: 0 },
   reportCount:   { type: Number, default: 0 },

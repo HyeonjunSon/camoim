@@ -26,7 +26,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
-import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost } from '../../lib/api';
+import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, setTradeStatus } from '../../lib/api';
+import { isTradeBoard, getTradeLabel } from '../../constants/boards';
 import { track } from '../../lib/analytics';
 import { formatTime } from '../../lib/time';
 import { useAuth } from '../../context/AuthContext';
@@ -410,6 +411,45 @@ export default function PostDetailScreen({ route, navigation }) {
 
   const isPostAuthor = post && user && String(post.userId) === String(user.id);
 
+  // 거래 상태 토글 (입주완료 등) — 작성자 전용, 마켓 류 게시판에서만. BoardPostDetail과 동일 동작.
+  const isSold = post?.tradeStatus === 'sold';
+  const showTradeButton = isPostAuthor && isTradeBoard(post?.boardSlug);
+  const toggleTradeStatus = async () => {
+    const next = isSold ? 'selling' : 'sold';
+    setPost((prev) => ({ ...prev, tradeStatus: next })); // optimistic
+    try {
+      const res = await setTradeStatus(post.id, next);
+      if (!res.success) {
+        setPost((prev) => ({ ...prev, tradeStatus: isSold ? 'sold' : 'selling' }));
+        Alert.alert(t('common.error'), res.message ?? t('common.serverError'));
+      }
+    } catch (e) {
+      setPost((prev) => ({ ...prev, tradeStatus: isSold ? 'sold' : 'selling' }));
+      Alert.alert(t('common.error'), e.message ?? t('common.serverError'));
+    }
+  };
+  const confirmToggleTradeStatus = () => {
+    const next = isSold ? 'selling' : 'sold';
+    const nextLabel = getTradeLabel(post.boardSlug, next, t);
+    Alert.alert(
+      t('board.tradeChangeConfirm').replace('{label}', nextLabel), '',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.confirm') || '변경', onPress: toggleTradeStatus, style: 'default' },
+      ]
+    );
+  };
+
+  // 룸렌트·민박 글 → 지도에 숙소로 등록 (작성자, 입주완료면 숨김)
+  const isRoomrentBoard = post?.boardSlug === 'roomrent' || String(post?.boardSlug || '').endsWith('-roomrent');
+  const showListOnMap = isPostAuthor && isRoomrentBoard && post?.tradeStatus !== 'sold';
+  const listOnStayMap = () => {
+    navigation.navigate('Map', {
+      screen: 'StayCreate',
+      params: { prefill: { title: post.title, city: post.city, images: post.images || [], content: post.content, sourcePostId: post.id } },
+    });
+  };
+
   const confirmDeletePost = () => {
     Alert.alert(t('common.delete'), t('post.deleteConfirm'), [
       { text: t('common.cancel'), style: 'cancel' },
@@ -583,11 +623,55 @@ export default function PostDetailScreen({ route, navigation }) {
         {/* ── 게시글 본체 */}
         <View style={styles.postCard}>
 
-          {/* 게시판 태그 */}
-          {post.boardName && <Text style={styles.boardTag}>{post.boardName}</Text>}
+          {/* 게시판 태그 (왼쪽) + 거래 상태 (오른쪽 끝) */}
+          {(post.boardName || isTradeBoard(post.boardSlug)) && (
+            <View style={styles.tagRow}>
+              {post.boardName && <Text style={styles.boardTag}>{post.boardName}</Text>}
+              {isTradeBoard(post.boardSlug) && (
+                showTradeButton ? (
+                  <View style={[styles.tradeSegment, { marginLeft: 'auto' }]}>
+                    <TouchableOpacity
+                      style={[styles.tradeSegOption, !isSold && styles.tradeSegOptionActive]}
+                      onPress={isSold ? confirmToggleTradeStatus : undefined}
+                      activeOpacity={isSold ? 0.6 : 1} disabled={!isSold} accessibilityRole="button"
+                    >
+                      <Text style={[styles.tradeSegText, !isSold ? styles.tradeSegTextActiveSelling : styles.tradeSegTextInactive]}>
+                        {getTradeLabel(post.boardSlug, 'selling', t)}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.tradeSegOption, isSold && styles.tradeSegOptionActive]}
+                      onPress={!isSold ? confirmToggleTradeStatus : undefined}
+                      activeOpacity={!isSold ? 0.6 : 1} disabled={isSold} accessibilityRole="button"
+                    >
+                      <Text style={[styles.tradeSegText, isSold ? styles.tradeSegTextActiveSold : styles.tradeSegTextInactive]}>
+                        {getTradeLabel(post.boardSlug, 'sold', t)}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={[styles.tradeStatusPill, isSold ? styles.tradeStatusPillSold : styles.tradeStatusPillSelling, { marginLeft: 'auto' }]}>
+                    <View style={[styles.tradeDot, isSold ? styles.tradeDotSold : styles.tradeDotSelling]} />
+                    <Text style={[styles.tradeStatusPillText, isSold ? styles.tradeStatusPillTextSold : styles.tradeStatusPillTextSelling]}>
+                      {getTradeLabel(post.boardSlug, isSold ? 'sold' : 'selling', t)}
+                    </Text>
+                  </View>
+                )
+              )}
+            </View>
+          )}
 
           {/* 제목 */}
-          <Text selectable style={styles.title}>{post.title}</Text>
+          <Text selectable style={[styles.title, isSold && { color: colors.textSecondary }]}>{post.title}</Text>
+
+          {/* 룸렌트·민박 글 → 지도에 숙소로 등록 (작성자) */}
+          {showListOnMap && (
+            <TouchableOpacity style={styles.listMapBtn} activeOpacity={0.85} onPress={listOnStayMap}>
+              <Ionicons name="map" size={15} color="#3B82F6" />
+              <Text style={styles.listMapBtnText}>{t('stay.listFromPost')}</Text>
+              <Ionicons name="chevron-forward" size={14} color="#3B82F6" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          )}
 
           {/* 작성자 행 */}
           <TouchableOpacity
@@ -840,6 +924,31 @@ const createStyles = (colors) => StyleSheet.create({
     fontWeight: '700',
     marginBottom: 8,
   },
+
+  // 게시판 태그 + 거래 상태 한 줄 (BoardPostDetail과 동일)
+  tagRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 10 },
+  listMapBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    marginTop: 12, marginBottom: 4, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12,
+    backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE',
+  },
+  listMapBtnText: { fontSize: 13, fontWeight: '700', color: '#3B82F6' },
+  tradeStatusPill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  tradeStatusPillSelling: { backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0' },
+  tradeStatusPillSold: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border },
+  tradeDot: { width: 6, height: 6, borderRadius: 3 },
+  tradeDotSelling: { backgroundColor: '#10B981' },
+  tradeDotSold: { backgroundColor: colors.textSecondary },
+  tradeStatusPillText: { fontSize: 11, fontWeight: '800', letterSpacing: -0.2 },
+  tradeStatusPillTextSelling: { color: '#047857' },
+  tradeStatusPillTextSold: { color: colors.textSecondary },
+  tradeSegment: { flexDirection: 'row', backgroundColor: colors.inputBg, borderRadius: 7, padding: 2, alignSelf: 'flex-start' },
+  tradeSegOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 5, paddingHorizontal: 12, borderRadius: 5 },
+  tradeSegOptionActive: { backgroundColor: colors.surface, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 1.5, elevation: 1 },
+  tradeSegText: { fontSize: 12, fontWeight: '700', letterSpacing: -0.2 },
+  tradeSegTextActiveSelling: { color: '#047857' },
+  tradeSegTextActiveSold: { color: colors.text },
+  tradeSegTextInactive: { color: colors.textSecondary },
 
   // 제목
   title: {

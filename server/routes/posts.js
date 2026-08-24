@@ -12,6 +12,7 @@ const GroupMembership = require('../models/GroupMembership');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const Bookmark = require('../models/Bookmark');
+const StayListing = require('../models/StayListing');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { sendPush } = require('../utils/push');
 const { getBlockedUserIds } = require('../utils/blocks');
@@ -651,6 +652,13 @@ router.put('/:postId/trade-status', requireAuth, async (req, res) => {
 
     post.tradeStatus = status;
     await post.save();
+
+    // 이 글에서 만든 지도 숙소가 있으면 상태 동기화 (입주완료 → closed, 입주가능 → active)
+    StayListing.updateMany(
+      { sourcePostId: post._id },
+      { status: status === 'sold' ? 'closed' : 'active' }
+    ).catch(() => {});
+
     res.json({ success: true, data: { tradeStatus: status } });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);

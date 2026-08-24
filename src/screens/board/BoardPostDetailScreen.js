@@ -489,7 +489,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
   const listOnStayMap = () => {
     navigation.navigate('Map', {
       screen: 'StayCreate',
-      params: { prefill: { title: post.title, city: post.city, images: post.images || [], content: post.content } },
+      params: { prefill: { title: post.title, city: post.city, images: post.images || [], content: post.content, sourcePostId: post.id } },
     });
   };
 

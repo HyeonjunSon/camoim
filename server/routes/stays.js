@@ -169,6 +169,10 @@ router.post('/', requireAuth, async (req, res) => {
       hostNickname: req.user.nickname || '',
       status: 'active',
     };
+    // roomrent 글에서 온 경우 원본 글 연결 (입주완료 동기화용)
+    if (req.body.sourcePostId && mongoose.isValidObjectId(req.body.sourcePostId)) {
+      doc.sourcePostId = req.body.sourcePostId;
+    }
 
     // 주소 → 정확 좌표(서버 전용) → 대략 좌표(노출용). 실패해도 저장은 진행 (지도 핀만 안 뜸)
     const geo = await geocodeAddress(doc.address, city);

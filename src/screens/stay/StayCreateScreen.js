@@ -99,6 +99,7 @@ export default function StayCreateScreen({ navigation, route }) {
       images,
     };
     if (address.trim()) payload.address = address.trim();
+    if (!editing && prefill?.sourcePostId) payload.sourcePostId = prefill.sourcePostId; // 게시글 연동
     try {
       const res = editing ? await updateStay(editing.id, payload) : await createStay(payload);
       if (res?.success) {
