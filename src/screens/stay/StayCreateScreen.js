@@ -106,14 +106,24 @@ export default function StayCreateScreen({ navigation, route }) {
     try {
       const res = editing ? await updateStay(editing.id, payload) : await createStay(payload);
       if (res?.success) {
+        const okBtn = { text: t('biz.confirmOk'), onPress: () => navigation.goBack() };
         if (editing) {
-          Alert.alert(t('stay.addedTitle'), t('stay.updatedMsg'), [
-            { text: t('biz.confirmOk'), onPress: () => navigation.goBack() },
-          ]);
+          Alert.alert(t('stay.addedTitle'), t('stay.updatedMsg'), [okBtn]);
         } else {
-          Alert.alert(t('stay.addedTitle'), res.located === false ? t('stay.addedNoGeo') : t('stay.addedMsg'), [
-            { text: t('biz.confirmOk'), onPress: () => navigation.goBack() },
-          ]);
+          // 게시판에서 온 등록이면 지도(숙소 모드)로 바로 가볼 수 있게 버튼 추가
+          const fromPost = !!prefill;
+          const mapBtn = {
+            text: t('stay.viewOnMap'),
+            onPress: () => {
+              navigation.goBack();
+              navigation.navigate('Map', { screen: 'BusinessMap', params: { category: 'stay' } });
+            },
+          };
+          Alert.alert(
+            t('stay.addedTitle'),
+            res.located === false ? t('stay.addedNoGeo') : t('stay.addedMsg'),
+            fromPost ? [okBtn, mapBtn] : [okBtn]
+          );
         }
       } else {
         Alert.alert(t('biz.errorTitle'), t('stay.saveFail'));

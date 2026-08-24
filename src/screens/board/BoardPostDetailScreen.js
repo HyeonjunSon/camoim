@@ -487,9 +487,9 @@ export default function BoardPostDetailScreen({ route, navigation }) {
   const isRoomrentBoard = post?.boardSlug === 'roomrent' || String(post?.boardSlug || '').endsWith('-roomrent');
   const showListOnMap = isPostAuthor && isRoomrentBoard && post?.tradeStatus !== 'sold';
   const listOnStayMap = () => {
-    navigation.navigate('Map', {
-      screen: 'StayCreate',
-      params: { prefill: { title: post.title, city: post.city, images: post.images || [], content: post.content, sourcePostId: post.id } },
+    // 현재 탭 스택에서 열기 (지도 탭을 건드리지 않음 → 지도 탭이 StayCreate로 고정되는 버그 방지)
+    navigation.navigate('StayCreate', {
+      prefill: { title: post.title, city: post.city, images: post.images || [], content: post.content, sourcePostId: post.id },
     });
   };
 

@@ -161,6 +161,15 @@ export default function BusinessMapScreen({ navigation, route }) {
     navigation.setParams({ focusId: undefined }); // 재진입 시 반복 오픈 방지
   }, [route?.params?.focusId, businesses]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 외부에서 특정 카테고리(예: 숙소)로 열기 — "지도에서 보기" 진입
+  useEffect(() => {
+    const c = route?.params?.category;
+    if (c) {
+      setCategory(c);
+      navigation.setParams({ category: undefined });
+    }
+  }, [route?.params?.category]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 도시 변경 → 지도 이동 + 선택/드롭다운 초기화
   useEffect(() => {
     const r = cityRegion(city);

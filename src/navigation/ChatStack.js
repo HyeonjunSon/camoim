@@ -7,6 +7,7 @@ import GroupMembersScreen from '../screens/group/GroupMembersScreen';
 import GroupEditScreen from '../screens/group/GroupEditScreen';
 import GroupCommunityEditScreen from '../screens/group/GroupCommunityEditScreen';
 import CreatePostScreen from '../screens/board/CreatePostScreen';
+import StayCreateScreen from '../screens/stay/StayCreateScreen';
 import BoardPostDetailScreen from '../screens/board/BoardPostDetailScreen';
 import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LangContext';
@@ -36,6 +37,7 @@ export default function ChatStack() {
       <Stack.Screen name="GroupCommunityEdit" component={GroupCommunityEditScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CreatePost"      component={CreatePostScreen}      options={{ headerShown: false, presentation: 'modal', gestureEnabled: false }} />
       <Stack.Screen name="BoardPostDetail" component={BoardPostDetailScreen} options={{ title: t('post.postTitle') }} />
+      <Stack.Screen name="StayCreate" component={StayCreateScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
