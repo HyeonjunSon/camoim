@@ -50,3 +50,17 @@ export function formatPrice(n) {
   if (n == null || !Number.isFinite(n)) return '';
   return `$${Number(n).toLocaleString('en-CA')}`;
 }
+
+// 리치에디터 HTML → 평문 (게시판 글을 숙소 소개로 옮길 때 </p> 등 태그 제거)
+export function htmlToPlain(html) {
+  if (!html) return '';
+  let s = String(html);
+  s = s.replace(/<\s*br\s*\/?>/gi, '\n');
+  s = s.replace(/<\/(p|div|h[1-6]|li)\s*>/gi, '\n');
+  s = s.replace(/<[^>]+>/g, '');
+  s = s
+    .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"').replace(/&#39;/gi, "'");
+  return s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}

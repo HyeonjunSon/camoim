@@ -13,7 +13,7 @@ import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
-import { stayTypeOf, stayCondOf, STAY_ACCENT, formatPrice } from '../../constants/stays';
+import { stayTypeOf, stayCondOf, STAY_ACCENT, formatPrice, htmlToPlain } from '../../constants/stays';
 import { STAY_REPORT_REASONS } from '../../constants/stays';
 import { getStay, toggleStayBookmark, setStayStatus, deleteStay, reportStay, startChat } from '../../lib/api';
 
@@ -200,7 +200,7 @@ export default function StayDetailScreen({ navigation, route }) {
         {!!stay.description && (
           <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
             <Text style={styles.sectionTitle}>{t('stay.sectionAbout')}</Text>
-            <Text style={styles.desc}>{stay.description}</Text>
+            <Text style={styles.desc}>{htmlToPlain(stay.description)}</Text>
           </View>
         )}
 
@@ -317,7 +317,7 @@ const createStyles = (colors) => StyleSheet.create({
   infoRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   infoLabel: { fontSize: 13, color: colors.textSecondary, flexShrink: 0 },
   infoValue: { fontSize: 14, fontWeight: '600', color: colors.text, flex: 1, textAlign: 'right' },
-  desc: { fontSize: 14, lineHeight: 23, color: colors.text },
+  desc: { fontSize: 14, lineHeight: 23, color: colors.textSecondary },
   mapCard: { borderRadius: 14, overflow: 'hidden', height: 130, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   mapPin: { width: 28, height: 28, borderRadius: 999, backgroundColor: STAY_ACCENT, borderWidth: 3, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   hintRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },

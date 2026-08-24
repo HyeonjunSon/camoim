@@ -12,7 +12,7 @@ import { Text, TextInput } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { STAY_TYPES, STAY_CITIES, STAY_CONDITIONS, STAY_ACCENT } from '../../constants/stays';
+import { STAY_TYPES, STAY_CITIES, STAY_CONDITIONS, STAY_ACCENT, htmlToPlain } from '../../constants/stays';
 import { createStay, updateStay, uploadStayImage } from '../../lib/api';
 
 const MAX_PHOTOS = 8;
@@ -39,7 +39,7 @@ export default function StayCreateScreen({ navigation, route }) {
   const [moveInDate, setMoveInDate] = useState(editing?.moveInDate || '');
   const [minLease, setMinLease] = useState(editing?.minLeaseMonths ? String(editing.minLeaseMonths) : '');
   const [includes, setIncludes] = useState(editing?.includes || '');
-  const [description, setDescription] = useState(editing?.description || (prefill?.content ? String(prefill.content).slice(0, 2000) : ''));
+  const [description, setDescription] = useState(editing?.description || (prefill?.content ? htmlToPlain(prefill.content).slice(0, 2000) : ''));
   const [images, setImages] = useState(editing?.images || prefill?.images || []);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
