@@ -13,7 +13,7 @@ import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
-import { stayTypeOf, stayCondOf, STAY_ACCENT, formatPrice, htmlToPlain } from '../../constants/stays';
+import { stayTypeOf, stayCondOf, STAY_ACCENT, formatPrice, htmlToPlain, formatMoveIn } from '../../constants/stays';
 import { STAY_REPORT_REASONS } from '../../constants/stays';
 import { getStay, toggleStayBookmark, setStayStatus, deleteStay, reportStay, startChat } from '../../lib/api';
 
@@ -21,7 +21,7 @@ const W = Dimensions.get('window').width;
 
 export default function StayDetailScreen({ navigation, route }) {
   const { colors } = useTheme();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
@@ -104,7 +104,7 @@ export default function StayDetailScreen({ navigation, route }) {
   }, [stay, t]);
 
   const rightActions = isMine
-    ? [{ icon: 'create-outline', onPress: () => navigation.navigate('StayCreate', { stay }), label: 'edit' },
+    ? [{ icon: 'pencil', onPress: () => navigation.navigate('StayCreate', { stay }), label: 'edit' },
        { icon: 'trash-outline', onPress: onDelete, color: '#FF4444', label: 'delete' }]
     : [{ icon: 'flag-outline', onPress: () => setReportOpen(true), label: 'report' }];
 
@@ -120,10 +120,9 @@ export default function StayDetailScreen({ navigation, route }) {
   const c = stayTypeOf(stay.stayType);
   const hasCoord = stay.lat != null && stay.lng != null;
   const infoRows = [
-    stay.moveInDate && { label: t('stay.moveInLabel'), value: stay.moveInDate },
+    stay.moveInDate && { label: t('stay.moveInLabel'), value: formatMoveIn(stay.moveInDate, lang, t) },
     stay.minLeaseMonths > 0 && { label: t('stay.minLeaseLabel'), value: `${stay.minLeaseMonths}${t('stay.monthsUnit')}` },
     stay.deposit > 0 && { label: t('stay.depositLabel'), value: formatPrice(stay.deposit) },
-    stay.includes && { label: t('stay.includesLabel'), value: stay.includes },
   ].filter(Boolean);
 
   return (

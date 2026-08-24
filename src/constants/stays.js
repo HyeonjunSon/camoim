@@ -22,6 +22,8 @@ export const STAY_CONDITIONS = [
   { key: 'studentOnly',  labelKey: 'stay.cStudentOnly' },
   { key: 'privateRoom',  labelKey: 'stay.cPrivateRoom' },
   { key: 'sharedRoom',   labelKey: 'stay.cSharedRoom' },
+  { key: 'privateBath',  labelKey: 'stay.cPrivateBath' },
+  { key: 'sharedBath',   labelKey: 'stay.cSharedBath' },
   { key: 'mealIncluded', labelKey: 'stay.cMealIncluded' },
   { key: 'utilIncluded', labelKey: 'stay.cUtilIncluded' },
   { key: 'furnished',    labelKey: 'stay.cFurnished' },
@@ -49,6 +51,22 @@ export { BUSINESS_CITIES as STAY_CITIES };
 export function formatPrice(n) {
   if (n == null || !Number.isFinite(n)) return '';
   return `$${Number(n).toLocaleString('en-CA')}`;
+}
+
+// 입주 가능일 표기 — 저장값은 'YYYY-MM-DD'(달력 선택) 또는 'immediate'(즉시).
+// 과거 자유 텍스트('9월 1일부터' 등)는 그대로 노출 (하위호환).
+export function formatMoveIn(v, lang, t) {
+  if (!v) return '';
+  if (v === 'immediate') return t ? t('stay.moveInNow') : '즉시 입주';
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  if (!m) return v; // 옛 자유 텍스트
+  const [, y, mo, d] = m;
+  const mn = Number(mo), dn = Number(d);
+  if (lang === 'en') {
+    const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${MON[mn - 1]} ${dn}, ${y}`;
+  }
+  return `${y}년 ${mn}월 ${dn}일`;
 }
 
 // 리치에디터 HTML → 평문 (게시판 글을 숙소 소개로 옮길 때 </p> 등 태그 제거)

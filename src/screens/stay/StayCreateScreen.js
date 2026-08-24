@@ -12,16 +12,18 @@ import { Text, TextInput } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { STAY_TYPES, STAY_CITIES, STAY_CONDITIONS, STAY_ACCENT, htmlToPlain } from '../../constants/stays';
+import { STAY_TYPES, STAY_CITIES, STAY_CONDITIONS, STAY_ACCENT, htmlToPlain, formatMoveIn } from '../../constants/stays';
+import StayDatePickerModal from '../../components/StayDatePickerModal';
 import { createStay, updateStay, uploadStayImage } from '../../lib/api';
 
 const MAX_PHOTOS = 8;
 
 export default function StayCreateScreen({ navigation, route }) {
   const { colors } = useTheme();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
+  const [dateOpen, setDateOpen] = useState(false);
 
   const editing = route?.params?.stay || null; // 수정 모드면 기존 숙소 객체
   // 게시판(roomrent) 글에서 "지도에 등록"으로 넘어온 경우 초기값 채우기
@@ -38,7 +40,6 @@ export default function StayCreateScreen({ navigation, route }) {
   const [conditions, setConditions] = useState(editing?.conditions || []);
   const [moveInDate, setMoveInDate] = useState(editing?.moveInDate || '');
   const [minLease, setMinLease] = useState(editing?.minLeaseMonths ? String(editing.minLeaseMonths) : '');
-  const [includes, setIncludes] = useState(editing?.includes || '');
   const [description, setDescription] = useState(editing?.description || (prefill?.content ? htmlToPlain(prefill.content).slice(0, 2000) : ''));
   const [images, setImages] = useState(editing?.images || prefill?.images || []);
   const [uploading, setUploading] = useState(false);
@@ -97,7 +98,6 @@ export default function StayCreateScreen({ navigation, route }) {
       neighborhood: neighborhood.trim(),
       moveInDate: moveInDate.trim(),
       minLeaseMonths: Number(minLease) || 0,
-      includes: includes.trim(),
       description: description.trim(),
       images,
     };
@@ -233,8 +233,11 @@ export default function StayCreateScreen({ navigation, route }) {
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <View style={{ flex: 1.4 }}>
               <Field label={t('stay.fMoveIn')} optional>
-                <TextInput value={moveInDate} onChangeText={setMoveInDate} placeholder={t('stay.fMoveInPh')}
-                  placeholderTextColor={colors.textSecondary} style={styles.input} maxLength={40} />
+                <TouchableOpacity style={styles.input} activeOpacity={0.7} onPress={() => setDateOpen(true)}>
+                  <Text style={{ fontSize: 15, color: moveInDate ? colors.text : colors.textSecondary }} numberOfLines={1}>
+                    {moveInDate ? formatMoveIn(moveInDate, lang, t) : t('stay.fMoveInPh')}
+                  </Text>
+                </TouchableOpacity>
               </Field>
             </View>
             <View style={{ flex: 1 }}>
@@ -244,11 +247,6 @@ export default function StayCreateScreen({ navigation, route }) {
               </Field>
             </View>
           </View>
-
-          <Field label={t('stay.fIncludes')} optional>
-            <TextInput value={includes} onChangeText={setIncludes} placeholder={t('stay.fIncludesPh')}
-              placeholderTextColor={colors.textSecondary} style={styles.input} maxLength={200} />
-          </Field>
 
           <Field label={t('stay.fDesc')} optional>
             <TextInput value={description} onChangeText={setDescription} placeholder={t('stay.fDescPh')}
@@ -286,6 +284,13 @@ export default function StayCreateScreen({ navigation, route }) {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <StayDatePickerModal
+        visible={dateOpen}
+        value={moveInDate}
+        onSelect={setMoveInDate}
+        onClose={() => setDateOpen(false)}
+      />
     </View>
   );
 }
