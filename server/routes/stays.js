@@ -46,9 +46,9 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ⚠️ address / location(정확좌표)는 절대 노출하지 않음. approxLocation만 lat/lng로.
+// 정확 위치 노출(운영 결정): location(정확좌표) + address 표기. 없으면 approxLocation fallback.
 function formatStay(s, bookmarkedSet, viewer) {
-  const coords = s.approxLocation?.coordinates;
+  const coords = s.location?.coordinates || s.approxLocation?.coordinates;
   const host = s.host && typeof s.host === 'object' ? s.host : null;
   return {
     id: s._id,
@@ -62,6 +62,7 @@ function formatStay(s, bookmarkedSet, viewer) {
     images: s.images || [],
     lat: Array.isArray(coords) ? coords[1] : null,
     lng: Array.isArray(coords) ? coords[0] : null,
+    address: s.address || '',
     neighborhood: s.neighborhood || '',
     moveInDate: s.moveInDate || '',
     minLeaseMonths: s.minLeaseMonths || 0,
@@ -137,6 +138,18 @@ router.get('/mine', requireAuth, async (req, res) => {
 router.post('/upload-image', requireAuth, upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: '이미지가 없습니다.' });
   res.json({ success: true, url: req.file.path });
+});
+
+// ── GET /api/stays/by-post/:postId ── 이 글로 만든 내 숙소가 있으면 id 반환 (버튼 상태용) ──
+router.get('/by-post/:postId', requireAuth, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.postId)) return res.json({ success: true, stayId: null });
+    const stay = await StayListing.findOne({ sourcePostId: req.params.postId, host: req.user.id }).select('_id').lean();
+    res.json({ success: true, stayId: stay ? stay._id : null });
+  } catch (err) {
+    console.error('GET /stays/by-post', err);
+    res.json({ success: true, stayId: null });
+  }
 });
 
 // ── POST /api/stays ── 숙소 등록 (호스트 = 본인) ──

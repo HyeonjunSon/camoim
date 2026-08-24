@@ -514,6 +514,7 @@ export const getStays = ({ city, type, near } = {}) => {
 };
 export const getStay = (id) => request('GET', `/stays/${id}`);
 export const getMyStays = () => request('GET', '/stays/mine');
+export const getStayByPost = (postId) => request('GET', `/stays/by-post/${postId}`);
 export const createStay = (data) => request('POST', '/stays', data);
 export const updateStay = (id, data) => request('PUT', `/stays/${id}`, data);
 export const deleteStay = (id) => request('DELETE', `/stays/${id}`);

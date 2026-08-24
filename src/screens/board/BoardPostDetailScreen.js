@@ -46,7 +46,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
-import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, pinPost, setBlock, setTradeStatus } from '../../lib/api';
+import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, pinPost, setBlock, setTradeStatus, getStayByPost } from '../../lib/api';
 import { track } from '../../lib/analytics';
 import { isTradeBoard, getTradeLabel, getTradeChangeLabel } from '../../constants/boards';
 import { formatTime } from '../../lib/time';
@@ -483,9 +483,18 @@ export default function BoardPostDetailScreen({ route, navigation }) {
   };
 
   // 룸렌트·민박 글 → 지도 숙소로 등록 (작성자 전용). roomrent 글로벌 + 학교 roomrent 보드 모두.
-  // 입주완료(sold)면 이미 나간 방이라 등록 버튼 숨김
   const isRoomrentBoard = post?.boardSlug === 'roomrent' || String(post?.boardSlug || '').endsWith('-roomrent');
-  const showListOnMap = isPostAuthor && isRoomrentBoard && post?.tradeStatus !== 'sold';
+  // 이 글로 이미 만든 숙소가 있으면 그 id (있으면 "보기", 없으면 "등록")
+  const [linkedStayId, setLinkedStayId] = useState(null);
+  useFocusEffect(useCallback(() => {
+    let alive = true;
+    if (isPostAuthor && isRoomrentBoard && post?.id) {
+      getStayByPost(post.id).then((r) => { if (alive && r?.success) setLinkedStayId(r.stayId || null); }).catch(() => {});
+    }
+    return () => { alive = false; };
+  }, [isPostAuthor, isRoomrentBoard, post?.id]));
+  // 등록 안 됐고 입주완료면 등록 버튼 숨김. 이미 등록됐으면 상태 무관하게 "보기" 노출
+  const showStayCta = isPostAuthor && isRoomrentBoard && (linkedStayId || post?.tradeStatus !== 'sold');
   const listOnStayMap = () => {
     // 현재 탭 스택에서 열기 (지도 탭을 건드리지 않음 → 지도 탭이 StayCreate로 고정되는 버그 방지)
     navigation.navigate('StayCreate', {
@@ -701,11 +710,15 @@ export default function BoardPostDetailScreen({ route, navigation }) {
           {/* 제목 */}
           <Text selectable style={[styles.title, isSold && { color: colors.textSecondary }]}>{post.title}</Text>
 
-          {/* 룸렌트·민박 글 → 지도에 숙소로 등록 (작성자) */}
-          {showListOnMap && (
-            <TouchableOpacity style={styles.listMapBtn} activeOpacity={0.85} onPress={listOnStayMap}>
-              <Ionicons name="map" size={15} color="#3B82F6" />
-              <Text style={styles.listMapBtnText}>{t('stay.listFromPost')}</Text>
+          {/* 룸렌트·민박 글 → 지도에 숙소로 등록 / 등록한 숙소 보기 (작성자) */}
+          {showStayCta && (
+            <TouchableOpacity
+              style={styles.listMapBtn}
+              activeOpacity={0.85}
+              onPress={linkedStayId ? () => navigation.navigate('StayDetail', { id: linkedStayId }) : listOnStayMap}
+            >
+              <Ionicons name={linkedStayId ? 'bed' : 'map'} size={15} color="#3B82F6" />
+              <Text style={styles.listMapBtnText}>{linkedStayId ? t('stay.viewMyListing') : t('stay.listFromPost')}</Text>
               <Ionicons name="chevron-forward" size={14} color="#3B82F6" style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
           )}

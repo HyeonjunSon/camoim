@@ -5,7 +5,7 @@ import {
   View, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Dimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
-import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../../components/StyledText';
@@ -212,21 +212,21 @@ export default function StayDetailScreen({ navigation, route }) {
               <MapView
                 provider={PROVIDER_DEFAULT}
                 style={StyleSheet.absoluteFill}
-                initialRegion={{ latitude: stay.lat, longitude: stay.lng, latitudeDelta: 0.012, longitudeDelta: 0.012 }}
+                initialRegion={{ latitude: stay.lat, longitude: stay.lng, latitudeDelta: 0.008, longitudeDelta: 0.008 }}
                 scrollEnabled={false} zoomEnabled={false} pitchEnabled={false} rotateEnabled={false}
                 toolbarEnabled={false} showsCompass={false}
               >
-                <Circle center={{ latitude: stay.lat, longitude: stay.lng }} radius={260}
-                  strokeColor={STAY_ACCENT} strokeWidth={1.5} fillColor={STAY_ACCENT + '22'} />
-                <Marker coordinate={{ latitude: stay.lat, longitude: stay.lng }} anchor={{ x: 0.5, y: 0.5 }}>
+                <Marker coordinate={{ latitude: stay.lat, longitude: stay.lng }} anchor={{ x: 0.5, y: 1 }}>
                   <View style={styles.mapPin}><Ionicons name="bed" size={14} color="#FFFFFF" /></View>
                 </Marker>
               </MapView>
             </View>
-            <View style={styles.hintRow}>
-              <Ionicons name="lock-closed-outline" size={12} color={colors.textSecondary} />
-              <Text style={styles.approxNote}>{t('stay.approxNote')}</Text>
-            </View>
+            {!!stay.address && (
+              <View style={styles.hintRow}>
+                <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
+                <Text style={styles.approxNote}>{stay.address}</Text>
+              </View>
+            )}
           </View>
         )}
 

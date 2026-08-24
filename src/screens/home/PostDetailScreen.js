@@ -26,7 +26,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
-import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, setTradeStatus } from '../../lib/api';
+import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, setTradeStatus, getStayByPost } from '../../lib/api';
 import { isTradeBoard, getTradeLabel } from '../../constants/boards';
 import { track } from '../../lib/analytics';
 import { formatTime } from '../../lib/time';
@@ -440,9 +440,17 @@ export default function PostDetailScreen({ route, navigation }) {
     );
   };
 
-  // 룸렌트·민박 글 → 지도에 숙소로 등록 (작성자, 입주완료면 숨김)
+  // 룸렌트·민박 글 → 지도에 숙소로 등록 / 등록한 숙소 보기 (작성자)
   const isRoomrentBoard = post?.boardSlug === 'roomrent' || String(post?.boardSlug || '').endsWith('-roomrent');
-  const showListOnMap = isPostAuthor && isRoomrentBoard && post?.tradeStatus !== 'sold';
+  const [linkedStayId, setLinkedStayId] = useState(null);
+  useFocusEffect(useCallback(() => {
+    let alive = true;
+    if (isPostAuthor && isRoomrentBoard && post?.id) {
+      getStayByPost(post.id).then((r) => { if (alive && r?.success) setLinkedStayId(r.stayId || null); }).catch(() => {});
+    }
+    return () => { alive = false; };
+  }, [isPostAuthor, isRoomrentBoard, post?.id]));
+  const showStayCta = isPostAuthor && isRoomrentBoard && (linkedStayId || post?.tradeStatus !== 'sold');
   const listOnStayMap = () => {
     // 현재 탭 스택에서 열기 (지도 탭을 건드리지 않음 → 지도 탭이 StayCreate로 고정되는 버그 방지)
     navigation.navigate('StayCreate', {
@@ -664,11 +672,15 @@ export default function PostDetailScreen({ route, navigation }) {
           {/* 제목 */}
           <Text selectable style={[styles.title, isSold && { color: colors.textSecondary }]}>{post.title}</Text>
 
-          {/* 룸렌트·민박 글 → 지도에 숙소로 등록 (작성자) */}
-          {showListOnMap && (
-            <TouchableOpacity style={styles.listMapBtn} activeOpacity={0.85} onPress={listOnStayMap}>
-              <Ionicons name="map" size={15} color="#3B82F6" />
-              <Text style={styles.listMapBtnText}>{t('stay.listFromPost')}</Text>
+          {/* 룸렌트·민박 글 → 지도에 숙소로 등록 / 등록한 숙소 보기 (작성자) */}
+          {showStayCta && (
+            <TouchableOpacity
+              style={styles.listMapBtn}
+              activeOpacity={0.85}
+              onPress={linkedStayId ? () => navigation.navigate('StayDetail', { id: linkedStayId }) : listOnStayMap}
+            >
+              <Ionicons name={linkedStayId ? 'bed' : 'map'} size={15} color="#3B82F6" />
+              <Text style={styles.listMapBtnText}>{linkedStayId ? t('stay.viewMyListing') : t('stay.listFromPost')}</Text>
               <Ionicons name="chevron-forward" size={14} color="#3B82F6" style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
           )}
@@ -929,7 +941,7 @@ const createStyles = (colors) => StyleSheet.create({
   tagRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 10 },
   listMapBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
-    marginTop: 12, marginBottom: 4, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12,
+    marginTop: 0, marginBottom: 13, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12,
     backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE',
   },
   listMapBtnText: { fontSize: 13, fontWeight: '700', color: '#3B82F6' },
