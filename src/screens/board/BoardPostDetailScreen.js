@@ -482,9 +482,10 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     }
   };
 
-  // 룸렌트·민박 글 → 지도 숙소로 등록 (작성자 전용). roomrent 글로버 + 학교 roomrent 보드 모두
+  // 룸렌트·민박 글 → 지도 숙소로 등록 (작성자 전용). roomrent 글로벌 + 학교 roomrent 보드 모두.
+  // 입주완료(sold)면 이미 나간 방이라 등록 버튼 숨김
   const isRoomrentBoard = post?.boardSlug === 'roomrent' || String(post?.boardSlug || '').endsWith('-roomrent');
-  const showListOnMap = isPostAuthor && isRoomrentBoard;
+  const showListOnMap = isPostAuthor && isRoomrentBoard && post?.tradeStatus !== 'sold';
   const listOnStayMap = () => {
     navigation.navigate('Map', {
       screen: 'StayCreate',
