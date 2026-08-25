@@ -66,6 +66,7 @@ function formatStay(s, bookmarkedSet, viewer) {
     address: s.address || '',
     neighborhood: s.neighborhood || '',
     moveInDate: s.moveInDate || '',
+    availableUntil: s.availableUntil || '',
     minLeaseMonths: s.minLeaseMonths || 0,
     includes: s.includes || '',
     host: host
@@ -177,6 +178,7 @@ router.post('/', requireAuth, async (req, res) => {
       address: address.trim(),
       neighborhood: (req.body.neighborhood || '').trim(),
       moveInDate: (req.body.moveInDate || '').trim(),
+      availableUntil: (req.body.availableUntil || '').trim(),
       minLeaseMonths: Number.isFinite(Number(req.body.minLeaseMonths)) ? Math.max(0, Number(req.body.minLeaseMonths)) : 0,
       includes: (req.body.includes || '').trim(),
       host: req.user.id,
@@ -246,6 +248,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     if (Array.isArray(b.images)) s.images = b.images.filter((u) => typeof u === 'string').slice(0, 8);
     if (b.neighborhood != null) s.neighborhood = String(b.neighborhood).trim().slice(0, 80);
     if (b.moveInDate != null) s.moveInDate = String(b.moveInDate).trim().slice(0, 40);
+    if (b.availableUntil != null) s.availableUntil = String(b.availableUntil).trim().slice(0, 40);
     if (Number.isFinite(Number(b.minLeaseMonths))) s.minLeaseMonths = Math.max(0, Number(b.minLeaseMonths));
     if (b.includes != null) s.includes = String(b.includes).trim().slice(0, 200);
 

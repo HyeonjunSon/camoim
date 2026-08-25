@@ -121,8 +121,12 @@ export default function StayDetailScreen({ navigation, route }) {
 
   const c = stayTypeOf(stay.stayType);
   const hasCoord = stay.lat != null && stay.lng != null;
+  // 입주 가능 기간: 시작 ~ 종료 (종료 없으면 시작만 = 장기)
+  const startTxt = stay.moveInDate ? formatMoveIn(stay.moveInDate, lang, t) : '';
+  const endTxt = stay.availableUntil ? formatMoveIn(stay.availableUntil, lang, t) : '';
+  const period = startTxt && endTxt ? `${startTxt} ~ ${endTxt}` : (startTxt || (endTxt ? `~ ${endTxt}` : ''));
   const infoRows = [
-    stay.moveInDate && { label: t('stay.moveInLabel'), value: formatMoveIn(stay.moveInDate, lang, t) },
+    period && { label: t('stay.moveInLabel'), value: period },
     stay.minLeaseMonths > 0 && { label: t('stay.minLeaseLabel'), value: `${stay.minLeaseMonths}${t('stay.monthsUnit')}` },
     stay.deposit > 0 && { label: t('stay.depositLabel'), value: formatPrice(stay.deposit) },
   ].filter(Boolean);

@@ -40,7 +40,8 @@ const stayListingSchema = new mongoose.Schema({
   },
   neighborhood: { type: String, default: '', trim: true, maxlength: 80 }, // "North York · Finch역 도보 5분"
 
-  moveInDate:    { type: String, default: '', trim: true, maxlength: 40 }, // 입주 가능일 (자유 텍스트)
+  moveInDate:    { type: String, default: '', trim: true, maxlength: 40 }, // 입주 가능일 (YYYY-MM-DD / 'immediate' / 자유텍스트)
+  availableUntil:{ type: String, default: '', trim: true, maxlength: 40 }, // 종료일 (단기용, YYYY-MM-DD). 비어있으면 장기/무기한
   minLeaseMonths:{ type: Number, default: 0, min: 0 },                     // 최소 계약 (개월)
   includes:      { type: String, default: '', trim: true, maxlength: 200 },// 포함 사항 "아침·저녁 2식·세탁·Wi-Fi"
 

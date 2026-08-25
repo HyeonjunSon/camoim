@@ -11,7 +11,8 @@ const STAY_ACCENT = '#3B82F6';
 const pad = (n) => String(n).padStart(2, '0');
 const iso = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 
-export default function StayDatePickerModal({ visible, value, onSelect, onClose, includeImmediate = true }) {
+// bottomAction: { label, value } — 하단 바로가기 버튼 (예: 즉시 입주 / 종료일 없음). value로 onSelect 호출.
+export default function StayDatePickerModal({ visible, value, onSelect, onClose, bottomAction = null }) {
   const { colors } = useTheme();
   const { lang } = useLang();
   const styles = createStyles(colors);
@@ -90,10 +91,10 @@ export default function StayDatePickerModal({ visible, value, onSelect, onClose,
             })}
           </View>
 
-          {includeImmediate && (
-            <TouchableOpacity style={styles.immediateBtn} activeOpacity={0.85} onPress={() => { onSelect('immediate'); onClose(); }}>
-              <Ionicons name="flash" size={15} color={STAY_ACCENT} />
-              <Text style={styles.immediateText}>{lang === 'en' ? 'Available now' : '즉시 입주 가능'}</Text>
+          {bottomAction && (
+            <TouchableOpacity style={styles.immediateBtn} activeOpacity={0.85} onPress={() => { onSelect(bottomAction.value); onClose(); }}>
+              <Ionicons name={bottomAction.value === 'immediate' ? 'flash' : 'infinite'} size={15} color={STAY_ACCENT} />
+              <Text style={styles.immediateText}>{bottomAction.label}</Text>
             </TouchableOpacity>
           )}
         </TouchableOpacity>

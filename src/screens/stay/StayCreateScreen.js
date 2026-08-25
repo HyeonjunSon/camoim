@@ -23,7 +23,7 @@ export default function StayCreateScreen({ navigation, route }) {
   const { t, lang } = useLang();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
-  const [dateOpen, setDateOpen] = useState(false);
+  const [datePickerTarget, setDatePickerTarget] = useState(null); // 'start' | 'end' | null
 
   const editing = route?.params?.stay || null; // 수정 모드면 기존 숙소 객체
   // 게시판(roomrent) 글에서 "지도에 등록"으로 넘어온 경우 초기값 채우기
@@ -41,6 +41,7 @@ export default function StayCreateScreen({ navigation, route }) {
   const [conditions, setConditions] = useState(editing?.conditions || []);
   const [moveInDate, setMoveInDate] = useState(editing?.moveInDate || '');
   const [minLease, setMinLease] = useState(editing?.minLeaseMonths ? String(editing.minLeaseMonths) : '');
+  const [availableUntil, setAvailableUntil] = useState(editing?.availableUntil || ''); // 종료일 (단기), 비우면 장기
   const [description, setDescription] = useState(editing?.description || (prefill?.content ? htmlToPlain(prefill.content).slice(0, 2000) : ''));
   const [images, setImages] = useState(editing?.images || prefill?.images || []);
   const [uploading, setUploading] = useState(false);
@@ -99,6 +100,7 @@ export default function StayCreateScreen({ navigation, route }) {
       conditions,
       neighborhood: neighborhood.trim(),
       moveInDate: moveInDate.trim(),
+      availableUntil: availableUntil.trim(),
       minLeaseMonths: Number(minLease) || 0,
       description: description.trim(),
       images,
@@ -226,10 +228,11 @@ export default function StayCreateScreen({ navigation, route }) {
             </View>
           </Field>
 
+          {/* 입주 가능일(시작) + 종료일(단기용, 비우면 장기) */}
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            <View style={{ flex: 1.4 }}>
+            <View style={{ flex: 1 }}>
               <Field label={t('stay.fMoveIn')} optional>
-                <TouchableOpacity style={styles.input} activeOpacity={0.7} onPress={() => setDateOpen(true)}>
+                <TouchableOpacity style={styles.input} activeOpacity={0.7} onPress={() => setDatePickerTarget('start')}>
                   <Text style={{ fontSize: 15, color: moveInDate ? colors.text : colors.textSecondary }} numberOfLines={1}>
                     {moveInDate ? formatMoveIn(moveInDate, lang, t) : t('stay.fMoveInPh')}
                   </Text>
@@ -237,12 +240,20 @@ export default function StayCreateScreen({ navigation, route }) {
               </Field>
             </View>
             <View style={{ flex: 1 }}>
-              <Field label={t('stay.fMinLease')} optional>
-                <TextInput value={minLease} onChangeText={setMinLease} placeholder={t('stay.fMinLeasePh')}
-                  placeholderTextColor={colors.textSecondary} style={styles.input} keyboardType="number-pad" maxLength={2} />
+              <Field label={t('stay.fUntil')} optional>
+                <TouchableOpacity style={styles.input} activeOpacity={0.7} onPress={() => setDatePickerTarget('end')}>
+                  <Text style={{ fontSize: 15, color: availableUntil ? colors.text : colors.textSecondary }} numberOfLines={1}>
+                    {availableUntil ? formatMoveIn(availableUntil, lang, t) : t('stay.untilPh')}
+                  </Text>
+                </TouchableOpacity>
               </Field>
             </View>
           </View>
+
+          <Field label={t('stay.fMinLease')} optional>
+            <TextInput value={minLease} onChangeText={setMinLease} placeholder={t('stay.fMinLeasePh')}
+              placeholderTextColor={colors.textSecondary} style={styles.input} keyboardType="number-pad" maxLength={2} />
+          </Field>
 
           <Field label={t('stay.fDesc')} optional>
             <TextInput value={description} onChangeText={setDescription} placeholder={t('stay.fDescPh')}
@@ -282,10 +293,13 @@ export default function StayCreateScreen({ navigation, route }) {
       </KeyboardAvoidingView>
 
       <StayDatePickerModal
-        visible={dateOpen}
-        value={moveInDate}
-        onSelect={setMoveInDate}
-        onClose={() => setDateOpen(false)}
+        visible={datePickerTarget !== null}
+        value={datePickerTarget === 'end' ? availableUntil : moveInDate}
+        onSelect={datePickerTarget === 'end' ? setAvailableUntil : setMoveInDate}
+        onClose={() => setDatePickerTarget(null)}
+        bottomAction={datePickerTarget === 'end'
+          ? { label: t('stay.noEnd'), value: '' }
+          : { label: t('stay.moveInNow'), value: 'immediate' }}
       />
     </View>
   );
