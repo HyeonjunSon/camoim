@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
+import StayPhotoViewer from '../../components/StayPhotoViewer';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
@@ -30,6 +31,7 @@ export default function StayDetailScreen({ navigation, route }) {
   const [stay, setStay] = useState(route?.params?.stay || null);
   const [loading, setLoading] = useState(!route?.params?.stay);
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
 
@@ -136,8 +138,10 @@ export default function StayDetailScreen({ navigation, route }) {
               <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
                 style={{ backgroundColor: '#000000' }}
                 onMomentumScrollEnd={(e) => setPhotoIdx(Math.round(e.nativeEvent.contentOffset.x / W))}>
-                {stay.images.map((url) => (
-                  <Image key={url} source={{ uri: url }} style={{ width: W, height: 300 }} contentFit="contain" />
+                {stay.images.map((url, i) => (
+                  <TouchableOpacity key={url} activeOpacity={0.95} onPress={() => { setViewerOpen(true); }}>
+                    <Image source={{ uri: url }} style={{ width: W, height: 300 }} contentFit="contain" />
+                  </TouchableOpacity>
                 ))}
               </ScrollView>
               {stay.images.length > 1 && (
@@ -286,6 +290,14 @@ export default function StayDetailScreen({ navigation, route }) {
           </View>
         </TouchableOpacity>
       )}
+
+      {/* 전체화면 사진 뷰어 */}
+      <StayPhotoViewer
+        visible={viewerOpen}
+        images={stay.images || []}
+        index={photoIdx}
+        onClose={() => setViewerOpen(false)}
+      />
     </View>
   );
 }
