@@ -24,6 +24,7 @@ export const BUSINESS_CITIES = [
   { key: 'ottawa',    label: '오타와',   labelKey: 'biz.cityOttawa',    latitude: 45.4215,  longitude: -75.6972 },
   { key: 'waterloo',  label: '워털루',   labelKey: 'biz.cityWaterloo',  latitude: 43.4643,  longitude: -80.5204 },
   { key: 'winnipeg',  label: '위니펙',   labelKey: 'biz.cityWinnipeg',  latitude: 49.8951,  longitude: -97.1384 },
+  { key: 'saskatoon', label: '사스카툰', labelKey: 'biz.citySaskatoon', latitude: 52.1332,  longitude: -106.6700 },
   { key: 'london',    label: '런던(ON)', labelKey: 'biz.cityLondon',    latitude: 42.9849,  longitude: -81.2453 },
   { key: 'halifax',   label: '핼리팩스', labelKey: 'biz.cityHalifax',   latitude: 44.6488,  longitude: -63.5752 },
 ];
