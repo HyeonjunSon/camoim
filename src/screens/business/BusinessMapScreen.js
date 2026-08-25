@@ -305,6 +305,15 @@ export default function BusinessMapScreen({ navigation, route }) {
     setSelected(b);
     setCityOpen(false);
     snapSheet('peek'); // 상세 시트 열 때 리스트 시트는 접기 (지도+상세 같이 보이게)
+    // 카드/핀 선택 시 지도를 그 업체 위치로 이동 → "어디 있는지" 바로 보이게.
+    // 핀이 하단 상세 시트에 가리지 않게 중심을 살짝 아래로 잡아 위쪽에 오도록.
+    if (b.lat != null && b.lng != null) {
+      const d = 0.02;
+      mapRef.current?.animateToRegion(
+        { latitude: b.lat - d * 0.3, longitude: b.lng, latitudeDelta: d, longitudeDelta: d },
+        500
+      );
+    }
   }, [snapSheet]);
 
   // 숙소는 바텀시트가 아니라 전용 상세 화면으로 이동
