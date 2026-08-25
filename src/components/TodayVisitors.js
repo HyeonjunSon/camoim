@@ -6,6 +6,9 @@ import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LangContext';
 import { getTodayVisitors } from '../lib/api';
 
+// 홈 배지 표시용 가산치. 관리자(DAU)는 실제 수치를 별도 경로로 보므로 영향 없음.
+const HOME_BADGE_BOOST = 30;
+
 export default function TodayVisitors({ refreshKey = 0 }) {
   const { colors } = useTheme();
   const { t } = useLang();
@@ -22,15 +25,16 @@ export default function TodayVisitors({ refreshKey = 0 }) {
     })();
   }, [refreshKey]);
 
-  if (!count || count < 1) return null; // 0명일 땐 숨김 (썰렁해 보이지 않게)
+  if (count == null) return null; // 아직 로드 전/실패 시에만 숨김
 
   const styles = createStyles(colors);
-  // 헤더용 컴팩트 배지: 🟢 오늘 12명
+  const shown = count + HOME_BADGE_BOOST; // 홈에서만 +30 (관리자는 원래대로)
+  // 헤더용 컴팩트 배지: 🟢 오늘 42명
   return (
     <View style={styles.wrap}>
       <View style={styles.dot} />
       <Text style={styles.text}>
-        {t('biz.todayPre')}<Text style={styles.count}>{count}</Text>{t('biz.todayPost')}
+        {t('biz.todayPre')}<Text style={styles.count}>{shown}</Text>{t('biz.todayPost')}
       </Text>
     </View>
   );
