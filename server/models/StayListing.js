@@ -8,8 +8,9 @@ const STAY_CITIES = ['toronto', 'vancouver', 'montreal'];
 // 조건은 i18n 키로 저장 → 표시 시점에 언어별로 번역 (한/영 사용자 모두 대응)
 const STAY_CONDITIONS = [
   'femaleOnly', 'maleOnly', 'anyGender', 'studentOnly',
-  'privateRoom', 'sharedRoom', 'privateBath', 'sharedBath', 'mealIncluded', 'utilIncluded',
-  'furnished', 'laundry', 'wifi', 'immediate',
+  'privateRoom', 'sharedRoom', 'privateBath', 'sharedBath',
+  'mealIncluded', 'cooking', 'utilIncluded', 'furnished', 'laundry', 'wifi', 'parking',
+  'noSmoking', 'petsOk', 'immediate', 'shortTerm',
 ];
 
 const stayListingSchema = new mongoose.Schema({

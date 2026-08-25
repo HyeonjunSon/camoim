@@ -25,11 +25,16 @@ export const STAY_CONDITIONS = [
   { key: 'privateBath',  labelKey: 'stay.cPrivateBath' },
   { key: 'sharedBath',   labelKey: 'stay.cSharedBath' },
   { key: 'mealIncluded', labelKey: 'stay.cMealIncluded' },
+  { key: 'cooking',      labelKey: 'stay.cCooking' },
   { key: 'utilIncluded', labelKey: 'stay.cUtilIncluded' },
   { key: 'furnished',    labelKey: 'stay.cFurnished' },
   { key: 'laundry',      labelKey: 'stay.cLaundry' },
   { key: 'wifi',         labelKey: 'stay.cWifi' },
+  { key: 'parking',      labelKey: 'stay.cParking' },
+  { key: 'noSmoking',    labelKey: 'stay.cNoSmoking' },
+  { key: 'petsOk',       labelKey: 'stay.cPetsOk' },
   { key: 'immediate',    labelKey: 'stay.cImmediate' },
+  { key: 'shortTerm',    labelKey: 'stay.cShortTerm' },
 ];
 
 // 가격 단위 — 월세 / 1박(민박)

@@ -134,9 +134,10 @@ export default function StayDetailScreen({ navigation, route }) {
           {stay.images?.length > 0 ? (
             <>
               <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+                style={{ backgroundColor: '#000000' }}
                 onMomentumScrollEnd={(e) => setPhotoIdx(Math.round(e.nativeEvent.contentOffset.x / W))}>
                 {stay.images.map((url) => (
-                  <Image key={url} source={{ uri: url }} style={{ width: W, height: 230 }} contentFit="cover" />
+                  <Image key={url} source={{ uri: url }} style={{ width: W, height: 300 }} contentFit="contain" />
                 ))}
               </ScrollView>
               {stay.images.length > 1 && (
@@ -292,7 +293,7 @@ export default function StayDetailScreen({ navigation, route }) {
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  photoWrap: { height: 230, backgroundColor: colors.inputBg, position: 'relative' },
+  photoWrap: { height: 300, backgroundColor: colors.inputBg, position: 'relative' },
   photoEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   counter: { position: 'absolute', right: 12, bottom: 12, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingVertical: 4, paddingHorizontal: 10 },
   counterText: { color: '#FFFFFF', fontSize: 11, fontWeight: '600' },
