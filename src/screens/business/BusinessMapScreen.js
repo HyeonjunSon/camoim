@@ -756,7 +756,7 @@ export default function BusinessMapScreen({ navigation, route }) {
 
       {/* ── 업체 상세 바텀시트 ── */}
       <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
-        <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setSelected(null)} />
+        <TouchableOpacity style={styles.detailBackdrop} activeOpacity={1} onPress={() => setSelected(null)} />
         {selected && (
           <View style={[styles.sheet, sheetFull && { maxHeight: '82%' }]}>
             <TouchableOpacity style={styles.handleWrap} activeOpacity={0.7} onPress={() => setSheetFull((v) => !v)}>
@@ -1076,6 +1076,8 @@ const createStyles = (colors) => StyleSheet.create({
 
   // 바텀시트
   sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  // 업체 상세는 지도 위로 뜨되 지도가 보여야 함(어디 있는지 확인) → 딤 없이 투명
+  detailBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'transparent' },
   sheet: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
