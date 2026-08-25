@@ -12,7 +12,7 @@ import { Text, TextInput } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { STAY_TYPES, STAY_CITIES, STAY_CONDITIONS, STAY_ACCENT, PRICE_UNITS, htmlToPlain, formatMoveIn } from '../../constants/stays';
+import { STAY_TYPES, STAY_CONDITIONS, STAY_ACCENT, PRICE_UNITS, htmlToPlain, formatMoveIn } from '../../constants/stays';
 import StayDatePickerModal from '../../components/StayDatePickerModal';
 import { createStay, updateStay, uploadStayImage } from '../../lib/api';
 
@@ -28,11 +28,11 @@ export default function StayCreateScreen({ navigation, route }) {
   const editing = route?.params?.stay || null; // 수정 모드면 기존 숙소 객체
   // 게시판(roomrent) 글에서 "지도에 등록"으로 넘어온 경우 초기값 채우기
   const prefill = route?.params?.prefill || null;
-  const validCity = (k) => (STAY_CITIES.some((c) => c.key === k) ? k : null);
 
   const [title, setTitle] = useState(editing?.title || prefill?.title || '');
   const [stayType, setStayType] = useState(editing?.stayType || '');
-  const [city, setCity] = useState(editing?.city || validCity(prefill?.city) || route?.params?.city || 'toronto');
+  // 도시 선택 없음 — 위치는 주소로 결정 (캐나다 어디든). city는 참고용 라벨로만 보관
+  const city = editing?.city || prefill?.city || '';
   const [price, setPrice] = useState(editing?.price ? String(editing.price) : '');
   const [priceUnit, setPriceUnit] = useState(editing?.priceUnit || 'month'); // 월세/1박
   const [deposit, setDeposit] = useState(editing?.deposit ? String(editing.deposit) : '');
@@ -166,21 +166,6 @@ export default function StayCreateScreen({ navigation, route }) {
                     activeOpacity={0.8}
                     onPress={() => { setStayType(c.key); setPriceUnit(c.key === 'minbak' ? 'night' : 'month'); }}>
                     <Ionicons name={c.ion} size={13} color={active ? STAY_ACCENT : c.color} style={{ marginRight: 4 }} />
-                    <Text style={[styles.selectChipText, { color: active ? STAY_ACCENT : colors.textSecondary }]}>{t(c.labelKey)}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </Field>
-
-          <Field label={t('biz.fCity')} required>
-            <View style={{ flexDirection: 'row', gap: 7 }}>
-              {STAY_CITIES.map((c) => {
-                const active = city === c.key;
-                return (
-                  <TouchableOpacity key={c.key}
-                    style={[styles.cityChip, active ? styles.selectChipActive : styles.selectChipInactive]}
-                    activeOpacity={0.8} onPress={() => setCity(c.key)}>
                     <Text style={[styles.selectChipText, { color: active ? STAY_ACCENT : colors.textSecondary }]}>{t(c.labelKey)}</Text>
                   </TouchableOpacity>
                 );

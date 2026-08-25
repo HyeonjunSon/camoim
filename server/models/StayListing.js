@@ -16,7 +16,8 @@ const STAY_CONDITIONS = [
 const stayListingSchema = new mongoose.Schema({
   title:    { type: String, required: true, trim: true, maxlength: 100 },
   stayType: { type: String, enum: STAY_TYPES, required: true, index: true },
-  city:     { type: String, enum: STAY_CITIES, required: true, index: true },
+  // 도시 제한 없음 — 위치는 주소(정확 좌표)로 결정. city는 참고용 라벨(옵션)
+  city:     { type: String, default: '', index: true },
 
   price:     { type: Number, required: true, min: 0 },  // 가격 (CAD)
   priceUnit: { type: String, enum: ['month', 'night'], default: 'month' }, // 월세 / 1박 (민박용)

@@ -110,11 +110,11 @@ export default function BusinessMapScreen({ navigation, route }) {
     }
   }, [city, myLocation, showToast, t]);
 
-  // ── 숙소 로드 (숙소 모드에서만) ──
+  // ── 숙소 로드 (숙소 모드에서만) — 도시로 안 막고 전부 로드. 지도 어디로 옮겨도 그 지역 숙소가 보임 ──
   const loadStays = useCallback(async () => {
     try {
       const near = myLocation ? `${myLocation.longitude},${myLocation.latitude}` : undefined;
-      const res = await getStays({ city, near });
+      const res = await getStays({ near }); // city 필터 없음 = 캐나다 전역
       if (res.success) setStays(res.data || []);
     } catch (e) {
       showToast(t('stay.loadFail'));
@@ -122,7 +122,7 @@ export default function BusinessMapScreen({ navigation, route }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [city, myLocation, showToast, t]);
+  }, [myLocation, showToast, t]);
 
   useEffect(() => {
     setLoading(true);
@@ -595,20 +595,29 @@ export default function BusinessMapScreen({ navigation, route }) {
             <View style={[StyleSheet.absoluteFill, { zIndex: 44 }]} />
           </TouchableWithoutFeedback>
           <View style={[styles.cityDropdown, { top: insets.top + 8 + 44, left: 14 }]}>
-            {BUSINESS_CITIES.map((c, i) => {
-              const active = c.key === city;
-              return (
-                <TouchableOpacity
-                  key={c.key}
-                  style={[styles.cityOption, i > 0 && styles.cityOptionBorder]}
-                  activeOpacity={0.7}
-                  onPress={() => setCity(c.key)}
-                >
-                  <Text style={[styles.cityOptionText, active && { color: PRIMARY, fontWeight: '700' }]}>{t(c.labelKey)}</Text>
-                  {active && <Ionicons name="checkmark" size={16} color={PRIMARY} />}
-                </TouchableOpacity>
-              );
-            })}
+            <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {/* 내 위치로 이동 */}
+              <TouchableOpacity style={styles.cityOption} activeOpacity={0.7} onPress={() => { setCityOpen(false); onNear(); }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="navigate" size={15} color={PRIMARY} />
+                  <Text style={[styles.cityOptionText, { color: PRIMARY, fontWeight: '700' }]}>{t('biz.cityMyLocation')}</Text>
+                </View>
+              </TouchableOpacity>
+              {BUSINESS_CITIES.map((c) => {
+                const active = c.key === city;
+                return (
+                  <TouchableOpacity
+                    key={c.key}
+                    style={[styles.cityOption, styles.cityOptionBorder]}
+                    activeOpacity={0.7}
+                    onPress={() => setCity(c.key)}
+                  >
+                    <Text style={[styles.cityOptionText, active && { color: PRIMARY, fontWeight: '700' }]}>{t(c.labelKey)}</Text>
+                    {active && <Ionicons name="checkmark" size={16} color={PRIMARY} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
         </>
       )}

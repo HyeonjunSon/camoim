@@ -156,10 +156,9 @@ router.get('/by-post/:postId', requireAuth, async (req, res) => {
 // ── POST /api/stays ── 숙소 등록 (호스트 = 본인) ──
 router.post('/', requireAuth, async (req, res) => {
   try {
-    const { title, stayType, city, address } = req.body;
+    const { title, stayType, address } = req.body;
     if (!title || !title.trim()) return res.status(400).json({ success: false, message: '숙소 이름을 입력해주세요.' });
     if (!STAY_TYPES.includes(stayType)) return res.status(400).json({ success: false, message: '숙소 유형을 선택해주세요.' });
-    if (!STAY_CITIES.includes(city)) return res.status(400).json({ success: false, message: '도시를 선택해주세요.' });
     if (!address || !address.trim()) return res.status(400).json({ success: false, message: '주소를 입력해주세요.' });
     const price = Number(req.body.price);
     if (!Number.isFinite(price) || price < 0) return res.status(400).json({ success: false, message: '월세를 입력해주세요.' });
@@ -168,7 +167,7 @@ router.post('/', requireAuth, async (req, res) => {
     const doc = {
       title: title.trim(),
       stayType,
-      city,
+      city: (req.body.city || '').trim(), // 참고용 라벨 (옵션)
       price,
       priceUnit: req.body.priceUnit === 'night' ? 'night' : 'month',
       deposit: Number.isFinite(Number(req.body.deposit)) ? Math.max(0, Number(req.body.deposit)) : 0,
@@ -190,7 +189,8 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     // 주소 → 정확 좌표(서버 전용) → 대략 좌표(노출용). 실패해도 저장은 진행 (지도 핀만 안 뜸)
-    const geo = await geocodeAddress(doc.address, city);
+    // 도시 힌트 없이 전체 주소로 지오코딩 (캐나다 어디든)
+    const geo = await geocodeAddress(doc.address, doc.city || null);
     if (geo) {
       doc.location = { type: 'Point', coordinates: [geo.lng, geo.lat] };
       doc.approxLocation = { type: 'Point', coordinates: StayListing.jitter(geo.lng, geo.lat) };

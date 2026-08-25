@@ -13,11 +13,19 @@ export const BUSINESS_CATEGORIES = [
   { key: 'etc',    label: '기타',          labelKey: 'biz.catEtc',    ion: BIZ_CATEGORY_ICONS.etc.ion,    color: '#9CA3AF', soft: '#F3F4F6' },
 ];
 
-// 지원 도시 + 지도 중심 좌표 (recenter 기준)
+// 지도 "빠른 이동" 도시 단축 + 중심 좌표 (recenter 기준). 제한이 아니라 카메라 프리셋.
+// 숙소는 도시로 안 막힘(주소로 어디든). 아래는 한인 많은 캐나다 주요 도시.
 export const BUSINESS_CITIES = [
-  { key: 'toronto',   label: '토론토',   labelKey: 'biz.cityToronto',   latitude: 43.6532, longitude: -79.3832 },
-  { key: 'vancouver', label: '밴쿠버',   labelKey: 'biz.cityVancouver', latitude: 49.2827, longitude: -123.1207 },
-  { key: 'montreal',  label: '몬트리올', labelKey: 'biz.cityMontreal',  latitude: 45.5019, longitude: -73.5674 },
+  { key: 'toronto',   label: '토론토',   labelKey: 'biz.cityToronto',   latitude: 43.6532,  longitude: -79.3832 },
+  { key: 'vancouver', label: '밴쿠버',   labelKey: 'biz.cityVancouver', latitude: 49.2827,  longitude: -123.1207 },
+  { key: 'montreal',  label: '몬트리올', labelKey: 'biz.cityMontreal',  latitude: 45.5019,  longitude: -73.5674 },
+  { key: 'calgary',   label: '캘거리',   labelKey: 'biz.cityCalgary',   latitude: 51.0447,  longitude: -114.0719 },
+  { key: 'edmonton',  label: '에드먼턴', labelKey: 'biz.cityEdmonton',  latitude: 53.5461,  longitude: -113.4938 },
+  { key: 'ottawa',    label: '오타와',   labelKey: 'biz.cityOttawa',    latitude: 45.4215,  longitude: -75.6972 },
+  { key: 'waterloo',  label: '워털루',   labelKey: 'biz.cityWaterloo',  latitude: 43.4643,  longitude: -80.5204 },
+  { key: 'winnipeg',  label: '위니펙',   labelKey: 'biz.cityWinnipeg',  latitude: 49.8951,  longitude: -97.1384 },
+  { key: 'london',    label: '런던(ON)', labelKey: 'biz.cityLondon',    latitude: 42.9849,  longitude: -81.2453 },
+  { key: 'halifax',   label: '핼리팩스', labelKey: 'biz.cityHalifax',   latitude: 44.6488,  longitude: -63.5752 },
 ];
 
 // 도시 기본 확대 수준 (위/경도 delta)
