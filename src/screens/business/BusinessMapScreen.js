@@ -48,6 +48,7 @@ import BusinessReviewsSection, { Stars } from './BusinessReviewsSection';
 
 const PRIMARY = '#7F77DD';
 const SCREEN_H = Dimensions.get('window').height;
+const MY_LOCATION = '__me__'; // city 값이 이거면 "내 위치" 모드 (도시 필터 없이 내 주변)
 
 // 지도 위 컨트롤(플로팅)은 지도 타일 위에 뜨므로 라이트 고정 스타일 사용
 export default function BusinessMapScreen({ navigation, route }) {
@@ -100,7 +101,8 @@ export default function BusinessMapScreen({ navigation, route }) {
   const load = useCallback(async () => {
     try {
       const near = myLocation ? `${myLocation.longitude},${myLocation.latitude}` : undefined;
-      const res = await getBusinesses({ city, near });
+      // 내 위치 모드면 도시 필터 없이 전체 로드 후 거리순 (내 주변 업체가 보이게)
+      const res = await getBusinesses({ city: city === MY_LOCATION ? undefined : city, near });
       if (res.success) setBusinesses(res.data || []);
     } catch (e) {
       showToast(t('biz.loadFail'));
@@ -146,6 +148,7 @@ export default function BusinessMapScreen({ navigation, route }) {
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
         setMyLocation(loc);
+        setCity(MY_LOCATION); // 내 위치 기반으로 시작 (라벨=내 위치, 업체=주변 로드)
         mapRef.current?.animateToRegion({ ...loc, latitudeDelta: 0.08, longitudeDelta: 0.08 }, 700);
       } catch {
         // 위치 실패 → 도시 중심 그대로
@@ -173,11 +176,12 @@ export default function BusinessMapScreen({ navigation, route }) {
 
   // 도시 변경 → 지도 이동 + 선택/드롭다운 초기화
   useEffect(() => {
+    setSelected(null);
+    setCityOpen(false);
+    if (city === MY_LOCATION) return; // 내 위치는 onNear가 카메라를 처리 (도시 중심으로 튀지 않게)
     const r = cityRegion(city);
     setRegion(r);
     mapRef.current?.animateToRegion(r, 500);
-    setSelected(null);
-    setCityOpen(false);
   }, [city]);
 
   // 모드(카테고리) 전환 시 업체 상세/클러스터 시트 정리 (숙소↔업체 잔상 방지)
@@ -406,7 +410,7 @@ export default function BusinessMapScreen({ navigation, route }) {
     }
   }, [selected, showToast, t]);
 
-  const cityLabel = t(cityLabelKeyOf(city));
+  const cityLabel = city === MY_LOCATION ? t('biz.cityMyLocation') : t(cityLabelKeyOf(city));
 
   // 시트 리스트 카드 (지도에 보이는 업체)
   const renderCard = useCallback(({ item: b }) => {
@@ -481,7 +485,13 @@ export default function BusinessMapScreen({ navigation, route }) {
           provider={PROVIDER_DEFAULT}
           style={StyleSheet.absoluteFill}
           initialRegion={region}
-          onMapReady={() => { setMapReady(true); mapRef.current?.animateToRegion(cityRegion(city), 0); }}
+          onMapReady={() => {
+            setMapReady(true);
+            const target = myLocation
+              ? { ...myLocation, latitudeDelta: 0.08, longitudeDelta: 0.08 }
+              : cityRegion(city);
+            mapRef.current?.animateToRegion(target, 0);
+          }}
           onRegionChangeComplete={(r) => setRegion(r)}
           onPress={() => setCityOpen(false)}
           showsUserLocation={!!myLocation}
@@ -597,11 +607,12 @@ export default function BusinessMapScreen({ navigation, route }) {
           <View style={[styles.cityDropdown, { top: insets.top + 8 + 44, left: 14 }]}>
             <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {/* 내 위치로 이동 */}
-              <TouchableOpacity style={styles.cityOption} activeOpacity={0.7} onPress={() => { setCityOpen(false); onNear(); }}>
+              <TouchableOpacity style={styles.cityOption} activeOpacity={0.7} onPress={() => { setCityOpen(false); setCity(MY_LOCATION); onNear(); }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="navigate" size={15} color={PRIMARY} />
                   <Text style={[styles.cityOptionText, { color: PRIMARY, fontWeight: '700' }]}>{t('biz.cityMyLocation')}</Text>
                 </View>
+                {city === MY_LOCATION && <Ionicons name="checkmark" size={16} color={PRIMARY} />}
               </TouchableOpacity>
               {BUSINESS_CITIES.map((c) => {
                 const active = c.key === city;
