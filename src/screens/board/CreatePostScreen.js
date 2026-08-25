@@ -104,6 +104,7 @@ export default function CreatePostScreen({ route, navigation }) {
 
   const [title, setTitle] = useState(editPost?.title ?? '');
   const [submitting, setSubmitting] = useState(false);
+  const postedRef = useRef(false); // 게시 성공 후 이동 시 '나가기 확인' 가드 우회
   const [hasBody, setHasBody] = useState(!!editPost?.content);
   const [kbHeight, setKbHeight] = useState(0);
   // Android: endCoordinates.height가 과측정되는 경우가 있어 screenY (키보드 top 절대좌표)로 정확한 키보드 top을 추적
@@ -476,9 +477,33 @@ export default function CreatePostScreen({ route, navigation }) {
       });
       const data = await res.json();
       if (data.success) {
+        postedRef.current = true; // 나가기 확인 가드 우회
         // 게시 성공 시 사용된 드래프트는 정리
         if (currentDraftId) { try { await deleteDraft(currentDraftId); } catch {} }
-        navigation.goBack();
+
+        // 룸렌트 새 글 → 지도에도 숙소로 올릴지 물어보기
+        const isRoomrent = !isEditMode && (boardSlug === 'roomrent' || /(^|-)roomrent$/.test(boardSlug || ''));
+        if (isRoomrent && data.data?.id) {
+          Alert.alert(
+            t('stay.listPromptTitle'),
+            t('stay.listPromptMsg'),
+            [
+              { text: t('stay.listPromptLater'), style: 'cancel', onPress: () => navigation.goBack() },
+              {
+                text: t('stay.listPromptGo'),
+                onPress: () => {
+                  navigation.goBack();
+                  navigation.navigate('StayCreate', {
+                    prefill: { title: trimmedTitle, city: selectedCity || '', images: [], content: html, sourcePostId: data.data.id },
+                  });
+                },
+              },
+            ],
+            { cancelable: false }
+          );
+        } else {
+          navigation.goBack();
+        }
       } else Alert.alert(t('common.error'), data.message || t('post.requestFailed'));
     } catch (e) {
       Alert.alert(t('common.error'), t('post.requestFailedRetry'));
@@ -495,7 +520,7 @@ export default function CreatePostScreen({ route, navigation }) {
   // navigation.dispatch(e.data.action) 로 한 번만 실제 나가게 처리 (재진입 방지)
   useEffect(() => {
     const unsub = navigation.addListener('beforeRemove', (e) => {
-      if (!hasAnyContent || submitting) return; // 빈 화면이거나 제출 중이면 그냥 통과
+      if (!hasAnyContent || submitting || postedRef.current) return; // 빈 화면·제출 중·게시완료면 통과
       e.preventDefault();
       Alert.alert(
         t('post.leaveConfirmTitle') || '작성 중인 내용이 있어요',
