@@ -239,21 +239,29 @@ export default function BusinessMapScreen({ navigation, route }) {
   const SHEET_TOP = insets.top + 104;      // 검색+칩 아래에서 시트 최상단
   const SHEET_H = containerH - SHEET_TOP;
   const [handleH, setHandleH] = useState(50);   // 핸들+카운트 영역 실측 높이
-  const [listContentH, setListContentH] = useState(0); // FlatList 콘텐츠 실측 높이 (적응형 full 스냅용)
+  const [listContentH, setListContentH] = useState(0); // 패딩 제외 리스트 콘텐츠 실측 높이
   const PEEK = handleH + 10;                // 접힘: 핸들+카운트 + 카드 윗모서리 10dp만 (텍스트 안 잘림)
-  const halfY = Math.max(SHEET_H - 290, 0); // 중간 스냅: 카운트 + 카드 3장
   const peekY = Math.max(SHEET_H - PEEK, 0);
-  // full 스냅은 적응형: 카드가 적으면 콘텐츠 높이만큼만 올라옴 (풀스크린 빈 공간 방지).
-  // 콘텐츠가 시트 최대 높이보다 길면 0(=풀스크린). half보다 낮게 올라가지는 않게 클램프.
-  const fullY = listContentH > 0
-    ? Math.min(Math.max(SHEET_H - (handleH + listContentH), 0), halfY)
-    : 0;
+  // full 스냅은 적응형: 시트가 딱 마지막 카드까지만 올라옴 (아래 빈 공간 없음).
+  // 콘텐츠가 시트 최대 높이를 넘을 때만 풀스크린 + '지도' 버튼 클리어런스 패딩 적용.
+  const PAD_SMALL = 14;                     // 마지막 카드 아래 최소 여백
+  const PAD_FULL = insets.bottom + 76;      // 풀스크린일 때 '지도' 버튼에 안 가리는 여백
+  const needsFullScreen = listContentH > 0 && handleH + listContentH + PAD_SMALL >= SHEET_H;
+  const listPad = needsFullScreen ? PAD_FULL : PAD_SMALL;
+  const fullY = !listContentH || needsFullScreen
+    ? 0
+    : SHEET_H - (handleH + listContentH + PAD_SMALL);
+  // half 스냅(카드 3장)이 콘텐츠 끝보다 높이 올라가지 않게 클램프 (카드 2장이면 half=full)
+  const halfY = Math.max(SHEET_H - 290, fullY);
 
   const sheetY = useRef(new Animated.Value(peekY)).current;
   const curY = useRef(peekY);
   const dragFrom = useRef(peekY);
   const snapRef = useRef('peek');
   const [snap, setSnap] = useState('peek'); // peek | half | full
+  // 현재 스냅에서 시트 프레임이 화면 밖으로 밀려난 거리 — 이만큼을 리스트 하단
+  // 패딩으로 보상해야 어느 스냅에서든 마지막 카드까지 정확히 스크롤이 닿음
+  const snapOffsetY = snap === 'full' ? fullY : snap === 'half' ? halfY : peekY;
 
   useEffect(() => {
     const id = sheetY.addListener(({ value }) => { curY.current = value; });
@@ -670,17 +678,10 @@ export default function BusinessMapScreen({ navigation, route }) {
       )}
 
       {/* ── OpenTable식 하단 리스트 시트 (지도 위로 드래그) ──
-          translateY로 밀어내면 FlatList 프레임이 화면 밖까지 차지해 half/peek에서
-          끝까지 스크롤이 안 됨 → bottom 고정 + 높이 애니메이션으로 보이는 만큼만 프레임 확보 */}
-      <Animated.View
-        style={[styles.bizSheet, {
-          height: sheetY.interpolate({
-            inputRange: [0, Math.max(SHEET_H, 1)],
-            outputRange: [Math.max(SHEET_H, 1), 0],
-            extrapolate: 'clamp',
-          }),
-        }]}
-      >
+          프레임 높이를 애니메이션하면 FlatList 가상화가 접힌 시트의 작은 프레임 기준으로
+          몇 장만 렌더하고 멈춤 → 프레임은 항상 풀 높이 + translateY로 밀고,
+          화면 밖으로 밀린 만큼(snapOffsetY)을 하단 패딩으로 보상해 끝까지 스크롤되게 함 */}
+      <Animated.View style={[styles.bizSheet, { top: SHEET_TOP, height: SHEET_H, transform: [{ translateY: sheetY }] }]}>
         <View {...pan.panHandlers} style={styles.bizSheetHandleArea} onLayout={(e) => setHandleH(Math.round(e.nativeEvent.layout.height))}>
           <View style={styles.bizSheetHandle} />
           <Text style={styles.bizSheetCount}>
@@ -693,8 +694,8 @@ export default function BusinessMapScreen({ navigation, route }) {
           style={{ flex: 1 }}
           scrollEnabled={snap !== 'peek'}
           keyboardShouldPersistTaps="handled"
-          onContentSizeChange={(_, h) => setListContentH(Math.ceil(h))}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 76 }}
+          onContentSizeChange={(_, h) => setListContentH(Math.max(0, Math.ceil(h - listPad - snapOffsetY)))}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: listPad + snapOffsetY }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); isStay ? loadStays() : load(); }} tintColor={PRIMARY} />}
           renderItem={isStay ? renderStayCard : renderCard}
           ListEmptyComponent={
@@ -714,8 +715,8 @@ export default function BusinessMapScreen({ navigation, route }) {
         />
       </Animated.View>
 
-      {/* 시트 펼침 시 → 지도로 복귀 버튼 */}
-      {snap === 'full' && (
+      {/* 시트 펼침 시 → 지도로 복귀 버튼 (풀스크린일 때만 — 시트가 짧으면 지도가 이미 보임) */}
+      {snap === 'full' && needsFullScreen && (
         <TouchableOpacity
           style={[styles.mapReturnBtn, { bottom: insets.bottom + 18 }]}
           activeOpacity={0.9}
@@ -1030,7 +1031,7 @@ const createStyles = (colors) => StyleSheet.create({
 
   // OpenTable식 하단 리스트 시트
   bizSheet: {
-    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 40, overflow: 'hidden',
+    position: 'absolute', left: 0, right: 0, zIndex: 40,
     backgroundColor: colors.background,
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: -4 }, elevation: 16,
