@@ -103,6 +103,21 @@ async function createStayForPost(token, postId, p) {
   const file = process.argv[2];
   if (!file) { log('❌ 사용법: node scripts/dripUploadPostsV2.js posts.json'); process.exit(1); }
 
+  // START_AT="2026-08-27T11:00:00-04:00" 형태면 그 시각까지 대기 후 시작.
+  // 벽시계 기준 폴링이라 맥북이 잠들었다 깨도 (늦더라도) 정확히 동작.
+  if (process.env.START_AT) {
+    const target = new Date(process.env.START_AT).getTime();
+    if (Number.isFinite(target)) {
+      log(`⏰ 예약 모드 — ${process.env.START_AT} 에 시작 (그때까지 대기)`);
+      while (Date.now() < target) {
+        const mins = Math.round((target - Date.now()) / 60000);
+        if (mins > 0 && mins % 60 === 0) log(`⏰ 시작까지 약 ${Math.round(mins / 60)}시간`);
+        await sleep(60000);
+      }
+      log('⏰ 예약 시각 도달 — 드립 시작');
+    }
+  }
+
   const stateFile = process.env.STATE_FILE || path.resolve(file).replace(/\.json$/, '-state.json');
   const posts = JSON.parse(fs.readFileSync(path.resolve(file), 'utf8'));
   const tokens = JSON.parse(fs.readFileSync(tokensFile, 'utf8'));
