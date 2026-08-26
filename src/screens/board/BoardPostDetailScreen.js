@@ -93,7 +93,7 @@ function parseContentBlocks(content, images) {
   if (!hasMarkers) {
     const result = [];
     if (content?.trim()) pushText(result, content);
-    images.forEach(url => result.push({ type: 'image', uri: `${BASE_URL}${url}` }));
+    images.forEach(url => result.push({ type: 'image', uri: /^https?:\/\//.test(url) ? url : `${BASE_URL}${url}` }));
     return result;
   }
   const parts = content.split(/(\[IMG:\d+\])/);
