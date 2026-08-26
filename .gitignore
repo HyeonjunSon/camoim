@@ -69,3 +69,8 @@ server/uploads/*
 # generated native folders
 /ios
 /android
+
+# 운영용 로컬 스크립트 — 커밋하지 않음 (로컬 전용)
+server/scripts/*eed*.js
+server/scripts/drip*.js
+server/scripts/editExchangePosts.js
