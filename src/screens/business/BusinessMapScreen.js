@@ -239,10 +239,15 @@ export default function BusinessMapScreen({ navigation, route }) {
   const SHEET_TOP = insets.top + 104;      // 검색+칩 아래에서 시트 최상단
   const SHEET_H = containerH - SHEET_TOP;
   const [handleH, setHandleH] = useState(50);   // 핸들+카운트 영역 실측 높이
+  const [listContentH, setListContentH] = useState(0); // FlatList 콘텐츠 실측 높이 (적응형 full 스냅용)
   const PEEK = handleH + 10;                // 접힘: 핸들+카운트 + 카드 윗모서리 10dp만 (텍스트 안 잘림)
-  const fullY = 0;
   const halfY = Math.max(SHEET_H - 290, 0); // 중간 스냅: 카운트 + 카드 3장
   const peekY = Math.max(SHEET_H - PEEK, 0);
+  // full 스냅은 적응형: 카드가 적으면 콘텐츠 높이만큼만 올라옴 (풀스크린 빈 공간 방지).
+  // 콘텐츠가 시트 최대 높이보다 길면 0(=풀스크린). half보다 낮게 올라가지는 않게 클램프.
+  const fullY = listContentH > 0
+    ? Math.min(Math.max(SHEET_H - (handleH + listContentH), 0), halfY)
+    : 0;
 
   const sheetY = useRef(new Animated.Value(peekY)).current;
   const curY = useRef(peekY);
@@ -262,10 +267,15 @@ export default function BusinessMapScreen({ navigation, route }) {
     Animated.spring(sheetY, { toValue: to, useNativeDriver: false, bounciness: 3, speed: 13 }).start();
   }, [fullY, halfY, peekY, sheetY]);
 
-  // 컨테이너 높이 측정/회전으로 스냅 좌표가 바뀌면 현재 스냅 위치로 즉시 재정렬
+  // 스냅 좌표가 바뀌면(컨테이너 실측/회전/콘텐츠 높이 변화) 현재 스냅 위치로 재정렬
+  // full은 콘텐츠 양에 따라 좌표가 자주 변하므로 스프링으로 부드럽게 따라감
   useEffect(() => {
     const to = snapRef.current === 'full' ? fullY : snapRef.current === 'half' ? halfY : peekY;
-    sheetY.setValue(to);
+    if (snapRef.current === 'full') {
+      Animated.spring(sheetY, { toValue: to, useNativeDriver: false, bounciness: 2, speed: 14 }).start();
+    } else {
+      sheetY.setValue(to);
+    }
   }, [fullY, halfY, peekY, sheetY]);
 
   // PanResponder는 한 번만 생성되므로 최신 스냅 좌표는 ref로 전달 (stale closure 방지)
@@ -659,8 +669,18 @@ export default function BusinessMapScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* ── OpenTable식 하단 리스트 시트 (지도 위로 드래그) ── */}
-      <Animated.View style={[styles.bizSheet, { top: SHEET_TOP, height: SHEET_H, transform: [{ translateY: sheetY }] }]}>
+      {/* ── OpenTable식 하단 리스트 시트 (지도 위로 드래그) ──
+          translateY로 밀어내면 FlatList 프레임이 화면 밖까지 차지해 half/peek에서
+          끝까지 스크롤이 안 됨 → bottom 고정 + 높이 애니메이션으로 보이는 만큼만 프레임 확보 */}
+      <Animated.View
+        style={[styles.bizSheet, {
+          height: sheetY.interpolate({
+            inputRange: [0, Math.max(SHEET_H, 1)],
+            outputRange: [Math.max(SHEET_H, 1), 0],
+            extrapolate: 'clamp',
+          }),
+        }]}
+      >
         <View {...pan.panHandlers} style={styles.bizSheetHandleArea} onLayout={(e) => setHandleH(Math.round(e.nativeEvent.layout.height))}>
           <View style={styles.bizSheetHandle} />
           <Text style={styles.bizSheetCount}>
@@ -670,9 +690,11 @@ export default function BusinessMapScreen({ navigation, route }) {
         <FlatList
           data={visibleBusinesses.items}
           keyExtractor={(b) => b.id}
+          style={{ flex: 1 }}
           scrollEnabled={snap !== 'peek'}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 24 }}
+          onContentSizeChange={(_, h) => setListContentH(Math.ceil(h))}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 76 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); isStay ? loadStays() : load(); }} tintColor={PRIMARY} />}
           renderItem={isStay ? renderStayCard : renderCard}
           ListEmptyComponent={
@@ -1008,7 +1030,7 @@ const createStyles = (colors) => StyleSheet.create({
 
   // OpenTable식 하단 리스트 시트
   bizSheet: {
-    position: 'absolute', left: 0, right: 0, zIndex: 40,
+    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 40, overflow: 'hidden',
     backgroundColor: colors.background,
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: -4 }, elevation: 16,
