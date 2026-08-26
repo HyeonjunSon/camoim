@@ -85,6 +85,12 @@ export default function BusinessMapScreen({ navigation, route }) {
   const [region, setRegion] = useState(() => ({
     ...cityRegion('toronto'),
   }));
+  // 프로그램적 지도 이동은 항상 이걸 통해서 — 목적지 region을 즉시 state에 반영해
+  // onRegionChangeComplete가 늦거나 안 와도 카운트/리스트가 화면과 어긋나지 않게 함
+  const goToRegion = useCallback((r, duration = 500) => {
+    setRegion(r);
+    mapRef.current?.animateToRegion(r, duration);
+  }, []);
   const [markerTracking, setMarkerTracking] = useState(true);
   const [mapReady, setMapReady] = useState(false); // 지도 준비 전 마커 mount 시 인터롭 크래시 방지
 
@@ -149,7 +155,7 @@ export default function BusinessMapScreen({ navigation, route }) {
         const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
         setMyLocation(loc);
         setCity(MY_LOCATION); // 내 위치 기반으로 시작 (라벨=내 위치, 업체=주변 로드)
-        mapRef.current?.animateToRegion({ ...loc, latitudeDelta: 0.08, longitudeDelta: 0.08 }, 700);
+        goToRegion({ ...loc, latitudeDelta: 0.08, longitudeDelta: 0.08 }, 700);
       } catch {
         // 위치 실패 → 도시 중심 그대로
       }
@@ -179,10 +185,8 @@ export default function BusinessMapScreen({ navigation, route }) {
     setSelected(null);
     setCityOpen(false);
     if (city === MY_LOCATION) return; // 내 위치는 onNear가 카메라를 처리 (도시 중심으로 튀지 않게)
-    const r = cityRegion(city);
-    setRegion(r);
-    mapRef.current?.animateToRegion(r, 500);
-  }, [city]);
+    goToRegion(cityRegion(city), 500);
+  }, [city]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 모드(카테고리) 전환 시 업체 상세/클러스터 시트 정리 (숙소↔업체 잔상 방지)
   useEffect(() => {
@@ -217,7 +221,7 @@ export default function BusinessMapScreen({ navigation, route }) {
 
   // ── OpenTable 스타일: 현재 지도에 보이는 영역의 업체 (하단 가로 카드용) ──
   const visibleBusinesses = useMemo(() => {
-    if (!region?.latitudeDelta) return [];
+    if (!region?.latitudeDelta) return { items: [], count: 0 };
     const latMin = region.latitude - region.latitudeDelta / 2;
     const latMax = region.latitude + region.latitudeDelta / 2;
     const lngMin = region.longitude - region.longitudeDelta / 2;
@@ -245,9 +249,8 @@ export default function BusinessMapScreen({ navigation, route }) {
   // full 스냅은 적응형: 시트가 딱 마지막 카드까지만 올라옴 (아래 빈 공간 없음).
   // 콘텐츠가 시트 최대 높이를 넘을 때만 풀스크린 + '지도' 버튼 클리어런스 패딩 적용.
   const PAD_SMALL = 14;                     // 마지막 카드 아래 최소 여백
-  const PAD_FULL = insets.bottom + 76;      // 풀스크린일 때 '지도' 버튼에 안 가리는 여백
+  const PAD_FULL = insets.bottom + 70;      // 풀스크린 full 스냅일 때만 '지도' 버튼 여백
   const needsFullScreen = listContentH > 0 && handleH + listContentH + PAD_SMALL >= SHEET_H;
-  const listPad = needsFullScreen ? PAD_FULL : PAD_SMALL;
   const fullY = !listContentH || needsFullScreen
     ? 0
     : SHEET_H - (handleH + listContentH + PAD_SMALL);
@@ -262,6 +265,8 @@ export default function BusinessMapScreen({ navigation, route }) {
   // 현재 스냅에서 시트 프레임이 화면 밖으로 밀려난 거리 — 이만큼을 리스트 하단
   // 패딩으로 보상해야 어느 스냅에서든 마지막 카드까지 정확히 스크롤이 닿음
   const snapOffsetY = snap === 'full' ? fullY : snap === 'half' ? halfY : peekY;
+  // '지도' 버튼 여백은 버튼이 실제로 뜨는 풀스크린 full 스냅에서만 — 그 외엔 딱 카드까지
+  const listPad = needsFullScreen && snap === 'full' ? PAD_FULL : PAD_SMALL;
 
   useEffect(() => {
     const id = sheetY.addListener(({ value }) => { curY.current = value; });
@@ -327,12 +332,9 @@ export default function BusinessMapScreen({ navigation, route }) {
     // 핀이 하단 상세 시트에 가리지 않게 중심을 살짝 아래로 잡아 위쪽에 오도록.
     if (b.lat != null && b.lng != null) {
       const d = 0.02;
-      mapRef.current?.animateToRegion(
-        { latitude: b.lat - d * 0.3, longitude: b.lng, latitudeDelta: d, longitudeDelta: d },
-        500
-      );
+      goToRegion({ latitude: b.lat - d * 0.3, longitude: b.lng, latitudeDelta: d, longitudeDelta: d }, 500);
     }
-  }, [snapSheet]);
+  }, [snapSheet, goToRegion]);
 
   // 숙소는 바텀시트가 아니라 전용 상세 화면으로 이동
   const openStay = useCallback((s) => {
@@ -382,26 +384,25 @@ export default function BusinessMapScreen({ navigation, route }) {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         // 권한 거부 → 도시 중심으로 fallback (QA 항목)
-        const r = cityRegion(city);
-        mapRef.current?.animateToRegion(r, 500);
+        goToRegion(cityRegion(city), 500);
         showToast(t('biz.locNoPermCity'));
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
       setMyLocation(loc);
-      mapRef.current?.animateToRegion({ ...loc, latitudeDelta: 0.05, longitudeDelta: 0.05 }, 600);
+      goToRegion({ ...loc, latitudeDelta: 0.05, longitudeDelta: 0.05 }, 600);
       showToast(t('biz.locShown'));
     } catch {
       showToast(t('biz.locFail'));
     }
-  }, [city, showToast, t]);
+  }, [city, showToast, t, goToRegion]);
 
   // 클러스터 탭 → (업체) 묶인 리스트 시트 / (숙소) 확대
   const onCluster = useCallback((cl) => {
     setCityOpen(false);
     if (isStay) {
-      mapRef.current?.animateToRegion(
+      goToRegion(
         { latitude: cl.lat, longitude: cl.lng, latitudeDelta: Math.max((region.latitudeDelta || 0.1) / 2.4, 0.01), longitudeDelta: Math.max((region.longitudeDelta || 0.1) / 2.4, 0.01) },
         400
       );
@@ -411,7 +412,7 @@ export default function BusinessMapScreen({ navigation, route }) {
       (a, b) => (b.ratingCount - a.ratingCount) || (b.bookmarkCount - a.bookmarkCount) || a.name.localeCompare(b.name)
     );
     setClusterSheet(sorted);
-  }, [isStay, region]);
+  }, [isStay, region, goToRegion]);
 
   // 길찾기 — 구글맵으로 연동 (앱 설치 시 구글맵 앱, 미설치 시 브라우저로 열림)
   const onDirections = useCallback((biz) => {
@@ -517,7 +518,7 @@ export default function BusinessMapScreen({ navigation, route }) {
             const target = myLocation
               ? { ...myLocation, latitudeDelta: 0.08, longitudeDelta: 0.08 }
               : cityRegion(city);
-            mapRef.current?.animateToRegion(target, 0);
+            goToRegion(target, 0);
           }}
           onRegionChangeComplete={(r) => setRegion(r)}
           onPress={() => setCityOpen(false)}
@@ -696,6 +697,7 @@ export default function BusinessMapScreen({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
           onContentSizeChange={(_, h) => setListContentH(Math.max(0, Math.ceil(h - listPad - snapOffsetY)))}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: listPad + snapOffsetY }}
+          scrollIndicatorInsets={{ bottom: snapOffsetY }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); isStay ? loadStays() : load(); }} tintColor={PRIMARY} />}
           renderItem={isStay ? renderStayCard : renderCard}
           ListEmptyComponent={
