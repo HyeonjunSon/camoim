@@ -108,8 +108,16 @@ async function createStayForPost(token, postId, p) {
   const tokens = JSON.parse(fs.readFileSync(tokensFile, 'utf8'));
   const accountNums = Object.keys(tokens);
 
-  const br = await fetch(`${API}/boards`).then((r) => r.json()).catch(() => null);
-  const boardList = br?.data || br || [];
+  // 보드 목록 — 일시 오류 대비 재시도 + 배열 보장
+  let boardList = [];
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const br = await fetch(`${API}/boards`).then((r) => r.json()).catch(() => null);
+    const cand = Array.isArray(br?.data) ? br.data : Array.isArray(br) ? br : null;
+    if (cand && cand.length) { boardList = cand; break; }
+    log(`⚠️ 보드 목록 로드 실패 (시도 ${attempt + 1}/5) — 20초 후 재시도`);
+    await sleep(20000);
+  }
+  if (!boardList.length) { log('❌ 보드 목록을 불러오지 못해 종료'); process.exit(1); }
   const boardMap = {};
   boardList.forEach((b) => { boardMap[b.slug] = b.id || b._id; });
 
