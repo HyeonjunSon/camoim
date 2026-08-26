@@ -249,7 +249,7 @@ export default function BusinessMapScreen({ navigation, route }) {
   // full 스냅은 적응형: 시트가 딱 마지막 카드까지만 올라옴 (아래 빈 공간 없음).
   // 콘텐츠가 시트 최대 높이를 넘을 때만 풀스크린 + '지도' 버튼 클리어런스 패딩 적용.
   const PAD_SMALL = 14;                     // 마지막 카드 아래 최소 여백
-  const PAD_FULL = insets.bottom + 70;      // 풀스크린 full 스냅일 때만 '지도' 버튼 여백
+  const PAD_FULL = 78;                      // 풀스크린 full 스냅: '지도' 버튼(≈42) + 위아래 18씩 → 정중앙
   const needsFullScreen = listContentH > 0 && handleH + listContentH + PAD_SMALL >= SHEET_H;
   const fullY = !listContentH || needsFullScreen
     ? 0
@@ -720,7 +720,7 @@ export default function BusinessMapScreen({ navigation, route }) {
       {/* 시트 펼침 시 → 지도로 복귀 버튼 (풀스크린일 때만 — 시트가 짧으면 지도가 이미 보임) */}
       {snap === 'full' && needsFullScreen && (
         <TouchableOpacity
-          style={[styles.mapReturnBtn, { bottom: insets.bottom + 18 }]}
+          style={[styles.mapReturnBtn, { bottom: 18 }]}
           activeOpacity={0.9}
           onPress={() => snapSheet('peek')}
         >
