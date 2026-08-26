@@ -192,7 +192,7 @@ export default function AdminBusinessEditScreen({ navigation, route }) {
 
           {/* 도시 */}
           <Field label="도시" required>
-            <View style={{ flexDirection: 'row', gap: 7 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
               {BUSINESS_CITIES.map((c) => {
                 const active = city === c.key;
                 return (
@@ -313,7 +313,7 @@ const createStyles = (colors) => StyleSheet.create({
   input: { backgroundColor: colors.inputBg, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 14, fontSize: 15, color: colors.text },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   selectChip: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
-  cityChip: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
+  cityChip: { alignItems: 'center', paddingVertical: 9, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1 },
   selectChipActive: { borderColor: PRIMARY, backgroundColor: 'rgba(127,119,221,0.10)' },
   selectChipInactive: { borderColor: colors.border, backgroundColor: colors.surface },
   selectChipText: { fontSize: 13, fontWeight: '600' },

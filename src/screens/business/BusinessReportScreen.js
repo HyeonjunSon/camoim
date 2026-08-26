@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Linking } from 'react-native';
+import { View, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Linking, Modal } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -31,6 +31,7 @@ export default function BusinessReportScreen({ navigation, route }) {
   const [images, setImages] = useState([]); // Cloudinary URLs
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [cityPickerOpen, setCityPickerOpen] = useState(false);
 
   const canSubmit = !!(name.trim() && category && address.trim()) && !submitting;
 
@@ -144,21 +145,12 @@ export default function BusinessReportScreen({ navigation, route }) {
 
           {/* 도시 */}
           <Field label={t('biz.fCity')} required>
-            <View style={{ flexDirection: 'row', gap: 7 }}>
-              {BUSINESS_CITIES.map((c) => {
-                const active = city === c.key;
-                return (
-                  <TouchableOpacity
-                    key={c.key}
-                    style={[styles.cityChip, active ? styles.selectChipActive : styles.selectChipInactive]}
-                    activeOpacity={0.8}
-                    onPress={() => setCity(c.key)}
-                  >
-                    <Text style={[styles.selectChipText, { color: active ? PRIMARY : colors.textSecondary }]}>{t(c.labelKey)}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <TouchableOpacity style={styles.selectBar} activeOpacity={0.7} onPress={() => setCityPickerOpen(true)}>
+              <Text style={styles.selectBarText}>
+                {t((BUSINESS_CITIES.find((c) => c.key === city) || BUSINESS_CITIES[0]).labelKey)}
+              </Text>
+              <Ionicons name="chevron-down" size={17} color={colors.textSecondary} />
+            </TouchableOpacity>
           </Field>
 
           {/* 주소 */}
@@ -226,6 +218,30 @@ export default function BusinessReportScreen({ navigation, route }) {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* 도시 선택 모달 */}
+      <Modal visible={cityPickerOpen} transparent animationType="fade" onRequestClose={() => setCityPickerOpen(false)}>
+        <TouchableOpacity style={styles.pickerBackdrop} activeOpacity={1} onPress={() => setCityPickerOpen(false)}>
+          <View style={styles.pickerCard}>
+            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+              {BUSINESS_CITIES.map((c, i) => {
+                const active = c.key === city;
+                return (
+                  <TouchableOpacity
+                    key={c.key}
+                    style={[styles.pickerRow, i > 0 && styles.pickerRowBorder]}
+                    activeOpacity={0.7}
+                    onPress={() => { setCity(c.key); setCityPickerOpen(false); }}
+                  >
+                    <Text style={[styles.pickerRowText, active && { color: PRIMARY, fontWeight: '700' }]}>{t(c.labelKey)}</Text>
+                    {active && <Ionicons name="checkmark" size={17} color={PRIMARY} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -255,6 +271,17 @@ const createStyles = (colors) => StyleSheet.create({
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   selectChip: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
   cityChip: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
+  // 도시 선택 바 (탭 → 모달)
+  selectBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.inputBg, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 14,
+  },
+  selectBarText: { fontSize: 15, color: colors.text, fontWeight: '600' },
+  pickerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', padding: 32 },
+  pickerCard: { width: '100%', maxWidth: 320, backgroundColor: colors.surface, borderRadius: 16, overflow: 'hidden' },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 15, paddingHorizontal: 18 },
+  pickerRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  pickerRowText: { fontSize: 15, color: colors.text, fontWeight: '500' },
   selectChipActive: { borderColor: PRIMARY, backgroundColor: 'rgba(127,119,221,0.10)' },
   selectChipInactive: { borderColor: colors.border, backgroundColor: colors.surface },
   selectChipText: { fontSize: 13, fontWeight: '600' },
