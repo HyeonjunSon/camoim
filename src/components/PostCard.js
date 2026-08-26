@@ -58,11 +58,11 @@ export default function PostCard({ post, onPress }) {
                 </Text>
               </View>
             )}
-            <Text style={[styles.title, { flex: 1 }]} numberOfLines={2}>{post.title}</Text>
+            <Text style={[styles.title, { flex: 1 }]} numberOfLines={1}>{post.title}</Text>
           </View>
           {/* 본문 미리보기 */}
           {preview.length > 0 && (
-            <Text style={styles.preview} numberOfLines={2}>{preview}</Text>
+            <Text style={styles.preview} numberOfLines={1}>{preview}</Text>
           )}
         </View>
         {/* 썸네일 */}
