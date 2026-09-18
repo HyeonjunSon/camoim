@@ -177,6 +177,42 @@ ipconfig getifaddr en0
 
 ---
 
+## 📖 문서 (영어 — 외부 공개용)
+
+| 파일 | 내용 |
+|---|---|
+| [README.md](README.md) | 채용 담당자용 5분 개요 — 기능·아키텍처 다이어그램·기술 선택·문제 4건 요약 |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 시스템/시퀀스/ER 다이어그램, 요청 경로, 실시간 채팅, 인증, 미디어, 배포, 알려진 한계 |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | 기술 선택 11건 — 이유 + 트레이드오프 + "다시 고른다면" |
+| [docs/ENGINEERING-NOTES.md](docs/ENGINEERING-NOTES.md) | 프로덕션 문제 4건 상세 (면접용 30초 스크립트 포함) |
+| [docs/TESTING.md](docs/TESTING.md) | 테스트 3계층 + CI |
+| [server/.env.example](server/.env.example) | 서버 환경변수 템플릿 |
+
+기능·구조를 바꾸면 해당 문서도 같이 갱신할 것. 특히 ARCHITECTURE.md의 "Known limits"와
+DECISIONS.md의 트레이드오프는 사실과 어긋나면 역효과가 난다.
+
+---
+
+## 🧪 테스트 & CI
+
+```bash
+npm test             # 클라이언트 Jest (47 tests)
+npm run test:server  # 서버 Jest — 유닛 + 통합 (59 tests)
+npm run test:all     # 둘 다
+```
+
+- 상세: [docs/TESTING.md](docs/TESTING.md), E2E: [.maestro/README.md](.maestro/README.md)
+- ⚠️ **docs/ 와 README.md, .maestro/README.md 는 영어로 작성** (채용 담당자·북미 지원용).
+  CLAUDE.md와 코드 주석은 한국어 유지. 문서 수정 시 언어 섞지 말 것
+- **CI**: `.github/workflows/ci.yml` — main push/PR마다 양쪽 Jest 자동 실행
+- **서버 앱 분리**: `server/app.js`(Express 조립, 부작용 없음) ↔ `server/index.js`(DB연결·시드·listen).
+  테스트는 `app.js`를 supertest로 가져다 쓴다. 새 라우트는 `app.js`에 마운트할 것
+- **rate limiter**는 `NODE_ENV === 'test'`일 때 skip (`routes/auth.js`의 `skipInTest`)
+- **E2E testID 규약**: `login-*`, `tab-*`, `chat-*` — UI 수정 시 지우면 Maestro 플로우가 깨짐
+- 새 기능 추가 시 최소한 순수 로직 유닛 테스트 + 라우트 통합 테스트 1개는 같이 넣는다
+
+---
+
 ## 🎨 개발 규칙
 
 - **함수형 컴포넌트 + 훅** 사용
