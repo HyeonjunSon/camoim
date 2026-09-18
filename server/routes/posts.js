@@ -669,19 +669,26 @@ router.put('/:postId/trade-status', requireAuth, async (req, res) => {
 // POST /api/posts/:postId/like
 router.post('/:postId/like', requireAuth, async (req, res) => {
   try {
-    const post = await Post.findById(req.params.postId);
-    if (!post) return res.status(404).json({ success: false, message: '게시글을 찾을 수 없습니다.' });
-
+    const postId = req.params.postId;
     const userId = req.user.id;
-    const alreadyLiked = post.likedBy.includes(userId);
+    // 조건부 원자 업데이트로 토글 — findById → 수정 → save()는 동시 요청 시
+    // likeCount가 유실되거나 같은 유저가 두 번 카운트될 수 있었음.
+    // 필터의 likedBy 조건이 "아직 안 누름 / 이미 누름"을 DB가 판정하게 한다.
+    const fields = 'userId title isAnonymous likeCount';
+    const unliked = await Post.findOneAndUpdate(
+      { _id: postId, likedBy: userId },
+      { $pull: { likedBy: userId }, $inc: { likeCount: -1 } },
+      { new: true, projection: fields }
+    );
+    const post = unliked || await Post.findOneAndUpdate(
+      { _id: postId, likedBy: { $ne: userId } },
+      { $addToSet: { likedBy: userId }, $inc: { likeCount: 1 } },
+      { new: true, projection: fields }
+    );
+    if (!post) return res.status(404).json({ success: false, message: '게시글을 찾을 수 없습니다.' });
+    const alreadyLiked = !!unliked;
 
-    if (alreadyLiked) {
-      post.likedBy.pull(userId);
-      post.likeCount = Math.max(0, post.likeCount - 1);
-    } else {
-      post.likedBy.push(userId);
-      post.likeCount += 1;
-
+    if (!alreadyLiked) {
       // 자기 글이 아닐 때만 알림 발송
       if (String(post.userId) !== String(userId)) {
         const [liker, postOwner] = await Promise.all([
@@ -712,9 +719,8 @@ router.post('/:postId/like', requireAuth, async (req, res) => {
         }
       }
     }
-    await post.save();
 
-    res.json({ success: true, data: { liked: !alreadyLiked, likeCount: post.likeCount } });
+    res.json({ success: true, data: { liked: !alreadyLiked, likeCount: Math.max(0, post.likeCount) } });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });

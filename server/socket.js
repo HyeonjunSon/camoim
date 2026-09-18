@@ -32,17 +32,30 @@ function initSocket(httpServer) {
     },
   });
 
-  // JWT 인증 미들웨어
-  io.use((socket, next) => {
+  // JWT 인증 미들웨어 — REST requireAuth와 같은 기준 적용
+  // (서명만 보면 로그아웃/비번변경/정지된 토큰으로도 30일간 소켓 연결이 가능했음)
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error('인증 토큰이 없습니다.'));
+    let decoded;
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      socket.user = { id: decoded.id, nickname: decoded.nickname };
-      next();
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
-      next(new Error('유효하지 않은 토큰입니다.'));
+      return next(new Error('유효하지 않은 토큰입니다.'));
     }
+    try {
+      const u = await User.findById(decoded.id).select('status suspendedUntil tokenVersion').lean();
+      if (!u) return next(new Error('계정을 찾을 수 없습니다.'));
+      if ((decoded.v || 0) !== (u.tokenVersion || 0)) return next(new Error('TOKEN_REVOKED'));
+      if (u.status === 'banned' || u.status === 'deleted') return next(new Error('ACCOUNT_BANNED'));
+      if (u.status === 'suspended' && (!u.suspendedUntil || new Date(u.suspendedUntil) > new Date())) {
+        return next(new Error('ACCOUNT_SUSPENDED'));
+      }
+    } catch (e) {
+      // 조회 실패는 통과 (requireAuth와 동일 — DB 일시 장애가 전체 채팅 단절로 번지지 않게)
+    }
+    socket.user = { id: decoded.id, nickname: decoded.nickname };
+    next();
   });
 
   io.on('connection', (socket) => {
@@ -79,6 +92,9 @@ function initSocket(httpServer) {
         const isSchool = room.kind === 'school';
         // 그룹/학교 모두 N명 채팅이라 DM 전용 검사 (차단·승인 대기) 제외
         const isMultiUser = isGroup || isSchool;
+        // 이번 메시지가 DM 요청의 첫 메시지인지 — 요청(메시지) 단위 지역 변수
+        // (socket 객체에 두면 같은 소켓의 동시 전송끼리 플래그를 공유해 꼬일 수 있음)
+        let isFirstRequestMessage = false;
 
         // DM: 차단 체크 + 요청 단계 1통 제한
         if (!isMultiUser) {
@@ -98,7 +114,7 @@ function initSocket(httpServer) {
               return;
             }
             // 첫 요청 메시지 표시 — 메시지 저장 후 수신자에게 chat_request 알림 생성
-            socket._isFirstRequestMessage = true;
+            isFirstRequestMessage = true;
           }
         }
 
@@ -115,13 +131,14 @@ function initSocket(httpServer) {
           .map(p => String(p))
           .filter(id => id !== String(userId));
 
-        const update = { lastMessage: trimmed, lastMessageAt: new Date() };
+        // $inc로 원자적 증가 — 읽고(cur) 다시 쓰는(cur+1) 방식은 동시 전송 시
+        // 두 요청이 같은 cur를 읽어 카운트 1개가 유실됨 (lost update)
         const incs = {};
-        for (const oid of otherIds) {
-          const cur = room.unreadCount?.get(oid) ?? 0;
-          incs[`unreadCount.${oid}`] = cur + 1;
-        }
-        await ChatRoom.findByIdAndUpdate(roomId, { ...update, $set: incs });
+        for (const oid of otherIds) incs[`unreadCount.${oid}`] = 1;
+        await ChatRoom.updateOne(
+          { _id: roomId },
+          { $set: { lastMessage: trimmed, lastMessageAt: new Date() }, $inc: incs }
+        );
 
         const payload = {
           id: message._id,
@@ -139,7 +156,7 @@ function initSocket(httpServer) {
 
         // DM 첫 요청 메시지면 수신자 알림함에 chat_request 레코드 생성
         // (일반 채팅 메시지는 안 쌓지만, 요청은 사용자가 채팅탭 안 들어가면 모를 수 있어서 별도 알림)
-        if (socket._isFirstRequestMessage && otherIds.length > 0) {
+        if (isFirstRequestMessage && otherIds.length > 0) {
           for (const oid of otherIds) {
             Notification.create({
               userId: oid,
@@ -148,7 +165,6 @@ function initSocket(httpServer) {
               roomId,
             }).catch(() => {});
           }
-          socket._isFirstRequestMessage = false; // 일회성 플래그 클리어
         }
 
         // 채팅 메시지는 알림함(Notification)에 안 쌓음 — 채팅탭 unread 뱃지로

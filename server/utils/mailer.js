@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -6,9 +7,9 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // 도메인 검증 전에는 'onboarding@resend.dev'로 fallback (본인 이메일로만 발송 가능)
 const FROM_ADDRESS = process.env.MAIL_FROM || 'CaMoim <onboarding@resend.dev>';
 
-// 6자리 인증 코드 생성
+// 6자리 인증 코드 생성 — Math.random()은 예측 가능한 PRNG라 CSPRNG 사용
 function generateCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(crypto.randomInt(100000, 1000000));
 }
 
 // 인증 이메일 발송
