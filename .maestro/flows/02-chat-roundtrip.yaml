@@ -1,0 +1,77 @@
+# 핵심 플로우 E2E: 로그인 → 채팅방 진입 → 메시지 전송 → 수신 확인
+#
+# "수신"을 어떻게 검증하나:
+#   ChatRoomScreen.sendMessage()는 낙관적 렌더링을 하지 않는다. 버블은 오직
+#   서버가 소켓으로 되돌려준 new_message 이벤트로만 그려진다.
+#   따라서 보낸 문구가 대화창에 나타났다는 것은
+#   앱 → WebSocket → Railway 서버 → MongoDB 저장 → 브로드캐스트 → 앱
+#   왕복이 전부 성공했다는 뜻이다.
+appId: com.hyeonjun122.cahanin
+name: 02 채팅 전송·수신 왕복
+env:
+  EMAIL: ${MAESTRO_EMAIL}
+  PASSWORD: ${MAESTRO_PASSWORD}
+tags:
+  - smoke
+  - chat
+---
+- launchApp:
+    clearState: true
+    permissions:
+      notifications: deny
+
+# ── 로그인 ────────────────────────────────────────────────
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 30000
+- tapOn:
+    id: "login-email"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "login-password"
+- inputText: ${PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "login-submit"
+
+# ── 채팅 탭 → 첫 번째 채팅방 ──────────────────────────────
+- extendedWaitUntil:
+    visible:
+      id: "tab-chat"
+    timeout: 30000
+- tapOn:
+    id: "tab-chat"
+
+- extendedWaitUntil:
+    visible:
+      id: "chat-room-card"
+    timeout: 15000
+- tapOn:
+    id: "chat-room-card"
+    index: 0
+
+- extendedWaitUntil:
+    visible:
+      id: "chat-input"
+    timeout: 15000
+
+# ── 전송 ──────────────────────────────────────────────────
+# 매 실행마다 고유한 문구를 써서 이전 실행의 메시지와 헷갈리지 않게 한다
+- evalScript: ${output.msg = 'maestro-e2e-' + Date.now()}
+- tapOn:
+    id: "chat-input"
+- inputText: ${output.msg}
+- tapOn:
+    id: "chat-send"
+
+# ── 수신 확인 ─────────────────────────────────────────────
+# 서버가 소켓으로 되돌려준 메시지가 대화창에 그려져야 통과
+- extendedWaitUntil:
+    visible: ${output.msg}
+    timeout: 15000
+
+# 말풍선이 리스트 안에 실제로 그려졌는지 한 번 더 못박는다
+- assertVisible:
+    id: "chat-messages"
+- assertVisible: ${output.msg}

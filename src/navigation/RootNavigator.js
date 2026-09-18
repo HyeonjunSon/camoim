@@ -118,15 +118,16 @@ export default function RootNavigator() {
         tabBarLabelStyle: styles.tabLabel,
       })}
     >
-      <Tab.Screen name="Home" component={HomeStack} options={{ title: t('tabs.home') }} />
-      <Tab.Screen name="Board" component={BoardStack} options={{ title: t('tabs.board') }} />
-      <Tab.Screen name="Map" component={MapStack} options={{ title: t('tabs.map') }} />
+      <Tab.Screen name="Home" component={HomeStack} options={{ title: t('tabs.home'), tabBarTestID: 'tab-home' }} />
+      <Tab.Screen name="Board" component={BoardStack} options={{ title: t('tabs.board'), tabBarTestID: 'tab-board' }} />
+      <Tab.Screen name="Map" component={MapStack} options={{ title: t('tabs.map'), tabBarTestID: 'tab-map' }} />
       <Tab.Screen name="Chat" component={ChatStack} options={{
         title: t('tabs.chat'),
+        tabBarTestID: 'tab-chat',
         tabBarBadge: chatBadge > 0 ? (chatBadge > 99 ? '99+' : chatBadge) : undefined,
         tabBarBadgeStyle: { backgroundColor: colors.primary, fontSize: 10, fontWeight: '700' },
       }} />
-      <Tab.Screen name="MyPage" component={MyPageStack} options={{ title: t('tabs.mypage') }} />
+      <Tab.Screen name="MyPage" component={MyPageStack} options={{ title: t('tabs.mypage'), tabBarTestID: 'tab-mypage' }} />
       {isAdmin && (
         <Tab.Screen name="Admin" component={AdminStack} options={{ title: t('tabs.admin') }} />
       )}

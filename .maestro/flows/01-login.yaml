@@ -1,0 +1,40 @@
+# 로그인 플로우 — 이메일/비밀번호로 로그인해서 탭 네비게이션까지 도달하는지 확인
+appId: com.hyeonjun122.cahanin
+name: 01 로그인
+env:
+  EMAIL: ${MAESTRO_EMAIL}
+  PASSWORD: ${MAESTRO_PASSWORD}
+tags:
+  - smoke
+---
+- launchApp:
+    clearState: true
+    permissions:
+      notifications: deny
+
+# 앱이 로그인 화면까지 뜨는 것을 기다린다 (스플래시/폰트 로딩 여유)
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 30000
+
+- tapOn:
+    id: "login-email"
+- inputText: ${EMAIL}
+
+- tapOn:
+    id: "login-password"
+- inputText: ${PASSWORD}
+
+- hideKeyboard
+- tapOn:
+    id: "login-submit"
+
+# 로그인 성공 = 하단 탭 네비게이션 진입
+- extendedWaitUntil:
+    visible:
+      id: "tab-chat"
+    timeout: 30000
+
+- assertVisible:
+    id: "tab-home"

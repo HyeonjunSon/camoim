@@ -7,8 +7,17 @@ server/
 scripts/
 *.code-workspace
 
+# 테스트 · CI (앱 번들에 불필요)
+__tests__/
+jest.config.js
+jest.setup.js
+.maestro/
+.github/
+coverage/
+
 # 문서
 CLAUDE.md
+docs/
 .text
 
 # 로컬 dev

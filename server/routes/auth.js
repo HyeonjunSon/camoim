@@ -9,7 +9,11 @@ const University = require('../models/University');
 const { generateCode, sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer');
 const { verifyAppleIdToken, verifyGoogleIdToken } = require('../utils/socialAuth');
 
+// 자동화 테스트에서는 rate limit을 건너뛴다 (NODE_ENV=test는 운영에서 절대 설정되지 않음)
+const skipInTest = () => process.env.NODE_ENV === 'test';
+
 const loginLimiter = rateLimit({
+  skip: skipInTest,
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
@@ -17,6 +21,7 @@ const loginLimiter = rateLimit({
   message: { success: false, message: 'Too many login attempts. Please try again in 15 minutes.' },
 });
 const codeLimiter = rateLimit({
+  skip: skipInTest,
   windowMs: 60 * 60 * 1000,
   max: 5,
   standardHeaders: true,
@@ -24,6 +29,7 @@ const codeLimiter = rateLimit({
   message: { success: false, message: 'Too many verification code requests. Please try again later.' },
 });
 const registerLimiter = rateLimit({
+  skip: skipInTest,
   windowMs: 60 * 60 * 1000,
   max: 5,
   standardHeaders: true,
@@ -31,6 +37,7 @@ const registerLimiter = rateLimit({
   message: { success: false, message: 'Too many signup attempts. Please try again later.' },
 });
 const resetLimiter = rateLimit({
+  skip: skipInTest,
   windowMs: 60 * 60 * 1000,
   max: 5,
   standardHeaders: true,
@@ -619,6 +626,7 @@ router.delete('/me', requireAuth, async (req, res) => {
 //   5) 매칭 안 되면 → preReg JWT 발급 (Onboarding 화면용)
 
 const socialLimiter = rateLimit({
+  skip: skipInTest,
   windowMs: 15 * 60 * 1000,
   max: 30,
   standardHeaders: true,

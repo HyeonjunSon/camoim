@@ -1,0 +1,4 @@
+# Maestro 워크스페이스 설정
+# 실행: maestro test .maestro/flows -e MAESTRO_EMAIL=... -e MAESTRO_PASSWORD=...
+flows:
+  - flows/*.yaml

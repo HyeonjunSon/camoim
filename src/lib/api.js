@@ -8,7 +8,8 @@ const BASE_URL = API_BASE_URL;
 const APP_VERSION = Constants.expoConfig?.version || Constants.manifest?.version || '1.0.0';
 
 // snake_case 객체를 재귀적으로 camelCase로 변환 (_id → id 포함)
-function toCamel(obj) {
+// export는 유닛 테스트용 — 앱 코드에서는 request()가 내부적으로만 사용한다.
+export function toCamel(obj) {
   if (Array.isArray(obj)) return obj.map(toCamel);
   if (obj !== null && typeof obj === 'object') {
     return Object.fromEntries(

@@ -169,6 +169,7 @@ export default function ChatListScreen({ navigation, route }) {
       const s = item.school || {};
       return (
         <TouchableOpacity
+          testID="chat-room-card"
           style={styles.roomCard}
           onPress={() => navigation.navigate('ChatRoom', {
             roomId: item.id,
@@ -230,6 +231,7 @@ export default function ChatListScreen({ navigation, route }) {
 
       return (
         <TouchableOpacity
+          testID="chat-room-card"
           style={styles.roomCard}
           onPress={() => navigation.navigate('ChatRoom', {
             roomId: item.id, kind: 'group', group: g,
@@ -286,6 +288,7 @@ export default function ChatListScreen({ navigation, route }) {
         overshootRight={false}
       >
         <TouchableOpacity
+          testID="chat-room-card"
           style={styles.roomCard}
           onPress={() => navigation.navigate('ChatRoom', { roomId: item.id, other: item.other, status: item.status, isRequester: item.isRequester, otherLeft: item.otherLeft, otherDeleted: item.otherDeleted })}
           activeOpacity={0.8}

@@ -350,6 +350,7 @@ export default function ChatRoomScreen({ route, navigation }) {
     >
       <CustomChatHeader />
       <FlatList
+        testID="chat-messages"
         ref={flatListRef}
         data={messages}
         keyExtractor={(item, idx) => item.id ?? String(idx)}
@@ -371,6 +372,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         // 그룹 채팅 — 항상 입력 바
         <View style={[styles.inputBar, { paddingBottom: inputBarBottomPad }]}>
           <TextInput
+            testID="chat-input"
             style={styles.input}
             placeholder={t('chat.placeholder')}
             placeholderTextColor={colors.textSecondary}
@@ -383,6 +385,7 @@ export default function ChatRoomScreen({ route, navigation }) {
             blurOnSubmit={false}
           />
           <TouchableOpacity
+            testID="chat-send"
             style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
             onPress={sendMessage}
             disabled={!text.trim() || sending}
@@ -423,6 +426,7 @@ export default function ChatRoomScreen({ route, navigation }) {
             </View>
             <View style={[styles.inputBar, { paddingBottom: inputBarBottomPad }]}>
               <TextInput
+                testID="chat-input"
                 style={styles.input}
                 placeholder={t('chat.placeholder')}
                 placeholderTextColor={colors.textSecondary}
@@ -435,6 +439,7 @@ export default function ChatRoomScreen({ route, navigation }) {
                 blurOnSubmit={false}
               />
               <TouchableOpacity
+                testID="chat-send"
                 style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
                 onPress={sendMessage}
                 disabled={!text.trim() || sending}
@@ -464,6 +469,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         // 일반 입력 바
         <View style={[styles.inputBar, { paddingBottom: inputBarBottomPad }]}>
           <TextInput
+            testID="chat-input"
             style={styles.input}
             placeholder={t('chat.placeholder')}
             placeholderTextColor={colors.textSecondary}
@@ -476,6 +482,7 @@ export default function ChatRoomScreen({ route, navigation }) {
             blurOnSubmit={false}
           />
           <TouchableOpacity
+            testID="chat-send"
             style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
             onPress={sendMessage}
             disabled={!text.trim() || sending}
