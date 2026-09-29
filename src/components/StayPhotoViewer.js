@@ -1,8 +1,9 @@
-// 전체화면 사진 뷰어 — 상세 사진 탭 시 크게 보기 (좌우 스와이프). 순수 JS(OTA 안전).
+// Fullscreen photo viewer — tap a detail photo to enlarge it (swipe left/right). Pure JS, so OTA-safe.
 import { useState, useRef, useEffect } from 'react';
 import { Modal, View, ScrollView, TouchableOpacity, StyleSheet, Dimensions, StatusBar } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from './StyledText';
 
@@ -12,7 +13,7 @@ export default function StayPhotoViewer({ visible, images = [], index = 0, onClo
   const scrollRef = useRef(null);
   const [cur, setCur] = useState(index);
 
-  // 열릴 때 시작 인덱스로 이동
+  // Jump to the starting index when opened
   useEffect(() => {
     if (visible) {
       setCur(index);
@@ -40,12 +41,12 @@ export default function StayPhotoViewer({ visible, images = [], index = 0, onClo
           ))}
         </ScrollView>
 
-        {/* 닫기 */}
+        {/* Close */}
         <TouchableOpacity style={[styles.close, { top: insets.top + 8 }]} activeOpacity={0.8} onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="close" size={26} color="#FFFFFF" />
         </TouchableOpacity>
 
-        {/* 카운터 */}
+        {/* Counter */}
         {images.length > 1 && (
           <View style={[styles.counter, { bottom: insets.bottom + 20 }]}>
             <Text style={styles.counterText}>{cur + 1} / {images.length}</Text>

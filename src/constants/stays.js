@@ -1,12 +1,12 @@
-// 숙소 지도 — 공통 상수 (지도/상세/등록 화면이 모두 여기서 import)
-// 지도 도시는 업체와 동일 (BUSINESS_CITIES 재사용). 타입 색상은 테마 무관 고정값.
+// Stay map — shared constants (the map, detail and create screens all import from here)
+// Map cities match the business map (BUSINESS_CITIES is reused). Type colours are fixed regardless of theme.
 import { BUSINESS_CITIES } from './businesses';
 
-// 숙소 브랜드 컬러 (핀·가격·강조) — colors.js board.study와 동일 계열
+// Stay brand colours (pins, prices, emphasis) — same family as board.study in colors.js
 export const STAY_ACCENT = '#3B82F6';
 export const STAY_ACCENT_SOFT = '#EFF6FF';
 
-// 숙소 유형 4종 — label은 한국어 fallback(관리자용), labelKey는 i18n
+// The four stay types — label is the Korean fallback for admins, labelKey is the i18n key
 export const STAY_TYPES = [
   { key: 'minbak',   label: '민박',    labelKey: 'stay.tMinbak',   ion: 'bed',        color: '#3B82F6', soft: '#EFF6FF' },
   { key: 'roomrent', label: '룸렌트',  labelKey: 'stay.tRoomrent', ion: 'home',       color: '#10B981', soft: '#ECFDF5' },
@@ -14,7 +14,7 @@ export const STAY_TYPES = [
   { key: 'hasuk',    label: '하숙',    labelKey: 'stay.tHasuk',    ion: 'restaurant', color: '#8B5CF6', soft: '#F5F3FF' },
 ];
 
-// 숙소 조건 프리셋 — 서버 STAY_CONDITIONS 키와 동기화 유지
+// Stay condition presets — kept in sync with the server's STAY_CONDITIONS keys
 export const STAY_CONDITIONS = [
   { key: 'femaleOnly',   labelKey: 'stay.cFemaleOnly' },
   { key: 'maleOnly',     labelKey: 'stay.cMaleOnly' },
@@ -37,14 +37,14 @@ export const STAY_CONDITIONS = [
   { key: 'shortTerm',    labelKey: 'stay.cShortTerm' },
 ];
 
-// 가격 단위 — 월세 / 1박(민박)
+// Price unit — per month / per night
 export const PRICE_UNITS = [
   { key: 'month', labelKey: 'stay.unitMonth' },
   { key: 'night', labelKey: 'stay.unitNight' },
 ];
 export const priceUnitKey = (unit) => (unit === 'night' ? 'stay.perNight' : 'stay.perMonth');
 
-// 숙소 신고 사유 (서버 reason 키와 매핑)
+// Reasons for reporting a stay (mapped to the server's reason keys)
 export const STAY_REPORT_REASONS = [
   { key: 'taken', label: '이미 나간 방이에요',   labelKey: 'stay.reasonTaken' },
   { key: 'info',  label: '정보가 사실과 달라요', labelKey: 'stay.reasonInfo' },
@@ -59,19 +59,19 @@ export const stayCondOf = (key) => COND_MAP[key] || null;
 
 export { BUSINESS_CITIES as STAY_CITIES };
 
-// 월세 표기: $950/월. locale 무관하게 통화 기호만 (금액은 캐나다 달러)
+// Rent display: $950/month. Only the currency symbol, regardless of locale (amounts are Canadian dollars)
 export function formatPrice(n) {
   if (n == null || !Number.isFinite(n)) return '';
   return `$${Number(n).toLocaleString('en-CA')}`;
 }
 
-// 입주 가능일 표기 — 저장값은 'YYYY-MM-DD'(달력 선택) 또는 'immediate'(즉시).
-// 과거 자유 텍스트('9월 1일부터' 등)는 그대로 노출 (하위호환).
+// Move-in date display — stored as 'YYYY-MM-DD' (picked from the calendar) or 'immediate'.
+// Older free-text values are shown as-is, for backward compatibility.
 export function formatMoveIn(v, lang, t) {
   if (!v) return '';
   if (v === 'immediate') return t ? t('stay.moveInNow') : '즉시 입주';
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
-  if (!m) return v; // 옛 자유 텍스트
+  if (!m) return v; // Legacy free text
   const [, y, mo, d] = m;
   const mn = Number(mo), dn = Number(d);
   if (lang === 'en') {
@@ -81,7 +81,7 @@ export function formatMoveIn(v, lang, t) {
   return `${y}년 ${mn}월 ${dn}일`;
 }
 
-// 리치에디터 HTML → 평문 (게시판 글을 숙소 소개로 옮길 때 </p> 등 태그 제거)
+// Rich editor HTML to plain text (strips </p> and friends when a board post becomes a stay description)
 export function htmlToPlain(html) {
   if (!html) return '';
   let s = String(html);

@@ -1,8 +1,9 @@
-// 🔥 이번 주 인기 장소 (홈 섹션) — 주간 조회수 TOP 5 가로 카드
-// 카드 탭 → 지도 탭으로 이동 + 해당 업체 상세 시트 자동 오픈 (focusId 파라미터)
+// 🔥 Trending places this week (home section) — the weekly top 5 as horizontal cards
+// Tapping a card switches to the map tab and opens that business's detail sheet (the focusId param)
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { Text } from './StyledText';
 import { useTheme } from '../context/ThemeContext';
@@ -21,7 +22,7 @@ export default function TrendingPlaces({ refreshKey = 0 }) {
       const res = await getTrendingBusinesses();
       if (res.success) setList(res.data || []);
     } catch {
-      // 부가 섹션 — 실패 시 조용히 숨김
+      // A secondary section — hidden silently on failure
     }
   }, []);
 

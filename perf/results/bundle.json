@@ -1,0 +1,17 @@
+{
+  "measuredWith": "npx expo export --platform ios --platform android --dump-sourcemap",
+  "ios": {
+    "before": {
+      "n": 125,
+      "tot": 12141051,
+      "font": 11964136,
+      "hbc": 4281984
+    },
+    "after": {
+      "n": 107,
+      "tot": 8453935,
+      "font": 8277020,
+      "hbc": 3953540
+    }
+  }
+}

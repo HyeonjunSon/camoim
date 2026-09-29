@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Text } from './StyledText';
 import { useLang } from '../context/LangContext';
 

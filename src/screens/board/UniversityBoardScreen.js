@@ -8,7 +8,8 @@ import {
   ScrollView,
   Linking,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
@@ -21,7 +22,7 @@ import { getBoardName, getBoardDescription } from '../../lib/i18n';
 import { toShortUniversityName } from '../../lib/university';
 import { BOARD_ICONS } from '../../lib/icons';
 
-// 게시판 slugSuffix별 아이콘·색상 매핑 — lib/icons.js 단일 소스
+// Icon and colour per board slugSuffix — from the single source in lib/icons.js
 const BOARD_META = {
   free: BOARD_ICONS.free,
   anonymous: BOARD_ICONS.anonymous,
@@ -29,15 +30,15 @@ const BOARD_META = {
   info: BOARD_ICONS.info,
 };
 
-// slug에서 마지막 suffix 추출 (예: 'uoft-free' → 'free')
+// Take the trailing suffix from a slug (e.g. 'uoft-free' → 'free')
 function getSuffix(slug = '') {
   return slug.split('-').pop();
 }
 
-// 학교 페이지에서 더 이상 노출하지 않는 게시판 (글로벌 모임/유학정보로 대체)
+// Boards no longer surfaced on the school page (replaced by global groups and study-abroad info)
 const HIDDEN_SCHOOL_BOARD_SUFFIXES = new Set(['meetup', 'info']);
 
-// 학교 전용 게시판 홈 화면 (에브리타임 스타일)
+// School board home (Everytime-style)
 export default function UniversityBoardScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
@@ -62,7 +63,7 @@ export default function UniversityBoardScreen({ navigation }) {
     fetchCommunity();
   }, []);
 
-  // 편집 화면에서 돌아왔을 때 새 데이터 반영
+  // Pick up new data when returning from the edit screen
   useFocusEffect(useCallback(() => { fetchCommunity(); }, []));
 
   async function fetchCommunity() {
@@ -98,7 +99,7 @@ export default function UniversityBoardScreen({ navigation }) {
     }
   }
 
-  // 학교 전체 채팅 진입 — 첫 진입 시 lazy create + 자동 참여
+  // Enter the school-wide chat — lazily created and auto-joined on first entry
   async function openSchoolChat() {
     try {
       const res = await getSchoolChat();
@@ -119,7 +120,7 @@ export default function UniversityBoardScreen({ navigation }) {
     } catch {}
   }
 
-  // 학교 한정 동아리 — 인증 회원만 (admin은 전체 학교 다 보이는데 일단 본인 학교 또는 빈 배열)
+  // School clubs — verified members only (admins see every school, but start with their own or an empty list)
   async function fetchSchoolGroups() {
     if (!user?.university || !user?.verified) {
       setSchoolGroups([]);
@@ -131,7 +132,7 @@ export default function UniversityBoardScreen({ navigation }) {
     } catch {}
   }
 
-  // admin용: 학교별로 게시판 그룹핑 + 검색 필터
+  // For admins: group boards by school, plus a search filter
   const groupedByUniversity = useMemo(() => {
     if (!isAdmin) return null;
     const s = search.trim().toLowerCase();
@@ -151,7 +152,7 @@ export default function UniversityBoardScreen({ navigation }) {
     [groupedByUniversity]
   );
 
-  // 검색 중이면 자동 펼침, 아니면 expanded 상태 사용
+  // Auto-expand while searching; otherwise honour the expanded state
   const isSearching = search.trim().length > 0;
   const isOpen = (uni) => isSearching || !!expanded[uni];
   const toggle = (uni) => setExpanded((e) => ({ ...e, [uni]: !e[uni] }));
@@ -175,7 +176,7 @@ export default function UniversityBoardScreen({ navigation }) {
     );
   }
 
-  // 게시판 카드 렌더링 헬퍼
+  // Board card render helper
   function renderBoardCard(board) {
     const suffix = getSuffix(board.slug);
     const meta = BOARD_META[suffix] ?? BOARD_ICONS.default;
@@ -201,7 +202,7 @@ export default function UniversityBoardScreen({ navigation }) {
       contentContainerStyle={{ paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* ── Hero — 카드형 그라데이션 + 통계 칩 ── */}
+      {/* ── Hero — gradient card with stat chips ── */}
       <View style={styles.heroWrap}>
         <LinearGradient
           colors={[colors.primary, colors.primary + 'CC']}
@@ -227,7 +228,7 @@ export default function UniversityBoardScreen({ navigation }) {
                 {isAdmin ? t('board.schoolBoardAdmin') : `Community · ${t('board.forStudents')}`}
               </Text>
             </View>
-            {/* 인증 회원수 카드 — 탭하면 멤버 목록 화면으로 (모임 패턴) */}
+            {/* Verified member count card — tapping opens the member list (same pattern as groups) */}
             {!isAdmin && memberCount != null && (
               <TouchableOpacity
                 style={styles.heroMemberBadge}
@@ -245,7 +246,7 @@ export default function UniversityBoardScreen({ navigation }) {
         </LinearGradient>
       </View>
 
-      {/* ── 학교 전체 채팅 진입 카드 (인증 회원 전용) ── */}
+      {/* ── School-wide chat entry card (verified members only) ── */}
       {!isAdmin && user?.verified && user?.university && (
         <TouchableOpacity
           style={styles.chatEntryCard}
@@ -272,7 +273,7 @@ export default function UniversityBoardScreen({ navigation }) {
         </TouchableOpacity>
       )}
 
-      {/* ── 학교 커뮤니티 카드 — 학생회장이 꾸미는 소셜 링크 + 공지 ── */}
+      {/* ── School community card — social links and a notice, curated by the president ── */}
       {!isAdmin && user?.verified && user?.university && community && (
         (() => {
           const c = community.community || {};
@@ -346,7 +347,7 @@ export default function UniversityBoardScreen({ navigation }) {
         })()
       )}
 
-      {/* ── admin: 검색 + 학교별 접기/펼치기 ── */}
+      {/* ── admin: search plus per-school collapse/expand ── */}
       {isAdmin && groupedByUniversity ? (
         <>
           <View style={styles.searchBox}>
@@ -393,7 +394,7 @@ export default function UniversityBoardScreen({ navigation }) {
           )}
         </>
       ) : (
-        /* ── 일반 유저: 내 학교 게시판 그리드 (모임/정보는 동아리/글로벌로 대체되어 숨김) ── */
+        /* ── Regular users: my school's board grid (meetup/info are hidden, replaced by clubs and global) ── */
         (() => {
           const visibleBoards = boards.filter(b => !HIDDEN_SCHOOL_BOARD_SUFFIXES.has(getSuffix(b.slug)));
           return (
@@ -411,7 +412,7 @@ export default function UniversityBoardScreen({ navigation }) {
         })()
       )}
 
-      {/* ── 우리 학교 동아리 (인증된 일반 유저만) ── */}
+      {/* ── Clubs at my school (verified regular users only) ── */}
       {!isAdmin && user?.verified && user?.university && (
         <View>
           <View style={styles.sectionHeader}>
@@ -501,7 +502,7 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // ── Hero (카드형, 더 풍성한 느낌)
+  // ── Hero (card style, a richer feel)
   heroWrap: {
     paddingHorizontal: 16,
     paddingTop: 14,
@@ -554,7 +555,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginTop: 2,
     fontWeight: '500',
   },
-  // 우측 회원수 배지 — 모임 metaTag 톤, 작고 컴팩트
+  // Member count badge on the right — same tone as a group metaTag, small and compact
   heroMemberBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -578,7 +579,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginLeft: 1,
   },
 
-  // ── 학교 전체 채팅 진입 카드 — Hero(그라데이션)와 차별화: primary tint 채움 + 라이브 도트
+  // ── School-wide chat card — set apart from the gradient hero: filled with a primary tint plus a live dot
   chatEntryCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -628,7 +629,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   chatEntrySub: { fontSize: 12, color: colors.textSecondary, marginTop: 3, fontWeight: '500' },
 
-  // ── 학교 커뮤니티 카드 (학생회장 편집 영역)
+  // ── School community card (the president's editable area)
   communityCard: {
     marginHorizontal: 16,
     marginTop: 12,
@@ -704,7 +705,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   communityEmptyText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
 
-  // ── 섹션 헤더 (게시판/동아리 공통)
+  // ── Section header (shared by boards and clubs)
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -750,7 +751,7 @@ const createStyles = (colors) => StyleSheet.create({
     fontWeight: '700',
   },
 
-  // ── admin 검색바
+  // ── admin search bar
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: 16, marginTop: 14, marginBottom: 4,
@@ -761,7 +762,7 @@ const createStyles = (colors) => StyleSheet.create({
   searchInput: { flex: 1, fontSize: 14, color: colors.text },
   empty: { textAlign: 'center', color: colors.textSecondary, marginTop: 40 },
 
-  // ── admin 학교 그룹 헤더 (탭 가능)
+  // ── admin per-school group header (tappable)
   univGroupHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: 16, marginTop: 10,
@@ -781,7 +782,7 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.inputBg, borderRadius: 8,
   },
 
-  // ── 카드 그리드 (2열)
+  // ── Card grid (2 columns)
   gridWrapper: {
     paddingHorizontal: 16,
     paddingBottom: 4,
@@ -836,7 +837,7 @@ const createStyles = (colors) => StyleSheet.create({
     fontWeight: '600',
   },
 
-  // ── 동아리 빈 상태 / 카드 / 메타
+  // ── Club empty state / card / meta
   clubsEmpty: {
     marginHorizontal: 16,
     backgroundColor: colors.surface,
@@ -899,7 +900,7 @@ const createStyles = (colors) => StyleSheet.create({
   clubMeta: { fontSize: 11, color: colors.textSecondary },
   clubMetaDot: { fontSize: 11, color: colors.textSecondary },
 
-  // ── 인증 완료 풋터 카드
+  // ── Verified footer card
   verifiedCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -930,7 +931,7 @@ const createStyles = (colors) => StyleSheet.create({
     fontWeight: '500',
   },
 
-  // ── 에러
+  // ── Error
   errorText: {
     fontSize: 15,
     color: colors.textSecondary,

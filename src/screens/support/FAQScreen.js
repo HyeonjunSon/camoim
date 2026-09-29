@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
 import { Text } from '../../components/StyledText';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { useLang } from '../../context/LangContext';
 
-// 그룹 → 질문 ID 매핑 (질문 ID는 i18n faq.qN / faq.aN 와 매칭)
+// Group → question ID mapping (the IDs match the i18n faq.qN / faq.aN keys)
 const GROUPS = [
   { key: 'g_account', items: ['1', '11', '12', '2', '13', '3'] },
   { key: 'g_post',    items: ['4', '14', '15', '16', '5'] },

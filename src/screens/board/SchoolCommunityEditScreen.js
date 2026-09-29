@@ -12,7 +12,8 @@ import {
   FlatList,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
@@ -45,7 +46,7 @@ export default function SchoolCommunityEditScreen({ navigation }) {
   const [canEdit, setCanEdit] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
 
-  // 인수인계 picker 상태
+  // Handover picker state
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
   const [pickerLoading, setPickerLoading] = useState(false);
@@ -74,7 +75,7 @@ export default function SchoolCommunityEditScreen({ navigation }) {
     })();
   }, []);
 
-  // picker 열렸을 때 검색어 변경마다 멤버 로드 (debounce 없이 — 입력 적고 즉시반응 가치 더 큼)
+  // While the picker is open, reload members on every keystroke (no debounce — input is short and instant feedback is worth more)
   useEffect(() => {
     if (!pickerOpen) return;
     let cancelled = false;
@@ -235,7 +236,7 @@ export default function SchoolCommunityEditScreen({ navigation }) {
             </View>
           ))}
 
-          {/* 학생회장 권한 — 실제 학생회장에게만 노출 (admin은 canEdit이지만 isLeader는 false) */}
+          {/* Student president controls — only for the actual president (an admin has canEdit but isLeader false) */}
           {isLeader && (
             <>
               <Text style={[styles.sectionLabel, { marginTop: 24 }]}>{t('board.leaderActionsTitle')}</Text>
@@ -265,7 +266,7 @@ export default function SchoolCommunityEditScreen({ navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* 인수인계 picker modal */}
+      {/* Handover picker modal */}
       <Modal
         visible={pickerOpen}
         animationType="slide"

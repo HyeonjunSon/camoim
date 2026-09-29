@@ -13,7 +13,8 @@ import {
   ActionSheetIOS,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import CustomHeader from '../../components/CustomHeader';
@@ -27,7 +28,7 @@ import { formatTime } from '../../lib/time';
 
 const REPORT_REASONS = ['spam', 'hate', 'illegal', 'adult', 'etc'];
 
-// HTML 태그 + 레거시 마커 제거 후 본문 미리보기 (PostCard와 동일 로직)
+// Body preview, with HTML tags and legacy markers stripped (same logic as PostCard)
 function getPreview(content) {
   if (!content) return '';
   return content
@@ -105,7 +106,7 @@ export default function UserProfileScreen({ route, navigation }) {
   }, [userId, isSelf]);
 
   const openBlockModal = () => {
-    // 이미 차단 중이면 현재 상태로 모달 열기, 아니면 기본값 둘 다 ON
+    // Already blocked → open the modal on the current state; otherwise default both switches on
     setDraftChat(blockStatus.blocked ? blockStatus.blockChat : true);
     setDraftHide(blockStatus.blocked ? blockStatus.hideContent : true);
     setBlockModalOpen(true);
@@ -160,7 +161,7 @@ export default function UserProfileScreen({ route, navigation }) {
     }
   };
 
-  // 커스텀 헤더 사용 — 모든 화면 통일된 스타일
+  // Uses CustomHeader, matching every other screen
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
@@ -223,7 +224,7 @@ export default function UserProfileScreen({ route, navigation }) {
       ]}
     />
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* 프로필 헤더 */}
+      {/* Profile header */}
       <View style={styles.header}>
         <Avatar nickname={profile.nickname} uri={profile.avatarUrl} size={64} showLetter />
         <View style={styles.headerInfo}>
@@ -250,7 +251,7 @@ export default function UserProfileScreen({ route, navigation }) {
         <Text style={styles.bio}>{profile.bio}</Text>
       ) : null}
 
-      {/* 채팅 / 차단 버튼 */}
+      {/* Chat / block buttons */}
       {!isSelf && (
         <View style={styles.actionRow}>
           <TouchableOpacity
@@ -290,7 +291,7 @@ export default function UserProfileScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* 작성 글 목록 */}
+      {/* Their posts */}
       <Text style={styles.sectionTitle}>{t('profile.wrotePosts')} {profile.posts?.length ?? 0}</Text>
       {profile.posts?.length === 0 && (
         <Text style={styles.emptyText}>{t('profile.noPosts')}</Text>
@@ -434,7 +435,7 @@ const createStyles = (colors) => StyleSheet.create({
   roleText: { fontSize: 12, color: colors.primary, fontWeight: '600' },
   subText: { fontSize: 13, color: colors.textSecondary },
 
-  // 닉네임 + 거래 신뢰도 칩 (가로 정렬)
+  // Nickname + trade reputation chip (laid out horizontally)
   nicknameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   trustChip: {
     backgroundColor: '#FEF3C7',

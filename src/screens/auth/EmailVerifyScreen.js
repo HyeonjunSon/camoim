@@ -7,7 +7,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
@@ -28,7 +29,7 @@ export default function EmailVerifyScreen() {
   const [countdown, setCountdown] = useState(0);
   const inputRef = useRef(null);
 
-  // 재발송 쿨다운 타이머
+  // Resend cooldown timer
   useEffect(() => {
     if (countdown <= 0) return;
     const timer = setTimeout(() => setCountdown(c => c - 1), 1000);

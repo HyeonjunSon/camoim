@@ -1,5 +1,10 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { setToken, getToken, clearToken } from '../lib/storage';
+import {
+  setToken, getToken, clearToken,
+  getCachedUser, setCachedUser, clearCachedUser,
+} from '../lib/storage';
+import { restoreSession } from '../lib/session';
+import { mark } from '../lib/perf';
 import {
   login as apiLogin,
   register as apiRegister,
@@ -16,23 +21,33 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Cold-start session restore — render immediately from the cached user, then refresh via /auth/me (lib/session.js)
   useEffect(() => {
-    async function restoreSession() {
-      try {
-        const token = await getToken();
-        if (token) {
-          const res = await getMe();
-          if (res.success) setUser(res.data);
-          else await clearToken();
+    let first = true;
+    restoreSession({
+      getToken,
+      getCachedUser,
+      fetchMe: getMe,
+      onUser: (u, source) => {
+        setUser(u);
+        if (first) {
+          // The first moment a screen can be drawn — before the network responds, when a cache exists
+          first = false;
+          setLoading(false);
+          mark('session_ready', { sessionSource: source });
         }
-      } catch (e) {
+      },
+      onSignedOut: async () => {
         await clearToken();
-      } finally {
-        setLoading(false);
-      }
-    }
-    restoreSession();
+        await clearCachedUser();
+      },
+    }).finally(() => setLoading(false));
   }, []);
+
+  // Refresh the cache whenever the user changes (login, profile edits and /auth/me responses all land here)
+  useEffect(() => {
+    if (user) setCachedUser(user);
+  }, [user]);
 
   const login = async (email, password) => {
     const res = await apiLogin(email, password);
@@ -48,8 +63,8 @@ export function AuthProvider({ children }) {
     setUser(res.data.user);
   };
 
-  // Apple/Google 로그인 — 검증된 idToken 받아서 서버에 전달
-  // 결과: { needsOnboarding: true, preRegToken, provider, email } 또는 user 로그인 완료
+  // Apple/Google login — take the verified idToken and pass it to the server
+  // Result: { needsOnboarding: true, preRegToken, provider, email }, or a completed user login
   const loginWithApple = async (identityToken) => {
     const res = await apiAppleLogin(identityToken);
     if (!res.success) throw new Error(res.message);
@@ -72,7 +87,7 @@ export function AuthProvider({ children }) {
     return { needsOnboarding: false };
   };
 
-  // 소셜 가입 onboarding 완료
+  // Social signup onboarding complete
   const completeOnboarding = async (preRegToken, { nickname, role, city }) => {
     const res = await apiSocialComplete(preRegToken, nickname, role, city);
     if (!res.success) throw new Error(res.message);
@@ -81,9 +96,10 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    // 서버에 tokenVersion 증가 요청 — 실패해도 로컬 정리는 진행
+    // Ask the server to bump tokenVersion — local cleanup proceeds even if that fails
     try { await apiLogout(); } catch {}
     await clearToken();
+    await clearCachedUser();
     setUser(null);
   };
 

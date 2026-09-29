@@ -9,7 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LangContext';
 import { colors } from '../constants/colors'
 
-// SearchScreen은 비동기로 생성되므로 lazy import
+// SearchScreen is created asynchronously, so it is imported lazily
 import SearchScreen from '../screens/search/SearchScreen';
 
 const Stack = createNativeStackNavigator();

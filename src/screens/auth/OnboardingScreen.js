@@ -1,5 +1,5 @@
-// 소셜 가입(애플/구글) 후 추가 정보 수집 화면
-// 이메일 가입은 SignupScreen으로 가고, 소셜은 여기서 닉네임/유형/도시/약관만 받음
+// Collects the remaining details after an Apple/Google signup
+// Email signups go through SignupScreen; social signups only supply nickname, type, city and consent here
 import { useState, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -14,7 +14,8 @@ import {
   FlatList,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Text, TextInput } from '../../components/StyledText';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
@@ -139,7 +140,7 @@ export default function OnboardingScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* 닉네임 */}
+        {/* Nickname */}
         <Text style={styles.label}>{t('auth.nickname')}</Text>
         <View style={styles.row}>
           <TextInput
@@ -177,7 +178,7 @@ export default function OnboardingScreen({ route, navigation }) {
           </Text>
         ) : null}
 
-        {/* 유형 */}
+        {/* Type */}
         <Text style={[styles.label, { marginTop: 16 }]}>{t('auth.role')}</Text>
         <View style={styles.roleRow}>
           {ROLE_OPTIONS.map(opt => (
@@ -196,7 +197,7 @@ export default function OnboardingScreen({ route, navigation }) {
           ))}
         </View>
 
-        {/* 도시 */}
+        {/* City */}
         <Text style={[styles.label, { marginTop: 16 }]}>
           {t('auth.city')} <Text style={styles.optionalText}>{t('auth.cityOptional')}</Text>
         </Text>
@@ -211,7 +212,7 @@ export default function OnboardingScreen({ route, navigation }) {
           <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
         </TouchableOpacity>
 
-        {/* 약관 */}
+        {/* Terms */}
         <View style={styles.agreeBox}>
           <TouchableOpacity style={styles.agreeAllRow} onPress={toggleAll} activeOpacity={0.7}>
             <Ionicons
@@ -268,7 +269,7 @@ export default function OnboardingScreen({ route, navigation }) {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* 도시 선택 모달 */}
+      {/* City picker modal */}
       <Modal visible={cityModalOpen} animationType="slide" transparent onRequestClose={() => setCityModalOpen(false)}>
         <View style={styles.pickerOverlay}>
           <View style={styles.pickerSheet}>
@@ -306,7 +307,7 @@ export default function OnboardingScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      {/* 약관/개인정보 본문 모달 — fullscreen이라 insets.top 안 주면 닫기 버튼이 status bar에 겹침 */}
+      {/* Terms and privacy body modal — it is fullscreen, so without insets.top the close button overlaps the status bar */}
       <Modal visible={!!docModal} animationType="slide" onRequestClose={() => setDocModal(null)}>
         <View style={[styles.docContainer, { paddingTop: insets.top }]}>
           <View style={styles.docHeader}>

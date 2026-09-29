@@ -156,7 +156,7 @@ export default function AdminInquiriesScreen() {
               />
             </ScrollView>
 
-            {/* 키보드 올라와도 항상 보이도록 ScrollView 밖에 고정 */}
+            {/* Pinned outside the ScrollView so it stays visible with the keyboard up */}
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setActive(null)}>
                 <Text style={{ color: colors.textSecondary }}>{t('common.close')}</Text>

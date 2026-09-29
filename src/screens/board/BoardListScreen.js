@@ -9,7 +9,8 @@ import {
   StyleSheet,
   RefreshControl,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -26,13 +27,13 @@ import GroupListScreen from '../group/GroupListScreen';
 
 const PINNED_KEY = '@camoim_pinned_boards';
 
-// 게시판 slug별 색·아이콘 — lib/icons.js 단일 소스에서 파생 (소프트 배경 = 아이콘 색 틴트)
+// Colour and icon per board slug — derived from the single source in lib/icons.js (the soft background is a tint of the icon colour)
 const metaFor = (slug) => {
   const ic = BOARD_ICONS[slug] || BOARD_ICONS.default;
   return { bg: ic.color + '1A', text: ic.color, ion: ic.ion };
 };
 
-// 필터 정의 (slug 기반) - labels via t()
+// Filter definitions (slug-based) — labels via t()
 const FILTER_DEFS = [
   { key: 'all',       labelKey: 'board.filterAll' },
   { key: 'pinned',    labelKey: 'board.filterPinned' },
@@ -64,7 +65,7 @@ export default function BoardListScreen({ navigation }) {
   const hasSchoolAccess = isAdmin || (isStudent && user?.verified === true && !!user?.university);
   const showVerifyCard = isStudent && !hasSchoolAccess;
 
-  // ── 핀 로드/저장
+  // ── Load and save pins
   const loadPinned = useCallback(async () => {
     try {
       const raw = await AsyncStorage.getItem(PINNED_KEY);
@@ -118,7 +119,7 @@ export default function BoardListScreen({ navigation }) {
 
   const generalBoards = boards.filter(b => !b.isUniversityBoard);
 
-  // 필터링된 게시판 목록 계산
+  // Compute the filtered board list
   const getFilteredBoards = () => {
     if (filter === 'all') return generalBoards;
     if (filter === 'pinned') return generalBoards.filter(b => pinned.includes(String(b.id)));
@@ -127,7 +128,7 @@ export default function BoardListScreen({ navigation }) {
   };
 
   const filteredBoards = getFilteredBoards();
-  // 'all' 필터에서 핀된 항목 우선 정렬
+  // Under the 'all' filter, pinned entries sort first
   const sortedBoards = filter === 'all'
     ? [...filteredBoards].sort((a, b) => {
         const ap = pinned.includes(String(a.id));
@@ -152,7 +153,7 @@ export default function BoardListScreen({ navigation }) {
     navigation.navigate('CreatePost', { boardId: board.id, boardSlug: board.slug, boardName: getBoardName(board.slug, board.name, t) });
   }
 
-  // ── 컴팩트 게시판 행
+  // ── Compact board row
   function renderBoardRow(board) {
     const meta = metaFor(board.slug);
     const latest = latestMap[String(board.id)];
@@ -194,7 +195,7 @@ export default function BoardListScreen({ navigation }) {
     );
   }
 
-  // 학교 커뮤니티 컴팩트 배너 (프리미엄 카드 느낌)
+  // Compact school community banner (a premium-card feel)
   const SchoolBanner = () => {
     const uniShort = isAdmin ? t('board.schoolAll') : (toShortUniversityName(user?.university) || t('mypage.school'));
     const subText = isAdmin ? t('board.schoolBoardAdmin') : `Community · ${t('board.forStudents')}`;
@@ -206,7 +207,7 @@ export default function BoardListScreen({ navigation }) {
           end={{ x: 1, y: 1 }}
           style={styles.schoolBanner}
         >
-          {/* 상단 하이라이트 선 (유리광택) */}
+          {/* Top highlight line (glass sheen) */}
           <View style={styles.schoolBannerShine} pointerEvents="none" />
           <View style={styles.schoolIconBadge}>
             <Ionicons name={isAdmin ? 'shield' : 'school'} size={18} color={colors.white} />
@@ -249,7 +250,7 @@ export default function BoardListScreen({ navigation }) {
     );
   }
 
-  // ── 상단 [게시판 | 모임] 토글
+  // ── The [Boards | Groups] toggle at the top
   const ModeToggle = () => (
     <View style={styles.modeToggleBar}>
       <TouchableOpacity
@@ -289,7 +290,7 @@ export default function BoardListScreen({ navigation }) {
   return (
     <>
       <ModeToggle />
-      {/* ── 필터 칩 (고정 헤더) */}
+      {/* ── Filter chips (pinned header) */}
       <View style={styles.filterBar}>
         <ScrollView
           horizontal
@@ -322,7 +323,7 @@ export default function BoardListScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {/* 학교 커뮤니티 — student 인증자만 배너, student 미인증만 인증 카드 */}
+        {/* School community — verified students get the banner, unverified ones get the verification card */}
         {filter === 'all' && hasSchoolAccess && (
           <View style={{ paddingHorizontal: 14, marginTop: 14 }}>
             <SchoolBanner />
@@ -351,7 +352,7 @@ export default function BoardListScreen({ navigation }) {
           </View>
         )}
 
-        {/* 게시판 목록 (컴팩트 카드 그룹) */}
+        {/* Board list (compact card groups) */}
         {sortedBoards.length > 0 ? (
           <View style={styles.listCard}>
             {sortedBoards.map((board, idx) => (
@@ -379,7 +380,7 @@ export default function BoardListScreen({ navigation }) {
         )}
       </ScrollView>
 
-      {/* 플로팅 글쓰기 */}
+      {/* Floating compose */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => setWriteModalVisible(true)}
@@ -388,7 +389,7 @@ export default function BoardListScreen({ navigation }) {
         <Ionicons name="create-outline" size={22} color={colors.white} />
       </TouchableOpacity>
 
-      {/* 게시판 선택 모달 */}
+      {/* Board picker modal */}
       <Modal
         visible={writeModalVisible}
         transparent
@@ -445,7 +446,7 @@ const createStyles = (colors) => StyleSheet.create({
   scrollContent: { paddingBottom: 100, paddingTop: 4 },
   centered:      { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
 
-  // ── 게시판/모임 토글
+  // ── Boards/groups toggle
   modeToggleBar: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
@@ -474,7 +475,7 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.white,
   },
 
-  // ── 필터 칩
+  // ── Filter chips
   filterBar: {
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
@@ -509,7 +510,7 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.white,
   },
 
-  // ── 학교 커뮤니티 배너 (프리미엄)
+  // ── School community banner (premium)
   schoolBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -552,7 +553,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   schoolSub: { fontSize: 11, color: colors.white + 'B8', marginTop: 1, fontWeight: '500' },
 
-  // ── 인증 유도 카드
+  // ── Verification prompt card
   verifyCard: {
     backgroundColor: colors.surface,
     borderRadius: 14,
@@ -578,7 +579,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   verifyBtnText: { color: colors.white, fontWeight: '700', fontSize: 12 },
 
-  // ── 컴팩트 리스트 카드
+  // ── Compact list card
   listCard: {
     backgroundColor: colors.surface,
     marginHorizontal: 14,
@@ -597,7 +598,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginLeft: 64,
   },
 
-  // ── 컴팩트 행
+  // ── Compact row
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -640,7 +641,7 @@ const createStyles = (colors) => StyleSheet.create({
     padding: 4,
   },
 
-  // ── 빈 상태
+  // ── Empty state
   emptyBox: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -650,12 +651,12 @@ const createStyles = (colors) => StyleSheet.create({
   emptyText: { fontSize: 14, fontWeight: '700', color: colors.text },
   emptySub: { fontSize: 12, color: colors.textSecondary },
 
-  // ── 에러
+  // ── Error
   errorText: { fontSize: 15, color: colors.textSecondary, marginBottom: 16 },
   retryBtn:  { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8, backgroundColor: colors.primary },
   retryText: { color: colors.white, fontWeight: '600', fontSize: 14 },
 
-  // ── 플로팅 글쓰기
+  // ── Floating compose
   fab: {
     position: 'absolute',
     right: 20,
@@ -673,7 +674,7 @@ const createStyles = (colors) => StyleSheet.create({
     elevation: 6,
   },
 
-  // ── 모달
+  // ── Modal
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',

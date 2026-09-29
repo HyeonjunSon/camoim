@@ -16,7 +16,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import CustomHeader from '../../components/CustomHeader';
 import ImageGalleryModal from '../../components/ImageGalleryModal';
 import RenderHTML from 'react-native-render-html';
@@ -38,12 +39,12 @@ import RoleBadge from '../../components/RoleBadge';
 import { SERVER_HOST } from '../../lib/config';
 const BASE_URL = SERVER_HOST;
 
-// 단일 텍스트 세그먼트의 스타일 마커 ([B]/[H]/[C]) 벗기기
+// Strip the style markers ([B]/[H]/[C]) from a single text segment
 function peelTextStyles(text) {
   let s = text;
   let bold = false, heading = false, align = 'left';
-  // 여러 겹 감싸진 경우 반복적으로 벗김
-  // 형식: 단락 시작/끝에 정확히 [TAG]…[/TAG]가 둘러싼 경우만
+  // Repeats, in case several are nested
+  // Only when [TAG]…[/TAG] wraps the paragraph exactly, start to end
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const m = s.match(/^\[([BHC])\]([\s\S]*)\[\/\1\]$/);
@@ -56,7 +57,7 @@ function peelTextStyles(text) {
   return { value: s, bold, heading, align };
 }
 
-// content 문자열 + images 배열 → 순서 보존된 블록 배열
+// content string + images array → an ordered array of blocks
 function parseContentBlocks(content, images) {
   const pushText = (arr, raw) => {
     const trimmed = raw.replace(/^\n+|\n+$/g, '');
@@ -72,7 +73,7 @@ function parseContentBlocks(content, images) {
   }
   const hasMarkers = /\[IMG:\d+\]/.test(content);
   if (!hasMarkers) {
-    // 구버전 게시글: 텍스트 → 이미지 순
+    // Legacy posts: text first, then images
     const result = [];
     if (content?.trim()) pushText(result, content);
     images.forEach(url => result.push({ type: 'image', uri: /^https?:\/\//.test(url) ? url : `${BASE_URL}${url}` }));
@@ -95,11 +96,11 @@ function parseContentBlocks(content, images) {
 const REPORT_KEYS = ['spam', 'hate', 'illegal', 'adult', 'etc'];
 const reportReasons = (t) => REPORT_KEYS.map(k => ({ key: k, label: t(`post.r_${k}`) }));
 
-// 댓글 단건 컴포넌트
+// Single comment component
 function CommentItem({ comment, isReply = false, onMore, onAvatarPress, onReply, editingId, editText, onEditChange, onEditSubmit, onEditCancel, t, styles }) {
   const isEditing = editingId === comment.id;
 
-  // 잠금 댓글 (마스킹된 경우)
+  // Locked comment (when masked)
   if (comment.isSecretMasked) {
     return (
       <View style={[styles.commentItem, isReply && styles.replyItem, styles.secretMaskedItem]}>
@@ -112,10 +113,10 @@ function CommentItem({ comment, isReply = false, onMore, onAvatarPress, onReply,
 
   return (
     <View style={[styles.commentItem, isReply && styles.replyItem, comment.isPinned && styles.pinnedItem]}>
-      {/* 답글 인덱스 */}
+      {/* Reply indent */}
       {isReply && <Text style={styles.replyIndicatorText}>└</Text>}
 
-      {/* 아바타 */}
+      {/* Avatar */}
       <TouchableOpacity
         onPress={() => onAvatarPress?.(comment)}
         activeOpacity={comment.isAnonymous ? 1 : 0.7}
@@ -125,7 +126,7 @@ function CommentItem({ comment, isReply = false, onMore, onAvatarPress, onReply,
       </TouchableOpacity>
 
       <View style={styles.commentBody}>
-        {/* 상단: 닉네임 + 고정 + 잠금 + 시간 + ··· */}
+        {/* Top: nickname + pin + lock + time + ··· */}
         <View style={styles.commentHeader}>
           <View style={styles.commentHeaderLeft}>
             <Text style={styles.commentNickname}>{comment.nickname || t('common.anonymous')}</Text>
@@ -147,7 +148,7 @@ function CommentItem({ comment, isReply = false, onMore, onAvatarPress, onReply,
           </View>
         </View>
 
-        {/* 본문 or 수정 인풋 */}
+        {/* Body, or the edit input */}
         {isEditing ? (
           <View style={styles.editInputRow}>
             <TextInput
@@ -186,7 +187,7 @@ function CommentItem({ comment, isReply = false, onMore, onAvatarPress, onReply,
   );
 }
 
-// HTML 콘텐츠 여부 판정
+// Decide whether the content is HTML
 const isHtmlContent = (s) => typeof s === 'string' && /<\w+/.test(s);
 
 const buildHtmlTagsStyles = (colors) => ({
@@ -203,7 +204,7 @@ const buildHtmlTagsStyles = (colors) => ({
   a: { color: colors.primary },
 });
 
-// HTML 내 상대경로 src를 절대 URL로 변환
+// Turn relative src paths inside the HTML into absolute URLs
 function absolutizeHtml(html) {
   if (!html) return '';
   let out = html;
@@ -232,23 +233,23 @@ export default function PostDetailScreen({ route, navigation }) {
   const [replyTo, setReplyTo] = useState(null); // { id, nickname }
   const [submitting, setSubmitting] = useState(false);
 
-  // 댓글 수정 상태
+  // Comment edit state
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editingText, setEditingText] = useState('');
 
-  // 잠금 댓글 토글
+  // Locked comment toggle
   const [isSecret, setIsSecret] = useState(false);
 
-  // 좋아요 상태
+  // Like state
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [likeBusy, setLikeBusy] = useState(false);
 
-  // 북마크 상태
+  // Bookmark state
   const [bookmarked, setBookmarked] = useState(false);
   const [bookmarkBusy, setBookmarkBusy] = useState(false);
 
-  // 이미지 뷰어
+  // Image viewer
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const allImageUris = useMemo(() => {
@@ -266,7 +267,7 @@ export default function PostDetailScreen({ route, navigation }) {
   const handleToggleLike = useCallback(async () => {
     if (likeBusy) return;
     setLikeBusy(true);
-    // 낙관적 업데이트
+    // Optimistic update
     const prevLiked = liked;
     const prevCount = likeCount;
     setLiked(!prevLiked);
@@ -338,19 +339,19 @@ export default function PostDetailScreen({ route, navigation }) {
     if (res.success) setComments(res.data ?? []);
   };
 
-  // 답글 버튼
+  // Reply button
   const handleReply = (comment) => {
     setReplyTo({ id: comment.id, nickname: comment.nickname || t('common.anonymous') });
     inputRef.current?.focus();
   };
 
-  // 답글 취소
+  // Cancel reply
   const cancelReply = () => {
     setReplyTo(null);
     setCommentText('');
   };
 
-  // 댓글 고정
+  // Pin comment
   const handlePin = async (comment) => {
     try {
       const res = await pinComment(postId, comment.id);
@@ -360,7 +361,7 @@ export default function PostDetailScreen({ route, navigation }) {
     }
   };
 
-  // 댓글 전송
+  // Send comment
   const handleSubmitComment = async () => {
     if (!commentText.trim()) return;
     setSubmitting(true);
@@ -383,7 +384,7 @@ export default function PostDetailScreen({ route, navigation }) {
     }
   };
 
-  // 신고 사유 선택 → 제출
+  // Pick a report reason and submit
   const showReportSheet = () => {
     const reasons = reportReasons(t);
     if (Platform.OS === 'ios') {
@@ -411,7 +412,7 @@ export default function PostDetailScreen({ route, navigation }) {
 
   const isPostAuthor = post && user && String(post.userId) === String(user.id);
 
-  // 거래 상태 토글 (입주완료 등) — 작성자 전용, 마켓 류 게시판에서만. BoardPostDetail과 동일 동작.
+  // Trade status toggle (mark filled and so on) — author only, marketplace boards only. Same behaviour as BoardPostDetail.
   const isSold = post?.tradeStatus === 'sold';
   const showTradeButton = isPostAuthor && isTradeBoard(post?.boardSlug);
   const toggleTradeStatus = async () => {
@@ -440,7 +441,7 @@ export default function PostDetailScreen({ route, navigation }) {
     );
   };
 
-  // 룸렌트·민박 글 → 지도에 숙소로 등록 / 등록한 숙소 보기 (작성자)
+  // Room-rent and homestay posts → list as a stay on the map / view the listed stay (author)
   const isRoomrentBoard = post?.boardSlug === 'roomrent' || String(post?.boardSlug || '').endsWith('-roomrent');
   const [linkedStayId, setLinkedStayId] = useState(null);
   useFocusEffect(useCallback(() => {
@@ -452,7 +453,7 @@ export default function PostDetailScreen({ route, navigation }) {
   }, [isPostAuthor, isRoomrentBoard, post?.id]));
   const showStayCta = isPostAuthor && isRoomrentBoard && (linkedStayId || post?.tradeStatus !== 'sold');
   const listOnStayMap = () => {
-    // 현재 탭 스택에서 열기 (지도 탭을 건드리지 않음 → 지도 탭이 StayCreate로 고정되는 버그 방지)
+    // Open within the current tab stack, leaving the map tab alone (this used to pin the map tab to StayCreate)
     navigation.navigate('StayCreate', {
       prefill: { title: post.title, city: post.city, images: post.images || [], content: post.content, sourcePostId: post.id },
     });
@@ -477,7 +478,7 @@ export default function PostDetailScreen({ route, navigation }) {
     ]);
   };
 
-  // ··· 더보기 메뉴
+  // ··· overflow menu
   const handleSharePost = async () => {
     try {
       const preview = (post.content || '')
@@ -536,7 +537,7 @@ export default function PostDetailScreen({ route, navigation }) {
     }
   };
 
-  // 댓글 아바타 탭 — 내 댓글이면 마이페이지, 남이면 프로필
+  // Tapping a comment avatar opens My Page for your own, a profile for anyone else
   const handleAvatarPress = (comment) => {
     if (comment.isAnonymous || !comment.userId) return;
     if (user && String(comment.userId) === String(user.id)) {
@@ -546,7 +547,7 @@ export default function PostDetailScreen({ route, navigation }) {
     }
   };
 
-  // 댓글 ··· 더보기
+  // Comment ··· overflow
   const handleCommentMore = (comment, isReply) => {
     const isOwn = user && String(comment.userId) === String(user.id);
     const isPostAuth = isPostAuthor;
@@ -593,7 +594,7 @@ export default function PostDetailScreen({ route, navigation }) {
     }
   };
 
-  // 댓글 수정 저장
+  // Save the edited comment
   const handleEditCommentSave = async (comment) => {
     if (!editingText.trim()) return;
     const res = await editComment(postId, comment.id, editingText.trim());
@@ -628,10 +629,10 @@ export default function PostDetailScreen({ route, navigation }) {
         keyboardShouldPersistTaps="handled"
       >
 
-        {/* ── 게시글 본체 */}
+        {/* ── Post body */}
         <View style={styles.postCard}>
 
-          {/* 게시판 태그 (왼쪽) + 거래 상태 (오른쪽 끝) */}
+          {/* Board tag (left) + trade status (far right) */}
           {(post.boardName || isTradeBoard(post.boardSlug)) && (
             <View style={styles.tagRow}>
               {post.boardName && <Text style={styles.boardTag}>{post.boardName}</Text>}
@@ -669,10 +670,10 @@ export default function PostDetailScreen({ route, navigation }) {
             </View>
           )}
 
-          {/* 제목 */}
+          {/* Title */}
           <Text selectable style={[styles.title, isSold && { color: colors.textSecondary }]}>{post.title}</Text>
 
-          {/* 룸렌트·민박 글 → 지도에 숙소로 등록 / 등록한 숙소 보기 (작성자) */}
+          {/* Room-rent and homestay posts → list as a stay on the map / view the listed stay (author) */}
           {showStayCta && (
             <TouchableOpacity
               style={styles.listMapBtn}
@@ -685,7 +686,7 @@ export default function PostDetailScreen({ route, navigation }) {
             </TouchableOpacity>
           )}
 
-          {/* 작성자 행 */}
+          {/* Author row */}
           <TouchableOpacity
             style={styles.authorRow}
             activeOpacity={post.isAnonymous ? 1 : 0.7}
@@ -711,7 +712,7 @@ export default function PostDetailScreen({ route, navigation }) {
 
           <View style={styles.sectionDivider} />
 
-          {/* 본문: HTML(리치 에디터) 또는 레거시 블록 */}
+          {/* Body: HTML (rich editor) or legacy blocks */}
           {isHtmlContent(post.content) ? (
             <View>
               <RenderHTML
@@ -757,10 +758,10 @@ export default function PostDetailScreen({ route, navigation }) {
           )}
         </View>
 
-        {/* 본문이 짧을 때 scrap/like/댓글을 화면 하단으로 밀기 위한 flex spacer */}
+        {/* Flex spacer that pushes scrap/like/comments to the bottom when the body is short */}
         <View style={styles.bottomSpacer} />
 
-        {/* ── 스크랩 · 좋아요 버튼 */}
+        {/* ── Scrap and like buttons */}
         <View style={styles.actionBigWrap}>
           <TouchableOpacity
             style={[styles.actionBigBtn, liked && styles.likeBigBtnActive]}
@@ -795,7 +796,7 @@ export default function PostDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* ── 댓글 섹션 */}
+        {/* ── Comment section */}
         <View style={styles.commentSection}>
           <Text style={styles.commentCount}>{t('post.commentCount')} {totalCommentCount}{t('post.commentCountSuffix')}</Text>
 
@@ -839,7 +840,7 @@ export default function PostDetailScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
-      {/* 답글 대상 표시 */}
+      {/* Shows who is being replied to */}
       {replyTo && (
         <View style={styles.replyBanner}>
           <Text style={styles.replyBannerText}>↩ <Text style={styles.replyBannerNick}>{replyTo.nickname}</Text>{t('post.replyTo2')}</Text>
@@ -849,10 +850,10 @@ export default function PostDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* ── 바텀 바 */}
+      {/* ── Bottom bar */}
       <View style={styles.bottomBar}>
         <View style={styles.barInputWrap}>
-        {/* 잠금 댓글 토글 */}
+        {/* Locked comment toggle */}
         <TouchableOpacity
           style={[styles.barLockBtn, isSecret && styles.barLockBtnActive]}
           onPress={() => setIsSecret(v => !v)}
@@ -867,7 +868,7 @@ export default function PostDetailScreen({ route, navigation }) {
 
         <View style={styles.barSep} />
 
-        {/* 댓글 입력 */}
+        {/* Comment input */}
         <TextInput
           ref={inputRef}
           style={[styles.barInput, isSecret && styles.barInputSecret]}
@@ -916,7 +917,7 @@ const createStyles = (colors) => StyleSheet.create({
   errorText: { fontSize: 15, color: colors.textSecondary },
 
 
-  // ── 게시글 카드
+  // ── Post card
   postCard: {
     backgroundColor: colors.surface,
     paddingHorizontal: 19,
@@ -929,7 +930,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginVertical: 13,
   },
 
-  // 게시판 태그 (배경 없는 컬러 텍스트)
+  // Board tag (coloured text, no background)
   boardTag: {
     fontSize: 11,
     color: colors.primary,
@@ -937,7 +938,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: 8,
   },
 
-  // 게시판 태그 + 거래 상태 한 줄 (BoardPostDetail과 동일)
+  // Board tag and trade status on one line (same as BoardPostDetail)
   tagRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 10 },
   listMapBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
@@ -962,7 +963,7 @@ const createStyles = (colors) => StyleSheet.create({
   tradeSegTextActiveSold: { color: colors.text },
   tradeSegTextInactive: { color: colors.textSecondary },
 
-  // 제목
+  // Title
   title: {
     fontSize: 25,
     fontWeight: '800',
@@ -972,7 +973,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: 13,
   },
 
-  // 작성자 행
+  // Author row
   authorRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -986,14 +987,14 @@ const createStyles = (colors) => StyleSheet.create({
   metaText: { fontSize: 11, color: colors.textSecondary },
   metaDot: { fontSize: 11, color: colors.border },
 
-  // 구분선
+  // Divider
   contentDivider: {
     height: 1,
     backgroundColor: colors.border,
     marginBottom: 18,
   },
 
-  // 본문
+  // Body
   content: {
     fontSize: 15,
     color: '#2B2B2B',
@@ -1005,7 +1006,7 @@ const createStyles = (colors) => StyleSheet.create({
   contentBold: { fontWeight: '800', color: colors.text },
   contentCenter: { textAlign: 'center' },
 
-  // 이미지 (full-width, 4:3 비율)
+  // Images (full width, 4:3)
   postImage: {
     width: '100%',
     aspectRatio: 4 / 3,
@@ -1014,7 +1015,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: 12,
   },
 
-  // ── 좋아요 · 스크랩 버튼
+  // ── Like and scrap buttons
   actionBigWrap: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -1049,7 +1050,7 @@ const createStyles = (colors) => StyleSheet.create({
   likeBigTextActive: { color: '#FF3B6B' },
   bookmarkBigTextActive: { color: colors.primary },
 
-  // ── 댓글 섹션
+  // ── Comment section
   commentSection: {
     backgroundColor: colors.background,
     paddingHorizontal: 20,
@@ -1064,7 +1065,7 @@ const createStyles = (colors) => StyleSheet.create({
     paddingVertical: 20,
   },
 
-  // ── 댓글 아이템
+  // ── Comment item
   commentItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1091,7 +1092,7 @@ const createStyles = (colors) => StyleSheet.create({
   secretMaskedItem: {},
   secretMaskedText: { fontSize: 13, color: colors.textSecondary, fontStyle: 'italic', flex: 1 },
 
-  // 고정 뱃지
+  // Pinned badge
   pinnedBadge: {
     backgroundColor: colors.primary + '18',
     borderRadius: 4,
@@ -1100,7 +1101,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   pinnedBadgeText: { fontSize: 10, color: colors.primary, fontWeight: '700' },
 
-  // 댓글 인라인 수정
+  // Inline comment editing
   editInputRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   editInput: {
     flex: 1,
@@ -1117,7 +1118,7 @@ const createStyles = (colors) => StyleSheet.create({
   editSaveText: { fontSize: 13, fontWeight: '700', color: colors.white },
   editCancelText: { fontSize: 13, color: colors.textSecondary },
 
-  // ── 답글 배너
+  // ── Reply banner
   replyBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1132,7 +1133,7 @@ const createStyles = (colors) => StyleSheet.create({
   replyBannerNick: { fontWeight: '700', color: colors.primary },
   replyBannerCancel: { fontSize: 16, color: colors.textSecondary, padding: 4 },
 
-  // ── 바텀 바
+  // ── Bottom bar
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',

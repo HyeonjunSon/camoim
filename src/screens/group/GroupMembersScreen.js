@@ -2,7 +2,8 @@ import { useState, useCallback, useLayoutEffect } from 'react';
 import {
   View, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, StyleSheet, Modal,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../components/StyledText';
@@ -22,7 +23,7 @@ export default function GroupMembersScreen({ route, navigation }) {
   const { user: me } = useAuth();
   const styles = createStyles(colors);
 
-  // 자기 자신을 탭하면 마이페이지 탭으로, 아니면 그 멤버 프로필로
+  // Tapping yourself opens the My Page tab; anyone else opens their profile
   const goToMember = (memberId) => {
     if (me?.id && String(memberId) === String(me.id)) {
       navigation.getParent()?.navigate('MyPage');
@@ -44,7 +45,7 @@ export default function GroupMembersScreen({ route, navigation }) {
     try {
       const res = await getGroupMembers(groupId, tab);
       if (res.success) setMembers(res.data || []);
-      // pending 카운트 (관리자만)
+      // Pending count (admins only)
       if (canManage) {
         try {
           const pr = await getGroupMembers(groupId, 'pending');
@@ -57,8 +58,8 @@ export default function GroupMembersScreen({ route, navigation }) {
     }
   }, [groupId, tab, canManage]);
 
-  // 탭 변경 시 즉시 옛 데이터 비우고 로딩 표시 — stale 데이터가 새 탭 UI에 잠깐
-  // 렌더되는 깜빡임 방지
+  // Clear the old data and show a spinner the moment the tab changes, so stale data never
+  // flashes inside the new tab's UI
   const switchTab = (next) => {
     if (next === tab) return;
     setMembers([]);
@@ -287,7 +288,7 @@ export default function GroupMembersScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
-      {/* 액션 시트 */}
+      {/* Action sheet */}
       <Modal
         visible={!!actionTarget}
         transparent

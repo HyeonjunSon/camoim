@@ -8,7 +8,8 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLang } from '../../context/LangContext';
 import { useTheme } from '../../context/ThemeContext';
 import { getNotificationSettings, updateNotificationSettings } from '../../lib/api';
@@ -52,7 +53,7 @@ export default function NotificationSettingsScreen() {
       if (res.success) setSettings(res.data);
       else throw new Error(res.message);
     } catch (e) {
-      // 롤백
+      // Roll back
       setSettings(settings);
       Alert.alert(t('common.error'), t('notifSet.saveFailed'));
     } finally {
@@ -72,7 +73,7 @@ export default function NotificationSettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      {/* 마스터 토글 */}
+      {/* Master toggle */}
       <View style={styles.section}>
         <Row
           ion="notifications"
@@ -85,7 +86,7 @@ export default function NotificationSettingsScreen() {
         />
       </View>
 
-      {/* 카테고리별 */}
+      {/* Per category */}
       <View style={[styles.section, masterOff && { opacity: 0.4 }]} pointerEvents={masterOff ? 'none' : 'auto'}>
         {ITEMS.map((it, idx) => (
           <View key={it.key}>

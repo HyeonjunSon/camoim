@@ -1,12 +1,13 @@
-// 숙소 등록/수정 폼 — 유저가 본인 방·민박을 등록 → 지도에 즉시 노출 (승인 없음)
-// 프라이버시: 정확 주소는 서버 전용, 지도엔 대략 위치만. route.params.stay 있으면 수정 모드.
+// Stay create/edit form — a user lists their own room or homestay and it appears on the map immediately (no approval)
+// Privacy: the exact address is server-only and the map shows an approximate location. route.params.stay means edit mode.
 import { useState } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Linking } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, TextInput } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
@@ -25,29 +26,29 @@ export default function StayCreateScreen({ navigation, route }) {
   const styles = createStyles(colors);
   const [datePickerTarget, setDatePickerTarget] = useState(null); // 'start' | 'end' | null
 
-  const editing = route?.params?.stay || null; // 수정 모드면 기존 숙소 객체
-  // 게시판(roomrent) 글에서 "지도에 등록"으로 넘어온 경우 초기값 채우기
+  const editing = route?.params?.stay || null; // The existing stay object, in edit mode
+  // Prefill when arriving from a roomrent post via "list on the map"
   const prefill = route?.params?.prefill || null;
 
   const [title, setTitle] = useState(editing?.title || prefill?.title || '');
   const [stayType, setStayType] = useState(editing?.stayType || '');
-  // 도시 선택 없음 — 위치는 주소로 결정 (캐나다 어디든). city는 참고용 라벨로만 보관
+  // No city picker — position comes from the address (anywhere in Canada). city is kept only as a display label
   const city = editing?.city || prefill?.city || '';
   const [price, setPrice] = useState(editing?.price ? String(editing.price) : '');
-  const [priceUnit, setPriceUnit] = useState(editing?.priceUnit || 'month'); // 월세/1박
+  const [priceUnit, setPriceUnit] = useState(editing?.priceUnit || 'month'); // Per month / per night
   const [deposit, setDeposit] = useState(editing?.deposit ? String(editing.deposit) : '');
-  const [address, setAddress] = useState(editing?.address || ''); // 수정 시 서버는 주소를 안 내려줌 → 빈값 = 유지
+  const [address, setAddress] = useState(editing?.address || ''); // On edit the server withholds the address, so an empty value means keep the existing one
   const [neighborhood, setNeighborhood] = useState(editing?.neighborhood || '');
   const [conditions, setConditions] = useState(editing?.conditions || []);
   const [moveInDate, setMoveInDate] = useState(editing?.moveInDate || '');
   const [minLease, setMinLease] = useState(editing?.minLeaseMonths ? String(editing.minLeaseMonths) : '');
-  const [availableUntil, setAvailableUntil] = useState(editing?.availableUntil || ''); // 종료일 (단기), 비우면 장기
+  const [availableUntil, setAvailableUntil] = useState(editing?.availableUntil || ''); // End date (short stays); empty means long-term
   const [description, setDescription] = useState(editing?.description || (prefill?.content ? htmlToPlain(prefill.content).slice(0, 2000) : ''));
   const [images, setImages] = useState(editing?.images || prefill?.images || []);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // 등록은 주소 필수 / 수정은 주소 비워도 됨(기존 유지)
+  // Address is required when creating; on edit it may be left blank to keep the current one
   const canSubmit =
     !!(title.trim() && stayType && price.trim() && (editing || address.trim())) && !submitting;
 
@@ -106,7 +107,7 @@ export default function StayCreateScreen({ navigation, route }) {
       images,
     };
     if (address.trim()) payload.address = address.trim();
-    if (!editing && prefill?.sourcePostId) payload.sourcePostId = prefill.sourcePostId; // 게시글 연동
+    if (!editing && prefill?.sourcePostId) payload.sourcePostId = prefill.sourcePostId; // Link back to the post
     try {
       const res = editing ? await updateStay(editing.id, payload) : await createStay(payload);
       if (res?.success) {
@@ -114,7 +115,7 @@ export default function StayCreateScreen({ navigation, route }) {
         if (editing) {
           Alert.alert(t('stay.addedTitle'), t('stay.updatedMsg'), [okBtn]);
         } else {
-          // 게시판에서 온 등록이면 지도(숙소 모드)로 바로 가볼 수 있게 버튼 추가
+          // When listed from a board post, offer a button that jumps straight to the map (stay mode)
           const fromPost = !!prefill;
           const mapBtn = {
             text: t('stay.viewOnMap'),
@@ -228,7 +229,7 @@ export default function StayCreateScreen({ navigation, route }) {
             </View>
           </Field>
 
-          {/* 입주 가능일(시작) + 종료일(단기용, 비우면 장기) */}
+          {/* Move-in date (start) + end date (short stays; empty means long-term) */}
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <View style={{ flex: 1 }}>
               <Field label={t('stay.fMoveIn')} optional>

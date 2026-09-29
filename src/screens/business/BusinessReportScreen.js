@@ -4,7 +4,8 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, TextInput } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
@@ -16,7 +17,7 @@ import { createBusiness, uploadBusinessImage } from '../../lib/api';
 const PRIMARY = '#7F77DD';
 const MAX_PHOTOS = 5;
 
-// 업체 제보 폼 — 유저가 한인 업체 정보를 제출 → 관리자 승인 후 지도 노출
+// Business submission form — a user submits details, an admin approves, and it appears on the map
 export default function BusinessReportScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { t } = useLang();
@@ -109,7 +110,7 @@ export default function BusinessReportScreen({ navigation, route }) {
             <Text style={styles.noticeText}>{t('biz.formNotice')}</Text>
           </View>
 
-          {/* 업체명 */}
+          {/* Name */}
           <Field label={t('biz.fName')} required>
             <TextInput
               value={name}
@@ -121,7 +122,7 @@ export default function BusinessReportScreen({ navigation, route }) {
             />
           </Field>
 
-          {/* 카테고리 */}
+          {/* Category */}
           <Field label={t('biz.fCategory')} required>
             <View style={styles.chipWrap}>
               {BUSINESS_CATEGORIES.map((c) => {
@@ -143,7 +144,7 @@ export default function BusinessReportScreen({ navigation, route }) {
             </View>
           </Field>
 
-          {/* 도시 */}
+          {/* City */}
           <Field label={t('biz.fCity')} required>
             <TouchableOpacity style={styles.selectBar} activeOpacity={0.7} onPress={() => setCityPickerOpen(true)}>
               <Text style={styles.selectBarText}>
@@ -153,7 +154,7 @@ export default function BusinessReportScreen({ navigation, route }) {
             </TouchableOpacity>
           </Field>
 
-          {/* 주소 */}
+          {/* Address */}
           <Field label={t('biz.fAddress')} required>
             <TextInput
               value={address}
@@ -165,7 +166,7 @@ export default function BusinessReportScreen({ navigation, route }) {
             />
           </Field>
 
-          {/* 전화번호 */}
+          {/* Phone */}
           <Field label={t('biz.fPhone')} optional>
             <TextInput
               value={phone}
@@ -178,7 +179,7 @@ export default function BusinessReportScreen({ navigation, route }) {
             />
           </Field>
 
-          {/* 사진 */}
+          {/* Photos */}
           <Field label={t('biz.fPhotos')} optional>
             <View style={styles.photoRow}>
               {images.map((url) => (
@@ -219,7 +220,7 @@ export default function BusinessReportScreen({ navigation, route }) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* 도시 선택 모달 */}
+      {/* City picker modal */}
       <Modal visible={cityPickerOpen} transparent animationType="fade" onRequestClose={() => setCityPickerOpen(false)}>
         <TouchableOpacity style={styles.pickerBackdrop} activeOpacity={1} onPress={() => setCityPickerOpen(false)}>
           <View style={styles.pickerCard}>
@@ -271,7 +272,7 @@ const createStyles = (colors) => StyleSheet.create({
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   selectChip: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
   cityChip: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
-  // 도시 선택 바 (탭 → 모달)
+  // City picker bar (tap to open the modal)
   selectBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: colors.inputBg, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 14,

@@ -10,7 +10,8 @@ import {
   Animated,
   ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { getBoardPosts } from '../../lib/api';
 import PostCard from '../../components/PostCard';
@@ -24,7 +25,7 @@ const SORT_OPTIONS = [
   { key: 'comments', icon: 'chatbubble-outline' },
 ];
 
-// 로컬 게시판: 도시 필터가 표시되는 게시판 slug
+// Local boards: the slugs that show a city filter
 const LOCAL_BOARD_SLUGS = ['market', 'jobs', 'roomrent', 'car', 'giveaway', 'realestate', 'meetup'];
 
 import { CITIES } from '../../constants/cities';
@@ -37,9 +38,9 @@ export default function BoardFeedScreen({ route, navigation }) {
   const { boardId, boardName, boardSlug } = route.params ?? {};
   const { t } = useLang();
 
-  // 로컬 게시판 여부
+  // Whether this is a local board
   const isLocalBoard = LOCAL_BOARD_SLUGS.includes(boardSlug);
-  // 도시 필터: 기본값은 "전체"
+  // City filter, defaulting to "all"
   const [cityFilter, setCityFilter] = useState('');
 
   const [posts, setPosts] = useState([]);
@@ -52,27 +53,27 @@ export default function BoardFeedScreen({ route, navigation }) {
   const flatListRef = useRef(null);
   const isFirstFocusRef = useRef(true);
 
-  // 검색 상태
+  // Search state
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const searchInputRef = useRef(null);
   const searchAnim = useRef(new Animated.Value(0)).current;
 
-  // 정렬 상태
+  // Sort state
   const [sortBy, setSortBy] = useState('latest');
-  // 거래 상태 필터 (마켓 류 게시판) — all | selling | sold
+  // Trade status filter (marketplace boards) — all | selling | sold
   const [tradeFilter, setTradeFilter] = useState('all');
   const showTradeFilter = isTradeBoard(boardSlug);
 
-  // 커스텀 헤더 사용 — 게시판/모임/채팅 등과 통일된 스타일
+  // Uses CustomHeader, matching the boards, groups and chat screens
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   const toggleSearch = () => {
     if (searchOpen) {
-      // 검색 닫기
+      // Close search
       Animated.timing(searchAnim, {
         toValue: 0,
         duration: 200,
@@ -85,7 +86,7 @@ export default function BoardFeedScreen({ route, navigation }) {
         loadPosts(1, true, '', sortBy);
       }
     } else {
-      // 검색 열기
+      // Open search
       setSearchOpen(true);
       Animated.timing(searchAnim, {
         toValue: 1,
@@ -115,12 +116,12 @@ export default function BoardFeedScreen({ route, navigation }) {
     loadPosts(1, true, activeSearch, sortBy, cityFilter, next);
   };
 
-  // 최초 로드 + 도시 필터 변경 시
+  // On first load and whenever the city filter changes
   useEffect(() => {
     loadPosts(1, true, '', 'latest', cityFilter);
   }, [boardId, cityFilter]);
 
-  // 글 작성 후 돌아왔을 때 자동 새로고침
+  // Auto-refresh on returning from the compose screen
   useEffect(() => {
     isFirstFocusRef.current = true;
     const unsubscribe = navigation.addListener('focus', () => {
@@ -206,7 +207,7 @@ export default function BoardFeedScreen({ route, navigation }) {
     );
   }
 
-  // 검색바 높이 애니메이션
+  // Search bar height animation
   const searchBarHeight = searchAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 52],
@@ -216,10 +217,10 @@ export default function BoardFeedScreen({ route, navigation }) {
     setCityFilter(city);
   };
 
-  // 정렬 칩 + 도시 필터 (FlatList 헤더로 사용)
+  // Sort chips + city filter (used as the FlatList header)
   const renderSortHeader = () => (
     <View>
-      {/* 도시 필터 (로컬 게시판만) */}
+      {/* City filter (local boards only) */}
       {isLocalBoard && (
         <View style={styles.cityFilterRow}>
           <Ionicons name="location" size={14} color={colors.primary} style={{ marginRight: 4 }} />
@@ -249,7 +250,7 @@ export default function BoardFeedScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* 필터 행 — (거래 상태 |) 정렬 한 줄 */}
+      {/* Filter row — (trade status |) sort, on one line */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -297,7 +298,7 @@ export default function BoardFeedScreen({ route, navigation }) {
           );
         })}
 
-        {/* 검색 중 표시 */}
+        {/* Searching indicator */}
         {activeSearch ? (
           <View style={styles.searchTag}>
             <Text style={styles.searchTagText} numberOfLines={1}>"{activeSearch}"</Text>
@@ -342,7 +343,7 @@ export default function BoardFeedScreen({ route, navigation }) {
           },
         ]}
       />
-      {/* 검색바 — FlatList 밖에 고정 (포커스 유지) */}
+      {/* Search bar — pinned outside the FlatList so focus survives */}
       <Animated.View style={[styles.searchBarWrap, { height: searchBarHeight, opacity: searchAnim }]}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={16} color={colors.textSecondary} />
@@ -388,7 +389,7 @@ export default function BoardFeedScreen({ route, navigation }) {
         keyboardShouldPersistTaps="handled"
       />
 
-      {/* 플로팅 작성 버튼 */}
+      {/* Floating compose button */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate('CreatePost', { boardId, boardSlug, boardName })}
@@ -414,7 +415,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   retryText: { color: colors.white, fontWeight: '700', fontSize: 14 },
 
-  // 검색바
+  // Search bar
   searchBarWrap: {
     overflow: 'hidden',
     paddingHorizontal: 14,
@@ -436,7 +437,7 @@ const createStyles = (colors) => StyleSheet.create({
     paddingVertical: 0,
   },
 
-  // 거래 / 정렬 사이 구분선
+  // Divider between trade status and sort
   filterDivider: {
     width: 1,
     height: 18,
@@ -445,7 +446,7 @@ const createStyles = (colors) => StyleSheet.create({
     alignSelf: 'center',
   },
 
-  // 정렬 칩
+  // Sort chips
   sortRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -475,7 +476,7 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.white,
   },
 
-  // 검색 태그
+  // Search tag
   searchTag: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -494,7 +495,7 @@ const createStyles = (colors) => StyleSheet.create({
     flexShrink: 1,
   },
 
-  // 도시 필터
+  // City filter
   cityFilterRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 14, paddingTop: 10, paddingBottom: 4,

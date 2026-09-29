@@ -4,7 +4,8 @@ import {
   StyleSheet, Platform, Modal, FlatList, Linking,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -76,8 +77,8 @@ export default function GroupEditScreen({ route, navigation }) {
       ]);
       return;
     }
-    // iOS는 allowsEditing=true일 때 aspect를 무시하고 정사각형 크롭을 강제함 →
-    // 강제 크롭 비활성화하고 원본 비율 그대로 업로드 (디스플레이에서 contain으로 보여줌)
+    // iOS ignores aspect when allowsEditing=true and forces a square crop, so
+    // forced cropping is disabled and the original ratio is uploaded (the display uses contain)
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: false,
@@ -116,7 +117,7 @@ export default function GroupEditScreen({ route, navigation }) {
         name: name.trim(),
         description: description.trim(),
         category,
-        // 학교 동아리는 학교가 도시 컨텍스트라 city 보내지 않음
+        // School clubs do not send city, since the school provides the location context
         city: isSchoolClub ? '' : city.trim(),
         joinPolicy,
       });
@@ -150,7 +151,7 @@ export default function GroupEditScreen({ route, navigation }) {
     >
       <CustomHeader navigation={navigation} title="모임 정보 수정" />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* 커버 이미지 */}
+        {/* Cover image */}
         <Text style={styles.label}>커버 이미지</Text>
         <TouchableOpacity style={styles.coverWrap} onPress={onPickCover} activeOpacity={0.85} disabled={uploadingCover}>
           {coverImage ? (
@@ -163,7 +164,7 @@ export default function GroupEditScreen({ route, navigation }) {
               <Text style={styles.coverPlaceholderText}>커버 이미지 추가</Text>
             </View>
           )}
-          {/* 편집 배지 — 커버가 있을 때 우측 하단에 표시 */}
+          {/* Edit badge — shown bottom-right once a cover exists */}
           {coverImage && !uploadingCover && (
             <View style={styles.coverEditBadge} pointerEvents="none">
               <Ionicons name="pencil" size={14} color="#fff" />
@@ -177,7 +178,7 @@ export default function GroupEditScreen({ route, navigation }) {
           )}
         </TouchableOpacity>
 
-        {/* 이름 */}
+        {/* Name */}
         <Text style={styles.label}>{t('group.nameLabel')}</Text>
         <TextInput
           style={styles.input}
@@ -189,7 +190,7 @@ export default function GroupEditScreen({ route, navigation }) {
         />
         <Text style={styles.hint}>이름은 변경할 수 없어요</Text>
 
-        {/* 소개 */}
+        {/* Description */}
         <Text style={styles.label}>{t('group.descLabel')}</Text>
         <TextInput
           style={[styles.input, styles.inputMulti]}
@@ -201,7 +202,7 @@ export default function GroupEditScreen({ route, navigation }) {
           maxLength={500}
         />
 
-        {/* 카테고리 */}
+        {/* Category */}
         <Text style={styles.label}>{t('group.categoryLabel')}</Text>
         <View style={styles.catGrid}>
           {CATEGORIES.map(c => {
@@ -220,7 +221,7 @@ export default function GroupEditScreen({ route, navigation }) {
           })}
         </View>
 
-        {/* 지역 — 학교 동아리는 학교가 도시를 결정하므로 숨김 */}
+        {/* Location — hidden for school clubs, where the school decides the city */}
         {!isSchoolClub && (
           <>
             <Text style={styles.label}>{t('group.cityLabel')}</Text>
@@ -237,7 +238,7 @@ export default function GroupEditScreen({ route, navigation }) {
           </>
         )}
 
-        {/* 가입 방식 */}
+        {/* Join policy */}
         <Text style={styles.label}>{t('group.policyLabel')}</Text>
         <View style={styles.policyRow}>
           <TouchableOpacity
@@ -270,7 +271,7 @@ export default function GroupEditScreen({ route, navigation }) {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* 도시 선택 모달 */}
+      {/* City picker modal */}
       <Modal visible={cityModalOpen} animationType="slide" transparent onRequestClose={() => setCityModalOpen(false)}>
         <View style={styles.cityModalOverlay}>
           <View style={styles.cityModalSheet}>
@@ -371,7 +372,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   submitText: { color: colors.white, fontSize: 15, fontWeight: '700' },
 
-  // 도시 드롭다운
+  // City dropdown
   cityDropdown: {
     backgroundColor: colors.inputBg, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -380,7 +381,7 @@ const createStyles = (colors) => StyleSheet.create({
   cityDropdownText: { fontSize: 14, color: colors.text },
   cityDropdownPlaceholder: { color: colors.textSecondary },
 
-  // 도시 선택 모달
+  // City picker modal
   cityModalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end',
   },

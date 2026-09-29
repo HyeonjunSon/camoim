@@ -1,7 +1,8 @@
-// 내가 등록한 숙소 목록 — 마이페이지에서 진입. 탭 → 숙소 상세(수정/입주완료/삭제).
+// Stays I listed — reached from My Page. Tapping one opens its detail (edit, mark filled, delete).
 import { useState, useCallback } from 'react';
 import { View, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../components/StyledText';
@@ -17,7 +18,7 @@ export default function StayMyListScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
 
-  const [stays, setStays] = useState(null); // null = 로딩
+  const [stays, setStays] = useState(null); // null = loading
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {

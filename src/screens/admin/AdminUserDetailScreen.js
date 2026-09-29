@@ -123,7 +123,7 @@ export default function AdminUserDetailScreen({ route, navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
-      {/* 헤더 */}
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.nick}>{user.nickname}</Text>
         <Text style={styles.email}>{user.email}</Text>
@@ -134,7 +134,7 @@ export default function AdminUserDetailScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* 통계 */}
+      {/* Stats */}
       <View style={styles.statRow}>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{user.stats?.postCount ?? 0}</Text>
@@ -150,7 +150,7 @@ export default function AdminUserDetailScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* 정보 */}
+      {/* Details */}
       <Text style={styles.section}>정보</Text>
       <View style={styles.card}>
         <Field label="가입일" value={new Date(user.createdAt).toLocaleString()} />
@@ -162,7 +162,7 @@ export default function AdminUserDetailScreen({ route, navigation }) {
         {user.suspendReason ? <Field label="제재 사유" value={user.suspendReason} /> : null}
       </View>
 
-      {/* 제재 */}
+      {/* Enforcement */}
       <Text style={styles.section}>제재</Text>
       <View style={styles.card}>
         <ActionBtn styles={styles} label="경고" onPress={() => { setSanctionType('warn'); setSanctionModal(true); }} />
@@ -178,7 +178,7 @@ export default function AdminUserDetailScreen({ route, navigation }) {
         />
       </View>
 
-      {/* 역할 */}
+      {/* Role */}
       <Text style={styles.section}>역할 변경</Text>
       <View style={styles.card}>
         {ROLES.map(r => (
@@ -192,7 +192,7 @@ export default function AdminUserDetailScreen({ route, navigation }) {
         ))}
       </View>
 
-      {/* 학생회장 — 학교 인증된 회원에만 노출 */}
+      {/* Student president — shown only for school-verified members */}
       {user.verified && user.university && (
         <>
           <Text style={styles.section}>학생회장</Text>
@@ -221,13 +221,13 @@ export default function AdminUserDetailScreen({ route, navigation }) {
         </>
       )}
 
-      {/* 위험 */}
+      {/* Danger zone */}
       <Text style={styles.section}>⚠️ 위험</Text>
       <View style={styles.card}>
         <ActionBtn styles={styles} label="강제 탈퇴" onPress={forceDelete} danger />
       </View>
 
-      {/* 제재 모달 */}
+      {/* Enforcement modal */}
       <Modal visible={sanctionModal} transparent animationType="fade" onRequestClose={() => setSanctionModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>

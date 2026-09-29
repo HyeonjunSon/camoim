@@ -1,5 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
@@ -28,8 +29,8 @@ const TAB_ICONS = {
   Admin: { focused: 'shield', unfocused: 'shield-outline' },
 };
 
-// 풀스크린 작성/편집 화면 — 탭바를 숨겨 키보드 + 툴바와 충돌 안 나게
-// (iOS는 presentation:'modal'로 이미 가려지지만 Android는 명시적으로 숨겨야 함)
+// Fullscreen compose/edit screens — the tab bar is hidden so it cannot collide with the keyboard and toolbar
+// (iOS already covers it with presentation:'modal', but Android needs it hidden explicitly)
 const HIDE_TAB_ROUTES = new Set([
   'CreatePost',
   'EditPost',
@@ -37,7 +38,7 @@ const HIDE_TAB_ROUTES = new Set([
   'GroupCommunityEdit',
   'NoticeEdit',
   'ChatRoom',
-  // 숙소 화면 — 하단 CTA(입주완료/문의)가 탭바 위에 뜨지 않게 탭바 숨김
+  // Stay screens — the tab bar is hidden so the bottom CTA (mark filled / contact) does not sit on top of it
   'StayCreate',
   'StayDetail',
   'StayMyList',
@@ -59,10 +60,10 @@ export default function RootNavigator() {
   const styles = createStyles(colors);
   const isAdmin = user?.role === 'admin';
 
-  // 채팅 탭 뱃지: 총 안읽은 메시지 수
+  // Chat tab badge: total unread messages
   const [chatBadge, setChatBadge] = useState(0);
 
-  // 포커스 시 + 실시간 갱신
+  // Refreshed on focus and in real time
   useEffect(() => {
     async function loadChatBadge() {
       try {
@@ -79,14 +80,14 @@ export default function RootNavigator() {
     }
     loadChatBadge();
 
-    // 새 채팅 알림 → 현재 보고 있는 방이 아닐 때만 뱃지 +1
+    // A new chat notification bumps the badge only when it is not the room currently open
     on('chat_notification', 'rootTab', (data) => {
       const activeRoom = getActiveRoom();
       if (activeRoom && String(activeRoom) === String(data.roomId)) return;
       setChatBadge(prev => prev + 1);
     });
 
-    // 채팅방에서 읽음 처리했을 때 → 뱃지 다시 계산
+    // Recompute the badge once a room has been marked read
     on('messages_read', 'rootTab', () => {
       loadChatBadge();
     });

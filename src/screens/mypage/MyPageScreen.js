@@ -13,7 +13,8 @@ import {
   Linking,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -29,12 +30,12 @@ import RoleBadge from '../../components/RoleBadge';
 
 const APP_VERSION = Constants.expoConfig?.version || Constants.manifest?.version || '1.0.0';
 
-// 도시 목록 (Signup 화면과 동일)
+// City list (the same one the signup screen uses)
 import { CITIES } from '../../constants/cities';
 
-// 학교 리스트는 백엔드 /auth/universities 에서 fetch — useState로 관리
+// The school list is fetched from the backend /auth/universities and held in useState
 
-// 마이페이지 화면 — 프로필 + 통계 + 메뉴
+// My Page — profile, stats and menu
 export default function MyPageScreen({ navigation }) {
   const { colors, mode: themeMode, setMode: setThemeMode } = useTheme();
   const styles = createStyles(colors);
@@ -45,7 +46,7 @@ export default function MyPageScreen({ navigation }) {
   const [myPosts, setMyPosts] = useState([]);
   const [totalPosts, setTotalPosts] = useState(0);
 
-  // 프로필 수정 모달 상태
+  // Profile edit modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editForm, setEditForm] = useState({
     nickname: '', city: '',
@@ -59,7 +60,7 @@ export default function MyPageScreen({ navigation }) {
 
   const onChangeNickname = (v) => {
     setEditForm(prev => ({ ...prev, nickname: v }));
-    // 본인 닉네임 그대로면 자동 통과
+    // Your own current nickname passes automatically
     if (v.trim() === (user?.nickname ?? '').trim()) {
       setNickChecked(true);
       setNickMsg('');
@@ -94,7 +95,7 @@ export default function MyPageScreen({ navigation }) {
     }
   };
 
-  // 내 게시글 로드 (통계 계산용)
+  // Load my posts (to compute the stats)
   const loadMyPosts = useCallback(async () => {
     try {
       const res = await getMyPosts(1);
@@ -107,17 +108,17 @@ export default function MyPageScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { loadMyPosts(); }, [loadMyPosts]));
 
-  // 통계 계산
+  // Compute the stats
   const totalLikes = myPosts.reduce((sum, p) => sum + (p.likeCount ?? 0), 0);
   const totalComments = myPosts.reduce((sum, p) => sum + (p.commentCount ?? 0), 0);
 
-  // 프로필 수정
+  // Edit profile
   const openEditModal = () => {
     setEditForm({
       nickname: user?.nickname ?? '',
       city: user?.city ?? '',
     });
-    setNickChecked(true); // 본인 기존 닉네임은 통과 상태로 시작
+    setNickChecked(true); // Your own existing nickname starts out already validated
     setNickMsg('');
     setEditModalVisible(true);
   };
@@ -151,7 +152,7 @@ export default function MyPageScreen({ navigation }) {
     }
   };
 
-  // 프로필 사진 변경 — 갤러리에서 선택 → Cloudinary 업로드
+  // Change the profile photo — pick from the gallery, then upload to Cloudinary
   const handleChangeAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -193,7 +194,7 @@ export default function MyPageScreen({ navigation }) {
     }
   };
 
-  // 아바타 탭 시 선택지 — 사진 변경 / 프로필 수정
+  // Avatar tap options — change photo / edit profile
   const handleAvatarPress = () => {
     Alert.alert(
       t('mypage.editProfile'),
@@ -206,7 +207,7 @@ export default function MyPageScreen({ navigation }) {
     );
   };
 
-  // 로그아웃
+  // Log out
   const handleLogout = () => {
     Alert.alert(t('mypage.logout'), t('mypage.logoutAsk'), [
       { text: t('common.cancel'), style: 'cancel' },
@@ -214,17 +215,17 @@ export default function MyPageScreen({ navigation }) {
     ]);
   };
 
-  // 회원탈퇴 — 4단계 탈퇴 화면으로 이동
+  // Delete account — opens the 4-step deletion flow
   const handleDeleteAccount = () => {
     navigation.navigate('DeleteAccount');
   };
 
-  // 준비중 공용 핸들러
+  // Shared "coming soon" handler
   const showComingSoon = (label) => {
     Alert.alert(label, 'Coming soon');
   };
 
-  // 메뉴 아이템 컴포넌트
+  // Menu item component
   const MenuItem = ({ icon, label, sub, onPress, danger, rightText, last }) => (
     <TouchableOpacity
       style={[styles.menuRow, !last && styles.menuRowBorder]}
@@ -256,9 +257,9 @@ export default function MyPageScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
       >
-        {/* ── 프로필 카드 ── */}
+        {/* ── Profile card ── */}
         <View style={[styles.profileCard, { paddingTop: insets.top + 20 }]}>
-          {/* 아바타 + 편집 오버레이 */}
+          {/* Avatar + edit overlay */}
           <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.85} disabled={uploadingAvatar}>
             <View style={styles.avatarWrap}>
               <Avatar nickname={user?.nickname} uri={user?.avatarUrl} size={92} showLetter />
@@ -270,16 +271,16 @@ export default function MyPageScreen({ navigation }) {
             </View>
           </TouchableOpacity>
 
-          {/* 닉네임 + 역할 뱃지 */}
+          {/* Nickname + role badge */}
           <View style={styles.nameRow}>
             <Text style={styles.nickname}>{user?.nickname ?? t('common.anonymous')}</Text>
             {user?.role ? <RoleBadge role={user.role} size="large" /> : null}
           </View>
 
-          {/* 이메일 */}
+          {/* Email */}
           {user?.email && <Text style={styles.email}>{user.email}</Text>}
 
-          {/* 학교 또는 도시 */}
+          {/* School or city */}
           {user?.university ? (
             <Text style={styles.subInfo}>
               <Ionicons name="school" size={13} color={colors.textSecondary} /> {user.university} {user?.verified ? '✓' : ''}
@@ -289,7 +290,7 @@ export default function MyPageScreen({ navigation }) {
           ) : null}
         </View>
 
-        {/* ── 통계 카드 (3컬럼) ── */}
+        {/* ── Stat cards (3 columns) ── */}
         <View style={styles.statsCard}>
           <TouchableOpacity
             style={styles.statItem}
@@ -311,7 +312,7 @@ export default function MyPageScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── 활동 ── */}
+        {/* ── Activity ── */}
         <Text style={styles.sectionLabel}>{t('mypage.sectionActivity')}</Text>
         <View style={styles.menuCard}>
           <MenuItem
@@ -337,7 +338,7 @@ export default function MyPageScreen({ navigation }) {
           />
         </View>
 
-        {/* ── 계정 ── */}
+        {/* ── Account ── */}
         <Text style={styles.sectionLabel}>{t('mypage.sectionAccount')}</Text>
         <View style={styles.menuCard}>
           <MenuItem
@@ -357,7 +358,7 @@ export default function MyPageScreen({ navigation }) {
           )}
         </View>
 
-        {/* ── 언어 ── */}
+        {/* ── Language ── */}
         <Text style={styles.sectionLabel}>{t('mypage.sectionLanguage')}</Text>
         <View style={styles.menuCard}>
           <View style={[styles.menuRow]}>
@@ -384,7 +385,7 @@ export default function MyPageScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── 테마 ── */}
+        {/* ── Theme ── */}
         <Text style={styles.sectionLabel}>{t('mypage.sectionTheme')}</Text>
         <View style={styles.menuCard}>
           <View style={[styles.menuRow]}>
@@ -411,7 +412,7 @@ export default function MyPageScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── 알림 & 차단 ── */}
+        {/* ── Notifications & blocking ── */}
         <Text style={styles.sectionLabel}>{t('mypage.sectionAlert')}</Text>
         <View style={styles.menuCard}>
           <MenuItem
@@ -427,7 +428,7 @@ export default function MyPageScreen({ navigation }) {
           />
         </View>
 
-        {/* ── 정보 ── */}
+        {/* ── About ── */}
         <Text style={styles.sectionLabel}>{t('mypage.sectionInfo')}</Text>
         <View style={styles.menuCard}>
           <MenuItem
@@ -458,7 +459,7 @@ export default function MyPageScreen({ navigation }) {
           />
         </View>
 
-        {/* ── 계정 ── */}
+        {/* ── Account ── */}
         <Text style={styles.sectionLabel}>{t('mypage.sectionAccount')}</Text>
         <View style={styles.menuCard}>
           <MenuItem
@@ -476,7 +477,7 @@ export default function MyPageScreen({ navigation }) {
         </View>
       </ScrollView>
 
-      {/* ─── 프로필 수정 모달 ─── */}
+      {/* ─── Profile edit modal ─── */}
       <Modal
         visible={editModalVisible}
         animationType="slide"
@@ -502,7 +503,7 @@ export default function MyPageScreen({ navigation }) {
             </View>
 
             <ScrollView contentContainerStyle={styles.modalContent}>
-              {/* 현재 아바타 미리보기 + 변경 버튼 */}
+              {/* Current avatar preview + change button */}
               <TouchableOpacity style={styles.modalAvatarWrap} onPress={handleChangeAvatar} disabled={uploadingAvatar} activeOpacity={0.8}>
                 <Avatar nickname={user?.nickname} uri={user?.avatarUrl} size={72} showLetter />
                 <Text style={styles.modalAvatarText}>{t('mypage.changePhoto')}</Text>
@@ -545,13 +546,13 @@ export default function MyPageScreen({ navigation }) {
                 <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
               </TouchableOpacity>
 
-              {/* 학교 섹션은 학생 role 또는 이미 인증된 회원에게만 노출
-                  (일반/워홀/기타 회원은 학교 인증 대상이 아님) */}
+              {/* The school section shows only for the student role or already-verified members
+                  (general, working-holiday and other members are not eligible for school verification) */}
               {(user?.role === 'student' || (user?.verified && user?.university)) && (
                 <>
                   <Text style={styles.fieldLabel}>{t('mypage.school')}</Text>
                   {user?.verified && user?.university ? (
-                    // 인증된 사용자: 학교 read-only + 변경 버튼
+                    // Verified users: school shown read-only, plus a change button
                     <View>
                       <View style={styles.schoolReadOnly}>
                         <Text style={styles.schoolReadOnlyText}><Ionicons name="school" size={14} color={colors.textSecondary} /> {user.university}</Text>
@@ -573,7 +574,7 @@ export default function MyPageScreen({ navigation }) {
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    // 미인증 학생: 학교 인증 CTA
+                    // Unverified students: a call to action for school verification
                     <View style={styles.verifyCta}>
                       <Text style={styles.verifyCtaText}>{t('mypage.verifyHint')}</Text>
                       <TouchableOpacity
@@ -595,7 +596,7 @@ export default function MyPageScreen({ navigation }) {
           </View>
         </KeyboardAvoidingView>
 
-        {/* 도시 선택 모달 */}
+        {/* City picker modal */}
         <Modal
           visible={cityModalOpen}
           animationType="slide"
@@ -647,7 +648,7 @@ export default function MyPageScreen({ navigation }) {
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
-  // ── 프로필 카드
+  // ── Profile card
   profileCard: {
     backgroundColor: colors.surface,
     paddingHorizontal: 20,
@@ -701,7 +702,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginTop: 6,
   },
 
-  // ── 통계 카드
+  // ── Stat cards
   statsCard: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
@@ -737,7 +738,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginVertical: 4,
   },
 
-  // ── 메뉴 섹션
+  // ── Menu sections
   sectionLabel: {
     fontSize: 12,
     fontWeight: '800',
@@ -798,7 +799,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
 
 
-  // ── 프로필 수정 모달
+  // ── Profile edit modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -857,7 +858,7 @@ const createStyles = (colors) => StyleSheet.create({
   dropdownPlaceholder: {
     color: colors.textSecondary,
   },
-  // 인증된 학교 read-only 표시
+  // Verified school, read-only
   schoolReadOnly: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -906,7 +907,7 @@ const createStyles = (colors) => StyleSheet.create({
     fontWeight: '700',
     color: colors.primary,
   },
-  // 미인증 사용자 학교 인증 CTA
+  // School verification CTA for unverified users
   verifyCta: {
     backgroundColor: colors.primary + '10',
     borderRadius: 10,

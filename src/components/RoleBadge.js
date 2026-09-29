@@ -3,10 +3,10 @@ import { Text } from './StyledText';
 import { ROLE_COLORS, getRoleLabel } from '../constants/roles';
 import { useLang } from '../context/LangContext';
 
-// 역할 뱃지 컴포넌트
+// Role badge component
 export default function RoleBadge({ role, size = 'small' }) {
   const { t } = useLang();
-  if (!role || role === 'general') return null; // 일반은 표시 안 함
+  if (!role || role === 'general') return null; // The general role shows no badge
 
   const label = getRoleLabel(role, t);
   const colors = ROLE_COLORS[role] || ROLE_COLORS.general;

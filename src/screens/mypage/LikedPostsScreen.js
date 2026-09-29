@@ -7,7 +7,8 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
@@ -15,7 +16,7 @@ import { getLikedPosts } from '../../lib/api';
 import PostCard from '../../components/PostCard';
 import { useLang } from '../../context/LangContext';
 
-// 좋아요한 글 목록
+// Liked posts
 export default function LikedPostsScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);

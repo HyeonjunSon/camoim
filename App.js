@@ -1,4 +1,4 @@
-import 'react-native-gesture-handler'; // 반드시 최상단에 위치
+import 'react-native-gesture-handler'; // Must stay at the very top
 import {
   NavigationContainer,
   createNavigationContainerRef,
@@ -12,7 +12,8 @@ import { StatusBar, setStatusBarStyle } from 'expo-status-bar';
 import { View, ActivityIndicator, AppState } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useFonts } from 'expo-font';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LangProvider } from './src/context/LangContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
@@ -25,10 +26,11 @@ import SystemStatusGate from './src/components/SystemStatusGate';
 import OnboardingScreen, { checkOnboardingDone } from './src/screens/onboarding/OnboardingScreen';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import OfflineNotice from './src/components/OfflineNotice';
+import { mark } from './src/lib/perf';
 
 export const navigationRef = createNavigationContainerRef();
 
-// 로그인 상태에 따라 네비게이터 분기
+// Pick the navigator based on auth state
 function AppNavigator() {
   const { user, loading } = useAuth();
   const [onboardingDone, setOnboardingDone] = useState(null); // null=checking, true/false
@@ -39,22 +41,22 @@ function AppNavigator() {
 
   useEffect(() => {
     if (user) {
-      // 로그인 후 푸시 토큰 등록
+      // Register the push token after login
       registerForPushNotifications();
 
-      // 앱 시작 시 iOS 아이콘 뱃지 0으로 (사용자가 앱 열었으니 알림 확인했다고 간주)
+      // Clear the iOS icon badge on launch (opening the app counts as having seen the notifications)
       clearAppBadge();
 
-      // 포그라운드 전환 시 뱃지 다시 0으로
+      // Clear the badge again when returning to the foreground
       const appStateSub = AppState.addEventListener('change', (state) => {
         if (state === 'active') {
           clearAppBadge();
         }
       });
 
-      // 알림 탭 시 해당 화면으로 이동
+      // Tapping a notification navigates to the matching screen
       const sub = addNotificationResponseListener((data) => {
-        clearAppBadge(); // 알림 탭 시 즉시 뱃지 정리
+        clearAppBadge(); // Clear the badge as soon as a notification is tapped
         if (!navigationRef.isReady()) return;
         if (data.noticeId) {
           navigationRef.navigate('MyPage', {
@@ -67,8 +69,8 @@ function AppNavigator() {
             params: { postId: data.postId },
           });
         } else if (data.roomId) {
-          // 채팅 알림 — 채팅탭의 채팅방으로 이동
-          // ChatRoom 진입에 필요한 group/other 정보는 화면 내부 fetch로 채워짐
+          // Chat notification — jump to that room on the chat tab
+          // The group/other details ChatRoom needs are fetched by the screen itself
           navigationRef.navigate('Chat', {
             screen: 'ChatRoom',
             params: { roomId: data.roomId, kind: data.kind },
@@ -90,7 +92,7 @@ function AppNavigator() {
     );
   }
 
-  // 첫 실행 시 온보딩 표시
+  // Show onboarding on first launch
   if (!onboardingDone) {
     return <OnboardingScreen onDone={() => setOnboardingDone(true)} />;
   }
@@ -98,8 +100,16 @@ function AppNavigator() {
   return user ? <RootNavigator /> : <AuthStack />;
 }
 
+function BootSpinner() {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+      <ActivityIndicator color={colors.primary} size="large" />
+    </View>
+  );
+}
+
 export default function App() {
-  // Ionicons 폰트 사전 로드
+  // Preload the Ionicons font
   const [fontsLoaded] = useFonts({
     ...Ionicons.font,
     'Pretendard-Regular': require('./assets/fonts/Pretendard-Regular.otf'),
@@ -109,14 +119,13 @@ export default function App() {
     'Pretendard-ExtraBold': require('./assets/fonts/Pretendard-ExtraBold.otf'),
   });
 
-  if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-        <ActivityIndicator color={colors.primary} size="large" />
-      </View>
-    );
-  }
+  useEffect(() => {
+    if (fontsLoaded) mark('fonts_ready');
+  }, [fontsLoaded]);
 
+  // Providers mount immediately, independent of fonts, so AuthProvider's session restore starts
+  // **at the same time** as font loading. (It used to mount only after the fonts were ready,
+  // making font loading and /auth/me serial.) Only the UI waits for the fonts.
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
@@ -125,7 +134,7 @@ export default function App() {
             <LangProvider>
               <AuthProvider>
                 <SocketProvider>
-                  <ThemedNavigation />
+                  {fontsLoaded ? <ThemedNavigation /> : <BootSpinner />}
                 </SocketProvider>
               </AuthProvider>
             </LangProvider>
@@ -136,7 +145,7 @@ export default function App() {
   );
 }
 
-// 테마(다크/라이트)를 NavigationContainer + StatusBar에 적용
+// Apply the theme (dark/light) to NavigationContainer and StatusBar
 function ThemedNavigation() {
   const { resolved, colors: themeColors } = useTheme();
   const navTheme = resolved === 'dark'
@@ -169,7 +178,7 @@ function ThemedNavigation() {
         ref={navigationRef}
         theme={navTheme}
         onStateChange={() => {
-          // iOS가 새 화면 push 시 VC별 statusBar 기본값으로 리셋하는 이슈 방지
+          // Works around iOS resetting the status bar to the per-VC default when a new screen is pushed
           setStatusBarStyle(resolved === 'dark' ? 'light' : 'dark', true);
         }}
       >

@@ -22,7 +22,7 @@ import { colors } from '../constants/colors'
 
 const Stack = createNativeStackNavigator();
 
-// 게시판 탭 스택 네비게이터
+// Board tab stack navigator
 export default function BoardStack() {
   const { colors } = useTheme();
   const { t } = useLang();

@@ -1,8 +1,8 @@
-// 앱 전역 아이콘 단일 소스 — 이모지 → Ionicons 통일 (iOS/Android 동일 렌더링)
-// 사용: <IconTile icon={BOARD_ICONS.free} /> 또는 <Ionicons name={BOARD_ICONS.free.ion} color={BOARD_ICONS.free.color} />
-// ⚠️ 텍스트 이모지 신규 추가 금지 — 아이콘이 필요하면 여기에 추가하고 Ionicons로 렌더링
+// The single source for app-wide icons — emoji replaced by Ionicons so iOS and Android render alike
+// Use: <IconTile icon={BOARD_ICONS.free} /> or <Ionicons name={BOARD_ICONS.free.ion} color={BOARD_ICONS.free.color} />
+// ⚠️ Do not add new text emoji — add the icon here and render it through Ionicons instead
 
-// 게시판 slug별 아이콘 (HomeScreen / BoardListScreen / UniversityBoardScreen 공용)
+// Icon per board slug (shared by HomeScreen, BoardListScreen and UniversityBoardScreen)
 export const BOARD_ICONS = {
   free: { ion: 'chatbubble-ellipses', color: '#6366F1' },
   anonymous: { ion: 'eye-off', color: '#F97316' },
@@ -22,7 +22,7 @@ export const BOARD_ICONS = {
   default: { ion: 'clipboard', color: '#9CA3AF' },
 };
 
-// 모임 카테고리 (GroupList / GroupCreate / GroupEdit 공용) — 서버 category 키와 일치
+// Group categories (shared by GroupList, GroupCreate and GroupEdit) — matches the server's category keys
 export const GROUP_CATEGORY_ICONS = {
   hobby: { ion: 'color-palette', color: '#EC4899' },
   local: { ion: 'location', color: '#EF4444' },
@@ -32,7 +32,7 @@ export const GROUP_CATEGORY_ICONS = {
   general: BOARD_ICONS.free,
 };
 
-// 한인업체 지도 카테고리 — constants/businesses.js 키와 일치
+// Korean business map categories — matches the keys in constants/businesses.js
 export const BIZ_CATEGORY_ICONS = {
   food: { ion: 'restaurant', color: '#FB923C' },
   cafe: { ion: 'cafe', color: '#D97706' },
@@ -42,20 +42,20 @@ export const BIZ_CATEGORY_ICONS = {
   etc: { ion: 'location', color: '#9CA3AF' },
 };
 
-// 홈/공통 섹션 제목 아이콘 (i18n 문자열에서 이모지 제거 → 화면에서 아이콘+텍스트 조합)
+// Icons for home and shared section titles (emoji are stripped from the i18n strings and paired with an icon on screen)
 export const SECTION_ICONS = {
-  latest: { ion: 'create', color: '#6366F1' },     // 📝 최신글
-  hot: { ion: 'flame', color: '#EF4444' },         // 🔥 지금 인기
-  notice: { ion: 'megaphone', color: '#F97316' },  // 📢 공지사항
+  latest: { ion: 'create', color: '#6366F1' },     // Latest posts
+  hot: { ion: 'flame', color: '#EF4444' },         // Trending now
+  notice: { ion: 'megaphone', color: '#F97316' },  // Announcements
   bookmark: { ion: 'bookmark', color: '#7F77DD' }, // 🔖
-  market: BOARD_ICONS.market,                      // 🛍️ 중고거래
-  jobs: BOARD_ICONS.jobs,                          // 💼 구인구직
-  chat: BOARD_ICONS.free,                          // 💬 채팅하기
+  market: BOARD_ICONS.market,                      // Buy & sell
+  jobs: BOARD_ICONS.jobs,                          // Jobs
+  chat: BOARD_ICONS.free,                          // Chat
 };
 
-// 가입/온보딩 role 선택 아이콘
+// Role selection icons for signup and onboarding
 export const ROLE_ICONS = {
-  student: BOARD_ICONS.university,                 // 🎓 유학생
-  workingholiday: BOARD_ICONS.workingholiday,      // ✈️ 워홀러
-  general: { ion: 'leaf', color: '#E96B5C' },      // 🍁 일반 (브랜드 코랄)
+  student: BOARD_ICONS.university,                 // International student
+  workingholiday: BOARD_ICONS.workingholiday,      // Working holiday
+  general: { ion: 'leaf', color: '#E96B5C' },      // General (brand coral)
 };

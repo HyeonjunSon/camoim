@@ -85,7 +85,7 @@ export default function AdminReportsScreen({ navigation }) {
             <View style={styles.card}>
               <Text style={styles.target} numberOfLines={2}>{item.targetText || item.targetPreview}</Text>
 
-              {/* 작성자 정보 — 익명이어도 admin은 실제 닉네임 확인, 탈퇴 시도 명시 */}
+              {/* Author details — admins see the real nickname even on anonymous posts, and deleted accounts are labelled */}
               {item.targetAuthor ? (
                 <TouchableOpacity
                   style={styles.authorRow}

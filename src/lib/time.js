@@ -1,10 +1,10 @@
-// 공용 시간 포맷터
-// - 1분 미만: "방금 전"
-// - 1시간 미만: "N분 전"
-// - 24시간 미만: "N시간 전"
-// - 7일 미만: "N일 전"
-// - 올해: "4월 19일" / "Apr 19"
-// - 작년 이전: "2025.04.19" / "Apr 19, 2025"
+// Shared time formatters
+// - under a minute: "just now"
+// - under an hour: "N minutes ago"
+// - under a day: "N hours ago"
+// - under a week: "N days ago"
+// - this year: month and day ("Apr 19")
+// - before this year: full date ("Apr 19, 2025")
 
 import { getRuntimeLang } from './runtimeLang';
 
@@ -43,17 +43,17 @@ export function formatTime(input, t) {
     fullDate: pickT('fullDate', fallback.fullDate),
   };
 
-  // 상대 시간
+  // Relative time
   if (diffSec < 60) return labels.now;
   if (diffSec < 3600) return `${Math.floor(diffSec / 60)}${labels.minute}`;
   if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}${labels.hour}`;
   if (diffSec < 604800) return `${Math.floor(diffSec / 86400)}${labels.day}`;
 
-  // 절대 날짜
+  // Absolute date
   const m = date.getMonth() + 1;
   const d = date.getDate();
   const y = date.getFullYear();
-  const month = MONTHS_EN[date.getMonth()]; // 영어 월 약어
+  const month = MONTHS_EN[date.getMonth()]; // English month abbreviations
 
   if (y === now.getFullYear()) {
     return labels.monthDay
@@ -69,7 +69,7 @@ export function formatTime(input, t) {
     .replace('{month}', month);
 }
 
-// 날짜만 (차트·통계 등에 사용)
+// Date only (used in charts and stats)
 export function formatDateOnly(date) {
   const d = date instanceof Date ? date : new Date(date);
   const now = new Date();

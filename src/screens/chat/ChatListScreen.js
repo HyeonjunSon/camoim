@@ -11,7 +11,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
@@ -35,12 +36,12 @@ export default function ChatListScreen({ navigation, route }) {
   const { on, off } = useSocket();
   const [rooms, setRooms] = useState([]);
   const [requests, setRequests] = useState([]);
-  // 알림 탭에서 메시지 요청 알림을 누르고 진입 시 'requests' 탭으로 열기
+  // Open on the 'requests' tab when arriving from a message-request notification
   const [tab, setTab] = useState(route?.params?.initialBox === 'requests' ? 'requests' : 'chats');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // 알림에서 다시 들어왔을 때 (param 새로 들어오면 tab 동기화)
+  // Keep the tab in sync when the notification sends a fresh param
   useEffect(() => {
     if (route?.params?.initialBox === 'requests') {
       setTab('requests');
@@ -53,10 +54,10 @@ export default function ChatListScreen({ navigation, route }) {
     }, [])
   );
 
-  // 실시간: 새 메시지 → 채팅 목록 갱신
+  // Live: a new message refreshes the chat list
   useEffect(() => {
     on('chat_notification', 'chatList', (data) => {
-      // 목록에서 해당 방을 맨 위로 + 미리보기 업데이트
+      // Move that room to the top and update its preview
       setRooms(prev => {
         const idx = prev.findIndex(r => String(r.id) === String(data.roomId));
         if (idx >= 0) {
@@ -67,13 +68,13 @@ export default function ChatListScreen({ navigation, route }) {
           const rest = prev.filter((_, i) => i !== idx);
           return [updated, ...rest];
         }
-        // 새 방이면 전체 목록 다시 로드
+        // Reload the whole list when the room is new
         loadAll();
         return prev;
       });
     });
 
-    // 실시간: 상대방이 나간 경우 → 미리보기를 "상대방이 나갔습니다"로 변경
+    // Live: when the other party leaves, change the preview to say so
     on('room_left', 'chatList', ({ roomId }) => {
       setRooms(prev => prev.map(r => {
         if (String(r.id) === String(roomId)) {
@@ -83,7 +84,7 @@ export default function ChatListScreen({ navigation, route }) {
       }));
     });
 
-    // 실시간: 메시지 읽음 → 해당 방의 unread 0으로
+    // Live: messages read → zero out that room's unread count
     on('messages_read', 'chatList', ({ roomId, readerId }) => {
       if (String(readerId) === String(me?.id)) {
         setRooms(prev => prev.map(r => {
@@ -164,7 +165,7 @@ export default function ChatListScreen({ navigation, route }) {
   }
 
   function renderRoom({ item }) {
-    // 학교 전체 채팅
+    // School-wide chat
     if (item.kind === 'school') {
       const s = item.school || {};
       return (
@@ -211,12 +212,12 @@ export default function ChatListScreen({ navigation, route }) {
       );
     }
 
-    // 그룹 채팅
+    // Group chat
     if (item.kind === 'group') {
       const g = item.group || {};
-      // 모임 이름의 첫 글자로 이니셜 — 커버 없을 때 폴백
+      // Initial from the first letter of the group name — the fallback when there is no cover
       const initial = (g.name || '').trim().charAt(0).toUpperCase();
-      // 모임 이름 기반 안정적 색상 그라데이션 (같은 모임은 항상 같은 색)
+      // A stable gradient derived from the group name (the same group always gets the same colours)
       const palettes = [
         ['#A78BFA', '#7C3AED'], // purple
         ['#60A5FA', '#2563EB'], // blue
@@ -255,7 +256,7 @@ export default function ChatListScreen({ navigation, route }) {
                 )}
               </LinearGradient>
             )}
-            {/* 그룹 표시 작은 뱃지 */}
+            {/* Small badge marking a group */}
             <View style={styles.groupAvatarBadge}>
               <Ionicons name="people" size={9} color="#fff" />
             </View>
@@ -343,7 +344,7 @@ export default function ChatListScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      {/* 탭 */}
+      {/* Tabs */}
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tabBtn, tab === 'chats' && styles.tabBtnActive]}

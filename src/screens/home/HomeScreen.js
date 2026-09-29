@@ -10,8 +10,10 @@ import {
   Dimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
+import { trackTiming, reportColdStart } from '../../lib/perf';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import {
@@ -30,10 +32,10 @@ import TodayVisitors from '../../components/TodayVisitors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// 주요 캐나다 도시 목록 (city 필터용)
+// Major Canadian cities (for the city filter)
 import { CITIES } from '../../constants/cities';
 
-// HTML/마커 제거 후 본문 미리보기
+// Body preview, with HTML and markers stripped
 function getPreview(content) {
   if (!content) return '';
   return content
@@ -54,8 +56,8 @@ function getPreview(content) {
     .trim();
 }
 
-// 게시판 slug별 아이콘 — Ionicons 이름은 lib/icons.js 단일 소스, 색은 테마(boardColors)에서 가져옴
-const BOARD_BG_ALPHA = '22'; // ~13% — 라이트/다크 둘 다 자연스럽게 깔림
+// Icon per board slug — Ionicons names from the single source in lib/icons.js, colours from the theme (boardColors)
+const BOARD_BG_ALPHA = '22'; // ~13% — sits naturally in both light and dark
 const buildBoardMeta = (themeColors) => (slug) => {
   const text = themeColors.boardColors?.[slug] || themeColors.boardColors?.default || themeColors.textSecondary;
   return { bg: text + BOARD_BG_ALPHA, text, ion: (BOARD_ICONS[slug] || BOARD_ICONS.default).ion };
@@ -80,19 +82,20 @@ export default function HomeScreen({ navigation }) {
   const [jobsPosts, setJobsPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [currencyKey, setCurrencyKey] = useState(0); // 홈 새로고침 시 환율 위젯 강제 갱신용
+  const [currencyKey, setCurrencyKey] = useState(0); // Forces the currency widget to refresh when home reloads
   const [bannerIndex, setBannerIndex] = useState(0);
   const bannerRef = useRef(null);
 
-  // stale-while-revalidate — 첫 진입만 spinner, 이후엔 이전 데이터 유지하며 백그라운드에서 갱신
+  // stale-while-revalidate — a spinner only on first entry; afterwards the old data stays while it refreshes in the background
   const hasLoadedOnce = useRef(false);
 
   const loadAll = useCallback(async (mode = 'initial') => {
-    // mode: 'initial' (첫 진입, spinner) | 'silent' (백그라운드) | 'pull' (당겨서 새로고침)
+    // mode: 'initial' (first entry, spinner) | 'silent' (background) | 'pull' (pull to refresh)
     if (mode === 'pull') setRefreshing(true);
     else if (!hasLoadedOnce.current) setLoading(true);
 
     const myCity = user?.city || '';
+    const t0 = Date.now();
     try {
       const [hotRes, boardsRes, sectionsRes, unreadRes, noticesRes] = await Promise.all([
         getHotByBoard(),
@@ -106,7 +109,7 @@ export default function HomeScreen({ navigation }) {
         setNotices((noticesRes.data ?? []).slice(0, 5));
       }
 
-      // 인기글: 모든 게시판에서 평탄화 → hotScore 순 상위 5개
+      // Hot posts: flatten every board, then take the 5 highest hotScore entries
       if (hotRes.success) {
         const all = (hotRes.data ?? [])
           .flatMap(s => (s.posts ?? []).map(p => ({
@@ -129,8 +132,14 @@ export default function HomeScreen({ navigation }) {
       }
 
       if (unreadRes.success) setUnreadCount(unreadRes.data.count ?? 0);
+      const firstLoad = !hasLoadedOnce.current;
       hasLoadedOnce.current = true;
-    } catch {}
+      trackTiming('perf_feed_load', Date.now() - t0, { mode, ok: true });
+      // Report the cold start on the frame where the first content actually paints
+      if (firstLoad) requestAnimationFrame(() => reportColdStart());
+    } catch {
+      trackTiming('perf_feed_load', Date.now() - t0, { mode, ok: false });
+    }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
 
@@ -140,7 +149,7 @@ export default function HomeScreen({ navigation }) {
     }, [loadAll])
   );
 
-  // 실시간 채팅 알림
+  // Live chat notifications
   useEffect(() => {
     on('chat_notification', 'home', (data) => {
       const activeRoom = getActiveRoom();
@@ -160,7 +169,7 @@ export default function HomeScreen({ navigation }) {
     };
   }, []);
 
-  // 배너 자동 슬라이드 (3초)
+  // Banner auto-advance (3s)
   useEffect(() => {
     if (notices.length <= 1) return;
     const timer = setInterval(() => {
@@ -173,7 +182,7 @@ export default function HomeScreen({ navigation }) {
     return () => clearInterval(timer);
   }, [notices.length]);
 
-  // 게시판으로 이동
+  // Navigate to the board
   const goToBoard = (board) => {
     navigation.navigate('BoardFeed', {
       boardId: board.id,
@@ -190,7 +199,7 @@ export default function HomeScreen({ navigation }) {
 
   const bannerWidth = SCREEN_WIDTH - 32;
 
-  // ── 섹션 헤더 컴포넌트
+  // ── Section header component
   const SectionHeader = ({ title, onPress, icon, iconColor }) => (
     <View style={styles.sectionHeaderRow}>
       <View style={styles.sectionTitleRow}>
@@ -205,7 +214,7 @@ export default function HomeScreen({ navigation }) {
     </View>
   );
 
-  // ── Hot Topics 섹션
+  // ── Hot Topics section
   const HotTopicsSection = () => {
     if (hotPosts.length === 0) return null;
     return (
@@ -254,7 +263,7 @@ export default function HomeScreen({ navigation }) {
     );
   };
 
-  // ── 자유게시판 최신글 섹션
+  // ── Free board latest section
   const FreePostsSection = () => {
     if (freePosts.length === 0) return null;
     return (
@@ -308,7 +317,7 @@ export default function HomeScreen({ navigation }) {
     );
   };
 
-  // ── 장터 하이라이트 섹션
+  // ── Marketplace highlights section
   const MarketSection = () => {
     if (marketPosts.length === 0) return null;
     const cityLabel = user?.city ? t(`city.${user.city}`) : '';
@@ -364,7 +373,7 @@ export default function HomeScreen({ navigation }) {
     );
   };
 
-  // ── 구인구직 하이라이트 섹션
+  // ── Jobs highlights section
   const JobsSection = () => {
     if (jobsPosts.length === 0) return null;
     const cityLabel = user?.city ? t(`city.${user.city}`) : '';
@@ -404,7 +413,7 @@ export default function HomeScreen({ navigation }) {
     );
   };
 
-  // ── 카테고리 칩 (수평 스크롤)
+  // ── Category chips (horizontal scroll)
   const CategorySection = () => {
     if (boards.length === 0) return null;
     const getMeta = buildBoardMeta(colors);
@@ -437,7 +446,7 @@ export default function HomeScreen({ navigation }) {
     );
   };
 
-  // ── 전체 레이아웃
+  // ── Overall layout
   const renderContent = () => (
     <ScrollView
       showsVerticalScrollIndicator={false}
@@ -450,7 +459,7 @@ export default function HomeScreen({ navigation }) {
       }
       contentContainerStyle={{ paddingBottom: 32 }}
     >
-      {/* 공지 배너 */}
+      {/* Announcement banner */}
       {notices.length > 0 && (
         <View style={styles.bannerWrap}>
           <View style={styles.bannerHeader}>
@@ -503,28 +512,28 @@ export default function HomeScreen({ navigation }) {
         </View>
       )}
 
-      {/* 카테고리 */}
+      {/* Categories */}
       <CategorySection />
 
-      {/* 💱 환율 위젯 (KRW ↔ CAD) */}
+      {/* 💱 Currency widget (KRW ↔ CAD) */}
       <CurrencyWidget refreshKey={currencyKey} />
 
-      {/* 🔥 Hot Topics (인기글) */}
+      {/* 🔥 Hot Topics */}
       <HotTopicsSection />
 
-      {/* 🔥 이번 주 인기 장소 (주간 조회수 TOP 5 — 탭하면 지도에서 열림) */}
+      {/* 🔥 Trending places this week (weekly top 5 — tapping opens it on the map) */}
       <TrendingPlaces refreshKey={currencyKey} />
 
-      {/* 자유게시판 최신글 */}
+      {/* Free board latest */}
       <FreePostsSection />
 
-      {/* 🛍️ 장터 */}
+      {/* 🛍️ Marketplace */}
       <MarketSection />
 
-      {/* 💼 구인구직 */}
+      {/* 💼 Jobs */}
       <JobsSection />
 
-      {/* 글이 하나도 없는 경우 */}
+      {/* When there are no posts at all */}
       {hotPosts.length === 0 && freePosts.length === 0 && marketPosts.length === 0 && jobsPosts.length === 0 && !loading && (
         <View style={styles.emptyContainer}>
           <Ionicons name="mail-open-outline" size={44} color={colors.textSecondary} style={{ marginBottom: 12 }} />
@@ -537,10 +546,10 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* 헤더 */}
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.appName}>CaMoim</Text>
-        {/* 👋 오늘 방문자 — 로고와 아이콘 사이 컴팩트 배지 */}
+        {/* 👋 Today's visitors — a compact badge between the logo and the icons */}
         <TodayVisitors refreshKey={currencyKey} />
         <View style={styles.headerActions}>
           <TouchableOpacity
@@ -580,12 +589,12 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-// ── 스타일
+// ── Styles
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  // 헤더
+  // Header
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingVertical: 10,
@@ -605,7 +614,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   badgeText: { fontSize: 9, fontWeight: '800', color: colors.white },
 
-  // 공지 배너
+  // Announcement banner
   bannerWrap: {
     paddingHorizontal: 16,
     marginTop: 8,
@@ -645,7 +654,7 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.primary,
   },
 
-  // 환영 배너 (미사용)
+  // Welcome banner (unused)
   welcomeBanner: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: colors.primary + '10', borderRadius: 16,
@@ -655,7 +664,7 @@ const createStyles = (colors) => StyleSheet.create({
   welcomeSub: { fontSize: 13, color: colors.textSecondary, marginTop: 4 },
   welcomeEmoji: { fontSize: 36, marginLeft: 12 },
 
-  // 공통 섹션
+  // Shared sections
   sectionWrap: { paddingHorizontal: 16, marginTop: 20 },
   sectionHeaderRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -689,7 +698,7 @@ const createStyles = (colors) => StyleSheet.create({
   hotStats: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 8 },
   hotMetaText: { fontSize: 10, color: colors.textSecondary, marginLeft: 2 },
 
-  // 자유게시판 최신글
+  // Free board latest
   freeCard: {
     flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 14,
     padding: 14, marginBottom: 8,
@@ -707,7 +716,7 @@ const createStyles = (colors) => StyleSheet.create({
     width: 56, height: 56, borderRadius: 10, backgroundColor: colors.inputBg, marginLeft: 12,
   },
 
-  // 🛍️ 장터 하이라이트
+  // 🛍️ Marketplace highlights
   marketScroll: { paddingHorizontal: 16, gap: 10 },
   marketCard: {
     width: MARKET_CARD_WIDTH, backgroundColor: colors.surface,
@@ -724,7 +733,7 @@ const createStyles = (colors) => StyleSheet.create({
   marketTitle: { fontSize: 13, fontWeight: '700', color: colors.text, lineHeight: 18 },
   marketPreview: { fontSize: 11, color: colors.textSecondary, marginTop: 3 },
 
-  // 💼 구인구직
+  // 💼 Jobs
   jobsCard: { backgroundColor: colors.surface, borderRadius: 16, overflow: 'hidden' },
   jobRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 },
   jobRowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
@@ -737,7 +746,7 @@ const createStyles = (colors) => StyleSheet.create({
   jobPreview: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   jobTime: { fontSize: 10, color: colors.textSecondary, marginTop: 3 },
 
-  // 카테고리 칩
+  // Category chips
   chipsRow: { gap: 10, paddingRight: 16 },
   chip: { alignItems: 'center', width: 70 },
   chipIconBox: {
@@ -746,7 +755,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   chipLabel: { fontSize: 11, color: colors.text, fontWeight: '600', textAlign: 'center' },
 
-  // 빈 상태
+  // Empty state
   emptyContainer: { alignItems: 'center', padding: 40, marginTop: 40 },
   emptyText: { fontSize: 15, color: colors.textSecondary, fontWeight: '600' },
   emptySubText: { fontSize: 13, color: colors.textSecondary, marginTop: 6 },

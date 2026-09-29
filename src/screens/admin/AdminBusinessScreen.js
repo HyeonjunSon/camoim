@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
@@ -8,7 +9,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { catOf, cityLabelOf, sourceLabelOf } from '../../constants/businesses';
 import { adminListBusinesses, adminUpdateBusiness, adminDeleteBusiness, startChat } from '../../lib/api';
 
-// 관리자 — 한인 업체 승인/관리
+// Admin — business approval and management
 export default function AdminBusinessScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
@@ -46,7 +47,7 @@ export default function AdminBusinessScreen({ navigation }) {
     }
   };
 
-  // 제보자에게 바로 DM 걸기 (관리자 → 유저)
+  // DM the submitter directly (admin to user)
   const openChat = async (biz) => {
     if (!biz.submittedBy) {
       Alert.alert('알림', '제보자 정보가 없는 업체예요.');
@@ -99,7 +100,7 @@ export default function AdminBusinessScreen({ navigation }) {
         contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 18 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
       >
-        {/* 통계 */}
+        {/* Stats */}
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <StatCard value={counts.pending} label="승인 대기" color="#F59E0B" colors={colors} />
           <StatCard value={counts.approved} label="운영 중" color="#7F77DD" colors={colors} />
@@ -110,7 +111,7 @@ export default function AdminBusinessScreen({ navigation }) {
           <View style={{ paddingTop: 40 }}><ActivityIndicator color={colors.primary} /></View>
         ) : (
           <>
-            {/* 승인 대기 */}
+            {/* Awaiting approval */}
             <View style={{ gap: 8 }}>
               <Text style={styles.sectionTitle}>⏳ 승인 대기</Text>
               {pending.length === 0 ? (
@@ -154,7 +155,7 @@ export default function AdminBusinessScreen({ navigation }) {
               )}
             </View>
 
-            {/* 전체 업체 */}
+            {/* All businesses */}
             <View style={{ gap: 8 }}>
               <Text style={styles.sectionTitle}>전체 업체</Text>
               <View style={styles.listCard}>

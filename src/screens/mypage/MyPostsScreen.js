@@ -10,7 +10,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
@@ -19,7 +20,7 @@ import PostCard from '../../components/PostCard';
 import { useLang } from '../../context/LangContext';
 import EmptyState from '../../components/EmptyState';
 
-// 내가 쓴 글 목록 화면
+// My posts
 export default function MyPostsScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
@@ -119,8 +120,8 @@ export default function MyPostsScreen({ navigation }) {
             <PostCard
               post={item}
               onPress={() => {
-                // 게시판 글은 BoardPostDetail로 (거래 상태 토글, 핀, 신고 등 풀 기능)
-                // 모임 글은 Home/PostDetail로 (기본 보기)
+                // Board posts open BoardPostDetail (full feature set: trade toggle, pinning, reporting)
+                // Group posts open Home/PostDetail (the basic view)
                 if (item.boardId) {
                   navigation.navigate('Board', {
                     screen: 'BoardPostDetail',

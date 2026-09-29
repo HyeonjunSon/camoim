@@ -12,7 +12,8 @@ import {
   Platform,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
@@ -22,7 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import AuthLangToggle from '../../components/AuthLangToggle';
 
-// 학교 리스트는 백엔드 /auth/universities 에서 fetch (한 곳에서 관리)
+// The school list is fetched from the backend /auth/universities (managed in one place)
 const CURRENT_YEAR = new Date().getFullYear();
 const GRADUATION_YEARS = Array.from({ length: 15 }, (_, i) => CURRENT_YEAR - i);
 
@@ -41,10 +42,10 @@ export default function VerifyStudentScreen({ navigation }) {
   const { t } = useLang();
   const STATUS_STYLE = statusStyle(t);
 
-  const [existingRequest, setExistingRequest] = useState(undefined); // undefined = 로딩 전
+  const [existingRequest, setExistingRequest] = useState(undefined); // undefined = not loaded yet
   const [statusLoading, setStatusLoading] = useState(true);
 
-  const [universityList, setUniversityList] = useState([]); // 서버에서 받아온 학교 shortName 배열
+  const [universityList, setUniversityList] = useState([]); // Array of school shortNames from the server
   const [university, setUniversity] = useState('');
   const [studentType, setStudentType] = useState('current');
   const [graduationYear, setGraduationYear] = useState(String(CURRENT_YEAR - 1));
@@ -61,7 +62,7 @@ export default function VerifyStudentScreen({ navigation }) {
     }, [])
   );
 
-  // 학교 리스트 1회 로드
+  // Load the school list once
   useEffect(() => {
     let mounted = true;
     getUniversities()
@@ -89,7 +90,7 @@ export default function VerifyStudentScreen({ navigation }) {
 
   async function pickDocument() {
     try {
-      // 현재 권한 상태 먼저 확인
+      // Check the current permission state first
       const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== 'granted') {
@@ -160,7 +161,7 @@ export default function VerifyStudentScreen({ navigation }) {
       formData.append('university', university);
       formData.append('studentType', studentType);
       if (studentType === 'alumni') formData.append('graduationYear', graduationYear);
-      // iOS HEIC 등 확장자 관계없이 서버에는 항상 .jpg로 전송
+      // Whatever the extension (iOS HEIC and friends), the upload is always sent as .jpg
       const safeFileName = `document_${Date.now()}.jpg`;
       formData.append('file', { uri: fileUri, name: safeFileName, type: 'image/jpeg' });
 
@@ -177,7 +178,7 @@ export default function VerifyStudentScreen({ navigation }) {
     }
   }
 
-  // ── 로딩
+  // ── Loading
   if (statusLoading) {
     return (
       <View style={styles.centered}>
@@ -186,7 +187,7 @@ export default function VerifyStudentScreen({ navigation }) {
     );
   }
 
-  // ── 기존 신청 상태 표시
+  // ── Existing request status
   if (existingRequest) {
     const st = STATUS_STYLE[existingRequest.status] ?? STATUS_STYLE.pending;
     return (
@@ -248,7 +249,7 @@ export default function VerifyStudentScreen({ navigation }) {
     );
   }
 
-  // ── 신청 폼
+  // ── Request form
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -275,7 +276,7 @@ export default function VerifyStudentScreen({ navigation }) {
           </View>
         )}
 
-        {/* 학교 선택 */}
+        {/* School picker */}
         <Text style={styles.fieldLabel}>{t('verify.schoolLabel')}</Text>
         <TouchableOpacity
           style={styles.selector}
@@ -303,7 +304,7 @@ export default function VerifyStudentScreen({ navigation }) {
           </ScrollView>
         )}
 
-        {/* 재학생 / 졸업생 */}
+        {/* Student / alumnus */}
         <Text style={[styles.fieldLabel, { marginTop: 20 }]}>{t('verify.typeLabel')}</Text>
         <View style={styles.typeRow}>
           {[
@@ -323,7 +324,7 @@ export default function VerifyStudentScreen({ navigation }) {
           ))}
         </View>
 
-        {/* 졸업 연도 */}
+        {/* Graduation year */}
         {studentType === 'alumni' && (
           <>
             <Text style={[styles.fieldLabel, { marginTop: 20 }]}>{t('verify.gradYearLabel')}</Text>
@@ -353,7 +354,7 @@ export default function VerifyStudentScreen({ navigation }) {
           </>
         )}
 
-        {/* 서류 첨부 */}
+        {/* Attach documents */}
         <Text style={[styles.fieldLabel, { marginTop: 20 }]}>{t('verify.docLabel')}</Text>
         <Text style={styles.fieldHint}>{t('verify.docHint')}</Text>
 
@@ -380,7 +381,7 @@ export default function VerifyStudentScreen({ navigation }) {
           </View>
         )}
 
-        {/* 제출 버튼 */}
+        {/* Submit */}
         <TouchableOpacity
           style={[styles.submitBtn, (!university || !fileUri || submitting) && styles.submitBtnDisabled]}
           onPress={handleSubmit}

@@ -1,4 +1,4 @@
-// 👋 오늘 방문자 배지 (홈 상단) — 커뮤니티가 살아있다는 느낌을 주는 작은 지표
+// 👋 Today's visitors badge (top of home) — a small signal that the community is alive
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from './StyledText';
@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LangContext';
 import { getTodayVisitors } from '../lib/api';
 
-// 홈 배지 표시용 가산치. 관리자(DAU)는 실제 수치를 별도 경로로 보므로 영향 없음.
+// A display-only boost for the home badge. Admins read the real DAU through a separate path, so nothing there changes.
 const HOME_BADGE_BOOST = 30;
 
 export default function TodayVisitors({ refreshKey = 0 }) {
@@ -20,16 +20,16 @@ export default function TodayVisitors({ refreshKey = 0 }) {
         const res = await getTodayVisitors();
         if (res.success) setCount(res.count);
       } catch {
-        // 부가 지표 — 실패 시 조용히 숨김
+        // A secondary metric — hidden silently on failure
       }
     })();
   }, [refreshKey]);
 
-  if (count == null) return null; // 아직 로드 전/실패 시에만 숨김
+  if (count == null) return null; // Hidden only before it loads, or when it fails
 
   const styles = createStyles(colors);
-  const shown = count + HOME_BADGE_BOOST; // 홈에서만 +30 (관리자는 원래대로)
-  // 헤더용 컴팩트 배지: 🟢 오늘 42명
+  const shown = count + HOME_BADGE_BOOST; // The +30 applies on home only (admins see the raw number)
+  // Compact header badge, e.g. 🟢 42 today
   return (
     <View style={styles.wrap}>
       <View style={styles.dot} />

@@ -9,7 +9,8 @@ import {
   Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
@@ -102,9 +103,9 @@ export default function OnboardingScreen({ onDone }) {
         )}
       />
 
-      {/* 인디케이터 + 버튼 */}
+      {/* Indicator + buttons */}
       <View style={[styles.footer, { backgroundColor: SLIDES[currentIndex].bg }]}>
-        {/* 도트 인디케이터 */}
+        {/* Dot indicator */}
         <View style={styles.dots}>
           {SLIDES.map((_, i) => {
             const inputRange = [(i - 1) * width, i * width, (i + 1) * width];
@@ -148,7 +149,7 @@ export default function OnboardingScreen({ onDone }) {
   );
 }
 
-// 온보딩 완료 여부 확인
+// Check whether onboarding is already done
 export async function checkOnboardingDone() {
   const val = await AsyncStorage.getItem(ONBOARDING_KEY);
   return val === 'true';

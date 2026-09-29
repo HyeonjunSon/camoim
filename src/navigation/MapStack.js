@@ -10,7 +10,7 @@ import { useLang } from '../context/LangContext';
 
 const Stack = createNativeStackNavigator();
 
-// 지도 탭 스택 — 업체 지도(루트) + 업체 제보 + 숙소(등록/상세). 숙소 문의는 ChatRoom, 호스트는 UserProfile로.
+// Map tab stack — business map (root), business submissions and stays (create/detail). Stay inquiries go to ChatRoom, hosts to UserProfile.
 export default function MapStack() {
   const { colors } = useTheme();
   const { t } = useLang();

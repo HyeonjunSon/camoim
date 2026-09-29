@@ -1,8 +1,9 @@
-// 업체 리뷰 섹션 — 바텀시트 확장 시 노출
-// 별점(1~5) + 한줄평, 업체당 1인 1리뷰(다시 쓰면 수정됨), 내 리뷰 삭제, 남의 리뷰 신고
+// Business review section — revealed when the bottom sheet expands
+// 1-5 stars plus a one-liner, one review per user per business (writing again edits it), delete your own, report others'
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLang } from '../../context/LangContext';
 import {
   getBusinessReviews,
@@ -14,7 +15,7 @@ import {
 const PRIMARY = '#7F77DD';
 const STAR = '#F59E0B';
 
-// 별점 표시/입력 공용 (size, 탭 핸들러 옵션)
+// Shared star display/input (size and tap handler are optional)
 export function Stars({ value = 0, size = 14, onRate }) {
   return (
     <View style={{ flexDirection: 'row', gap: onRate ? 6 : 1 }}>
@@ -34,14 +35,14 @@ export function Stars({ value = 0, size = 14, onRate }) {
 
 export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggregate, showToast }) {
   const { t } = useLang();
-  const [reviews, setReviews] = useState(null); // null = 로딩 중
+  const [reviews, setReviews] = useState(null); // null = loading
   const [myRating, setMyRating] = useState(0);
   const [myText, setMyText] = useState('');
   const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState(false); // 내 리뷰 수정 모드 (수정 버튼 눌렀을 때만 작성창 표시)
+  const [editing, setEditing] = useState(false); // Edit mode for my review (the composer only appears after tapping edit)
 
   const mine = (reviews || []).find((r) => r.mine);
-  // 작성창 노출: 리뷰가 없거나(신규) 수정 모드일 때만
+  // Show the composer only when there is no review yet, or while editing
   const showComposer = isLoggedIn && (!mine || editing);
 
   const load = useCallback(async () => {
@@ -66,7 +67,7 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
       const res = await upsertBusinessReview(biz.id, { rating: myRating, text: myText.trim() });
       if (res.success) {
         showToast(mine ? t('biz.reviewUpdated') : t('biz.reviewAdded'));
-        setEditing(false); // 저장 후 작성창 닫기
+        setEditing(false); // Close the composer after saving
         onAggregate?.(res.ratingAvg, res.ratingCount);
         load();
       }
@@ -115,11 +116,11 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
 
   return (
     <View style={{ gap: 14 }}>
-      {/* 섹션 구분선 + 제목 (별점은 헤더에 이미 있으니 개수만) */}
+      {/* Section divider and title (the rating already sits in the header, so only the count here) */}
       <View style={s.divider} />
       <Text style={s.title}>{t('biz.reviewsTitle')} {reviews?.length ? reviews.length : ''}</Text>
 
-      {/* 작성창 — 리뷰가 없을 때(신규) 또는 수정 모드일 때만 */}
+      {/* Composer — only when there is no review yet, or while editing */}
       {!isLoggedIn ? (
         <Text style={s.loginHint}>{t('biz.loginToReview')}</Text>
       ) : showComposer ? (
@@ -129,7 +130,7 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
             {editing && (
               <TouchableOpacity
                 onPress={() => {
-                  // 취소 → 원래 값으로 되돌리고 닫기
+                  // Cancel → restore the original values and close
                   setEditing(false);
                   setMyRating(mine?.rating || 0);
                   setMyText(mine?.text || '');
@@ -160,7 +161,7 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
         </View>
       ) : null}
 
-      {/* 리뷰 목록 */}
+      {/* Review list */}
       {reviews === null ? (
         <ActivityIndicator size="small" color={PRIMARY} style={{ marginVertical: 8 }} />
       ) : reviews.length === 0 ? (
@@ -181,7 +182,7 @@ export default function BusinessReviewsSection({ biz, colors, isLoggedIn, onAggr
                   </View>
                 </View>
                 {r.mine ? (
-                  // 내 리뷰 → 수정 / 삭제 (수정 누르면 위에 작성창이 열림)
+                  // My review → edit / delete (edit opens the composer above)
                   <View style={{ flexDirection: 'row', gap: 12 }}>
                     <TouchableOpacity
                       onPress={() => { setEditing(true); setMyRating(r.rating); setMyText(r.text); }}
@@ -219,7 +220,7 @@ const createStyles = (colors) =>
   StyleSheet.create({
     divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginTop: 2 },
     title: { fontSize: 16, fontWeight: '800', color: colors.text, letterSpacing: -0.2 },
-    // 시트가 흰색이라 배경색+테두리로 카드 경계를 확실히
+    // The sheet is white, so a background colour and border make the card edges clear
     writeBox: {
       backgroundColor: colors.background, borderRadius: 14, padding: 14, gap: 12,
       borderWidth: 1, borderColor: colors.border,

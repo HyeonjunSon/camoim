@@ -1,19 +1,19 @@
-// 클라이언트용 게시판 slug 상수 — server/constants/boards.js와 일치 유지
+// Client-side board slug constants — kept in sync with server/constants/boards.js
 
-// 도시 필터가 의미 있는 보드
+// Boards where the city filter is meaningful
 export const LOCAL_BOARD_SLUGS = [
   'market', 'jobs', 'roomrent', 'car', 'giveaway', 'realestate', 'meetup',
 ];
 
-// 거래 상태 토글(판매중/판매완료) 적용 보드
+// Boards that get the trade-status toggle (for sale / sold)
 export const TRADE_BOARD_SLUGS = [
-  'market',    // 사고팔고
-  'giveaway',  // 나눔
-  'car',       // 자동차
-  'roomrent',  // 룸렌트 (입주가능/입주완료)
+  'market',    // Buy & sell
+  'giveaway',  // Giveaway
+  'car',       // Cars
+  'roomrent',  // Room rentals (available / filled)
 ];
 
-// 라벨은 i18n에서 가져옴. roomrent는 입주가능/입주완료, 나머지는 판매중/판매완료
+// Labels come from i18n. roomrent uses available/filled; everything else uses for sale/sold
 // status: 'selling' | 'sold'
 export function getTradeLabel(boardSlug, status, t) {
   if (!t) return status === 'sold' ? '판매완료' : '판매중'; // fallback
@@ -23,7 +23,7 @@ export function getTradeLabel(boardSlug, status, t) {
   return t(status === 'sold' ? 'board.tradeSold' : 'board.tradeSelling');
 }
 
-// 토글 버튼 라벨 — '판매완료로 변경' / '판매중으로'
+// Toggle button labels — "mark as sold" / "back to for sale"
 export function getTradeChangeLabel(boardSlug, currentStatus, t) {
   if (!t) return '';
   if (boardSlug === 'roomrent') {

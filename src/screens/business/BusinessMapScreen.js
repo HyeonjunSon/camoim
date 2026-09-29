@@ -18,7 +18,8 @@ import {
 } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../components/StyledText';
@@ -48,14 +49,14 @@ import BusinessReviewsSection, { Stars } from './BusinessReviewsSection';
 
 const PRIMARY = '#7F77DD';
 const SCREEN_H = Dimensions.get('window').height;
-const MY_LOCATION = '__me__'; // city 값이 이거면 "내 위치" 모드 (도시 필터 없이 내 주변)
+const MY_LOCATION = '__me__'; // This city value means "near me" mode (no city filter, just what is around you)
 
-// 지도 위 컨트롤(플로팅)은 지도 타일 위에 뜨므로 라이트 고정 스타일 사용
+// Floating map controls sit on top of map tiles, so they keep a fixed light style
 export default function BusinessMapScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { user } = useAuth();
   const { t } = useLang();
-  // 개수/검색어 등 값이 들어가는 문구는 {n}/{q} 치환 (t는 보간 미지원)
+  // Strings carrying a count or query substitute {n}/{q} by hand (t does no interpolation)
   const tn = useCallback((key, vars) => {
     let s = t(key);
     if (vars) for (const k in vars) s = s.split(`{${k}}`).join(vars[k]);
@@ -67,32 +68,32 @@ export default function BusinessMapScreen({ navigation, route }) {
 
   const [city, setCity] = useState('toronto');
   const [category, setCategory] = useState('all');
-  const [query, setQuery] = useState(''); // 업체명/주소 검색
-  const [bookmarkOnly, setBookmarkOnly] = useState(false); // ⭐ 즐겨찾기만 보기
+  const [query, setQuery] = useState(''); // Search by name or address
+  const [bookmarkOnly, setBookmarkOnly] = useState(false); // ⭐ Favourites only
   const [businesses, setBusinesses] = useState([]);
-  const [stays, setStays] = useState([]); // 숙소 (category==='stay'일 때 사용)
+  const [stays, setStays] = useState([]); // Stays (used when category === 'stay')
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const isStay = category === 'stay'; // 숙소 모드 — 별도 데이터/핀/카드/상세화면 사용
+  const isStay = category === 'stay'; // Stay mode — its own data, pins, cards and detail screen
 
   const [cityOpen, setCityOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [sheetFull, setSheetFull] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
-  const [clusterSheet, setClusterSheet] = useState(null); // 클러스터 탭 → 묶인 업체 리스트 (OpenTable식)
+  const [clusterSheet, setClusterSheet] = useState(null); // Tapping a cluster opens the list of businesses it holds (OpenTable style)
 
   const [myLocation, setMyLocation] = useState(null);
   const [region, setRegion] = useState(() => ({
     ...cityRegion('toronto'),
   }));
-  // 프로그램적 지도 이동은 항상 이걸 통해서 — 목적지 region을 즉시 state에 반영해
-  // onRegionChangeComplete가 늦거나 안 와도 카운트/리스트가 화면과 어긋나지 않게 함
+  // Every programmatic map move goes through this — it writes the destination region into state
+  // immediately, so counts and lists never drift from the screen if onRegionChangeComplete is late or never fires
   const goToRegion = useCallback((r, duration = 500) => {
     setRegion(r);
     mapRef.current?.animateToRegion(r, duration);
   }, []);
   const [markerTracking, setMarkerTracking] = useState(true);
-  const [mapReady, setMapReady] = useState(false); // 지도 준비 전 마커 mount 시 인터롭 크래시 방지
+  const [mapReady, setMapReady] = useState(false); // Prevents the interop crash when markers mount before the map is ready
 
   const [toast, setToast] = useState('');
   const toastTimer = useRef(null);
@@ -103,11 +104,11 @@ export default function BusinessMapScreen({ navigation, route }) {
   }, []);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
 
-  // ── 데이터 로드: 도시 전체(승인) 업체. 카테고리 필터는 클라에서 즉시 적용 ──
+  // ── Load data: every approved business in the city. The category filter is applied client-side, instantly ──
   const load = useCallback(async () => {
     try {
       const near = myLocation ? `${myLocation.longitude},${myLocation.latitude}` : undefined;
-      // 내 위치 모드면 도시 필터 없이 전체 로드 후 거리순 (내 주변 업체가 보이게)
+      // In near-me mode, load everything without a city filter and sort by distance (so nearby places show up)
       const res = await getBusinesses({ city: city === MY_LOCATION ? undefined : city, near });
       if (res.success) setBusinesses(res.data || []);
     } catch (e) {
@@ -118,11 +119,11 @@ export default function BusinessMapScreen({ navigation, route }) {
     }
   }, [city, myLocation, showToast, t]);
 
-  // ── 숙소 로드 (숙소 모드에서만) — 도시로 안 막고 전부 로드. 지도 어디로 옮겨도 그 지역 숙소가 보임 ──
+  // ── Load stays (stay mode only) — not limited by city, so panning anywhere shows that area's stays ──
   const loadStays = useCallback(async () => {
     try {
       const near = myLocation ? `${myLocation.longitude},${myLocation.latitude}` : undefined;
-      const res = await getStays({ near }); // city 필터 없음 = 캐나다 전역
+      const res = await getStays({ near }); // No city filter = all of Canada
       if (res.success) setStays(res.data || []);
     } catch (e) {
       showToast(t('stay.loadFail'));
@@ -138,14 +139,14 @@ export default function BusinessMapScreen({ navigation, route }) {
     else load();
   }, [isStay, load, loadStays]);
 
-  // 화면 재진입 시 새 등록 반영 (모드에 맞는 데이터만)
+  // Pick up newly created entries when the screen regains focus (only the data for the current mode)
   useFocusEffect(useCallback(() => {
     if (isStay) loadStays();
     else load();
   }, [isStay, load, loadStays]));
 
-  // ── 첫 진입 시 현재 위치 기반으로 시작 (OpenTable 스타일) ──
-  // 권한 요청 → 허용 시 내 위치 중심 + 거리순 정렬(near). 거부 시 도시 중심 유지 (조용히)
+  // ── Start from the current location on first entry (OpenTable style) ──
+  // Ask for permission → if granted, centre on the user and sort by distance (near). If denied, stay on the city centre, silently
   useEffect(() => {
     (async () => {
       try {
@@ -154,24 +155,24 @@ export default function BusinessMapScreen({ navigation, route }) {
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
         setMyLocation(loc);
-        setCity(MY_LOCATION); // 내 위치 기반으로 시작 (라벨=내 위치, 업체=주변 로드)
+        setCity(MY_LOCATION); // Start from the user's location (label = near me, businesses loaded around them)
         goToRegion({ ...loc, latitudeDelta: 0.08, longitudeDelta: 0.08 }, 700);
       } catch {
-        // 위치 실패 → 도시 중심 그대로
+        // Location failed → keep the city centre
       }
     })();
   }, []);
 
-  // ── 홈 인기 장소 카드에서 진입 시 해당 업체 자동 오픈 (focusId 파라미터) ──
+  // ── Opened from a home trending card: auto-open that business (the focusId param) ──
   useEffect(() => {
     const focusId = route?.params?.focusId;
     if (!focusId || businesses.length === 0) return;
     const target = businesses.find((b) => b.id === focusId);
     if (target) selectBusiness(target);
-    navigation.setParams({ focusId: undefined }); // 재진입 시 반복 오픈 방지
+    navigation.setParams({ focusId: undefined }); // Prevents re-opening it on every return to the screen
   }, [route?.params?.focusId, businesses]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 외부에서 특정 카테고리(예: 숙소)로 열기 — "지도에서 보기" 진입
+  // Opened externally on a specific category (stays, say) — the "view on map" entry point
   useEffect(() => {
     const c = route?.params?.category;
     if (c) {
@@ -180,22 +181,22 @@ export default function BusinessMapScreen({ navigation, route }) {
     }
   }, [route?.params?.category]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 도시 변경 → 지도 이동 + 선택/드롭다운 초기화
+  // City change → move the map and reset the selection and dropdown
   useEffect(() => {
     setSelected(null);
     setCityOpen(false);
-    if (city === MY_LOCATION) return; // 내 위치는 onNear가 카메라를 처리 (도시 중심으로 튀지 않게)
+    if (city === MY_LOCATION) return; // In near-me mode onNear owns the camera (so it does not snap back to the city centre)
     goToRegion(cityRegion(city), 500);
   }, [city]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 모드(카테고리) 전환 시 업체 상세/클러스터 시트 정리 (숙소↔업체 잔상 방지)
+  // Switching mode (category) clears the business detail and cluster sheets (no stay ↔ business ghosting)
   useEffect(() => {
     setSelected(null);
     setClusterSheet(null);
     setBookmarkOnly(false);
   }, [category]);
 
-  // 마커 리렌더 최소화: 데이터/선택 변화 후 잠깐만 tracking on
+  // Minimize marker re-renders: tracking is on only briefly after data or selection changes
   useEffect(() => {
     setMarkerTracking(true);
     const t = setTimeout(() => setMarkerTracking(false), 900);
@@ -219,7 +220,7 @@ export default function BusinessMapScreen({ navigation, route }) {
 
   const pinnable = useMemo(() => filtered.filter((b) => b.lat != null && b.lng != null), [filtered]);
 
-  // ── OpenTable 스타일: 현재 지도에 보이는 영역의 업체 (하단 가로 카드용) ──
+  // ── OpenTable style: the businesses inside the current viewport (for the horizontal cards below) ──
   const visibleBusinesses = useMemo(() => {
     if (!region?.latitudeDelta) return { items: [], count: 0 };
     const latMin = region.latitude - region.latitudeDelta / 2;
@@ -233,28 +234,28 @@ export default function BusinessMapScreen({ navigation, route }) {
         : ((b.ratingCount || 0) - (a.ratingCount || 0)) || ((b.ratingAvg || 0) - (a.ratingAvg || 0))
           || (a.name || a.title || '').localeCompare(b.name || b.title || '')
     );
-    return { items: inView.slice(0, 80), count: inView.length }; // 리스트는 상위 80, 개수는 실제
+    return { items: inView.slice(0, 80), count: inView.length }; // The list is capped at 80; the count stays exact
   }, [pinnable, region]);
 
-  // ── OpenTable식 하단 드래그 시트 (지도 위로 리스트가 올라옴) ──
-  // 탭바를 제외한 실제 렌더 영역은 onLayout으로 측정 — Dimensions 창 높이 기준이면
-  // 탭바 높이만큼 시트가 아래로 밀려 FAB가 가려짐 (iOS/Android 탭바 높이가 달라 상수 보정 불가)
+  // ── OpenTable-style draggable bottom sheet (the list rises over the map) ──
+  // The real render area, excluding the tab bar, is measured with onLayout — using the Dimensions window
+  // height pushes the sheet down by the tab bar height and hides the FAB (and iOS/Android tab bars differ, so no constant works)
   const [containerH, setContainerH] = useState(SCREEN_H);
-  const SHEET_TOP = insets.top + 104;      // 검색+칩 아래에서 시트 최상단
+  const SHEET_TOP = insets.top + 104;      // The sheet's top position, just under the search field and chips
   const SHEET_H = containerH - SHEET_TOP;
-  const [handleH, setHandleH] = useState(50);   // 핸들+카운트 영역 실측 높이
-  const [listContentH, setListContentH] = useState(0); // 패딩 제외 리스트 콘텐츠 실측 높이
-  const PEEK = handleH + 10;                // 접힘: 핸들+카운트 + 카드 윗모서리 10dp만 (텍스트 안 잘림)
+  const [handleH, setHandleH] = useState(50);   // Measured height of the handle and count area
+  const [listContentH, setListContentH] = useState(0); // Measured height of the list content, excluding padding
+  const PEEK = handleH + 10;                // Collapsed: handle, count and the top 10dp of a card (so no text is clipped)
   const peekY = Math.max(SHEET_H - PEEK, 0);
-  // full 스냅은 적응형: 시트가 딱 마지막 카드까지만 올라옴 (아래 빈 공간 없음).
-  // 콘텐츠가 시트 최대 높이를 넘을 때만 풀스크린 + '지도' 버튼 클리어런스 패딩 적용.
-  const PAD_SMALL = 14;                     // 마지막 카드 아래 최소 여백
-  const PAD_FULL = 78;                      // 풀스크린 full 스냅: '지도' 버튼(≈42) + 위아래 18씩 → 정중앙
+  // The full snap is adaptive: the sheet rises exactly to the last card, with no empty space below.
+  // Only when the content exceeds the sheet's maximum does it go fullscreen and add clearance for the 'map' button.
+  const PAD_SMALL = 14;                     // Minimum gap below the last card
+  const PAD_FULL = 78;                      // Fullscreen snap: the 'map' button (≈42) plus 18 above and below, centring it
   const needsFullScreen = listContentH > 0 && handleH + listContentH + PAD_SMALL >= SHEET_H;
   const fullY = !listContentH || needsFullScreen
     ? 0
     : SHEET_H - (handleH + listContentH + PAD_SMALL);
-  // half 스냅(카드 3장)이 콘텐츠 끝보다 높이 올라가지 않게 클램프 (카드 2장이면 half=full)
+  // Clamp so the half snap (3 cards) never rises past the end of the content (with 2 cards, half = full)
   const halfY = Math.max(SHEET_H - 290, fullY);
 
   const sheetY = useRef(new Animated.Value(peekY)).current;
@@ -262,10 +263,10 @@ export default function BusinessMapScreen({ navigation, route }) {
   const dragFrom = useRef(peekY);
   const snapRef = useRef('peek');
   const [snap, setSnap] = useState('peek'); // peek | half | full
-  // 현재 스냅에서 시트 프레임이 화면 밖으로 밀려난 거리 — 이만큼을 리스트 하단
-  // 패딩으로 보상해야 어느 스냅에서든 마지막 카드까지 정확히 스크롤이 닿음
+  // How far the sheet frame is pushed off-screen at the current snap — the list needs exactly this much
+  // bottom padding for scrolling to reach the last card at any snap
   const snapOffsetY = snap === 'full' ? fullY : snap === 'half' ? halfY : peekY;
-  // '지도' 버튼 여백은 버튼이 실제로 뜨는 풀스크린 full 스냅에서만 — 그 외엔 딱 카드까지
+  // The 'map' button clearance applies only at the fullscreen snap where it actually appears; otherwise stop at the cards
   const listPad = needsFullScreen && snap === 'full' ? PAD_FULL : PAD_SMALL;
 
   useEffect(() => {
@@ -280,8 +281,8 @@ export default function BusinessMapScreen({ navigation, route }) {
     Animated.spring(sheetY, { toValue: to, useNativeDriver: false, bounciness: 3, speed: 13 }).start();
   }, [fullY, halfY, peekY, sheetY]);
 
-  // 스냅 좌표가 바뀌면(컨테이너 실측/회전/콘텐츠 높이 변화) 현재 스냅 위치로 재정렬
-  // full은 콘텐츠 양에 따라 좌표가 자주 변하므로 스프링으로 부드럽게 따라감
+  // When the snap coordinates change (re-measure, rotation, content height), realign to the current snap
+  // The full snap moves often with content size, so it is followed with a spring
   useEffect(() => {
     const to = snapRef.current === 'full' ? fullY : snapRef.current === 'half' ? halfY : peekY;
     if (snapRef.current === 'full') {
@@ -291,7 +292,7 @@ export default function BusinessMapScreen({ navigation, route }) {
     }
   }, [fullY, halfY, peekY, sheetY]);
 
-  // PanResponder는 한 번만 생성되므로 최신 스냅 좌표는 ref로 전달 (stale closure 방지)
+  // PanResponder is created once, so the latest snap coordinates are passed by ref (avoiding a stale closure)
   const snapsRef = useRef({ fullY, halfY, peekY });
   useEffect(() => { snapsRef.current = { fullY, halfY, peekY }; }, [fullY, halfY, peekY]);
   const snapSheetRef = useRef(snapSheet);
@@ -307,12 +308,12 @@ export default function BusinessMapScreen({ navigation, route }) {
         sheetY.setValue(y);
       },
       onPanResponderRelease: (_, g) => {
-        if (Math.abs(g.dy) < 5) { // 살짝 탭 → 접힘/반 토글
+        if (Math.abs(g.dy) < 5) { // A light tap toggles between collapsed and half
           snapSheetRef.current(snapRef.current === 'peek' ? 'half' : 'peek');
           return;
         }
         const s = snapsRef.current;
-        const y = curY.current + g.vy * 90; // 관성 반영
+        const y = curY.current + g.vy * 90; // Account for momentum
         const opts = [['full', s.fullY], ['half', s.halfY], ['peek', s.peekY]];
         opts.sort((a, b) => Math.abs(y - a[1]) - Math.abs(y - b[1]));
         snapSheetRef.current(opts[0][0]);
@@ -320,29 +321,29 @@ export default function BusinessMapScreen({ navigation, route }) {
     })
   ).current;
 
-  // 간단한 그리드 클러스터링 (현재 확대 수준 기준)
+  // Simple grid clustering (relative to the current zoom)
   const { pins, clusters } = useMemo(() => clusterBusinesses(pinnable, region), [pinnable, region]);
 
   const selectBusiness = useCallback((b) => {
     setSheetFull(false);
     setSelected(b);
     setCityOpen(false);
-    snapSheet('peek'); // 상세 시트 열 때 리스트 시트는 접기 (지도+상세 같이 보이게)
-    // 카드/핀 선택 시 지도를 그 업체 위치로 이동 → "어디 있는지" 바로 보이게.
-    // 핀이 하단 상세 시트에 가리지 않게 중심을 살짝 아래로 잡아 위쪽에 오도록.
+    snapSheet('peek'); // Collapse the list sheet when the detail sheet opens (so map and detail are visible together)
+    // Selecting a card or pin moves the map to that business, so "where is it" is answered immediately.
+    // The centre is nudged down, putting the pin high enough that the detail sheet does not cover it.
     if (b.lat != null && b.lng != null) {
       const d = 0.02;
       goToRegion({ latitude: b.lat - d * 0.3, longitude: b.lng, latitudeDelta: d, longitudeDelta: d }, 500);
     }
   }, [snapSheet, goToRegion]);
 
-  // 숙소는 바텀시트가 아니라 전용 상세 화면으로 이동
+  // Stays open a dedicated detail screen instead of a bottom sheet
   const openStay = useCallback((s) => {
     setCityOpen(false);
     navigation.navigate('StayDetail', { id: s.id, stay: s });
   }, [navigation]);
 
-  // 숙소 즐겨찾기 토글 (낙관적)
+  // Stay bookmark toggle (optimistic)
   const onToggleStayBookmark = useCallback(async (s) => {
     const id = s.id;
     const nextOn = !s.bookmarked;
@@ -356,7 +357,7 @@ export default function BusinessMapScreen({ navigation, route }) {
     }
   }, [showToast, t]);
 
-  // ── 즐겨찾기 토글 (낙관적 업데이트) ──
+  // ── Bookmark toggle (optimistic update) ──
   const onToggleBookmark = useCallback(async (biz) => {
     const id = biz.id;
     const nextOn = !biz.bookmarked;
@@ -371,19 +372,19 @@ export default function BusinessMapScreen({ navigation, route }) {
         setBusinesses((prev) => prev.map((b) => (b.id === id ? { ...b, bookmarked: res.bookmarked, bookmarkCount: res.bookmarkCount } : b)));
       }
     } catch {
-      // 실패 시 롤백
+      // Roll back on failure
       setBusinesses((prev) =>
         prev.map((b) => (b.id === id ? { ...b, bookmarked: !nextOn, bookmarkCount: Math.max(0, (b.bookmarkCount || 0) + (nextOn ? -1 : 1)) } : b))
       );
     }
   }, [showToast, t]);
 
-  // ── 내 주변 ──
+  // ── Near me ──
   const onNear = useCallback(async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        // 권한 거부 → 도시 중심으로 fallback (QA 항목)
+        // Permission denied → fall back to the city centre (a QA checklist item)
         goToRegion(cityRegion(city), 500);
         showToast(t('biz.locNoPermCity'));
         return;
@@ -398,7 +399,7 @@ export default function BusinessMapScreen({ navigation, route }) {
     }
   }, [city, showToast, t, goToRegion]);
 
-  // 클러스터 탭 → (업체) 묶인 리스트 시트 / (숙소) 확대
+  // Cluster tap → (businesses) the grouped list sheet / (stays) zoom in
   const onCluster = useCallback((cl) => {
     setCityOpen(false);
     if (isStay) {
@@ -414,7 +415,7 @@ export default function BusinessMapScreen({ navigation, route }) {
     setClusterSheet(sorted);
   }, [isStay, region, goToRegion]);
 
-  // 길찾기 — 구글맵으로 연동 (앱 설치 시 구글맵 앱, 미설치 시 브라우저로 열림)
+  // Directions — handed to Google Maps (the app when installed, otherwise the browser)
   const onDirections = useCallback((biz) => {
     let url;
     if (biz.lat != null && biz.lng != null) {
@@ -440,7 +441,7 @@ export default function BusinessMapScreen({ navigation, route }) {
 
   const cityLabel = city === MY_LOCATION ? t('biz.cityMyLocation') : t(cityLabelKeyOf(city));
 
-  // 시트 리스트 카드 (지도에 보이는 업체)
+  // Sheet list card (businesses visible on the map)
   const renderCard = useCallback(({ item: b }) => {
     const c = catOf(b.category);
     return (
@@ -473,7 +474,7 @@ export default function BusinessMapScreen({ navigation, route }) {
     );
   }, [styles, selectBusiness, onToggleBookmark, colors, t, tn]);
 
-  // 시트 리스트 카드 (숙소) — 가격 + 조건 요약
+  // Sheet list card (stays) — price plus a condition summary
   const renderStayCard = useCallback(({ item: s }) => {
     const c = stayTypeOf(s.stayType);
     const condLabels = (s.conditions || []).slice(0, 2).map((k) => stayCondOf(k)?.labelKey).filter(Boolean).map((lk) => t(lk));
@@ -507,7 +508,7 @@ export default function BusinessMapScreen({ navigation, route }) {
 
   return (
     <View style={styles.container} onLayout={(e) => setContainerH(e.nativeEvent.layout.height)}>
-      {/* ── 지도 / 리스트 본문 ── */}
+      {/* ── Map / list body ── */}
       <MapView
           ref={mapRef}
           provider={PROVIDER_DEFAULT}
@@ -557,7 +558,7 @@ export default function BusinessMapScreen({ navigation, route }) {
           ))}
         </MapView>
 
-      {/* ── 상단 컨트롤 (도시 선택 + 카운트 + 카테고리 칩) ── */}
+      {/* ── Top controls (city picker + count + category chips) ── */}
       <View style={[styles.topControls, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
         <View style={styles.topRow} pointerEvents="box-none">
           <TouchableOpacity style={styles.cityBtn} activeOpacity={0.85} onPress={() => setCityOpen((v) => !v)}>
@@ -565,7 +566,7 @@ export default function BusinessMapScreen({ navigation, route }) {
             <Text style={styles.cityBtnText}>{cityLabel}</Text>
             <Ionicons name={cityOpen ? 'chevron-up' : 'chevron-down'} size={13} color="#888888" />
           </TouchableOpacity>
-          {/* 검색 — 업체명/주소 실시간 필터 (지도 핀·리스트 모두 적용) */}
+          {/* Search — live filter on name and address (applies to both map pins and the list) */}
           <View style={styles.searchPill}>
             <Ionicons name="search" size={15} color="#888888" />
             <TextInput
@@ -592,7 +593,7 @@ export default function BusinessMapScreen({ navigation, route }) {
           contentContainerStyle={styles.chipRow}
           pointerEvents="auto"
         >
-          {/* ⭐ 즐겨찾기만 보기 (카테고리와 독립 토글) */}
+          {/* ⭐ Favourites only (toggles independently of the category) */}
           <TouchableOpacity
             style={[styles.chip, bookmarkOnly ? styles.chipBookmarkActive : styles.chipInactive]}
             activeOpacity={0.8}
@@ -626,7 +627,7 @@ export default function BusinessMapScreen({ navigation, route }) {
         </ScrollView>
       </View>
 
-      {/* ── 도시 드롭다운 (최상단 오버레이 — 칩 위로 확실히 뜸) ── */}
+      {/* ── City dropdown (topmost overlay, so it clears the chips) ── */}
       {cityOpen && (
         <>
           <TouchableWithoutFeedback onPress={() => setCityOpen(false)}>
@@ -634,7 +635,7 @@ export default function BusinessMapScreen({ navigation, route }) {
           </TouchableWithoutFeedback>
           <View style={[styles.cityDropdown, { top: insets.top + 8 + 44, left: 14 }]}>
             <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {/* 내 위치로 이동 */}
+              {/* Recentre on my location */}
               <TouchableOpacity style={styles.cityOption} activeOpacity={0.7} onPress={() => { setCityOpen(false); setCity(MY_LOCATION); onNear(); }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="navigate" size={15} color={PRIMARY} />
@@ -661,7 +662,7 @@ export default function BusinessMapScreen({ navigation, route }) {
         </>
       )}
 
-      {/* ── 우하단 FAB (시트 위로) — 시트 펼침 시엔 숨김 ── */}
+      {/* ── Bottom-right FAB (above the sheet) — hidden while the sheet is expanded ── */}
       {snap !== 'full' && (
         <View style={[styles.fabColumn, { bottom: PEEK + 12 }]} pointerEvents="box-none">
           <TouchableOpacity style={styles.nearFab} activeOpacity={0.85} onPress={onNear}>
@@ -678,10 +679,10 @@ export default function BusinessMapScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* ── OpenTable식 하단 리스트 시트 (지도 위로 드래그) ──
-          프레임 높이를 애니메이션하면 FlatList 가상화가 접힌 시트의 작은 프레임 기준으로
-          몇 장만 렌더하고 멈춤 → 프레임은 항상 풀 높이 + translateY로 밀고,
-          화면 밖으로 밀린 만큼(snapOffsetY)을 하단 패딩으로 보상해 끝까지 스크롤되게 함 */}
+      {/* ── OpenTable-style bottom list sheet (dragged up over the map) ──
+          Animating the frame height makes FlatList virtualize against the collapsed sheet's small frame
+          and stop after a few cards, so the frame stays full height and is pushed with translateY,
+          with whatever is off-screen (snapOffsetY) compensated as bottom padding so scrolling reaches the end */}
       <Animated.View style={[styles.bizSheet, { top: SHEET_TOP, height: SHEET_H, transform: [{ translateY: sheetY }] }]}>
         <View {...pan.panHandlers} style={styles.bizSheetHandleArea} onLayout={(e) => setHandleH(Math.round(e.nativeEvent.layout.height))}>
           <View style={styles.bizSheetHandle} />
@@ -717,7 +718,7 @@ export default function BusinessMapScreen({ navigation, route }) {
         />
       </Animated.View>
 
-      {/* 시트 펼침 시 → 지도로 복귀 버튼 (풀스크린일 때만 — 시트가 짧으면 지도가 이미 보임) */}
+      {/* Return-to-map button while the sheet is expanded (fullscreen only — a short sheet already shows the map) */}
       {snap === 'full' && needsFullScreen && (
         <TouchableOpacity
           style={[styles.mapReturnBtn, { bottom: 18 }]}
@@ -735,7 +736,7 @@ export default function BusinessMapScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* ── 클러스터 리스트 바텀시트 (묶인 업체 N곳) ── */}
+      {/* ── Cluster list bottom sheet (the N businesses it holds) ── */}
       <Modal visible={!!clusterSheet} transparent animationType="slide" onRequestClose={() => setClusterSheet(null)}>
         <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setClusterSheet(null)} />
         {clusterSheet && (
@@ -779,7 +780,7 @@ export default function BusinessMapScreen({ navigation, route }) {
         )}
       </Modal>
 
-      {/* ── 업체 상세 바텀시트 ── */}
+      {/* ── Business detail bottom sheet ── */}
       <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
         <TouchableOpacity style={styles.detailBackdrop} activeOpacity={1} onPress={() => setSelected(null)} />
         {selected && (
@@ -813,7 +814,7 @@ export default function BusinessMapScreen({ navigation, route }) {
                   <Text style={styles.reportBtnText}>{t('biz.report')}</Text>
                 </TouchableOpacity>
               </View>
-              {/* ── 리뷰 (시트 확장 시) ── */}
+              {/* ── Reviews (once the sheet expands) ── */}
               {sheetFull ? (
                 <BusinessReviewsSection
                   biz={selected}
@@ -841,7 +842,7 @@ export default function BusinessMapScreen({ navigation, route }) {
         )}
       </Modal>
 
-      {/* ── 신고 모달 ── */}
+      {/* ── Report modal ── */}
       <Modal visible={reportOpen} transparent animationType="fade" onRequestClose={() => setReportOpen(false)}>
         <TouchableOpacity style={styles.reportBackdrop} activeOpacity={1} onPress={() => setReportOpen(false)}>
           <View style={styles.reportCard}>
@@ -860,7 +861,7 @@ export default function BusinessMapScreen({ navigation, route }) {
         </TouchableOpacity>
       </Modal>
 
-      {/* ── 토스트 ── */}
+      {/* ── Toast ── */}
       {!!toast && (
         <View style={styles.toastWrap} pointerEvents="none">
           <Text style={styles.toastText}>{toast}</Text>
@@ -870,12 +871,12 @@ export default function BusinessMapScreen({ navigation, route }) {
   );
 }
 
-// ── 지도 핀 ──
+// ── Map pins ──
 function Pin({ cat, selected }) {
   return (
     <View style={pinStyles.wrap}>
-      {/* 신아키텍처 인터롭에서 마커 자식이 조건부로 mount/unmount 되면
-          -[AIRMap insertReactSubview:] nil 크래시 발생 → 항상 렌더하고 opacity로 숨김 */}
+      {/* Conditionally mounting or unmounting a marker's children under the new architecture interop
+          crashes with -[AIRMap insertReactSubview:] nil, so children always render and hide via opacity */}
       <View style={[pinStyles.ring, { borderColor: 'rgba(127,119,221,0.9)', opacity: selected ? 1 : 0 }]} />
       <View style={[pinStyles.pin, { backgroundColor: cat.color, width: selected ? 36 : 30, height: selected ? 36 : 30 }]}>
         <Ionicons name={cat.ion} size={selected ? 17 : 15} color="#FFFFFF" />
@@ -929,13 +930,13 @@ function cityRegion(cityKey) {
   return { latitude: c.latitude, longitude: c.longitude, ...CITY_REGION_DELTA };
 }
 
-// 거리 기반 그리디 클러스터링 — 격자 방식은 경계에 걸친 핀이 옆 묶음으로 갈라져
-// 숫자가 부정확해 보이는 문제가 있어 반경 병합 방식으로 교체
+// Distance-based greedy clustering — a grid split pins sitting on a boundary into neighbouring
+// groups, which made the counts look wrong, so radius merging replaced it
 function clusterBusinesses(items, region) {
   if (!region || !region.latitudeDelta) return { pins: items, clusters: [] };
-  const radius = Math.max(region.latitudeDelta, region.longitudeDelta) / 14; // 화면 크기 대비 병합 반경
+  const radius = Math.max(region.latitudeDelta, region.longitudeDelta) / 14; // Merge radius, relative to the screen size
   if (!(radius > 0)) return { pins: items, clusters: [] };
-  const lngScale = Math.cos((region.latitude * Math.PI) / 180) || 1; // 경도 보정 (토론토 위도)
+  const lngScale = Math.cos((region.latitude * Math.PI) / 180) || 1; // Longitude correction (at Toronto's latitude)
 
   const used = new Array(items.length).fill(false);
   const pins = [];
@@ -986,7 +987,7 @@ const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   listRoot: { flex: 1, backgroundColor: colors.background },
 
-  // 상단 컨트롤
+  // Top controls
   topControls: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 30, gap: 8 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 },
   searchPill: {
@@ -1022,7 +1023,7 @@ const createStyles = (colors) => StyleSheet.create({
   chipBookmarkActive: { backgroundColor: '#F59E0B' },
   chipText: { fontSize: 13, fontWeight: '600' },
 
-  // 클러스터
+  // Cluster
   cluster: {
     minWidth: 42, height: 42, borderRadius: 21, paddingHorizontal: 8,
     backgroundColor: PRIMARY, borderWidth: 3, borderColor: '#FFFFFF',
@@ -1031,7 +1032,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   clusterText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
 
-  // OpenTable식 하단 리스트 시트
+  // OpenTable-style bottom list sheet
   bizSheet: {
     position: 'absolute', left: 0, right: 0, zIndex: 40,
     backgroundColor: colors.background,
@@ -1064,7 +1065,7 @@ const createStyles = (colors) => StyleSheet.create({
   reportFabStay: { backgroundColor: STAY_ACCENT, shadowColor: STAY_ACCENT },
   reportFabText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 
-  // 지도/리스트 세그먼트
+  // Map/list segmented control
   segmentWrap: {
     position: 'absolute', bottom: 14, alignSelf: 'center', zIndex: 30,
     flexDirection: 'row', backgroundColor: '#FFFFFF', borderRadius: 999, padding: 4, gap: 2,
@@ -1076,7 +1077,7 @@ const createStyles = (colors) => StyleSheet.create({
 
   loadingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
 
-  // 리스트
+  // List
   listCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8,
     backgroundColor: colors.surface, borderRadius: 14, padding: 12,
@@ -1090,7 +1091,7 @@ const createStyles = (colors) => StyleSheet.create({
   stayMeta: { fontSize: 13, color: colors.textSecondary },
   stayPrice: { fontSize: 13, fontWeight: '800', color: STAY_ACCENT },
   listRating: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
-  // 클러스터 리스트 시트
+  // Cluster list sheet
   clusterSheetTitle: { fontSize: 16, fontWeight: '800', color: colors.text, paddingHorizontal: 18, paddingBottom: 10, letterSpacing: -0.3 },
   clusterRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11 },
   clusterRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
@@ -1099,9 +1100,9 @@ const createStyles = (colors) => StyleSheet.create({
   emptyWrap: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyText: { fontSize: 14, color: colors.textSecondary },
 
-  // 바텀시트
+  // Bottom sheet
   sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
-  // 업체 상세는 지도 위로 뜨되 지도가 보여야 함(어디 있는지 확인) → 딤 없이 투명
+  // The business detail floats over the map but must not hide it (you need to see where the place is), so no dim, just transparency
   detailBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'transparent' },
   sheet: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
@@ -1133,7 +1134,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   reportBtnText: { fontSize: 14, fontWeight: '700', color: '#FF4444' },
 
-  // 신고 모달
+  // Report modal
   reportBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
   reportCard: { width: 290, backgroundColor: colors.surface, borderRadius: 16, overflow: 'hidden', paddingBottom: 12 },
   reportTitle: { fontSize: 16, fontWeight: '800', color: colors.text, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 8 },
@@ -1142,7 +1143,7 @@ const createStyles = (colors) => StyleSheet.create({
   reportCancel: { marginHorizontal: 12, paddingVertical: 12, alignItems: 'center' },
   reportCancelText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
 
-  // 토스트
+  // Toast
   toastWrap: {
     position: 'absolute', alignSelf: 'center', bottom: 110, zIndex: 90,
     backgroundColor: 'rgba(26,26,26,0.92)', paddingVertical: 11, paddingHorizontal: 18, borderRadius: 999, maxWidth: 330,

@@ -15,7 +15,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -33,44 +34,44 @@ const BASE_URL = API_BASE_URL;
 const LOCAL_BOARD_SLUGS = ['market', 'jobs', 'roomrent', 'car', 'giveaway', 'realestate', 'meetup'];
 import { CITIES } from '../../constants/cities';
 
-// 저장된 HTML → 에디터용 (상대 /uploads/ → 절대 URL, 잔존 ✕ 래퍼 제거)
+// Stored HTML → editor form (relative /uploads/ to absolute URLs, leftover ✕ wrappers removed)
 function contentToHtml(content) {
   if (!content) return '';
   let out = content;
-  // 과거 주입으로 박힌 ✕ 버튼/래퍼 제거 (방어)
+  // Defensively strip the ✕ buttons and wrappers left behind by an old injection
   out = out.replace(/<span[^>]*data-img-del[^>]*>[\s\S]*?<\/span>/gi, '');
   out = out.replace(/<span[^>]*data-img-wrap[^>]*>([\s\S]*?)<\/span>/gi, '$1');
-  // 시작/끝/중간 빈 블록 정리 — P와 DIV 모두 대응 (pell-rich-editor 기본이 div)
+  // Tidy empty blocks at the start, end and middle — handles both P and DIV (pell-rich-editor defaults to div)
   const emptyBlock = /<(?:p|div)[^>]*>(\s|&nbsp;|<br\s*\/?>)*<\/(?:p|div)>/i;
-  // 맨 앞 빈 블록/br/공백 전부 제거 (leading)
+  // Drop every leading empty block, br and space
   out = out.replace(new RegExp(`^(\\s|<br\\s*\\/?>|${emptyBlock.source})+`, 'i'), '');
-  // 끝 빈 블록/br 전부 제거 (trailing)
+  // Drop every trailing empty block and br
   out = out.replace(new RegExp(`(\\s|<br\\s*\\/?>|${emptyBlock.source})+$`, 'i'), '');
-  // 연속된 빈 블록을 하나로 축약
+  // Collapse runs of empty blocks into one
   out = out.replace(new RegExp(`(${emptyBlock.source})(\\s*${emptyBlock.source})+`, 'gi'), '<p><br></p>');
-  // /uploads/ → 절대 URL
+  // /uploads/ → absolute URL
   out = out.replace(/src=["'](\/uploads\/[^"']+)["']/g, `src="${SERVER_HOST}$1"`);
   return out;
 }
 
-// 저장 시: 잔존 래퍼 제거 + 로컬 URL은 상대 경로로 변환 (Cloudinary URL은 그대로 유지)
+// On save: strip leftover wrappers and turn local URLs back into relative paths (Cloudinary URLs are left alone)
 function normalizeHtmlForSave(html) {
   if (!html) return '';
   let out = html;
   out = out.replace(/<span[^>]*data-img-del[^>]*>[\s\S]*?<\/span>/gi, '');
   out = out.replace(/<span[^>]*data-img-wrap[^>]*>([\s\S]*?)<\/span>/gi, '$1');
-  // "글 추가" 힌트 제거
+  // Remove the "add text" hint
   out = out.replace(/<p[^>]*data-add-hint[^>]*>[\s\S]*?<\/p>/gi, '');
-  // data-fresh 속성 정리
+  // Clean up the data-fresh attribute
   out = out.replace(/\s*data-fresh="[^"]*"/gi, '');
-  // 이미지 액션바(혹시라도 직렬화되면) 제거
+  // Remove the image action bar (in case it ever gets serialized)
   out = out.replace(/<div[^>]*id=["']__imgActionBar["'][^>]*>[\s\S]*?<\/div>/gi, '');
-  // 시작/끝/중간 빈 블록 정리 — P와 DIV 모두 대응
+  // Tidy empty blocks at the start, end and middle — handles both P and DIV
   const emptyBlock = /<(?:p|div)[^>]*>(\s|&nbsp;|<br\s*\/?>)*<\/(?:p|div)>/i;
   out = out.replace(new RegExp(`^(\\s|<br\\s*\\/?>|${emptyBlock.source})+`, 'i'), '');
   out = out.replace(new RegExp(`(\\s|<br\\s*\\/?>|${emptyBlock.source})+$`, 'i'), '');
   out = out.replace(new RegExp(`(${emptyBlock.source})(\\s*${emptyBlock.source})+`, 'gi'), '<p><br></p>');
-  // 로컬 서버 URL만 상대 경로로 변환 (Cloudinary URL은 절대 URL 그대로 유지)
+  // Only local server URLs become relative paths (Cloudinary URLs stay absolute)
   const escaped = SERVER_HOST.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   out = out.replace(new RegExp(`src=["']${escaped}(/uploads/[^"']+)["']`, 'g'), 'src="$1"');
   return out;
@@ -83,11 +84,11 @@ export default function CreatePostScreen({ route, navigation }) {
   const routeParams = route.params ?? {};
   const editPost = routeParams.editPost;
   const isEditMode = !!editPost;
-  // 수정 모드일 때는 editPost에서 보드 정보를 가져옴 (네비게이션이 editPost만 넘기는 경우 대응)
+  // In edit mode the board comes from editPost (covers navigation passing only editPost)
   const boardId = routeParams.boardId ?? editPost?.boardId;
   const boardSlug = routeParams.boardSlug ?? editPost?.boardSlug;
   const boardName = routeParams.boardName ?? editPost?.boardName;
-  // 모임 게시판 글: groupId가 있으면 board 로직 우회
+  // Group board post: a groupId bypasses the board logic
   const groupId = routeParams.groupId ?? editPost?.groupId;
   const groupName = routeParams.groupName ?? editPost?.groupName;
   const isGroupPost = !!groupId;
@@ -97,17 +98,17 @@ export default function CreatePostScreen({ route, navigation }) {
   const { user } = useAuth();
 
   const isLocalBoard = LOCAL_BOARD_SLUGS.includes(boardSlug);
-  // 익명 게시판 판별: 'anonymous' 또는 '{school}-anonymous'
+  // Anonymous board detection: 'anonymous' or '{school}-anonymous'
   const isAnonymousBoard = boardSlug === 'anonymous' || /(^|-)anonymous$/.test(boardSlug || '');
   const [selectedCity, setSelectedCity] = useState(isEditMode ? (editPost?.city || '') : (user?.city || ''));
   const [cityModalOpen, setCityModalOpen] = useState(false);
 
   const [title, setTitle] = useState(editPost?.title ?? '');
   const [submitting, setSubmitting] = useState(false);
-  const postedRef = useRef(false); // 게시 성공 후 이동 시 '나가기 확인' 가드 우회
+  const postedRef = useRef(false); // Skip the leave-confirmation guard when navigating away after a successful post
   const [hasBody, setHasBody] = useState(!!editPost?.content);
   const [kbHeight, setKbHeight] = useState(0);
-  // Android: endCoordinates.height가 과측정되는 경우가 있어 screenY (키보드 top 절대좌표)로 정확한 키보드 top을 추적
+  // Android sometimes over-reports endCoordinates.height, so screenY (the keyboard's absolute top) is tracked instead
   const [kbScreenY, setKbScreenY] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -124,13 +125,13 @@ export default function CreatePostScreen({ route, navigation }) {
   );
   const currentHtml = useRef(initialHtmlRef.current);
 
-  // 임시저장 (드래프트) — 수정 모드에선 비활성
+  // Drafts — disabled in edit mode
   const [drafts, setDrafts] = useState([]);
   const [draftsModalOpen, setDraftsModalOpen] = useState(false);
   const [currentDraftId, setCurrentDraftId] = useState(null);
   const draftsEnabled = !isEditMode && !isGroupPost;
 
-  // 본문 에디터 포커스 여부 — 툴바를 본문 편집 중일 때만 노출
+  // Whether the body editor has focus — the toolbar shows only while editing the body
   const [editorFocused, setEditorFocused] = useState(false);
   const titleRef = useRef(null);
 
@@ -170,7 +171,7 @@ export default function CreatePostScreen({ route, navigation }) {
     } catch (e) { Alert.alert(t('common.error'), e.message || t('common.serverError')); }
   };
 
-  // 💾 임시저장 버튼 — 명시적 저장만, 자동 안 됨
+  // 💾 Save draft — explicit only, never automatic
   const onSaveDraft = async () => {
     let html = currentHtml.current;
     try {
@@ -226,7 +227,7 @@ export default function CreatePostScreen({ route, navigation }) {
 
   const handleChangeHtml = (html) => {
     currentHtml.current = html;
-    // <p><br></p> 같은 공백 HTML도 빈 것으로 간주
+    // Whitespace-only HTML such as <p><br></p> counts as empty
     const stripped = html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, '').trim();
     setHasBody(stripped.length > 0 || /<img/i.test(html));
   };
@@ -250,7 +251,7 @@ export default function CreatePostScreen({ route, navigation }) {
     setUploadingImage(true);
     setUploadProgress(0);
     try {
-      // 가로 1280px, JPEG 70%로 리사이즈/압축 (보통 5MB → 200~400KB)
+      // Resize and compress to 1280px wide at JPEG 70% (typically 5MB → 200-400KB)
       const manipulated = await ImageManipulator.manipulateAsync(
         asset.uri,
         [{ resize: { width: 1280 } }],
@@ -265,12 +266,12 @@ export default function CreatePostScreen({ route, navigation }) {
         (pct) => setUploadProgress(pct),
       );
       if (res.success) {
-        // Cloudinary는 절대 URL 반환, 로컬은 /uploads/... 상대 경로
+        // Cloudinary returns an absolute URL; local returns a /uploads/... relative path
         const imgUrl = res.data.url.startsWith('http') ? res.data.url : `${SERVER_HOST}${res.data.url}`;
         const html = `<p><img src="${imgUrl}" /></p><p><br></p>`;
         try { richRef.current?.insertHTML(html); }
         catch (e) { richRef.current?.insertImage(imgUrl); }
-        // 새 이미지 로드 후 리플로우 + 힌트 재계산
+        // Reflow and recompute hints after each new image loads
         const reflowJS = `
           (function(){
             var imgs = document.querySelectorAll('img');
@@ -306,7 +307,7 @@ export default function CreatePostScreen({ route, navigation }) {
   };
 
   const handleEditorMessage = (message) => {
-    // pell-rich-editor는 {type, data} 객체로 전달
+    // pell-rich-editor passes a {type, data} object
     const type = message?.type;
     if (type === 'IMG_SELECTED') setImgSelected(true);
     else if (type === 'IMG_DESELECTED') setImgSelected(false);
@@ -439,7 +440,7 @@ export default function CreatePostScreen({ route, navigation }) {
 
   const handleSubmit = async () => {
     const trimmedTitle = title.trim();
-    // 에디터에서 직접 최신 HTML 가져오기 (onChange 미반영 방지)
+    // Read the latest HTML straight from the editor (in case onChange has not fired)
     let latestHtml = currentHtml.current;
     try {
       const fetched = await richRef.current?.getContentHtml?.();
@@ -477,11 +478,11 @@ export default function CreatePostScreen({ route, navigation }) {
       });
       const data = await res.json();
       if (data.success) {
-        postedRef.current = true; // 나가기 확인 가드 우회
-        // 게시 성공 시 사용된 드래프트는 정리
+        postedRef.current = true; // Skip the leave-confirmation guard
+        // Clean up the draft once the post succeeds
         if (currentDraftId) { try { await deleteDraft(currentDraftId); } catch {} }
 
-        // 룸렌트 새 글 → 지도에도 숙소로 올릴지 물어보기
+        // New room-rent post → offer to list it on the map as a stay
         const isRoomrent = !isEditMode && (boardSlug === 'roomrent' || /(^|-)roomrent$/.test(boardSlug || ''));
         if (isRoomrent && data.data?.id) {
           Alert.alert(
@@ -513,14 +514,14 @@ export default function CreatePostScreen({ route, navigation }) {
   };
 
   const hasContent = title.trim() && hasBody;
-  // 작성 중인 내용이 있는지 (제목 또는 본문) — 나가기 확인용
+  // Whether anything has been written (title or body) — drives the leave confirmation
   const hasAnyContent = !!title.trim() || hasBody;
 
-  // X 버튼 / 하드웨어 뒤로가기 / 스와이프 통합 인터셉트
-  // navigation.dispatch(e.data.action) 로 한 번만 실제 나가게 처리 (재진입 방지)
+  // One interception point for the X button, the hardware back button and the swipe gesture
+  // navigation.dispatch(e.data.action) performs the real navigation exactly once (no re-entry)
   useEffect(() => {
     const unsub = navigation.addListener('beforeRemove', (e) => {
-      if (!hasAnyContent || submitting || postedRef.current) return; // 빈 화면·제출 중·게시완료면 통과
+      if (!hasAnyContent || submitting || postedRef.current) return; // Pass through when the screen is empty, submitting, or already posted
       e.preventDefault();
       Alert.alert(
         t('post.leaveConfirmTitle') || '작성 중인 내용이 있어요',
@@ -546,8 +547,8 @@ export default function CreatePostScreen({ route, navigation }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation, hasAnyContent, submitting, title, hasBody, currentDraftId]);
 
-  // iOS는 원래 잘 동작 → 원본 로직 유지. Android edgeToEdge에선 컨테이너 padding 대신
-  // 툴바를 absolute로 깔아 키보드 위에 강제 부착 (아래 RichToolbar 부분 참조).
+  // iOS worked as-is, so that path is unchanged. Under Android edgeToEdge the toolbar is laid out
+  // absolutely and pinned above the keyboard instead of padding the container (see RichToolbar below).
   return (
     <View
       style={[
@@ -560,7 +561,7 @@ export default function CreatePostScreen({ route, navigation }) {
         },
       ]}
     >
-      {/* ── 상단 바 */}
+      {/* ── Top bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -616,7 +617,7 @@ export default function CreatePostScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* 게시판 + 도시 선택 (작성/수정 모두) */}
+      {/* Board + city picker (both compose and edit) */}
       {(boardName || groupName) && (
         <View style={styles.boardRow}>
           <View style={styles.boardSelect}>
@@ -636,7 +637,7 @@ export default function CreatePostScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* 도시 선택 모달 */}
+      {/* City picker modal */}
       <Modal visible={cityModalOpen} transparent animationType="slide" onRequestClose={() => setCityModalOpen(false)}>
         <TouchableOpacity style={styles.cityModalOverlay} activeOpacity={1} onPress={() => setCityModalOpen(false)}>
           <View style={styles.cityModalBox}>
@@ -664,7 +665,7 @@ export default function CreatePostScreen({ route, navigation }) {
         </TouchableOpacity>
       </Modal>
 
-      {/* 임시저장 (드래프트) 목록 모달 */}
+      {/* Draft list modal */}
       <Modal
         visible={draftsModalOpen}
         transparent
@@ -711,8 +712,8 @@ export default function CreatePostScreen({ route, navigation }) {
                       </View>
                       <TouchableOpacity
                         onPress={() => {
-                          // iOS Modal + Alert.alert 조합이 slide 애니메이션 stale state 버그를 일으켜서
-                          // 모달을 먼저 닫고 confirm 하는 게 안전 (시트가 사라지지 않음)
+                          // The iOS Modal + Alert.alert combination triggers a stale-state bug in the slide animation,
+                          // so closing the modal before confirming is safer (the sheet then actually disappears)
                           setDraftsModalOpen(false);
                           setTimeout(() => {
                             Alert.alert('', t('draft.deleteAsk'), [
@@ -735,7 +736,7 @@ export default function CreatePostScreen({ route, navigation }) {
         </TouchableOpacity>
       </Modal>
 
-      {/* 제목 */}
+      {/* Title */}
       <TextInput
         ref={titleRef}
         style={styles.titleInput}
@@ -747,7 +748,7 @@ export default function CreatePostScreen({ route, navigation }) {
         returnKeyType="next"
         onFocus={() => setEditorFocused(false)}
         onSubmitEditing={() => {
-          // 다음(↵) 키 → 본문 포커스 (제목→본문 매끄럽게)
+          // The return (↵) key moves focus to the body (a smooth title → body handoff)
           try { richRef.current?.focusContentEditor?.(); } catch {}
         }}
         blurOnSubmit={false}
@@ -755,8 +756,8 @@ export default function CreatePostScreen({ route, navigation }) {
 
       <View style={styles.divider} />
 
-      {/* 리치 에디터 — 외부 ScrollView가 스크롤 담당 (pell-rich-editor는 WebView 내부 스크롤 비활성)
-          Android는 키보드+absolute 툴바가 ScrollView 하단을 가리므로 그만큼 paddingBottom 추가 */}
+      {/* Rich editor — the outer ScrollView owns scrolling (pell-rich-editor disables the WebView's own)
+          On Android the keyboard plus the absolute toolbar cover the bottom of the ScrollView, so that much paddingBottom is added */}
       <ScrollView
         ref={scrollRef}
         style={styles.editorScroll}
@@ -773,22 +774,22 @@ export default function CreatePostScreen({ route, navigation }) {
       >
         <RichEditor
           ref={richRef}
-          // Android WebView는 빈 contenteditable에 자동으로 <div><br></div>를 끼워넣어
-          // 첫 줄에 빈 칸이 생기는 버그가 있음 → 새 글 작성 시 <p><br></p>로 강제 (edit 모드는
-          // editorInitializedCallback에서 별도로 기존 내용을 setContentHTML로 로드함)
+          // Android's WebView inserts <div><br></div> into an empty contenteditable on its own,
+          // leaving a blank first line. New posts force <p><br></p> instead (edit mode loads the
+          // existing content separately via setContentHTML in editorInitializedCallback)
           initialContentHTML={isEditMode ? '' : '<p><br></p>'}
           placeholder={t('post.contentPh')}
           scrollEnabled={true}
           onFocus={() => setEditorFocused(true)}
           onBlur={() => setEditorFocused(false)}
           onCursorPosition={(cursorY) => {
-            // Android에서 onFocus가 안 부르는 경우가 있어 커서 활동 감지로 보완
+            // Android sometimes skips onFocus, so cursor activity is used as a backup signal
             if (!editorFocused) setEditorFocused(true);
-            // ScrollView 컨테이너 높이에서 키보드+툴바가 가리는 영역을 뺀 "실제 보이는 영역"의
-            // 1/3 지점에 커서가 오도록 스크롤 (1/2였더니 Android에선 키보드 위쪽 경계에 걸림)
+            // Scrolls so the cursor sits one third of the way down the genuinely visible area —
+            // the ScrollView height minus whatever the keyboard and toolbar cover (a half put it right on the keyboard edge on Android)
             const containerH = scrollViewHeightRef.current || 400;
             const obscuredH = Platform.OS === 'android' && kbHeight > 0
-              ? kbHeight + 56  // 키보드 + absolute 툴바
+              ? kbHeight + 56  // Keyboard + absolute toolbar
               : 0;
             const visibleH = containerH - obscuredH;
             if (visibleH <= 0) return;
@@ -797,9 +798,9 @@ export default function CreatePostScreen({ route, navigation }) {
           }}
           onMessage={handleEditorMessage}
           editorInitializedCallback={() => {
-            // Android WebView가 입력 중에도 <div><br></div>를 끼워넣는 버그 회피:
-            // 초기 진입 시점에 contenteditable을 <p><br></p>로 강제하고, 이후 input마다
-            // 선행 빈 <div>를 자동 제거 (사용자 커서 위치는 건드리지 않음)
+            // Works around Android's WebView inserting <div><br></div> even mid-typing:
+            // contenteditable is forced to <p><br></p> on entry, and every input afterwards
+            // strips a leading empty <div> (without disturbing the user's cursor)
             const ensureFirstPJS = `
               (function(){
                 if (window.__firstPBound) return true;
@@ -833,7 +834,7 @@ export default function CreatePostScreen({ route, navigation }) {
             `;
             try { richRef.current?.injectJavascript?.(ensureFirstPJS); } catch (e) {}
 
-            // 이미지 탭 감지 → RN으로 메시지 전송 (선택된 이미지에 outline 표시)
+            // Detect image taps and message RN (the selected image gets an outline)
             const imgSelectJS = `
               (function(){
                 if (window.__imgSelBound) return true;
@@ -866,7 +867,7 @@ export default function CreatePostScreen({ route, navigation }) {
             `;
             try { richRef.current?.injectJavascript?.(imgSelectJS); } catch(e) {}
 
-            // selection 추적 + bold/h2 활성 상태 RN으로 전송
+            // Track the selection and report bold/h2 active state back to RN
             const selTrackJS = `
               (function(){
                 if (window.__selTrackBound) return true;
@@ -908,7 +909,7 @@ export default function CreatePostScreen({ route, navigation }) {
             `;
             try { richRef.current?.injectJavascript?.(selTrackJS); } catch(e) {}
 
-            // 사진 위/사이에 "─ 글 추가 ─" 힌트 자동 삽입
+            // Auto-insert the "add text" hint above and between photos
             const hintJS = `
               (function(){
                 // pell-rich-editor는 상황에 따라 P 또는 DIV로 감쌈 → 둘 다 블록으로 인식
@@ -1099,7 +1100,7 @@ export default function CreatePostScreen({ route, navigation }) {
             setTimeout(() => {
               try {
                 richRef.current?.setContentHTML(initialHtmlRef.current);
-                // 이미지 로드마다 height 재계산 + 힌트 decorate
+                // Recompute heights and redecorate hints as each image loads
                 const reflowJS = `
                   (function(){
                     function onReady(){
@@ -1129,7 +1130,7 @@ export default function CreatePostScreen({ route, navigation }) {
             }, 50);
           }}
           onChange={(html) => {
-            // 타이핑 시작 자체도 본문 포커스 신호로 간주 (onFocus 누락 보완)
+            // Typing itself also counts as body focus (covers a missed onFocus)
             if (!editorFocused) setEditorFocused(true);
             handleChangeHtml(html);
           }}
@@ -1180,7 +1181,7 @@ export default function CreatePostScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* ── 이미지 선택 시: 삭제/취소 액션바 (툴바 자리) */}
+      {/* ── With an image selected: delete/cancel action bar (in the toolbar's place) */}
       {imgSelected ? (
         <View
           style={[
@@ -1197,10 +1198,10 @@ export default function CreatePostScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       ) : (editorFocused && kbHeight > 0) ? (
-      /* ── 포맷 툴바 — 본문 에디터 포커스 + 키보드 떠 있을 때만 노출
-           (iOS WebView가 마운트 시 onCursorPosition을 한 번 발화시켜 editorFocused를
-           true로 만드는 부작용이 있어, 실제 키보드가 떠 있을 때만 노출하도록 강화)
-           Android는 외부 View를 absolute로 깔아 키보드 위 강제 부착 */
+      /* ── Format toolbar — shown only while the body editor has focus and the keyboard is up
+           (mounting the iOS WebView fires onCursorPosition once, setting editorFocused to true,
+           so requiring a visible keyboard hardens it)
+           On Android an outer View is laid out absolutely and pinned above the keyboard */
       Platform.OS === 'android' ? (
         <KeyboardAvoidingView
           behavior="padding"
@@ -1377,7 +1378,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   citySelectText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
 
-  // 도시 모달
+  // City modal
   cityModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   cityModalBox: {
     backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,

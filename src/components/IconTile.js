@@ -1,7 +1,8 @@
-// 소프트 배경 타일 + Ionicons — 이모지 대체 공통 컴포넌트
-// 사용: <IconTile icon={BOARD_ICONS.free} size={46} />
+// Soft background tile + Ionicons — the shared component that replaced emoji
+// Use: <IconTile icon={BOARD_ICONS.free} size={46} />
 import { View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 export default function IconTile({ icon, size = 46, radius = 12, style }) {
   if (!icon) return null;
@@ -11,7 +12,7 @@ export default function IconTile({ icon, size = 46, radius = 12, style }) {
         width: size,
         height: size,
         borderRadius: radius,
-        backgroundColor: icon.color + '1A', // ~10% 소프트 틴트
+        backgroundColor: icon.color + '1A', // ~10% soft tint
         alignItems: 'center',
         justifyContent: 'center',
       }, style]}

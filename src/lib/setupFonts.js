@@ -8,7 +8,7 @@ export function setupDefaultFonts() {
   if (_applied) return;
   _applied = true;
 
-  // 방법 1: Text.render 패치 (forwardRef)
+  // Approach 1: patch Text.render (forwardRef)
   if (typeof Text.render === 'function') {
     const origText = Text.render;
     Text.render = function (props, ref) {
@@ -19,7 +19,7 @@ export function setupDefaultFonts() {
     };
   }
 
-  // 방법 2: Text.type.render 패치 (래핑된 컴포넌트)
+  // Approach 2: patch Text.type.render (wrapped components)
   if (Text.type && typeof Text.type.render === 'function') {
     const origType = Text.type.render;
     Text.type.render = function (props, ref) {
@@ -30,7 +30,7 @@ export function setupDefaultFonts() {
     };
   }
 
-  // 방법 3: prototype 패치 (클래스 컴포넌트)
+  // Approach 3: patch the prototype (class components)
   if (Text.prototype && typeof Text.prototype.render === 'function') {
     const origProto = Text.prototype.render;
     Text.prototype.render = function () {
@@ -45,7 +45,7 @@ export function setupDefaultFonts() {
     };
   }
 
-  // TextInput도 동일하게
+  // Same treatment for TextInput
   if (typeof TextInput.render === 'function') {
     const origInput = TextInput.render;
     TextInput.render = function (props, ref) {

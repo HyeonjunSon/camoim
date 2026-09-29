@@ -3,7 +3,8 @@ import {
   View, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, Platform, Modal, FlatList,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Text } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
@@ -35,8 +36,8 @@ export default function GroupCreateScreen({ navigation, route }) {
   const [city, setCity] = useState('');
   const [cityModalOpen, setCityModalOpen] = useState(false);
   const [joinPolicy, setJoinPolicy] = useState('open');
-  // 진입 경로로 컨텍스트 결정 — 학교 커뮤니티에서 진입했으면 학교 동아리, 그 외엔 일반 모임
-  // (토글 UI 없음 — 컨텍스트로 자동 결정됨)
+  // The entry path decides the context — arriving from the school community makes it a school club, otherwise a general group
+  // (no toggle in the UI — the context decides)
   const isSchoolContext = !!route?.params?.schoolOnly;
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
@@ -60,7 +61,7 @@ export default function GroupCreateScreen({ navigation, route }) {
         name: name.trim(),
         description: description.trim(),
         category,
-        // 학교 동아리는 학교가 도시 컨텍스트라 city는 빈값
+        // School clubs leave city empty, since the school already provides the location context
         city: isSchoolContext ? '' : city.trim(),
         joinPolicy,
         schoolOnly: isSchoolContext,
@@ -91,13 +92,13 @@ export default function GroupCreateScreen({ navigation, route }) {
     >
       <CustomHeader navigation={navigation} title={t(isSchoolContext ? 'group.createTitleSchool' : 'group.createTitle')} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* 안내 */}
+        {/* Guidance */}
         <View style={styles.notice}>
           <Ionicons name="information-circle" size={18} color={colors.primary} />
           <Text style={styles.noticeText}>{t('group.pendingNotice')}</Text>
         </View>
 
-        {/* 이름 */}
+        {/* Name */}
         <Text style={styles.label}>{t('group.nameLabel')}</Text>
         <TextInput
           style={styles.input}
@@ -108,7 +109,7 @@ export default function GroupCreateScreen({ navigation, route }) {
           maxLength={50}
         />
 
-        {/* 소개 */}
+        {/* Description */}
         <Text style={styles.label}>{t('group.descLabel')}</Text>
         <TextInput
           style={[styles.input, styles.inputMulti]}
@@ -120,7 +121,7 @@ export default function GroupCreateScreen({ navigation, route }) {
           maxLength={500}
         />
 
-        {/* 카테고리 */}
+        {/* Category */}
         <Text style={styles.label}>{t('group.categoryLabel')}</Text>
         <View style={styles.catGrid}>
           {CATEGORIES.map(c => {
@@ -139,7 +140,7 @@ export default function GroupCreateScreen({ navigation, route }) {
           })}
         </View>
 
-        {/* 지역 — 드롭다운 선택 (학교 동아리는 학교가 도시를 결정하므로 숨김) */}
+        {/* Location — a dropdown (hidden for school clubs, where the school decides the city) */}
         {!isSchoolContext && (
           <>
             <Text style={styles.label}>{t('group.cityLabel')}</Text>
@@ -156,7 +157,7 @@ export default function GroupCreateScreen({ navigation, route }) {
           </>
         )}
 
-        {/* 가입 방식 */}
+        {/* Join policy */}
         <Text style={styles.label}>{t('group.policyLabel')}</Text>
         <View style={styles.policyRow}>
           <TouchableOpacity
@@ -179,7 +180,7 @@ export default function GroupCreateScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
-        {/* 학교 컨텍스트에서 진입했으면 안내 배너만 표시 (토글 없음 — 자동으로 학교 동아리) */}
+        {/* Arriving from a school context shows only a banner (no toggle — it is automatically a school club) */}
         {isSchoolContext && user?.university && (
           <View style={styles.schoolToggleBox}>
             <Text style={styles.schoolToggleLabel}><Ionicons name="school" size={13} color={colors.primary} /> 학교 동아리</Text>
@@ -203,7 +204,7 @@ export default function GroupCreateScreen({ navigation, route }) {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* 도시 선택 모달 */}
+      {/* City picker modal */}
       <Modal visible={cityModalOpen} animationType="slide" transparent onRequestClose={() => setCityModalOpen(false)}>
         <View style={styles.cityModalOverlay}>
           <View style={styles.cityModalSheet}>
@@ -290,7 +291,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   submitText: { color: colors.white, fontSize: 15, fontWeight: '700' },
 
-  // 도시 드롭다운
+  // City dropdown
   cityDropdown: {
     backgroundColor: colors.inputBg, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -299,7 +300,7 @@ const createStyles = (colors) => StyleSheet.create({
   cityDropdownText: { fontSize: 14, color: colors.text },
   cityDropdownPlaceholder: { color: colors.textSecondary },
 
-  // 도시 선택 모달
+  // City picker modal
   cityModalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end',
   },

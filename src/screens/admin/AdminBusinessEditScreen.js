@@ -4,7 +4,8 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, TextInput } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
@@ -20,7 +21,7 @@ const STATUSES = [
   { key: 'rejected', label: '거절' },
 ];
 
-// 관리자 — 업체 전체 편집 (모든 필드 + 상태 + 수동 좌표)
+// Admin — full business editor (every field, plus status and manual coordinates)
 export default function AdminBusinessEditScreen({ navigation, route }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -74,7 +75,7 @@ export default function AdminBusinessEditScreen({ navigation, route }) {
 
   const onSave = async () => {
     if (!canSave) return;
-    // 좌표: 둘 다 비면 미지정(주소 지오코딩), 하나만 채우면 경고
+    // Coordinates: leaving both empty means unset (geocode the address); filling only one warns
     const latTrim = lat.trim(), lngTrim = lng.trim();
     if ((latTrim && !lngTrim) || (!latTrim && lngTrim)) {
       Alert.alert('좌표 확인', '위도·경도는 둘 다 입력하거나 둘 다 비워주세요.');
@@ -146,7 +147,7 @@ export default function AdminBusinessEditScreen({ navigation, route }) {
           contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40, gap: 18 }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* 상태 */}
+          {/* Status */}
           <Field label="상태">
             <View style={{ flexDirection: 'row', gap: 7 }}>
               {STATUSES.map((s) => {
@@ -165,12 +166,12 @@ export default function AdminBusinessEditScreen({ navigation, route }) {
             </View>
           </Field>
 
-          {/* 업체명 */}
+          {/* Name */}
           <Field label="업체명" required>
             <TextInput value={name} onChangeText={setName} placeholder="업체명" placeholderTextColor={colors.textSecondary} style={styles.input} maxLength={100} />
           </Field>
 
-          {/* 카테고리 */}
+          {/* Category */}
           <Field label="카테고리" required>
             <View style={styles.chipWrap}>
               {BUSINESS_CATEGORIES.map((c) => {
@@ -190,7 +191,7 @@ export default function AdminBusinessEditScreen({ navigation, route }) {
             </View>
           </Field>
 
-          {/* 도시 */}
+          {/* City */}
           <Field label="도시" required>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
               {BUSINESS_CITIES.map((c) => {
@@ -209,23 +210,23 @@ export default function AdminBusinessEditScreen({ navigation, route }) {
             </View>
           </Field>
 
-          {/* 주소 */}
+          {/* Address */}
           <Field label="주소" required>
             <TextInput value={address} onChangeText={setAddress} placeholder="예: 691 Bloor St W, Toronto" placeholderTextColor={colors.textSecondary} style={styles.input} maxLength={200} />
             <Text style={styles.hint}>주소를 바꾸면 좌표를 자동으로 다시 찾아요.</Text>
           </Field>
 
-          {/* 전화번호 */}
+          {/* Phone */}
           <Field label="전화번호" optional>
             <TextInput value={phone} onChangeText={setPhone} placeholder="예: (416) 000-0000" placeholderTextColor={colors.textSecondary} style={styles.input} keyboardType="phone-pad" maxLength={40} />
           </Field>
 
-          {/* 영업시간 */}
+          {/* Hours */}
           <Field label="영업시간" optional>
             <TextInput value={hours} onChangeText={setHours} placeholder="예: 매일 11:00–21:00" placeholderTextColor={colors.textSecondary} style={styles.input} maxLength={120} />
           </Field>
 
-          {/* 소개 */}
+          {/* Description */}
           <Field label="소개" optional>
             <TextInput
               value={description}
@@ -238,7 +239,7 @@ export default function AdminBusinessEditScreen({ navigation, route }) {
             />
           </Field>
 
-          {/* 사진 */}
+          {/* Photos */}
           <Field label="사진" optional>
             <View style={styles.photoRow}>
               {images.map((url) => (
@@ -264,7 +265,7 @@ export default function AdminBusinessEditScreen({ navigation, route }) {
             </View>
           </Field>
 
-          {/* 좌표 (수동) */}
+          {/* Coordinates (manual) */}
           <Field label="좌표 (수동)" optional>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TextInput value={lat} onChangeText={setLat} placeholder="위도 (예: 43.65)" placeholderTextColor={colors.textSecondary} style={[styles.input, { flex: 1 }]} keyboardType="numbers-and-punctuation" />

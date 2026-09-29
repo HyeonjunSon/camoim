@@ -7,8 +7,8 @@ import { rt } from './runtimeLang';
 const BASE_URL = API_BASE_URL;
 const APP_VERSION = Constants.expoConfig?.version || Constants.manifest?.version || '1.0.0';
 
-// snake_case 객체를 재귀적으로 camelCase로 변환 (_id → id 포함)
-// export는 유닛 테스트용 — 앱 코드에서는 request()가 내부적으로만 사용한다.
+// Recursively converts snake_case objects to camelCase (including _id → id)
+// Exported for unit tests — app code only ever reaches it through request().
 export function toCamel(obj) {
   if (Array.isArray(obj)) return obj.map(toCamel);
   if (obj !== null && typeof obj === 'object') {
@@ -22,13 +22,13 @@ export function toCamel(obj) {
   return obj;
 }
 
-// 공통 요청 함수 - 토큰 자동 첨부, 오류 처리 포함
+// Shared request helper — attaches the token and handles errors
 async function request(method, path, body) {
   const token = await getToken();
   const headers = { 'Content-Type': 'application/json', 'x-app-version': APP_VERSION };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  // RN Hermes는 AbortSignal.timeout 미지원 → AbortController로 수동 구현
+  // RN Hermes has no AbortSignal.timeout, so this is done by hand with AbortController
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 20_000);
   let res;
@@ -50,27 +50,28 @@ async function request(method, path, body) {
 
   const data = await res.json();
 
-  // 응답이 실패인 경우 에러 throw
+  // Throw on a failed response
   if (!res.ok) {
     handleResponseCode(data);
     const err = new Error(data.message || rt('common.requestFailed'));
+    err.status = res.status; // Used to tell an auth failure (401) apart from a server or network error (lib/session.js)
     err.code = data.code;
-    err.debug = data.debug; // 디버그 정보 (서버가 제공한 경우)
+    err.debug = data.debug; // Debug details, when the server supplied them
     throw err;
   }
 
-  // snake_case → camelCase 자동 변환
+  // Automatic snake_case to camelCase conversion
   return toCamel(data);
 }
 
-// 인증 API
+// Auth API
 export const register = (email, password, nickname, role, city) =>
   request('POST', '/auth/register', { email, password, nickname, role, city });
 export const login = (email, password) =>
   request('POST', '/auth/login', { email, password });
 export const logout = () => request('POST', '/auth/logout');
 export const getMe = () => request('GET', '/auth/me');
-// password (이메일 가입자) OR confirmText (소셜 전용 가입자가 닉네임 재입력)
+// password (email signups) OR confirmText (social-only signups retyping their nickname)
 export const deleteMyAccount = ({ password, reason, confirmText } = {}) =>
   request('DELETE', '/auth/me', { password, reason, confirmText });
 export const checkNickname = (nickname) =>
@@ -87,21 +88,21 @@ export const verifyResetCode = (email, code) =>
 export const resetPassword = (email, code, newPassword) =>
   request('POST', '/auth/reset-password', { email, code, newPassword });
 
-// 소셜 로그인 — Apple
+// Social login — Apple
 export const appleLogin = (identityToken) =>
   request('POST', '/auth/apple', { identityToken });
 
-// 소셜 로그인 — Google
+// Social login — Google
 export const googleLogin = (idToken) =>
   request('POST', '/auth/google', { idToken });
 
-// 소셜 가입 onboarding 완료
+// Social signup onboarding complete
 export const socialComplete = (preRegToken, nickname, role, city) =>
   request('POST', '/auth/social-complete', { preRegToken, nickname, role, city });
 export const checkEmailCode = (email, code) =>
   request('POST', '/auth/check-code', { email, code });
 
-// 게시판 API
+// Board API
 export const getBoards = () => request('GET', '/boards');
 export const getUniversityBoards = () => request('GET', '/boards/university');
 export const getBoardPosts = (boardId, page = 1, { search, sort, city, tradeStatus } = {}) => {
@@ -112,7 +113,7 @@ export const getBoardPosts = (boardId, page = 1, { search, sort, city, tradeStat
   if (tradeStatus) params.append('tradeStatus', tradeStatus);
   return request('GET', `/boards/${boardId}/posts?${params}`);
 };
-// 통합 검색 — 게시글 + 모임 + 사용자
+// Unified search — posts, groups and users
 export const unifiedSearch = (q, { type = 'all', limit = 20 } = {}) => {
   const params = new URLSearchParams({ q, type, limit: String(limit) });
   return request('GET', `/search?${params}`);
@@ -128,15 +129,15 @@ export const setTradeStatus = (postId, status) =>
 export const likePost = (postId) => request('POST', `/posts/${postId}/like`);
 export const bookmarkPost = (postId) => request('POST', `/posts/${postId}/bookmark`);
 
-// 리치 에디터용 단일 이미지 업로드 → 서버 URL 반환
-// 진행률 트래킹을 위해 XHR 사용 (fetch는 upload progress 미지원)
+// Single image upload for the rich editor, returning the server URL
+// Uses XHR to track progress (fetch has no upload progress)
 // onProgress: (percent: 0~100) => void
 function uploadWithProgress({ url, formData, token, onProgress }) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url);
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    // RN FormData는 Content-Type을 자동 설정 (boundary 포함)
+    // RN FormData sets Content-Type itself, boundary included
     xhr.upload.onprogress = (evt) => {
       if (!evt.lengthComputable || !onProgress) return;
       const pct = Math.round((evt.loaded / evt.total) * 100);
@@ -172,7 +173,7 @@ export const uploadPostImage = async (asset, onProgress) => {
   });
 };
 
-// 아바타 업로드 → Cloudinary URL 반환
+// Avatar upload, returning the Cloudinary URL
 export const uploadAvatar = async (asset) => {
   const token = await getToken();
   const formData = new FormData();
@@ -191,27 +192,29 @@ export const uploadAvatar = async (asset) => {
   return toCamel(data);
 };
 
-// 홈 최신 피드
+// Home latest feed
 export const getHomeFeed = (page = 1, city = '') =>
   request('GET', `/posts/feed?page=${page}${city ? `&city=${encodeURIComponent(city)}` : ''}`);
 
-// 홈 인기 피드 (최근 48시간 기준)
+// Home hot feed (last 48 hours)
 export const getHotFeed = (page = 1, city = '') =>
   request('GET', `/posts/hot?page=${page}${city ? `&city=${encodeURIComponent(city)}` : ''}`);
 
-// 게시판별 인기글 (인기 탭 섹션용)
-export const getHotByBoard = (city = '') =>
-  request('GET', `/posts/hot-by-board?limit=4${city ? `&city=${encodeURIComponent(city)}` : ''}`);
+// Hot posts per board (for the home hot section)
+// Home uses only the 5 highest-ranked posts across all boards, so top=5 makes the server send just those
+// (without top it returns 4 per board, up to 52 and ~47KB — 90% of which was thrown away)
+export const getHotByBoard = (city = '', top = 5) =>
+  request('GET', `/posts/hot-by-board?limit=4&top=${top}${city ? `&city=${encodeURIComponent(city)}` : ''}`);
 
-// 게시판별 최근 글 1개 (게시판 목록 미리보기용)
+// The single latest post per board (for the board list preview)
 export const getLatestByBoard = () =>
   request('GET', '/posts/latest-by-board');
 
-// 홈 섹션별 데이터 (자유/장터/구인 최신글)
+// Per-section home data (free board, marketplace, jobs)
 export const getHomeSections = (city = '') =>
   request('GET', `/posts/home-sections${city ? `?city=${encodeURIComponent(city)}` : ''}`);
 
-// 댓글 API
+// Comment API
 export const getComments = (postId) =>
   request('GET', `/posts/${postId}/comments`);
 export const addComment = (postId, data) =>
@@ -223,7 +226,7 @@ export const deleteComment = (postId, commentId) =>
 export const editComment = (postId, commentId, content) =>
   request('PATCH', `/posts/${postId}/comments/${commentId}`, { content });
 
-// 유저 API
+// User API
 export const getMyPosts = (page = 1) =>
   request('GET', `/users/me/posts?page=${page}`);
 export const getLikedPosts = (page = 1) =>
@@ -233,7 +236,7 @@ export const getBookmarkedPosts = (page = 1) =>
 export const updateProfile = (data) => request('PUT', '/users/me', data);
 export const getUserProfile = (userId) => request('GET', `/users/${userId}`);
 
-// 알림 API
+// Notification API
 export const getNotifications = () => request('GET', '/notifications');
 export const getUnreadCount = () => request('GET', '/notifications/unread-count');
 export const markNotificationRead = (id) =>
@@ -241,15 +244,15 @@ export const markNotificationRead = (id) =>
 export const markAllNotificationsRead = () =>
   request('PUT', '/notifications/read-all');
 
-// 학교 리스트
+// School list
 export const getUniversities = () => request('GET', '/auth/universities');
 
-// 서류 인증 신청 API (multipart/form-data)
+// Document verification request API (multipart/form-data)
 export const applyVerify = async (formData) => {
   const token = await getToken();
   const headers = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  // Content-Type 헤더 직접 지정하지 않음 - fetch가 boundary 자동 설정
+  // The Content-Type header is deliberately unset — fetch fills in the boundary
   const res = await fetch(`${BASE_URL}/verify/apply`, {
     method: 'POST',
     headers,
@@ -260,13 +263,13 @@ export const applyVerify = async (formData) => {
   return toCamel(data);
 };
 
-// 내 인증 신청 상태 조회
+// My verification request status
 export const getVerifyStatus = () => request('GET', '/verify/status');
 
-// 신고 API
+// Report API
 export const reportPost = (data) => request('POST', '/reports', data);
 
-// 관리자 API
+// Admin API
 export const getAdminVerifyRequests = (status = 'pending') =>
   request('GET', `/admin/verify-requests?status=${status}`);
 export const approveVerifyRequest = (id) =>
@@ -280,7 +283,7 @@ export const resolveReport = (id) =>
 export const dismissReport = (id) =>
   request('PUT', `/admin/reports/${id}/dismiss`);
 
-// 관리자 - 유저
+// Admin — users
 export const adminListUsers = (params = {}) => {
   const q = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') q.append(k, v); });
@@ -293,7 +296,7 @@ export const adminSetUserRole = (id, role) => request('PUT', `/admin/users/${id}
 export const adminEditUserProfile = (id, data) => request('PUT', `/admin/users/${id}/profile`, data);
 export const adminDeleteUser = (id, reason = '') => request('DELETE', `/admin/users/${id}`, { reason });
 
-// 관리자 - 콘텐츠
+// Admin — content
 export const adminListPosts = (params = {}) => {
   const q = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') q.append(k, v); });
@@ -306,7 +309,7 @@ export const adminMovePost = (id, boardId) => request('PUT', `/admin/posts/${id}
 export const adminDeletePost = (id, reason = '') => request('DELETE', `/admin/posts/${id}`, { reason });
 export const adminDeleteComment = (id) => request('DELETE', `/admin/comments/${id}`);
 
-// 관리자 - 게시판
+// Admin — boards
 export const adminListBoards = () => request('GET', '/admin/boards');
 export const adminCreateBoard = (data) => request('POST', '/admin/boards', data);
 export const adminUpdateBoard = (id, data) => request('PUT', `/admin/boards/${id}`, data);
@@ -319,7 +322,7 @@ export const adminDeleteUniversity = (id) => request('DELETE', `/admin/universit
 export const adminSetUniversityLeader = (userId, isLeader) =>
   request('PUT', `/admin/users/${userId}/university-leader`, { isLeader });
 
-// 관리자 - 통계 / 시스템 / 로그 / 푸시
+// Admin — stats, system, logs, push
 export const adminGetStats = () => request('GET', '/admin/stats');
 export const adminGetSettings = () => request('GET', '/admin/settings');
 export const adminUpdateSetting = (key, value) => request('PUT', `/admin/settings/${key}`, { value });
@@ -331,17 +334,17 @@ export const adminGetLogs = (params = {}) => {
 };
 export const adminBroadcastPush = (data) => request('POST', '/admin/push', data);
 
-// 푸시 토큰 등록
+// Push token registration
 export const registerPushToken = (pushToken) =>
   request('PUT', '/users/me/push-token', { pushToken });
 
-// 알림 설정
+// Notification settings
 export const getNotificationSettings = () =>
   request('GET', '/users/me/notifications');
 export const updateNotificationSettings = (patch) =>
   request('PATCH', '/users/me/notifications', patch);
 
-// 고객센터 / 문의
+// Support and inquiries
 export const createInquiry = (data) => request('POST', '/inquiries', data);
 export const getMyInquiries = () => request('GET', '/inquiries/me');
 export const getMyInquiry = (id) => request('GET', `/inquiries/me/${id}`);
@@ -355,22 +358,22 @@ export const adminListInquiries = (type = 'all', status = 'all') => {
 export const adminAnswerInquiry = (id, answer) =>
   request('PUT', `/inquiries/admin/${id}/answer`, { answer });
 
-// 공지사항
+// Announcements
 export const getNotices = () => request('GET', '/notices');
 export const getNotice = (id) => request('GET', `/notices/${id}`);
 export const createNotice = (data) => request('POST', '/notices', data);
 export const updateNotice = (id, data) => request('PUT', `/notices/${id}`, data);
 export const deleteNotice = (id) => request('DELETE', `/notices/${id}`);
 
-// 채팅 상태 확인
+// Check chat status
 export const checkChatStatus = (userId) =>
   request('GET', `/chats/check/${userId}`);
 
-// DM 방 생성 or 기존 방 반환 (targetUserId와의 1:1)
+// Create a DM room, or return the existing 1:1 with targetUserId
 export const startChat = (targetUserId) =>
   request('POST', '/chats', { targetUserId });
 
-// 차단
+// Blocking
 export const getMyBlocks = () =>
   request('GET', '/users/me/blocks');
 export const getBlockStatus = (userId) =>
@@ -380,7 +383,7 @@ export const setBlock = (userId, { blockChat, hideContent }) =>
 export const unblockUser = (userId) =>
   request('DELETE', `/users/${userId}/block`);
 
-// 모임 (Groups)
+// Groups
 export const getGroups = ({ box = 'all', category, city, q, sort = 'popular', page = 1, university, excludeUniversity } = {}) => {
   const params = new URLSearchParams({ box, sort, page: String(page) });
   if (category) params.set('category', category);
@@ -417,7 +420,7 @@ export const setGroupNotifications = (groupId, { notifyPosts, notifyChat }) =>
 export const updateGroupCommunity = (groupId, data) =>
   request('PUT', `/groups/${groupId}/community`, data);
 
-// 글쓰기 임시저장 (드래프트)
+// Post drafts
 export const listDrafts = () => request('GET', '/drafts');
 export const createDraft = (data) => request('POST', '/drafts', data);
 export const updateDraft = (id, data) => request('PUT', `/drafts/${id}`, data);
@@ -452,7 +455,7 @@ export const uploadGroupCover = async (groupId, asset) => {
   return toCamel(await res.json());
 };
 
-// 관리자 — 모임 승인
+// Admin — group approval
 export const adminGetGroups = (status = 'pending_review') =>
   request('GET', `/admin/groups?status=${encodeURIComponent(status)}`);
 export const adminApproveGroup = (groupId) =>
@@ -462,7 +465,7 @@ export const adminRejectGroup = (groupId, reason) =>
 export const adminCloseGroup = (groupId) =>
   request('DELETE', `/admin/groups/${groupId}`);
 
-// 한인 업체 지도 (Businesses)
+// Korean business map
 export const getBusinesses = ({ city, category, near } = {}) => {
   const params = new URLSearchParams();
   if (city) params.set('city', city);
@@ -475,12 +478,12 @@ export const getBusiness = (id) => request('GET', `/businesses/${id}`);
 export const createBusiness = (data) => request('POST', '/businesses', data);
 export const toggleBusinessBookmark = (id) => request('POST', `/businesses/${id}/bookmark`);
 export const reportBusiness = (id, reason) => request('POST', `/businesses/${id}/report`, { reason });
-// 오늘 방문자 수 (공개 지표)
+// Today's visitor count (a public metric)
 export const getTodayVisitors = () => request('GET', '/stats/today-visitors');
-// 이번 주 인기 TOP 5 (주간 조회수 기준)
+// This week's top 5 (by weekly views)
 export const getTrendingBusinesses = (city) =>
   request('GET', `/businesses/trending${city ? `?city=${city}` : ''}`);
-// 리뷰 — 별점(1~5) + 한줄평, 업체당 1인 1리뷰
+// Reviews — 1-5 stars plus a one-liner, one per user per business
 export const getBusinessReviews = (id) => request('GET', `/businesses/${id}/reviews`);
 export const upsertBusinessReview = (id, { rating, text }) =>
   request('POST', `/businesses/${id}/reviews`, { rating, text });
@@ -504,7 +507,7 @@ export const uploadBusinessImage = async (asset, onProgress) => {
   });
 };
 
-// 숙소 지도 (Stays) — 유저 등록형 마켓플레이스
+// Stay map — a user-run marketplace
 export const getStays = ({ city, type, near } = {}) => {
   const params = new URLSearchParams();
   if (city) params.set('city', city);
@@ -539,7 +542,7 @@ export const uploadStayImage = async (asset, onProgress) => {
   });
 };
 
-// 관리자 — 업체 승인/관리
+// Admin — business approval and management
 export const adminListBusinesses = (status) =>
   request('GET', `/admin/businesses${status ? `?status=${status}` : ''}`);
 export const adminUpdateBusiness = (id, data) => request('PUT', `/admin/businesses/${id}`, data);

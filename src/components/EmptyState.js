@@ -1,17 +1,18 @@
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Text } from './StyledText';
 import { useTheme } from '../context/ThemeContext';
 
-// 일관된 빈 상태 UI — 아이콘/이모지 + 제목 + 설명 + (선택) CTA 버튼
+// Consistent empty-state UI — icon/emoji + title + description + an optional CTA
 export default function EmptyState({
-  icon,             // Ionicons name (선택)
-  emoji,            // 이모지 (icon 대신, 선택)
-  title,            // 제목 (필수)
-  description,      // 부연 설명 (선택)
-  ctaLabel,         // CTA 버튼 라벨 (선택)
-  onCtaPress,       // CTA onPress (ctaLabel과 함께)
-  compact = false,  // 작은 버전 (FlatList ListEmptyComponent 등)
+  icon,             // Ionicons name (optional)
+  emoji,            // Emoji, as an alternative to icon (optional)
+  title,            // Title (required)
+  description,      // Supporting description (optional)
+  ctaLabel,         // CTA button label (optional)
+  onCtaPress,       // CTA onPress (paired with ctaLabel)
+  compact = false,  // Compact variant (for FlatList ListEmptyComponent and the like)
 }) {
   const { colors } = useTheme();
   const styles = createStyles(colors, compact);

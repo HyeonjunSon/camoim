@@ -1,4 +1,4 @@
-// 서버 응답 코드에 따른 글로벌 상태 (점검/강제업데이트/차단/정지)
+// Global state driven by server response codes (maintenance, forced update, blocked, suspended)
 const listeners = new Set();
 let current = null; // { code, message, minVersion? }
 
@@ -22,7 +22,7 @@ export function subscribeSystemStatus(fn) {
   return () => listeners.delete(fn);
 }
 
-// 서버 응답 코드 → 글로벌 상태로 격상해야 하는지 판별
+// Decides whether a server response code should escalate to global state
 const BLOCKING_CODES = new Set([
   'MAINTENANCE',
   'UPDATE_REQUIRED',

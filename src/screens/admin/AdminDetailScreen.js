@@ -97,7 +97,7 @@ export default function AdminDetailScreen({ route, navigation }) {
     >
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* 유저 정보 */}
+        {/* User details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('admin.applicantInfo')}</Text>
           <View style={styles.infoRow}>
@@ -126,7 +126,7 @@ export default function AdminDetailScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* 첨부 서류 */}
+        {/* Attached documents */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('admin.docAttached')}</Text>
           {request.fileUrl ? (
@@ -140,7 +140,7 @@ export default function AdminDetailScreen({ route, navigation }) {
           )}
         </View>
 
-        {/* 승인/거절 버튼 (대기중일 때만) */}
+        {/* Approve/reject buttons (only while pending) */}
         {isPending && !loading && (
           <View style={styles.actionSection}>
             <TouchableOpacity
@@ -192,7 +192,7 @@ export default function AdminDetailScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* 이미 처리된 경우 */}
+        {/* Already handled */}
         {!isPending && (
           <View style={styles.doneBox}>
             <Text style={styles.doneText}>

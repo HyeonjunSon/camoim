@@ -12,7 +12,8 @@ import {
   Keyboard,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
@@ -23,16 +24,18 @@ import { getToken } from '../../lib/storage';
 import { API_BASE_URL } from '../../lib/config';
 import Avatar from '../../components/common/Avatar';
 import CustomHeader from '../../components/CustomHeader';
+import { trackTiming } from '../../lib/perf';
 
 export default function ChatRoomScreen({ route, navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
   const { roomId, other, group } = route.params;
-  // group/school 모두 N명 채팅이라 동일 UI 패턴 사용
+  // group and school are both N-person rooms, so they share one UI pattern
   const isGroupChat = route.params?.kind === 'group' || route.params?.kind === 'school' || !!group;
   const isSchoolChat = route.params?.kind === 'school';
   const { user: me } = useAuth();
+  const pendingSends = useRef(new Map()); // content → emit timestamp (perf_chat_rtt)
   const { t } = useLang();
   const insets = useSafeAreaInsets();
 
@@ -45,7 +48,7 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [otherLeft, setOtherLeft] = useState(route.params?.otherLeft ?? false);
   const [otherDeleted, setOtherDeleted] = useState(route.params?.otherDeleted ?? false);
   const [schoolLeaderId, setSchoolLeaderId] = useState(null);
-  // 키보드 가시성 추적 — 키보드 열렸을 때는 safe-area inset 제외해서 입력바와 키보드 사이 여백 제거
+  // Track keyboard visibility — with the keyboard up, the safe-area inset is dropped so no gap sits between the input bar and the keyboard
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -54,20 +57,20 @@ export default function ChatRoomScreen({ route, navigation }) {
     const h = Keyboard.addListener(hideEvt, () => setKeyboardVisible(false));
     return () => { s.remove(); h.remove(); };
   }, []);
-  // Android edgeToEdge에서 insets.bottom이 0으로 잡히는 경우가 있어서 최소 32px 보장
-  // (gesture indicator / 시스템 nav bar 영역 + 시각적 여백)
+  // Android edgeToEdge sometimes reports insets.bottom as 0, so a 32px floor is enforced
+  // (the gesture indicator / system nav bar area, plus visual breathing room)
   const safeBottom = Platform.OS === 'android' ? Math.max(insets.bottom, 32) : insets.bottom;
   const inputBarBottomPad = 8 + (keyboardVisible ? 0 : safeBottom);
   const { on, off, emit, joinRoom, leaveRoom, setActiveRoom } = useSocket();
   const flatListRef = useRef(null);
 
-  // 헤더 — DM/그룹 모두 native 끄고 커스텀 헤더 사용 (iOS native bar의
-  // 좌/우 버튼 자동 캡슐 래핑이 우리 캡슐과 충돌해 이중 동그라미가 보였음)
+  // Header — both DM and group turn the native bar off in favour of CustomHeader (the iOS
+  // native bar auto-wraps its left/right buttons in capsules, which collided with ours and showed a double circle)
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, []);
 
-  // 메시지 불러오기 + 소켓 — 포커스마다 재실행해 stale/empty 응답 자동 복구
+  // Load messages and wire the socket — re-run on every focus, which self-heals stale or empty responses
   useFocusEffect(useCallback(() => {
     let mounted = true;
 
@@ -104,14 +107,22 @@ export default function ChatRoomScreen({ route, navigation }) {
 
     loadMessages();
 
-    // 글로벌 소켓으로 방 입장 + 읽음 처리
+    // Join the room over the global socket and mark it read
     joinRoom(roomId);
     setActiveRoom(roomId);
     emit('read_messages', { roomId });
 
-    // 새 메시지 수신 (이 방 것만 처리)
+    // Incoming message (only this room's)
     on('new_message', `chatRoom_${roomId}`, (msg) => {
       if (String(msg.roomId) !== String(roomId)) return;
+      // When it is the echo of my own message, record the send round trip (the server returns trimmed content)
+      if (String(msg.senderId) === String(me?.id)) {
+        const sentAt = pendingSends.current.get(msg.content);
+        if (sentAt != null) {
+          pendingSends.current.delete(msg.content);
+          trackTiming('perf_chat_rtt', Date.now() - sentAt, { kind: msg.kind || 'dm' });
+        }
+      }
       setMessages(prev => [...prev, msg]);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
       if (String(msg.senderId) !== String(me?.id)) {
@@ -119,7 +130,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       }
     });
 
-    // 상대방이 읽었을 때
+    // When the other party reads
     on('messages_read', `chatRoom_${roomId}`, ({ readerId, roomId: rid }) => {
       if (rid && String(rid) !== String(roomId)) return;
       setMessages(prev => prev.map(m => {
@@ -130,13 +141,13 @@ export default function ChatRoomScreen({ route, navigation }) {
       }));
     });
 
-    // 상대방이 나간 경우 실시간 감지
+    // Detect the other party leaving, live
     on('room_left', `chatRoom_${roomId}`, ({ roomId: rid }) => {
       if (String(rid) !== String(roomId)) return;
       setOtherLeft(true);
     });
 
-    // 전송 에러
+    // Send error
     on('send_error', `chatRoom_${roomId}`, (err) => {
       Alert.alert(t('chat.sendFailed'), err?.message ?? t('common.error'));
     });
@@ -157,6 +168,9 @@ export default function ChatRoomScreen({ route, navigation }) {
     if (!content || sending) return;
     setText('');
     setSending(true);
+    // For round-trip timing — identical messages sent back to back match the earliest one (old entries are pruned)
+    if (!pendingSends.current.has(content)) pendingSends.current.set(content, Date.now());
+    if (pendingSends.current.size > 20) pendingSends.current.delete(pendingSends.current.keys().next().value);
     emit('send_message', { roomId, content });
     setSending(false);
   }
@@ -213,7 +227,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       });
       const data = await res.json();
       if (data.success) {
-        // 새 채팅방으로 이동
+        // Navigate to the new chat room
         navigation.replace('ChatRoom', { roomId: data.data.id, other: data.data.other, status: data.data.status, isRequester: data.data.isRequester });
       } else {
         Alert.alert(t('common.error'), data.message);
@@ -227,20 +241,20 @@ export default function ChatRoomScreen({ route, navigation }) {
     const isMine = String(item.senderId) === String(me?.id);
     const prevItem = messages[index - 1];
     const showAvatar = !isMine && String(prevItem?.senderId) !== String(item.senderId);
-    // 1:1 채팅에서 상대가 아직 안 읽었으면 "1" 표시 (그룹은 표시 안 함)
+    // In a 1:1 chat, show "1" while the other party has not read it (never in groups)
     const unreadCount = (!isGroupChat && isMine && item.readBy)
       ? (item.readBy.some(id => String(id) === String(other?.id)) ? 0 : 1)
       : 0;
     const senderName = item.senderNickname || (other?.nickname ?? '');
-    // 그룹/학교 채팅에서만 sender 프로필 탭 허용 (탈퇴/null sender 가드)
+    // Sender profiles are tappable only in group and school chats (guarded against deleted and null senders)
     const canTapSender = isGroupChat && !isMine && !!item.senderId;
     const openSenderProfile = () => {
       if (canTapSender) navigation.push('UserProfile', { userId: String(item.senderId) });
     };
-    // 학교 채팅에서 발신자가 그 학교 학생회장이면 ⭐ 배지
+    // ⭐ badge when a school chat sender is that school's student president
     const senderIsLeader = isSchoolChat && !!schoolLeaderId && String(item.senderId) === schoolLeaderId;
 
-    // 같은 발신자가 연속 메시지면 시간 표시 압축 — 같은 분 안의 마지막 메시지에만 시간 노출 (카톡 스타일)
+    // Consecutive messages from one sender collapse their timestamps — only the last message within a minute shows one (KakaoTalk style)
     const nextItem = messages[index + 1];
     const sameMinute = (a, b) => {
       if (!a || !b) return false;
@@ -258,7 +272,7 @@ export default function ChatRoomScreen({ route, navigation }) {
 
     const timeStr = new Date(item.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
 
-    // 발신자 이름 (그룹/학교 채팅, 같은 발신자가 처음 등장할 때만)
+    // Sender name (group and school chats, only the first time that sender appears)
     const senderHeader = !isMine && showAvatar && (
       canTapSender
         ? <TouchableOpacity onPress={openSenderProfile} activeOpacity={0.7}>
@@ -287,7 +301,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         <View style={[styles.bubbleColumn, isMine ? styles.bubbleColumnRight : styles.bubbleColumnLeft]}>
           {senderHeader}
           <View style={[styles.bubbleRow, isMine ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
-            {/* 내 메시지: 시간이 버블 좌측 */}
+            {/* My messages: timestamp to the left of the bubble */}
             {isMine && showTime && (
               <View style={styles.timeBox}>
                 {unreadCount > 0 && <Text style={styles.unreadBadge}>{unreadCount}</Text>}
@@ -297,7 +311,7 @@ export default function ChatRoomScreen({ route, navigation }) {
             <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleOther]}>
               <Text selectable style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{item.content}</Text>
             </View>
-            {/* 상대 메시지: 시간이 버블 우측 */}
+            {/* Their messages: timestamp to the right of the bubble */}
             {!isMine && showTime && (
               <View style={styles.timeBox}>
                 <Text style={styles.bubbleTime}>{timeStr}</Text>
@@ -313,11 +327,11 @@ export default function ChatRoomScreen({ route, navigation }) {
     return <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>;
   }
 
-  // 커스텀 채팅 헤더 — DM/그룹 모두 동일 디자인 (정중앙 제목 + iOS 26 글래스 캡슐)
+  // Custom chat header — one design for DMs and groups (centred title plus an iOS 26 glass capsule)
   const headerTitle = isGroupChat
     ? (group?.name || t('chat.tabChats'))
     : (otherDeleted ? t('chat.deletedUser') : (other?.nickname ?? t('chat.tabChats')));
-  // 학교 전체 채팅은 별도 detail 페이지 없음 → 우측 액션 숨김
+  // School-wide chat has no detail page, so the right action is hidden
   const showRightAction = isSchoolChat
     ? false
     : isGroupChat
@@ -356,8 +370,8 @@ export default function ChatRoomScreen({ route, navigation }) {
         keyExtractor={(item, idx) => item.id ?? String(idx)}
         renderItem={renderMessage}
         contentContainerStyle={styles.listContent}
-        // 콘텐츠 크기 변할 때 + 다음 frame에서 한번 더 — 변동성 있는 bubble 높이로
-        // scrollToEnd가 layout 잡히기 전에 실행돼 마지막 메시지가 잘리는 문제 회피
+        // On content size change, and again on the next frame — variable bubble heights meant
+        // scrollToEnd could run before layout settled and clip the last message
         onContentSizeChange={() => {
           flatListRef.current?.scrollToEnd({ animated: false });
           requestAnimationFrame(() => {
@@ -367,9 +381,9 @@ export default function ChatRoomScreen({ route, navigation }) {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* 하단 영역: 상태에 따라 다름 */}
+      {/* Bottom area: depends on the state */}
       {isGroupChat ? (
-        // 그룹 채팅 — 항상 입력 바
+        // Group chat — always an input bar
         <View style={[styles.inputBar, { paddingBottom: inputBarBottomPad }]}>
           <TextInput
             testID="chat-input"
@@ -395,7 +409,7 @@ export default function ChatRoomScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       ) : status === 'pending' && !isRequester ? (
-        // 수신자: 수락/거절 버튼
+        // Recipient: accept/decline buttons
         <View style={[styles.requestBar, { paddingBottom: 14 + safeBottom }]}>
           <Text style={styles.requestNotice}>
             {(other?.nickname ?? '') + t('chat.requested')}
@@ -410,7 +424,7 @@ export default function ChatRoomScreen({ route, navigation }) {
           </View>
         </View>
       ) : status === 'pending' && isRequester ? (
-        // 요청자: 아직 메시지 안 보냈으면 입력바 + 안내, 보냈으면 대기 안내만
+        // Requester: input bar plus a note before sending, just the waiting note afterwards
         messages.some(m => String(m.senderId) === String(me?.id)) ? (
           <View style={[styles.pendingBar, { paddingBottom: 14 + safeBottom }]}>
             <Text style={styles.pendingText}>
@@ -451,13 +465,13 @@ export default function ChatRoomScreen({ route, navigation }) {
           </View>
         )
       ) : otherDeleted ? (
-        // 상대방이 계정 탈퇴한 경우 — 재요청 불가
+        // The other party deleted their account — no new request possible
         <View style={[styles.leftBar, { paddingBottom: 16 + safeBottom }]}>
           <Text style={styles.leftText}>{t('chat.otherDeleted')}</Text>
           <Text style={styles.leftHint}>{t('chat.otherDeletedHint')}</Text>
         </View>
       ) : otherLeft ? (
-        // 상대방이 채팅방에서 나간 경우 — 재요청 가능
+        // The other party left the room — a new request is possible
         <View style={[styles.leftBar, { paddingBottom: 16 + safeBottom }]}>
           <Text style={styles.leftText}>{t('chat.otherLeft')}</Text>
           <Text style={styles.leftHint}>{t('chat.otherLeftHint')}</Text>
@@ -466,7 +480,7 @@ export default function ChatRoomScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       ) : (
-        // 일반 입력 바
+        // Ordinary input bar
         <View style={[styles.inputBar, { paddingBottom: inputBarBottomPad }]}>
           <TextInput
             testID="chat-input"
@@ -499,7 +513,7 @@ export default function ChatRoomScreen({ route, navigation }) {
 const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  // 마지막 메시지 잘림 방지 — 입력바 위에 충분한 여백
+  // Keeps the last message from being clipped — enough room above the input bar
   listContent: { padding: 12, gap: 6, paddingBottom: 20 },
 
 
@@ -509,7 +523,7 @@ const createStyles = (colors) => StyleSheet.create({
   avatarPlaceholder: { width: 8 },
   avatarSpacer: { width: 28 },
 
-  // 카톡 스타일: 발신자 이름은 버블 위, 시간은 버블 옆 (밖)
+  // KakaoTalk style: sender name above the bubble, timestamp beside it (outside)
   bubbleColumn: { maxWidth: '78%' },
   bubbleColumnLeft: { alignItems: 'flex-start' },
   bubbleColumnRight: { alignItems: 'flex-end' },
@@ -536,7 +550,7 @@ const createStyles = (colors) => StyleSheet.create({
   bubbleText: { fontSize: 14.5, color: colors.text, lineHeight: 20 },
   bubbleTextMine: { color: colors.white },
 
-  // 버블 밖 시간 박스
+  // Timestamp box outside the bubble
   timeBox: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 3,
     marginBottom: 2,
@@ -576,7 +590,7 @@ const createStyles = (colors) => StyleSheet.create({
   sendBtnDisabled: { backgroundColor: colors.primary + '55' },
   sendBtnText: { fontSize: 13, fontWeight: '700', color: colors.white },
 
-  // 메시지 요청 수락/거절 바
+  // Message request accept/decline bar
   requestBar: {
     paddingHorizontal: 16,
     paddingVertical: 14,

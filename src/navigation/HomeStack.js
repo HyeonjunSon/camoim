@@ -18,7 +18,7 @@ import { colors } from '../constants/colors'
 
 const Stack = createNativeStackNavigator();
 
-// 홈 탭 스택 네비게이터
+// Home tab stack navigator
 export default function HomeStack() {
   const { colors } = useTheme();
   const { t } = useLang();
@@ -31,7 +31,7 @@ export default function HomeStack() {
         gestureEnabled: true,
       }}
     >
-      {/* 홈 피드는 자체 헤더(앱 이름 + 필터 칩)가 있으므로 네이티브 헤더 숨김 */}
+      {/* The home feed has its own header (app name + filter chips), so the native header is hidden */}
       <Stack.Screen name="HomeFeed" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false }} />
       <Stack.Screen name="BoardFeed" component={BoardFeedScreen} options={{ title: t('nav.boardFeed') }} />

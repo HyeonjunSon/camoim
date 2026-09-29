@@ -14,7 +14,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomHeader from '../../components/CustomHeader';
 import RenderHTML from 'react-native-render-html';
@@ -23,7 +24,7 @@ const isHtmlContent = (s) => typeof s === 'string' && /<\w+/.test(s);
 function absolutizeHtml(html) {
   if (!html) return '';
   let out = html;
-  // 과거 주입으로 박힌 ✕ 버튼/래퍼 제거
+  // Strip the ✕ buttons and wrappers left behind by an old injection
   out = out.replace(/<span[^>]*data-img-del[^>]*>[\s\S]*?<\/span>/gi, '');
   out = out.replace(/<span[^>]*data-img-wrap[^>]*>([\s\S]*?)<\/span>/gi, '$1');
   return out.replace(/src=["'](\/uploads\/[^"']+)["']/g, (m, p) => `src="${require('../../lib/config').SERVER_HOST}${p}"`);
@@ -75,7 +76,7 @@ function peelTextStyles(text) {
   return { value: s, bold, heading, align };
 }
 
-// content 문자열 + images 배열 → 순서 보존된 블록 배열
+// content string + images array → an ordered array of blocks
 function parseContentBlocks(content, images) {
   const pushText = (arr, raw) => {
     const trimmed = raw.replace(/^\n+|\n+$/g, '');
@@ -113,11 +114,11 @@ function parseContentBlocks(content, images) {
 const REPORT_KEYS = ['spam', 'hate', 'illegal', 'adult', 'etc'];
 const reportReasons = (t) => REPORT_KEYS.map(k => ({ key: k, label: t(`post.r_${k}`) }));
 
-// 댓글 단건 컴포넌트
+// Single comment component
 function CommentItem({ comment, isReply = false, onMore, onAvatarPress, onReply, editingId, editText, onEditChange, onEditSubmit, onEditCancel, t, styles }) {
   const isEditing = editingId === comment.id;
 
-  // 잠금 댓글 (마스킹된 경우)
+  // Locked comment (when masked)
   if (comment.isSecretMasked) {
     return (
       <View style={[styles.commentItem, isReply && styles.replyItem, styles.secretMaskedItem]}>
@@ -221,16 +222,16 @@ export default function BoardPostDetailScreen({ route, navigation }) {
   const [submitting, setSubmitting] = useState(false);
   const [isSecret, setIsSecret] = useState(false);
 
-  // 좋아요 상태
+  // Like state
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [likeBusy, setLikeBusy] = useState(false);
 
-  // 북마크 상태
+  // Bookmark state
   const [bookmarked, setBookmarked] = useState(false);
   const [bookmarkBusy, setBookmarkBusy] = useState(false);
 
-  // 이미지 뷰어
+  // Image viewer
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const allImageUris = useMemo(() => {
@@ -315,19 +316,19 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     if (res.success) setComments(res.data ?? []);
   };
 
-  // 답글 버튼
+  // Reply button
   const handleReply = (comment) => {
     setReplyTo({ id: comment.id, nickname: comment.nickname || t('common.anonymous') });
     inputRef.current?.focus();
   };
 
-  // 답글 취소
+  // Cancel reply
   const cancelReply = () => {
     setReplyTo(null);
     setCommentText('');
   };
 
-  // 댓글 고정
+  // Pin comment
   const handlePin = async (comment) => {
     try {
       const res = await pinComment(postId, comment.id);
@@ -337,7 +338,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     }
   };
 
-  // 댓글 전송
+  // Send comment
   const handleSubmitComment = async () => {
     if (!commentText.trim()) return;
     setSubmitting(true);
@@ -465,8 +466,8 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     ]);
   };
 
-  // 모임 글 + 그룹장/부그룹장이면 모더레이션 권한 추가
-  // 단, 작성자 본인일 땐 본인 글에 대해서는 글 수정/삭제만 가능 (고정은 모더레이션 행동)
+  // Group posts grant moderation rights to the owner and co-owners
+  // except that on their own post an author may only edit or delete it (pinning is a moderation action)
   const isGroupMod = post?.myGroupRole === 'owner' || post?.myGroupRole === 'manager';
   const canDelete = isPostAuthor || isGroupMod;
   const canPin = !!post?.groupId && isGroupMod && !isPostAuthor;
@@ -482,9 +483,9 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     }
   };
 
-  // 룸렌트·민박 글 → 지도 숙소로 등록 (작성자 전용). roomrent 글로벌 + 학교 roomrent 보드 모두.
+  // Room-rent and homestay posts can become a map stay (author only). Both the global roomrent board and school roomrent boards.
   const isRoomrentBoard = post?.boardSlug === 'roomrent' || String(post?.boardSlug || '').endsWith('-roomrent');
-  // 이 글로 이미 만든 숙소가 있으면 그 id (있으면 "보기", 없으면 "등록")
+  // The stay id already created from this post, if any (present → "view", absent → "list it")
   const [linkedStayId, setLinkedStayId] = useState(null);
   useFocusEffect(useCallback(() => {
     let alive = true;
@@ -493,16 +494,16 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     }
     return () => { alive = false; };
   }, [isPostAuthor, isRoomrentBoard, post?.id]));
-  // 등록 안 됐고 입주완료면 등록 버튼 숨김. 이미 등록됐으면 상태 무관하게 "보기" 노출
+  // Hide the create button once filled and not yet listed. Once listed, "view" shows regardless of status
   const showStayCta = isPostAuthor && isRoomrentBoard && (linkedStayId || post?.tradeStatus !== 'sold');
   const listOnStayMap = () => {
-    // 현재 탭 스택에서 열기 (지도 탭을 건드리지 않음 → 지도 탭이 StayCreate로 고정되는 버그 방지)
+    // Open within the current tab stack, leaving the map tab alone (this used to pin the map tab to StayCreate)
     navigation.navigate('StayCreate', {
       prefill: { title: post.title, city: post.city, images: post.images || [], content: post.content, sourcePostId: post.id },
     });
   };
 
-  // 거래 상태 토글 — 작성자 전용 (마켓 류 게시판에서만)
+  // Trade status toggle — author only, and only on marketplace boards
   const showTradeButton = isPostAuthor && isTradeBoard(post?.boardSlug);
   const isSold = post?.tradeStatus === 'sold';
   const toggleTradeStatus = async () => {
@@ -521,7 +522,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     }
   };
 
-  // 토글 전 확인 다이얼로그 — 실수 방지
+  // Confirmation dialog before toggling, to prevent mistakes
   const confirmToggleTradeStatus = () => {
     const next = isSold ? 'selling' : 'sold';
     const nextLabel = getTradeLabel(post.boardSlug, next, t);
@@ -535,7 +536,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     );
   };
 
-  // 작성자 차단 (익명 글이거나 본인 글이면 비활성)
+  // Block the author (disabled on anonymous posts and your own)
   const canBlockAuthor = !post?.isAnonymous && !!post?.userId && !isPostAuthor;
   const confirmBlockAuthor = () => {
     if (!canBlockAuthor) return;
@@ -593,13 +594,13 @@ export default function BoardPostDetailScreen({ route, navigation }) {
       block: '작성자 차단',
       cancel: t('common.cancel'),
     };
-    // 옵션 동적 구성
-    const opts = [L.share]; // 공유는 누구나
+    // Build the options dynamically
+    const opts = [L.share]; // Anyone can share
     if (isPostAuthor) opts.push(L.edit);
     if (canPin) opts.push(post.pinned ? L.unpin : L.pin);
     if (canDelete) opts.push(L.del);
-    if (!isPostAuthor) opts.push(L.report);     // 본인 글은 신고 불필요
-    if (canBlockAuthor) opts.push(L.block);     // 익명/본인 아닌 경우만
+    if (!isPostAuthor) opts.push(L.report);     // No need to report your own post
+    if (canBlockAuthor) opts.push(L.block);     // Only when it is neither anonymous nor your own
     opts.push(L.cancel);
     const cancelIdx = opts.length - 1;
     const delIdx = opts.indexOf(L.del);
@@ -660,10 +661,10 @@ export default function BoardPostDetailScreen({ route, navigation }) {
         keyboardShouldPersistTaps="handled"
       >
 
-        {/* ── 게시글 카드 */}
+        {/* ── Post card */}
         <View style={styles.postCard}>
 
-          {/* 게시판 태그 (왼쪽) + 거래 상태 (오른쪽 끝) */}
+          {/* Board tag (left) + trade status (far right) */}
           {(post.boardName || isTradeBoard(post.boardSlug)) && (
             <View style={styles.tagRow}>
               {post.boardName && (
@@ -707,10 +708,10 @@ export default function BoardPostDetailScreen({ route, navigation }) {
             </View>
           )}
 
-          {/* 제목 */}
+          {/* Title */}
           <Text selectable style={[styles.title, isSold && { color: colors.textSecondary }]}>{post.title}</Text>
 
-          {/* 룸렌트·민박 글 → 지도에 숙소로 등록 / 등록한 숙소 보기 (작성자) */}
+          {/* Room-rent and homestay posts → list as a stay on the map / view the listed stay (author) */}
           {showStayCta && (
             <TouchableOpacity
               style={styles.listMapBtn}
@@ -723,7 +724,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
             </TouchableOpacity>
           )}
 
-          {/* 작성자 행 */}
+          {/* Author row */}
           <TouchableOpacity
             style={styles.authorRow}
             activeOpacity={post.isAnonymous ? 1 : 0.7}
@@ -750,7 +751,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
 
           <View style={styles.sectionDivider} />
 
-          {/* 본문: HTML(리치 에디터) 또는 레거시 블록 */}
+          {/* Body: HTML (rich editor) or legacy blocks */}
           {isHtmlContent(post.content) ? (
             <View>
               <RenderHTML
@@ -797,10 +798,10 @@ export default function BoardPostDetailScreen({ route, navigation }) {
 
         </View>
 
-        {/* 본문이 짧을 때 scrap/like/댓글을 화면 하단으로 밀기 위한 flex spacer */}
+        {/* Flex spacer that pushes scrap/like/comments to the bottom when the body is short */}
         <View style={styles.bottomSpacer} />
 
-        {/* ── 스크랩 / 좋아요 큰 버튼 */}
+        {/* ── Large scrap / like buttons */}
         <View style={styles.likeBigWrap}>
           <TouchableOpacity
             style={[styles.likeBigBtn, bookmarked && styles.bookmarkBigBtnActive]}
@@ -835,7 +836,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* ── 댓글 섹션 */}
+        {/* ── Comment section */}
         <View style={styles.commentSection}>
           <Text style={styles.commentCount}>{t('post.commentCount')} {totalCommentCount}{t('post.commentCountSuffix')}</Text>
 
@@ -878,7 +879,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
-      {/* 답글 대상 표시 */}
+      {/* Shows who is being replied to */}
       {replyTo && (
         <View style={styles.replyBanner}>
           <Text style={styles.replyBannerText}>↩ <Text style={styles.replyBannerNick}>{replyTo.nickname}</Text>{t('post.replyTo2')}</Text>
@@ -888,10 +889,10 @@ export default function BoardPostDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* ── 바텀 바 */}
+      {/* ── Bottom bar */}
       <View style={styles.bottomBar}>
         <View style={styles.barInputWrap}>
-          {/* 잠금 댓글 토글 */}
+          {/* Locked comment toggle */}
           <TouchableOpacity
             style={[styles.barLockBtn, isSecret && styles.barLockBtnActive]}
             onPress={() => setIsSecret(v => !v)}
@@ -966,7 +967,7 @@ const createStyles = (colors) => StyleSheet.create({
     flexWrap: 'wrap',
     marginBottom: 10,
   },
-  // 거래 상태 칩 — 게시판 태그 옆 인라인
+  // Trade status chip — inline, next to the board tag
   listMapBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
     marginTop: 12, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12,
@@ -990,14 +991,14 @@ const createStyles = (colors) => StyleSheet.create({
   tradeStatusPillTextSelling: { color: '#047857' },
   tradeStatusPillTextSold: { color: colors.textSecondary },
 
-  // 컴팩트 세그먼트 토글 — 작성자 전용
-  // 풀너비 X, 콘텐츠 너비만큼만, 마진/패딩 작게
+  // Compact segmented toggle — author only
+  // Not full width: only as wide as its content, with tight margins and padding
   tradeSegment: {
     flexDirection: 'row',
     backgroundColor: colors.inputBg,
     borderRadius: 7,
     padding: 2,
-    alignSelf: 'flex-start',  // 콘텐츠 너비만큼만
+    alignSelf: 'flex-start',  // Only as wide as its content
   },
   tradeSegOption: {
     flexDirection: 'row',

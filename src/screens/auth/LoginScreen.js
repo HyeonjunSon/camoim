@@ -11,12 +11,13 @@ import {
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
 
-// Google Sign-In은 Expo Go에 네이티브 모듈이 없어 require가 실패함.
-// 정식 빌드(EAS)에서만 동작하도록 안전하게 lazy load.
+// Google Sign-In's native module is absent in Expo Go, so the require fails there.
+// Lazy-loaded defensively, so it only runs in a real (EAS) build.
 let GoogleSignin = null;
 let statusCodes = null;
 try {
@@ -41,13 +42,13 @@ const GOOGLE_IOS_CLIENT_ID =
   process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ||
   '';
 
-// Google brand "G" logo PNG (공식 호스팅, 캐시 가능)
+// Google brand "G" logo PNG (officially hosted, cacheable)
 const GOOGLE_G_LOGO = 'https://developers.google.com/identity/images/g-logo.png';
 
 let googleConfigured = false;
 function ensureGoogleConfigured() {
   if (googleConfigured) return;
-  if (!GoogleSignin) return; // Expo Go 등 네이티브 미탑재
+  if (!GoogleSignin) return; // No native module, e.g. in Expo Go
   if (!GOOGLE_IOS_CLIENT_ID) return;
   try {
     GoogleSignin.configure({
@@ -120,7 +121,7 @@ export default function LoginScreen({ navigation }) {
       }
     } catch (e) {
       if (e?.code === 'ERR_REQUEST_CANCELED') {
-        // 사용자 취소
+        // User cancelled
       } else {
         const base = e.message || t('auth.appleLoginFailed');
         setError(e.debug ? `${base}\n[debug] ${e.debug}` : base);
@@ -183,7 +184,7 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.tagline}>{t('auth.welcome')}</Text>
         </View>
 
-        {/* 이메일 로그인 폼 (위) */}
+        {/* Email login form (top) */}
         <View style={styles.formArea}>
           <Text style={styles.fieldLabel}>{t('auth.email')}</Text>
           <View style={styles.inputWrap}>
@@ -248,14 +249,14 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* 또는 구분선 */}
+        {/* "or" divider */}
         <View style={styles.dividerRow}>
           <View style={styles.dividerLine} />
           <Text style={styles.dividerText}>{t('auth.orDivider')}</Text>
           <View style={styles.dividerLine} />
         </View>
 
-        {/* 소셜 로그인 (아래) */}
+        {/* Social login (bottom) */}
         <View style={styles.socialArea}>
           {appleAvailable && (
             <TouchableOpacity
@@ -320,7 +321,7 @@ const createStyles = (colors) => StyleSheet.create({
   logoText: { fontSize: 36, fontWeight: '800', color: colors.primary },
   tagline: { fontSize: 14, color: colors.textSecondary, marginTop: 6 },
 
-  // 폼
+  // Form
   formArea: {},
   fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 6 },
   inputWrap: {
@@ -348,12 +349,12 @@ const createStyles = (colors) => StyleSheet.create({
   forgotLinkArea: { marginTop: 12, alignItems: 'center' },
   forgotLink: { color: colors.textSecondary, fontSize: 13 },
 
-  // 구분선
+  // Divider
   dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 22, marginBottom: 18 },
   dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
   dividerText: { fontSize: 12, color: colors.textSecondary, marginHorizontal: 12 },
 
-  // 소셜
+  // Social
   socialArea: { gap: 10 },
   appleBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
@@ -370,7 +371,7 @@ const createStyles = (colors) => StyleSheet.create({
   googleLogo: { width: 18, height: 18, marginRight: 10 },
   googleBtnText: { color: '#1F1F1F', fontSize: 15, fontWeight: '600' },
 
-  // 회원가입 링크
+  // Signup link
   signupLinkArea: { marginTop: 22, alignItems: 'center' },
   signupLink: { color: colors.primary, fontSize: 14, fontWeight: '600' },
 });

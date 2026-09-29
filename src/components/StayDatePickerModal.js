@@ -1,8 +1,9 @@
-// 순수 JS 월 달력 모달 (네이티브 date picker 미설치 → OTA 안전)
-// 입주 가능일 선택: 특정 날짜(YYYY-MM-DD) 또는 '즉시 입주 가능'(immediate)
+// Pure-JS month calendar modal (no native date picker installed, so it stays OTA-safe)
+// Picks a move-in date: a specific day (YYYY-MM-DD) or 'immediate'
 import { useState } from 'react';
 import { Modal, View, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Text } from './StyledText';
 import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LangContext';
@@ -11,7 +12,7 @@ const STAY_ACCENT = '#3B82F6';
 const pad = (n) => String(n).padStart(2, '0');
 const iso = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 
-// bottomAction: { label, value } — 하단 바로가기 버튼 (예: 즉시 입주 / 종료일 없음). value로 onSelect 호출.
+// bottomAction: { label, value } — the shortcut button at the bottom (move in now, no end date). onSelect is called with value.
 export default function StayDatePickerModal({ visible, value, onSelect, onClose, bottomAction = null }) {
   const { colors } = useTheme();
   const { lang } = useLang();
@@ -32,7 +33,7 @@ export default function StayDatePickerModal({ visible, value, onSelect, onClose,
     : null;
   const monthLabel = lang === 'en' ? `${MON[vm]} ${vy}` : `${vy}년 ${vm + 1}월`;
 
-  const firstWeekday = new Date(vy, vm, 1).getDay();       // 0=일
+  const firstWeekday = new Date(vy, vm, 1).getDay();       // 0 = Sunday
   const daysInMonth = new Date(vy, vm + 1, 0).getDate();
   const cells = [];
   for (let i = 0; i < firstWeekday; i++) cells.push(null);
@@ -40,7 +41,7 @@ export default function StayDatePickerModal({ visible, value, onSelect, onClose,
 
   const prevMonth = () => { if (vm === 0) { setVy(vy - 1); setVm(11); } else setVm(vm - 1); };
   const nextMonth = () => { if (vm === 11) { setVy(vy + 1); setVm(0); } else setVm(vm + 1); };
-  // 과거(이번 달 이전) 이동 제한
+  // Block navigating before the current month
   const canPrev = vy > todayY || (vy === todayY && vm > todayM);
 
   const isPast = (d) => vy < todayY || (vy === todayY && vm < todayM) || (vy === todayY && vm === todayM && d < todayD);
@@ -51,7 +52,7 @@ export default function StayDatePickerModal({ visible, value, onSelect, onClose,
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity style={styles.card} activeOpacity={1}>
-          {/* 헤더 */}
+          {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={canPrev ? prevMonth : undefined} disabled={!canPrev} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="chevron-back" size={22} color={canPrev ? colors.text : colors.border} />
@@ -62,14 +63,14 @@ export default function StayDatePickerModal({ visible, value, onSelect, onClose,
             </TouchableOpacity>
           </View>
 
-          {/* 요일 */}
+          {/* Weekday row */}
           <View style={styles.weekRow}>
             {WEEK.map((w, i) => (
               <Text key={i} style={[styles.weekText, i === 0 && { color: '#EF4444' }, i === 6 && { color: STAY_ACCENT }]}>{w}</Text>
             ))}
           </View>
 
-          {/* 날짜 그리드 */}
+          {/* Date grid */}
           <View style={styles.grid}>
             {cells.map((d, i) => {
               if (d === null) return <View key={`b${i}`} style={styles.cell} />;

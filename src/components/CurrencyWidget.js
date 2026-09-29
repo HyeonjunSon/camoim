@@ -1,18 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { View, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Keyboard } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text } from './StyledText';
 import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LangContext';
 
-// 환율 계산기 — KRW ↔ CAD 양방향 입력
-// 데이터 출처:
-//   1순위: 네이버 finance (m.stock.naver.com) — 하나은행 매매기준율, 1원 이내 일치
-//   2순위: Yahoo Finance — interbank real-time (현찰가에 가까움)
-//   3순위: open.er-api.com — mid-market 백업
+// Currency calculator — KRW ↔ CAD, typed from either side
+// Data sources:
+//   1st: Naver finance (m.stock.naver.com) — Hana Bank's reference rate, within 1 KRW
+//   2nd: Yahoo Finance — interbank real-time (close to the cash rate)
+//   3rd: open.er-api.com — mid-market backup
 const CACHE_KEY = '@camoim_currency_cache_v4';
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30분
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 async function loadCachedRate() {
   try {
@@ -30,7 +31,7 @@ function ymdhm(ts) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// 네이버 finance — 하나은행 매매기준율 (한국 금융앱 표준 reference rate)
+// Naver finance — Hana Bank's reference rate (the standard reference in Korean banking apps)
 async function fetchNaverRate() {
   const res = await fetch(
     'https://m.stock.naver.com/front-api/marketIndex/prices?category=exchange&reutersCode=FX_CADKRW&page=1',
@@ -51,7 +52,7 @@ async function fetchNaverRate() {
   };
 }
 
-// Yahoo Finance — 실시간 외환 시세 (현찰 사실 때 가격과 비슷)
+// Yahoo Finance — live FX quotes (close to what you pay buying cash)
 async function fetchYahooRate() {
   const res = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/CADKRW=X?interval=1d', {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CaMoim/1.0)' },
@@ -65,7 +66,7 @@ async function fetchYahooRate() {
   return { cadToKrw: price, date: ymdhm(ts), fetchedAt: Date.now(), source: 'yahoo' };
 }
 
-// 백업 — open.er-api (mid-market, 약간 lag)
+// Backup — open.er-api (mid-market, slightly lagging)
 async function fetchOpenErApiRate() {
   const res = await fetch('https://open.er-api.com/v6/latest/CAD');
   if (!res.ok) throw new Error('open-er-api http ' + res.status);
@@ -88,7 +89,7 @@ async function fetchFreshRate() {
   }
 }
 
-// 숫자 천단위 콤마
+// Thousands separators
 function formatNumber(n, fractionDigits = 0) {
   if (n === null || n === undefined || Number.isNaN(n)) return '';
   return n.toLocaleString('en-US', {
@@ -97,7 +98,7 @@ function formatNumber(n, fractionDigits = 0) {
   });
 }
 
-// 콤마 제거 + 숫자 파싱 (잘못된 입력은 0)
+// Strip commas and parse (bad input becomes 0)
 function parseInput(s) {
   if (typeof s !== 'string') return 0;
   const cleaned = s.replace(/,/g, '').trim();
@@ -116,10 +117,10 @@ export default function CurrencyWidget({ refreshKey = 0 }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
 
-  // 양쪽 입력값 (string으로 관리 — 소수점·콤마 표시)
+  // Both inputs (held as strings, to show decimal points and commas)
   const [cadStr, setCadStr] = useState('1');
   const [krwStr, setKrwStr] = useState('');
-  const lastEditedRef = useRef('cad'); // 'cad' | 'krw' — 마지막으로 사용자가 만진 쪽
+  const lastEditedRef = useRef('cad'); // 'cad' | 'krw' — whichever side the user touched last
 
   const loadRate = useCallback(async (forceFresh = false) => {
     setError(false);
@@ -145,7 +146,7 @@ export default function CurrencyWidget({ refreshKey = 0 }) {
 
   useEffect(() => { loadRate(); }, [loadRate]);
 
-  // 홈 새로고침(refreshKey 변경) 시 최신 환율 강제 재요청 (초기 마운트는 제외)
+  // A home refresh (refreshKey change) forces a fresh rate fetch (skipped on the initial mount)
   const didMountRef = useRef(false);
   useEffect(() => {
     if (!didMountRef.current) { didMountRef.current = true; return; }
@@ -153,7 +154,7 @@ export default function CurrencyWidget({ refreshKey = 0 }) {
     loadRate(true);
   }, [refreshKey, loadRate]);
 
-  // 환율 로드되면 기본 KRW 계산
+  // Once the rate loads, compute the default KRW value
   useEffect(() => {
     if (!rate) return;
     if (lastEditedRef.current === 'cad') {
@@ -166,9 +167,9 @@ export default function CurrencyWidget({ refreshKey = 0 }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rate]);
 
-  // CAD 입력 → KRW 자동 계산
+  // CAD input → KRW computed automatically
   const onCadChange = (text) => {
-    // 숫자·콤마·소수점만 허용
+    // Digits, commas and a decimal point only
     const filtered = text.replace(/[^0-9.,]/g, '');
     setCadStr(filtered);
     lastEditedRef.current = 'cad';
@@ -178,7 +179,7 @@ export default function CurrencyWidget({ refreshKey = 0 }) {
     }
   };
 
-  // KRW 입력 → CAD 자동 계산
+  // KRW input → CAD computed automatically
   const onKrwChange = (text) => {
     const filtered = text.replace(/[^0-9.,]/g, '');
     setKrwStr(filtered);
@@ -229,7 +230,7 @@ export default function CurrencyWidget({ refreshKey = 0 }) {
         </TouchableOpacity>
       </View>
 
-      {/* CAD 행 */}
+      {/* CAD row */}
       <View style={styles.currencyRow}>
         <View style={styles.currencyLeft}>
           <Text style={styles.flag}>🇨🇦</Text>
@@ -258,7 +259,7 @@ export default function CurrencyWidget({ refreshKey = 0 }) {
         </View>
       </View>
 
-      {/* KRW 행 */}
+      {/* KRW row */}
       <View style={styles.currencyRow}>
         <View style={styles.currencyLeft}>
           <Text style={styles.flag}>🇰🇷</Text>

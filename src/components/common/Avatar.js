@@ -2,7 +2,7 @@ import { View, StyleSheet } from 'react-native'
 import { Image } from 'expo-image';
 import { Text } from '../StyledText';
 
-// 닉네임 첫 글자로 색상 결정 (팔레트 순환)
+// The colour is derived from the first character of the nickname (cycling through a palette)
 const COLOR_PALETTE = [
   '#7F77DD',
   '#FF6B6B',
@@ -23,7 +23,7 @@ function getColorFromNickname(nickname) {
   return COLOR_PALETTE[sum % COLOR_PALETTE.length];
 }
 
-// 재사용 아바타 컴포넌트 - uri가 있으면 이미지 표시, 없으면 색상 원/글자
+// Reusable avatar — shows the image when a uri is present, otherwise a coloured circle with a letter
 export default function Avatar({ nickname, uri, size = 40, style, showLetter = false }) {
   const bgColor = getColorFromNickname(nickname);
   const firstChar = nickname ? nickname.charAt(0).toUpperCase() : '?';

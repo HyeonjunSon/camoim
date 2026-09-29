@@ -3,7 +3,8 @@ import {
   View, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl,
   StyleSheet, TextInput, Modal,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../components/StyledText';
 import { useTheme } from '../../context/ThemeContext';
@@ -102,7 +103,7 @@ export default function AdminGroupsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* 탭 */}
+      {/* Tabs */}
       <View style={styles.tabBar}>
         {TABS.map(tb => {
           const active = tab === tb.key;
@@ -202,7 +203,7 @@ export default function AdminGroupsScreen() {
         </ScrollView>
       )}
 
-      {/* 거절 모달 */}
+      {/* Rejection modal */}
       <Modal visible={!!rejectTarget} transparent animationType="fade" onRequestClose={() => setRejectTarget(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>

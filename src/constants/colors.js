@@ -1,6 +1,6 @@
-// 라이트/다크 테마 색상 정의
+// Light and dark theme colour definitions
 
-// 게시판 슬러그별 액센트 색상 — 라이트/다크 가독성을 위해 톤 분리
+// Accent colour per board slug — tones are split so both light and dark stay readable
 const lightBoardColors = {
   free:           '#6366F1',
   anonymous:      '#8B5CF6',
@@ -85,16 +85,16 @@ export const darkColors = {
   boardColors: darkBoardColors,
 };
 
-// 현재 활성 테마를 추적하는 반응형 colors 객체
-// ThemeContext에서 setActiveColors()로 업데이트하면
-// 모듈 스코프 StyleSheet에서도 새 값이 반영됨
+// A reactive colors object that tracks the active theme
+// ThemeContext updates it through setActiveColors(), so even a
+// module-scope StyleSheet picks up the new values
 let _active = { ...lightColors };
 
 export function setActiveColors(c) {
   Object.assign(_active, c);
 }
 
-// Proxy: 항상 _active의 최신 값 반환
+// Proxy: always returns the current value from _active
 export const colors = new Proxy({}, {
   get(_, key) { return _active[key]; },
   ownKeys() { return Object.keys(_active); },

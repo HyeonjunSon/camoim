@@ -11,7 +11,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
@@ -34,7 +35,7 @@ export default function DeleteAccountScreen({ navigation }) {
   const [confirmText, setConfirmText] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 소셜 전용 가입자(Apple/Google)는 비밀번호가 없음 — 닉네임 확인으로 분기
+  // Social-only signups (Apple/Google) have no password, so they confirm with their nickname instead
   const isSocialOnly = user?.hasPassword === false;
 
   const reasons = [
@@ -104,7 +105,7 @@ export default function DeleteAccountScreen({ navigation }) {
     }
   };
 
-  // 단계 1: 탈퇴 안내
+  // Step 1: what deletion means
   const renderStep1 = () => (
     <View style={styles.stepContent}>
       <Ionicons name="warning-outline" size={48} color={colors.danger} style={styles.stepIcon} />
@@ -121,7 +122,7 @@ export default function DeleteAccountScreen({ navigation }) {
     </View>
   );
 
-  // 단계 2: 탈퇴 이유
+  // Step 2: reason for leaving
   const renderStep2 = () => (
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>{t('mypage.deleteStep2Title')}</Text>
@@ -159,7 +160,7 @@ export default function DeleteAccountScreen({ navigation }) {
     </View>
   );
 
-  // 단계 3: 본인 확인 — 이메일 가입자는 비밀번호, 소셜 전용은 닉네임 재입력
+  // Step 3: identity check — password for email signups, retyped nickname for social-only ones
   const renderStep3 = () => {
     if (isSocialOnly) {
       return (
@@ -206,7 +207,7 @@ export default function DeleteAccountScreen({ navigation }) {
     );
   };
 
-  // 단계 4: 최종 확인
+  // Step 4: final confirmation
   const renderStep4 = () => (
     <View style={styles.stepContent}>
       <Ionicons name="alert-circle-outline" size={48} color={colors.danger} style={styles.stepIcon} />
@@ -230,7 +231,7 @@ export default function DeleteAccountScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}
     >
-      {/* 진행 바 */}
+      {/* Progress bar */}
       <View style={styles.progressBar}>
         {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
           <View
@@ -249,7 +250,7 @@ export default function DeleteAccountScreen({ navigation }) {
         {renderStep()}
       </ScrollView>
 
-      {/* 하단 버튼 */}
+      {/* Bottom buttons */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
         <TouchableOpacity style={styles.prevBtn} onPress={handlePrev} activeOpacity={0.7}>
           <Text style={styles.prevBtnText}>{t('mypage.deletePrev')}</Text>
@@ -306,14 +307,14 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 14, color: colors.textSecondary, textAlign: 'center',
     lineHeight: 21, marginBottom: 24,
   },
-  // 단계 1
+  // Step 1
   dataList: { width: '100%', gap: 12 },
   dataItem: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: colors.card, padding: 14, borderRadius: 10,
   },
   dataText: { fontSize: 14, color: colors.text, flex: 1 },
-  // 단계 2
+  // Step 2
   reasonList: { width: '100%', gap: 8 },
   reasonItem: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -329,13 +330,13 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 14, color: colors.text, minHeight: 80,
     textAlignVertical: 'top',
   },
-  // 단계 3
+  // Step 3
   passwordInput: {
     width: '100%', padding: 14,
     backgroundColor: colors.card, borderRadius: 10,
     fontSize: 16, color: colors.text, textAlign: 'center',
   },
-  // 단계 3 (소셜) — 닉네임 안내 박스
+  // Step 3 (social) — the nickname guidance box
   nicknameBox: {
     width: '100%',
     paddingVertical: 14,
@@ -356,7 +357,7 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.text,
     letterSpacing: -0.2,
   },
-  // 하단 버튼
+  // Bottom buttons
   footer: {
     flexDirection: 'row', paddingHorizontal: 24, paddingTop: 12,
     gap: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border,

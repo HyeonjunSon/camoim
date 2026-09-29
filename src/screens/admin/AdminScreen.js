@@ -7,14 +7,15 @@ import {
   StyleSheet,
   RefreshControl,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { adminGetStats } from '../../lib/api';
 
-// 관리자 허브 — 모든 관리 도구의 진입점
+// Admin hub — the entry point to every management tool
 export default function AdminScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
@@ -67,7 +68,7 @@ export default function AdminScreen({ navigation }) {
         <Text style={styles.subtitle}>CaMoim 운영 도구</Text>
       </View>
 
-      {/* 핵심 지표 */}
+      {/* Key metrics */}
       <View style={styles.statRow}>
         <StatCard label="오늘 방문" value={stats?.dau?.today} sub="실사용자 (시드 제외)" />
         <StatCard label="활성 유저" value={stats?.users?.active} sub={`전체 ${stats?.users?.total ?? 0}`} />
@@ -77,7 +78,7 @@ export default function AdminScreen({ navigation }) {
         <StatCard label="게시글" value={stats?.content?.posts} sub={`24h ${stats?.posts?.d1 ?? 0}`} />
       </View>
 
-      {/* 📈 최근 14일 방문자 추이 */}
+      {/* 📈 Visitors over the last 14 days */}
       {!!stats?.dau?.trend?.length && (
         <View style={styles.dauCard}>
           <Text style={styles.dauTitle}>일일 방문자 (최근 14일)</Text>
@@ -98,7 +99,7 @@ export default function AdminScreen({ navigation }) {
         </View>
       )}
 
-      {/* 미처리 작업 */}
+      {/* Outstanding work */}
       <Text style={styles.sectionLabel}>처리 대기</Text>
       <View style={styles.grid}>
         <Tile
@@ -138,7 +139,7 @@ export default function AdminScreen({ navigation }) {
         />
       </View>
 
-      {/* 사용자/콘텐츠 */}
+      {/* Users and content */}
       <Text style={styles.sectionLabel}>사용자 · 콘텐츠</Text>
       <View style={styles.grid}>
         <Tile icon="people" label="유저 관리" onPress={() => navigation.navigate('AdminUsers')} />
@@ -147,7 +148,7 @@ export default function AdminScreen({ navigation }) {
         <Tile icon="school" label="학교 관리" onPress={() => navigation.navigate('AdminUniversities')} />
       </View>
 
-      {/* 운영 */}
+      {/* Operations */}
       <Text style={styles.sectionLabel}>운영</Text>
       <View style={styles.grid}>
         <Tile icon="megaphone" label="공지 / 푸시" onPress={() => navigation.navigate('AdminBroadcast')} />
@@ -170,7 +171,7 @@ const createStyles = (colors) => StyleSheet.create({
   statValue: { fontSize: 22, fontWeight: '800', color: colors.text },
   statLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 4, fontWeight: '600' },
   statSub: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
-  // DAU 차트
+  // DAU chart
   dauCard: {
     backgroundColor: colors.surface, borderRadius: 14, padding: 14,
     marginHorizontal: 16, marginBottom: 10,

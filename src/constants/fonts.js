@@ -1,5 +1,5 @@
-// Pretendard 폰트 매핑
-// fontWeight에 따라 적절한 폰트 파일을 반환
+// Pretendard font mapping
+// Returns the right font file for a given fontWeight
 
 const FONT_MAP = {
   '400': 'Pretendard-Regular',
@@ -12,10 +12,10 @@ const FONT_MAP = {
   'bold': 'Pretendard-Bold',
 };
 
-// fontWeight → fontFamily 변환
+// fontWeight to fontFamily
 export function getFontFamily(weight = '400') {
   return FONT_MAP[String(weight)] || 'Pretendard-Regular';
 }
 
-// 기본 폰트 패밀리
+// Default font family
 export const FONT_FAMILY = 'Pretendard-Regular';

@@ -32,10 +32,10 @@ export function getRoleLabel(role, t) {
   return map[role] || role;
 }
 
-// 역할별 색상
+// Colour per role
 export const ROLE_COLORS = {
-  admin: { bg: '#EDE9FF', text: '#7F77DD' },       // 보라
-  student: { bg: '#E8F0FF', text: '#5B8DEF' },      // 파랑
-  working_holiday: { bg: '#FFF3E0', text: '#F4A535' }, // 오렌지
-  general: { bg: '#F0F0F0', text: '#888888' },       // 회색
+  admin: { bg: '#EDE9FF', text: '#7F77DD' },       // Purple
+  student: { bg: '#E8F0FF', text: '#5B8DEF' },      // Blue
+  working_holiday: { bg: '#FFF3E0', text: '#F4A535' }, // Orange
+  general: { bg: '#F0F0F0', text: '#888888' },       // Grey
 };

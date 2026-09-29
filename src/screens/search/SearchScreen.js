@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -23,7 +24,7 @@ import { useLang } from '../../context/LangContext';
 const RECENT_SEARCHES_KEY = '@camoim_recent_searches';
 const MAX_RECENT_SEARCHES = 8;
 
-// 인기 급상승 목 데이터 (i18n 키 참조)
+// Mock trending data (referencing i18n keys)
 const TRENDING_KEYS = [
   { id: 1, key: 'searchScreen.t1', trend: 'up' },
   { id: 2, key: 'searchScreen.t2', trend: 'up' },
@@ -35,7 +36,7 @@ const TRENDING_KEYS = [
   { id: 8, key: 'searchScreen.t8', trend: 'down' },
 ];
 
-// 추천 게시판 (slug + 카테고리 색상, i18n 키 참조)
+// Suggested boards (slug + category colour, referencing i18n keys)
 const RECOMMENDED_BOARD_SLUGS = [
   { slug: 'free',      nameKey: 'searchScreen.recFree',   icon: 'chatbubbles', accent: '#6366F1', descKey: 'searchScreen.recFreeDesc' },
   { slug: 'anonymous', nameKey: 'searchScreen.recAnon',   icon: 'eye-off',     accent: '#8B5CF6', descKey: 'searchScreen.recAnonDesc' },
@@ -178,12 +179,12 @@ export default function SearchScreen({ navigation }) {
     navigation.navigate('UserProfile', { userId });
   };
 
-  // 결과 탭에 들어갈 데이터 (검색 후만 사용)
+  // Data for the result tabs (used only after a search)
   const currentTabData = (() => {
     if (searchTab === 'posts') return results.posts;
     if (searchTab === 'groups') return results.groups;
     if (searchTab === 'users') return results.users;
-    // all: 묶어서 (타입 표시 위해 _kind 첨가)
+    // all: everything together (with _kind added so the type can be shown)
     return [
       ...(results.groups || []).map(g => ({ ...g, _kind: 'group' })),
       ...(results.users || []).map(u => ({ ...u, _kind: 'user' })),
@@ -193,14 +194,14 @@ export default function SearchScreen({ navigation }) {
 
   const totalCount = (results.posts?.length ?? 0) + (results.groups?.length ?? 0) + (results.users?.length ?? 0);
 
-  // 트렌드 화살표
+  // Trend arrow
   const TrendArrow = ({ trend }) => {
     if (trend === 'up') return <Ionicons name="caret-up" size={12} color="#EF4444" />;
     if (trend === 'down') return <Ionicons name="caret-down" size={12} color="#3B82F6" />;
     return <Text style={styles.trendSame}>–</Text>;
   };
 
-  // 모임 카드
+  // Group card
   const GroupCard = ({ item, onPress }) => {
     const hasThumb = !!item.coverImage;
     return (
@@ -229,7 +230,7 @@ export default function SearchScreen({ navigation }) {
     );
   };
 
-  // 사용자 카드
+  // User card
   const UserCard = ({ item, onPress }) => (
     <TouchableOpacity style={styles.resultCard} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.resultIconWrap}>
@@ -251,7 +252,7 @@ export default function SearchScreen({ navigation }) {
     </TouchableOpacity>
   );
 
-  // 검색 결과 카드
+  // Search result card
   const PostCard = ({ item, onPress }) => {
     const hasThumb = !!item.thumbnail;
     const thumbUri = hasThumb
@@ -302,7 +303,7 @@ export default function SearchScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Hero 헤더 + 검색바 */}
+      {/* Hero header + search bar */}
       <View style={styles.hero}>
         {!isSearching && (
           <Text style={styles.heroTitle}>{t('search.title')}</Text>
@@ -336,7 +337,7 @@ export default function SearchScreen({ navigation }) {
           </View>
         ) : (
           <>
-            {/* 결과 카테고리 탭 */}
+            {/* Result category tabs */}
             <View style={styles.tabRow}>
               {[
                 { key: 'all', label: t('search.tabAll'), count: totalCount },
@@ -387,7 +388,7 @@ export default function SearchScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
         >
-          {/* 최근 검색 */}
+          {/* Recent searches */}
           {recentSearches.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -421,7 +422,7 @@ export default function SearchScreen({ navigation }) {
             </View>
           )}
 
-          {/* 실시간 인기 검색어 */}
+          {/* Live trending searches */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.titleRow}>
@@ -454,7 +455,7 @@ export default function SearchScreen({ navigation }) {
             </View>
           </View>
 
-          {/* 추천 게시판 (큰 컬러 카드) */}
+          {/* Suggested boards (large colour cards) */}
           {recommendedBoards.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -502,7 +503,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 15, color: colors.text },
 
-  // 로딩/빈 상태
+  // Loading and empty states
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText: { fontSize: 13, color: colors.textSecondary },
   flatListEmpty: { flexGrow: 1 },
@@ -519,7 +520,7 @@ const createStyles = (colors) => StyleSheet.create({
   linkText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
   timeText: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },
 
-  // 최근 검색 칩
+  // Recent search chips
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     flexDirection: 'row', alignItems: 'center',
@@ -531,7 +532,7 @@ const createStyles = (colors) => StyleSheet.create({
   chipText: { fontSize: 13, color: colors.text, fontWeight: '500' },
   chipDelete: { marginLeft: 4, padding: 4 },
 
-  // LIVE 배지
+  // LIVE badge
   liveBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: '#EF4444' + '15',
@@ -540,7 +541,7 @@ const createStyles = (colors) => StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' },
   liveBadgeText: { fontSize: 9, fontWeight: '800', color: '#EF4444', letterSpacing: 0.6 },
 
-  // 트렌딩 카드
+  // Trending card
   trendingCard: {
     backgroundColor: colors.surface,
     borderRadius: 16, paddingHorizontal: 16, paddingVertical: 4,
@@ -557,7 +558,7 @@ const createStyles = (colors) => StyleSheet.create({
   trendingKeyword: { flex: 1, fontSize: 14, color: colors.text, fontWeight: '500' },
   trendSame: { fontSize: 12, color: colors.textSecondary, fontWeight: '700' },
 
-  // 추천 게시판 카드
+  // Suggested board card
   boardGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   boardCard: {
     width: '47%',
@@ -573,7 +574,7 @@ const createStyles = (colors) => StyleSheet.create({
   boardName: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
   boardDescription: { fontSize: 12, color: colors.textSecondary },
 
-  // 결과 카테고리 탭
+  // Result category tabs
   tabRow: {
     flexDirection: 'row', paddingHorizontal: 16, gap: 6, paddingBottom: 10, paddingTop: 4,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
@@ -586,7 +587,7 @@ const createStyles = (colors) => StyleSheet.create({
   tabText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
   tabTextActive: { color: colors.white },
 
-  // 통합 카드 (Group / User 공용)
+  // Unified card (shared by Group and User)
   resultCard: {
     flexDirection: 'row', gap: 12,
     backgroundColor: colors.surface, borderRadius: 14, padding: 12, marginBottom: 8,
@@ -611,7 +612,7 @@ const createStyles = (colors) => StyleSheet.create({
   resultDesc: { fontSize: 12, color: colors.textSecondary, marginBottom: 2 },
   resultMetaSmall: { fontSize: 11, color: colors.textSecondary },
 
-  // 검색 결과 카드
+  // Search result card
   postCard: {
     backgroundColor: colors.surface, borderRadius: 14, padding: 14, marginBottom: 8,
     borderWidth: 1, borderColor: colors.border + '40',

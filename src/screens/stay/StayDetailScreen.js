@@ -1,12 +1,13 @@
-// 숙소 상세 — 사진 / 정보 / 대략 위치 지도 / 호스트 / 채팅 문의
-// 정확 주소·좌표는 서버가 안 내려줌 → 대략 위치 원(circle)만 표시.
+// Stay detail — photos, details, approximate location map, host, and chat enquiry
+// The server withholds the exact address and coordinates, so only an approximate circle is drawn.
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Dimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
@@ -121,7 +122,7 @@ export default function StayDetailScreen({ navigation, route }) {
 
   const c = stayTypeOf(stay.stayType);
   const hasCoord = stay.lat != null && stay.lng != null;
-  // 입주 가능 기간: 시작 ~ 종료 (종료 없으면 시작만 = 장기)
+  // Availability window: start to end (with no end, just the start = long-term)
   const startTxt = stay.moveInDate ? formatMoveIn(stay.moveInDate, lang, t) : '';
   const endTxt = stay.availableUntil ? formatMoveIn(stay.availableUntil, lang, t) : '';
   const period = startTxt && endTxt ? `${startTxt} ~ ${endTxt}` : (startTxt || (endTxt ? `~ ${endTxt}` : ''));
@@ -135,7 +136,7 @@ export default function StayDetailScreen({ navigation, route }) {
     <View style={styles.container}>
       <CustomHeader navigation={navigation} title={t('stay.detailTitle')} rightActions={rightActions} />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
-        {/* 사진 */}
+        {/* Photos */}
         <View style={styles.photoWrap}>
           {stay.images?.length > 0 ? (
             <>
@@ -157,7 +158,7 @@ export default function StayDetailScreen({ navigation, route }) {
           )}
         </View>
 
-        {/* 타이틀 블록 */}
+        {/* Title block */}
         <View style={{ padding: 16 }}>
           <View style={styles.badgeRow}>
             <View style={[styles.typeBadge, { backgroundColor: c.soft }]}>
@@ -186,7 +187,7 @@ export default function StayDetailScreen({ navigation, route }) {
           )}
         </View>
 
-        {/* 기본 정보 */}
+        {/* Key details */}
         {infoRows.length > 0 && (
           <>
             <View style={styles.divider} />
@@ -204,7 +205,7 @@ export default function StayDetailScreen({ navigation, route }) {
           </>
         )}
 
-        {/* 소개 */}
+        {/* Description */}
         {!!stay.description && (
           <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
             <Text style={styles.sectionTitle}>{t('stay.sectionAbout')}</Text>
@@ -212,7 +213,7 @@ export default function StayDetailScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* 위치 (대략) */}
+        {/* Location (approximate) */}
         {hasCoord && (
           <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
             <Text style={styles.sectionTitle}>{t('stay.sectionLocation')}</Text>
@@ -238,7 +239,7 @@ export default function StayDetailScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* 호스트 */}
+        {/* Host */}
         <View style={styles.divider} />
         <TouchableOpacity style={styles.hostRow} activeOpacity={0.7}
           onPress={() => stay.host?.id && navigation.navigate('UserProfile', { userId: stay.host.id })}>
@@ -254,7 +255,7 @@ export default function StayDetailScreen({ navigation, route }) {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* 하단 CTA */}
+      {/* Bottom CTA */}
       <View style={[styles.ctaBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
         {isMine ? (
           <TouchableOpacity style={styles.ctaMain} activeOpacity={0.9} onPress={onToggleStatus}>
@@ -278,7 +279,7 @@ export default function StayDetailScreen({ navigation, route }) {
         )}
       </View>
 
-      {/* 신고 모달 */}
+      {/* Report modal */}
       {reportOpen && (
         <TouchableOpacity style={styles.reportBackdrop} activeOpacity={1} onPress={() => setReportOpen(false)}>
           <View style={styles.reportCard}>
@@ -295,7 +296,7 @@ export default function StayDetailScreen({ navigation, route }) {
         </TouchableOpacity>
       )}
 
-      {/* 전체화면 사진 뷰어 */}
+      {/* Fullscreen photo viewer */}
       <StayPhotoViewer
         visible={viewerOpen}
         images={stay.images || []}

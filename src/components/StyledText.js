@@ -2,7 +2,7 @@ import { Text as RNText, TextInput as RNTextInput, StyleSheet } from 'react-nati
 import React, { forwardRef } from 'react';
 import { getFontFamily } from '../constants/fonts';
 
-// Pretendard 폰트가 자동 적용되는 Text
+// Text with the Pretendard font applied automatically
 export const Text = forwardRef(({ style, ...props }, ref) => {
   const flat = StyleSheet.flatten(style) || {};
   if (flat.fontFamily) {
@@ -12,7 +12,7 @@ export const Text = forwardRef(({ style, ...props }, ref) => {
   return <RNText ref={ref} style={[{ fontFamily }, style]} {...props} />;
 });
 
-// Pretendard 폰트가 자동 적용되는 TextInput
+// TextInput with the Pretendard font applied automatically
 export const TextInput = forwardRef(({ style, ...props }, ref) => {
   const flat = StyleSheet.flatten(style) || {};
   if (flat.fontFamily) {

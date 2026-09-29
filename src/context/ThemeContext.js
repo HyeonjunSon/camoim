@@ -42,12 +42,12 @@ export function ThemeProvider({ children }) {
   const resolved = mode === 'system' ? systemScheme : mode;
   const themeColors = resolved === 'dark' ? darkColors : lightColors;
 
-  // 모듈 스코프 Proxy colors도 동기화
+  // Keep the module-scope colors Proxy in sync too
   useEffect(() => {
     setActiveColors(themeColors);
   }, [resolved]);
 
-  // 초기화 시에도 동기화
+  // Sync on initialization as well
   setActiveColors(themeColors);
 
   const value = useMemo(

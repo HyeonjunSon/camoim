@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { View, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../components/StyledText';
@@ -20,13 +21,13 @@ const CATEGORIES = [
   { key: 'general', labelKey: 'group.catGeneral' },
 ];
 
-// 카테고리 아이콘·색 — lib/icons.js 단일 소스 (소프트 배경 = 아이콘 색 틴트)
+// Category icon and colour — from the single source in lib/icons.js (the soft background is a tint of the icon colour)
 const catMetaFor = (key) => {
   const ic = GROUP_CATEGORY_ICONS[key] || GROUP_CATEGORY_ICONS.general;
   return { bg: ic.color + '1A', ion: ic.ion, color: ic.color };
 };
 
-// embedded=true: BoardListScreen에서 토글로 끼워 넣는 모드 (헤더/탭바 없이)
+// embedded=true: the mode BoardListScreen slots in behind its toggle (no header or tab bar)
 export default function GroupListScreen({ navigation, embedded = false }) {
   const { colors } = useTheme();
   const { t } = useLang();
@@ -43,8 +44,8 @@ export default function GroupListScreen({ navigation, embedded = false }) {
     try {
       const params = { box, sort };
       if (category !== 'all') params.category = category;
-      // 모임 탭에선 학교 한정 동아리 제외 — 학교 동아리는 학교 커뮤니티 페이지에서만 노출
-      // (가입한 학교 동아리도 학교 커뮤니티 페이지에서만 보이도록 일관 정책)
+      // The groups tab excludes school clubs — those live only on the school community page
+      // (joined school clubs stay there too, keeping the policy consistent)
       params.excludeUniversity = true;
       const res = await getGroups(params);
       if (res.success) setGroups(res.data || []);
@@ -105,7 +106,7 @@ export default function GroupListScreen({ navigation, embedded = false }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* 필터/정렬 바 */}
+      {/* Filter and sort bar */}
       <View style={styles.filterBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
           <TouchableOpacity
@@ -139,7 +140,7 @@ export default function GroupListScreen({ navigation, embedded = false }) {
         </ScrollView>
       </View>
 
-      {/* 정렬 */}
+      {/* Sort */}
       <View style={styles.sortRow}>
         <TouchableOpacity onPress={() => setSort('popular')} activeOpacity={0.7}>
           <Text style={[styles.sortText, sort === 'popular' && styles.sortActive]}>{t('group.sortPopular')}</Text>
@@ -179,7 +180,7 @@ export default function GroupListScreen({ navigation, embedded = false }) {
         </ScrollView>
       )}
 
-      {/* 플로팅 만들기 */}
+      {/* Floating create button */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate('GroupCreate')}
@@ -213,7 +214,7 @@ const createStyles = (colors) => StyleSheet.create({
   sortActive: { color: colors.text, fontWeight: '700' },
   sortDot: { color: colors.textSecondary, fontSize: 12 },
 
-  // 각 모임 = 독립된 카드 (간격 + 둥근 모서리 + soft shadow)
+  // Each group is its own card (spacing, rounded corners and a soft shadow)
   listWrap: {
     paddingHorizontal: 14,
     paddingTop: 10,

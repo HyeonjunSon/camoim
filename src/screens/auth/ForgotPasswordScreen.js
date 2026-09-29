@@ -9,7 +9,8 @@ import {
   Alert,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Text, TextInput } from '../../components/StyledText';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';

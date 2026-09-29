@@ -1,3 +1,4 @@
+import './src/lib/perfStart'; // Must be the first line — the reference point for cold-start timing (lib/perf.js)
 import { registerRootComponent } from 'expo';
 
 import App from './App';

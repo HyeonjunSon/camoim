@@ -1,21 +1,21 @@
 import { setRuntimeLang, getRuntimeLang, rt } from '../runtimeLang';
 import { TRANSLATIONS } from '../i18n';
 
-// React 밖(api.js 등)에서 쓰는 언어 holder — 기본값이 흐트러지면 에러 메시지가
-// 전부 원문 키로 노출되므로 고정해 둔다.
+// The language holder used outside React (api.js and friends). If its default drifts,
+// every error message surfaces as a raw key, so it is pinned here.
 describe('runtimeLang', () => {
   afterEach(() => setRuntimeLang('ko'));
 
-  it('기본 언어는 ko', () => {
+  it('the default language is ko', () => {
     expect(getRuntimeLang()).toBe('ko');
   });
 
-  it('en으로 바꿀 수 있다', () => {
+  it('can be switched to en', () => {
     setRuntimeLang('en');
     expect(getRuntimeLang()).toBe('en');
   });
 
-  it('알 수 없는 값은 ko로 정규화한다', () => {
+  it('normalizes an unknown value to ko', () => {
     setRuntimeLang('fr');
     expect(getRuntimeLang()).toBe('ko');
     setRuntimeLang(undefined);
@@ -23,27 +23,27 @@ describe('runtimeLang', () => {
   });
 });
 
-describe('rt (React 밖 번역 조회)', () => {
+describe('rt (translation lookup outside React)', () => {
   afterEach(() => setRuntimeLang('ko'));
 
-  it('현재 언어의 값을 점 표기로 찾는다', () => {
+  it('finds the current language value by dotted key', () => {
     expect(rt('common.timeoutError')).toBe(TRANSLATIONS.ko.common.timeoutError);
     setRuntimeLang('en');
     expect(rt('common.timeoutError')).toBe(TRANSLATIONS.en.common.timeoutError);
   });
 
-  it('없는 키는 키 자체를 반환한다 (앱이 죽지 않게)', () => {
+  it('returns the key itself when missing (so the app does not crash)', () => {
     expect(rt('nope.not.here')).toBe('nope.not.here');
     expect(rt('common.정말없는키')).toBe('common.정말없는키');
   });
 
-  it('문자열이 아닌 노드(중간 객체)를 가리키면 키를 반환한다', () => {
+  it('returns the key when it points at a non-string node', () => {
     expect(rt('common')).toBe('common');
   });
 });
 
-describe('i18n 사전', () => {
-  it('ko와 en이 같은 키 집합을 갖는다', () => {
+describe('i18n dictionary', () => {
+  it('ko and en hold the same set of keys', () => {
     const flatten = (obj, prefix = '') =>
       Object.entries(obj).flatMap(([k, v]) =>
         v && typeof v === 'object' ? flatten(v, `${prefix}${k}.`) : [`${prefix}${k}`]

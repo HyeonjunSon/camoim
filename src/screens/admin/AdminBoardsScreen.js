@@ -12,7 +12,8 @@ import {
   Platform,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
@@ -46,7 +47,7 @@ export default function AdminBoardsScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // DB에서 활성 학교 목록 불러오기 (학교 게시판 드롭다운용)
+  // Load the active schools from the DB (for the school board dropdown)
   const loadDbUniversities = useCallback(async () => {
     try {
       const res = await getUniversities();
@@ -108,7 +109,7 @@ export default function AdminBoardsScreen() {
     ]);
   };
 
-  // 섹션 구성: 일반 게시판 + 학교별 게시판
+  // Sections: general boards, then one per school
   const sections = useMemo(() => {
     const s = search.trim().toLowerCase();
     const matches = (b) =>
@@ -139,7 +140,7 @@ export default function AdminBoardsScreen() {
     return result;
   }, [items, search, t]);
 
-  // 첫 로드 시 모든 섹션 접힘 상태로
+  // Every section starts collapsed on first load
   if (!initialized && sections.length > 0) {
     const init = {};
     sections.forEach(s => { init[s.key] = true; });
@@ -147,7 +148,7 @@ export default function AdminBoardsScreen() {
     setInitialized(true);
   }
 
-  // 접힌 섹션은 data를 빈 배열로 (헤더만 보이게)
+  // A collapsed section gets an empty data array, so only its header shows
   const displaySections = useMemo(
     () => sections.map(s => collapsed[s.key] ? { ...s, data: [] } : s),
     [sections, collapsed]

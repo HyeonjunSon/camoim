@@ -1,5 +1,5 @@
-// CaMoim 법적 문서 — 한국어 초안
-// ⚠️ 정식 출시 전 변호사 검토 권장
+// CaMoim legal documents — Korean draft
+// ⚠️ Should be reviewed by a lawyer before a formal release
 
 export const TERMS_VERSION = '1.0.0';
 export const TERMS_EFFECTIVE_DATE = '2026-04-08';
@@ -8,7 +8,7 @@ export const PRIVACY_VERSION = '1.0.0';
 export const PRIVACY_EFFECTIVE_DATE = '2026-04-08';
 
 // ───────────────────────────────────────────────
-// 이용약관
+// Terms of Service
 // ───────────────────────────────────────────────
 export const TERMS_OF_SERVICE = `CaMoim 이용약관
 
@@ -130,7 +130,7 @@ camoimapp@gmail.com
 
 
 // ───────────────────────────────────────────────
-// 개인정보처리방침
+// Privacy Policy
 // ───────────────────────────────────────────────
 export const PRIVACY_POLICY = `CaMoim 개인정보처리방침
 

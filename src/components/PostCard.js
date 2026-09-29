@@ -1,7 +1,8 @@
 import { View, TouchableOpacity, StyleSheet } from 'react-native'
 import { Image } from 'expo-image';
 import { Text } from './StyledText';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
 import { colors } from '../constants/colors'
 import { SERVER_HOST } from '../lib/config';
@@ -9,7 +10,7 @@ import { formatTime } from '../lib/time';
 import { useLang } from '../context/LangContext';
 import { isTradeBoard, getTradeLabel } from '../constants/boards';
 
-// HTML 태그 + 레거시 마커 제거 후 본문 미리보기
+// Body preview, with HTML tags and legacy markers stripped
 function getPreview(content) {
   if (!content) return '';
   return content
@@ -46,10 +47,10 @@ export default function PostCard({ post, onPress }) {
       onPress={onPress}
       activeOpacity={0.75}
     >
-      {/* 상단: 텍스트 + 썸네일 */}
+      {/* Top: text + thumbnail */}
       <View style={styles.cardTop}>
         <View style={[styles.cardText, hasThumbnail && { flex: 1, marginRight: 10 }]}>
-          {/* 제목 — 거래 상태 알약 prefix */}
+          {/* Title — prefixed by the trade-status pill */}
           <View style={styles.titleRow}>
             {showTrade && (
               <View style={[styles.tradeBadge, isSold ? styles.tradeBadgeSold : styles.tradeBadgeSelling]}>
@@ -60,12 +61,12 @@ export default function PostCard({ post, onPress }) {
             )}
             <Text style={[styles.title, { flex: 1 }]} numberOfLines={1}>{post.title}</Text>
           </View>
-          {/* 본문 미리보기 */}
+          {/* Body preview */}
           {preview.length > 0 && (
             <Text style={styles.preview} numberOfLines={1}>{preview}</Text>
           )}
         </View>
-        {/* 썸네일 */}
+        {/* Thumbnail */}
         {hasThumbnail && (
           <Image
             source={{ uri: post.thumbnail.startsWith('http') ? post.thumbnail : `${SERVER_HOST}${post.thumbnail}` }}
@@ -78,7 +79,7 @@ export default function PostCard({ post, onPress }) {
         )}
       </View>
 
-      {/* 하단: 닉네임·시간·도시 + 통계 — 항상 같은 위치 */}
+      {/* Bottom: nickname, time, city and stats — always in the same place */}
       <View style={styles.cardBottom}>
         <Text style={styles.nickname}>{post.nickname ?? t('common.anonymous')}</Text>
         {post.authorIsLeader && (

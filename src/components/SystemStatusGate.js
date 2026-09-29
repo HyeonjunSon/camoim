@@ -7,7 +7,8 @@ import {
   Linking,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
@@ -17,7 +18,7 @@ import {
   clearSystemStatus,
 } from '../lib/systemStatus';
 
-// 남은 정지 기간 계산
+// Work out the remaining suspension time
 function formatRemaining(until, t) {
   if (!until) return t('system.indefinite');
   const diff = new Date(until) - new Date();
@@ -28,7 +29,7 @@ function formatRemaining(until, t) {
   return `${hours}h`;
 }
 
-// 점검/강제업데이트/IP 차단/계정 정지 등을 풀스크린으로 가로막는 게이트
+// Fullscreen gate for maintenance, forced updates, IP blocks and account suspensions
 export default function SystemStatusGate({ children }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);

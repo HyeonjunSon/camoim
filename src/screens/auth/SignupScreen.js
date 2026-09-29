@@ -12,7 +12,8 @@ import {
   Modal,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -66,18 +67,18 @@ export default function SignupScreen({ navigation }) {
   const [docModal, setDocModal] = useState(null); // 'terms' | 'privacy' | null
   const [cityModalOpen, setCityModalOpen] = useState(false);
 
-  // 재발송 쿨다운 타이머
+  // Resend cooldown timer
   useEffect(() => {
     if (emailCooldown <= 0) return;
     const timer = setTimeout(() => setEmailCooldown(c => c - 1), 1000);
     return () => clearTimeout(timer);
   }, [emailCooldown]);
 
-  // 이메일 형식 검증
+  // Email format validation
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const validateEmail = (v) => {
     setEmail(v);
-    // 이메일 변경하면 인증 초기화
+    // Changing the email resets verification
     if (emailVerified || emailCodeSent) {
       setEmailVerified(false);
       setEmailCodeSent(false);
@@ -88,7 +89,7 @@ export default function SignupScreen({ navigation }) {
     setEmailError(valid ? '' : t('auth.emailInvalid'));
   };
 
-  // 인증코드 발송
+  // Send the verification code
   const handleSendCode = async () => {
     if (!isEmailValid) return;
     setEmailSending(true);
@@ -108,7 +109,7 @@ export default function SignupScreen({ navigation }) {
     }
   };
 
-  // 인증코드 확인
+  // Check the verification code
   const handleCheckCode = async () => {
     if (emailCode.trim().length !== 6) {
       Alert.alert(t('common.error'), t('auth.verifyCodeHint'));
@@ -129,7 +130,7 @@ export default function SignupScreen({ navigation }) {
     }
   };
 
-  // 비밀번호 강도 계산
+  // Password strength
   const getPasswordStrength = (pw) => {
     if (!pw) return null;
     let score = 0;
@@ -262,7 +263,7 @@ export default function SignupScreen({ navigation }) {
         </View>
         {!!emailError && <Text style={[styles.hint, { color: colors.danger }]}>{emailError}</Text>}
 
-        {/* 인증코드 입력 (코드 발송 후, 인증 완료 전) */}
+        {/* Verification code input (after sending, before it is confirmed) */}
         {emailCodeSent && !emailVerified && (
           <View style={[styles.row, { marginTop: 8 }]}>
             <TextInput
@@ -409,7 +410,7 @@ export default function SignupScreen({ navigation }) {
           <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
         </TouchableOpacity>
 
-        {/* ── 약관 동의 ── */}
+        {/* ── Terms consent ── */}
         <View style={styles.agreeBox}>
           <TouchableOpacity style={styles.agreeAllRow} onPress={toggleAll} activeOpacity={0.7}>
             <Ionicons
@@ -493,7 +494,7 @@ export default function SignupScreen({ navigation }) {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* 도시 선택 모달 */}
+      {/* City picker modal */}
       <Modal
         visible={cityModalOpen}
         animationType="slide"
@@ -508,7 +509,7 @@ export default function SignupScreen({ navigation }) {
                 <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
-            {/* 선택 안함 */}
+            {/* Prefer not to say */}
             <TouchableOpacity
               style={[styles.cityItem, !city && styles.cityItemActive]}
               onPress={() => { setCity(''); setCityModalOpen(false); }}
@@ -539,7 +540,7 @@ export default function SignupScreen({ navigation }) {
         </View>
       </Modal>
 
-      {/* 약관/방침 본문 모달 */}
+      {/* Terms and privacy body modal */}
       <Modal
         visible={!!docModal}
         animationType="slide"
@@ -641,7 +642,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   modalTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
 
-  // 도시 드롭다운
+  // City dropdown
   cityDropdown: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: colors.inputBg, borderRadius: 12, padding: 14, marginTop: 6,

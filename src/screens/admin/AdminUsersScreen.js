@@ -8,7 +8,8 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { adminListUsers } from '../../lib/api';
@@ -43,7 +44,7 @@ export default function AdminUsersScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // pageToLoad를 명시적으로 받아 stale 클로저/루프 방지
+  // pageToLoad is passed explicitly to avoid stale closures and loops
   const load = useCallback(async (pageToLoad, reset) => {
     if (reset) setLoading(true); else setLoadingMore(true);
     try {

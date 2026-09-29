@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect } from 'react';
 import {
   View, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, StyleSheet, Modal, Switch, Linking,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -45,7 +46,7 @@ export default function GroupDetailScreen({ route, navigation }) {
       const res = await getGroup(groupId);
       if (res.success) {
         setGroup(res.data);
-        // 멤버일 때만 게시글 로드
+        // Load posts only for members
         if (res.data.myMembership?.status === 'active') {
           try {
             const pr = await getGroupPosts(groupId, { page: 1, limit: 30 });
@@ -61,8 +62,8 @@ export default function GroupDetailScreen({ route, navigation }) {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // 커스텀 헤더 사용 — native bar의 좌/우 너비 차이로 제목이 중앙에서
-  // 밀려나는 문제 회피
+  // Uses CustomHeader — the native bar's uneven left/right widths pushed
+  // the title off centre
   const isActiveMember = group?.myMembership?.status === 'active';
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -109,7 +110,7 @@ export default function GroupDetailScreen({ route, navigation }) {
     ]);
   };
 
-  // 모임 커버 사진 변경 — 그룹장 전용. 채팅방의 캐시된 cover도 서버에서 함께 동기화됨
+  // Change the group cover photo — owner only. The chat room's cached cover is synced server-side too
   const onChangeCover = async () => {
     if (uploadingCover) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -120,7 +121,7 @@ export default function GroupDetailScreen({ route, navigation }) {
       ]);
       return;
     }
-    // iOS는 allowsEditing=true일 때 aspect를 무시하고 정사각형 크롭 강제 → 비활성화
+    // iOS ignores aspect when allowsEditing=true and forces a square crop, so it is disabled
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: false,
@@ -137,7 +138,7 @@ export default function GroupDetailScreen({ route, navigation }) {
       );
       const res = await uploadGroupCover(groupId, { uri: manipulated.uri });
       if (res.success) {
-        // 즉시 화면 반영
+        // Reflect it on screen immediately
         setGroup(g => g ? { ...g, coverImage: res.data.coverImage } : g);
       } else {
         Alert.alert('', res.message || t('common.serverError'));
@@ -210,7 +211,7 @@ export default function GroupDetailScreen({ route, navigation }) {
       contentContainerStyle={{ paddingBottom: 100 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
     >
-      {/* 커버 + 헤더 — 그룹장은 사진 탭으로 변경 가능 */}
+      {/* Cover + header — the owner can change the photo by tapping it */}
       <View style={styles.header}>
         <TouchableOpacity
           activeOpacity={isOwner ? 0.85 : 1}
@@ -274,7 +275,7 @@ export default function GroupDetailScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* 액션 버튼 */}
+      {/* Action buttons */}
       <View style={styles.actions}>
         {!my && group.status === 'active' && !isBanned && (
           <TouchableOpacity
@@ -330,7 +331,7 @@ export default function GroupDetailScreen({ route, navigation }) {
         )}
       </View>
 
-      {/* 회원 보기 — 모든 가입자 동일. owner/manager는 들어가서 관리 가능. */}
+      {/* View members — the same for every member. Owners and managers can manage from inside. */}
       {isMember && (
         <TouchableOpacity
           style={styles.linkRow}
@@ -345,7 +346,7 @@ export default function GroupDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       )}
 
-      {/* 모임 커뮤니티 카드 — 그룹장/부그룹장이 꾸미는 소셜·공지 */}
+      {/* Group community card — social links and notices curated by the owner or a co-owner */}
       {isMember && (() => {
         const c = group.community || {};
         const links = [
@@ -411,7 +412,7 @@ export default function GroupDetailScreen({ route, navigation }) {
         );
       })()}
 
-      {/* 모임 게시판 — 멤버 전용 */}
+      {/* Group board — members only */}
       {isMember && (
         <View style={styles.postsSection}>
           <View style={styles.sectionHeader}>
@@ -471,10 +472,10 @@ export default function GroupDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* 그룹장: 정보 수정 / 폐쇄는 헤더의 ⋯ 메뉴로 이동 (settings sheet) */}
+      {/* Owner: edit and close moved into the header's ⋯ menu (settings sheet) */}
     </ScrollView>
 
-    {/* 글쓰기 FAB — 멤버 전용 */}
+    {/* Compose FAB — members only */}
     {isMember && (
       <TouchableOpacity
         style={styles.fab}
@@ -490,7 +491,7 @@ export default function GroupDetailScreen({ route, navigation }) {
       </TouchableOpacity>
     )}
 
-    {/* 설정 바텀시트 — 알림 등 */}
+    {/* Settings bottom sheet — notifications and so on */}
     <Modal
       visible={settingsOpen}
       transparent
@@ -544,7 +545,7 @@ export default function GroupDetailScreen({ route, navigation }) {
             </>
           )}
 
-          {/* 그룹장 전용 — 정보 수정 / 폐쇄 */}
+          {/* Owner only — edit details / close the group */}
           {isOwner && (
             <>
               <Text style={[styles.sheetTitle, { marginTop: 12 }]}>모임 관리</Text>
@@ -565,7 +566,7 @@ export default function GroupDetailScreen({ route, navigation }) {
                 style={styles.sheetActionRow}
                 onPress={() => {
                   setSettingsOpen(false);
-                  // 다음 프레임에서 폐쇄 다이얼로그 — 모달 닫힘과 충돌 방지
+                  // Show the close dialog on the next frame, so it does not collide with the modal dismissal
                   setTimeout(() => onClose(), 250);
                 }}
                 activeOpacity={0.7}
@@ -595,7 +596,7 @@ const createStyles = (colors) => StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   header: { backgroundColor: colors.surface, marginBottom: 12 },
   cover: { width: '100%', height: 180 },
-  coverLetterbox: { backgroundColor: '#000' }, // contain 잔여 영역 배경
+  coverLetterbox: { backgroundColor: '#000' }, // Background filling the letterbox area left by contain
   coverEditBadge: {
     position: 'absolute',
     right: 12,
@@ -645,7 +646,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   sheetActionText: { fontSize: 15, color: colors.text, fontWeight: '500' },
 
-  // 설정 바텀시트
+  // Settings bottom sheet
   sheetOverlay: { flex: 1, justifyContent: 'flex-end' },
   sheetBg: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
@@ -674,7 +675,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   sheetCloseText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
 
-  // 커뮤니티 카드 (그룹장 편집)
+  // Community card (owner-editable)
   communityCard: {
     marginHorizontal: 16,
     marginTop: 12,
@@ -738,7 +739,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   communityEmptyText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
 
-  // 게시판 섹션
+  // Board section
   postsSection: { marginTop: 4 },
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

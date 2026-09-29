@@ -31,7 +31,7 @@ export default function ChatStack() {
       <Stack.Screen name="ChatList"    component={ChatListScreen}    options={{ title: t('tabs.chat') }} />
       <Stack.Screen name="ChatRoom"    component={ChatRoomScreen}    options={{ title: t('tabs.chat') }} />
       <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: t('nav.profile') }} />
-      {/* 그룹 채팅에서 헤더의 '모임' 버튼으로 진입 */}
+      {/* Reached from a group chat via the header's group button */}
       <Stack.Screen name="GroupDetail"     component={GroupDetailScreen}     options={{ title: t('nav.groupDetail') }} />
       <Stack.Screen name="GroupMembers"    component={GroupMembersScreen}    options={{ title: t('nav.groupMembers') }} />
       <Stack.Screen name="GroupEdit"       component={GroupEditScreen}       options={{ title: '모임 정보 수정' }} />

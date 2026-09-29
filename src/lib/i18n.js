@@ -1,5 +1,5 @@
-// 다국어 사전 (한국어 / 영어)
-// 사용법: const { t } = useLang(); t('common.save')
+// Translation dictionary (Korean / English)
+// Usage: const { t } = useLang(); t('common.save')
 export const TRANSLATIONS = {
   ko: {
     common: {
@@ -52,7 +52,7 @@ export const TRANSLATIONS = {
       market: '중고거래', car: '자동차 중고거래', giveaway: '무료나눔',
       jobs: '구인구직·알바', realestate: '부동산 매매/전세', roomrent: '룸랜트·민박·하숙',
       exchange: '환전·사기주의', university: '학교 커뮤니티', fallback: '게시판',
-      // 학교 게시판 템플릿 (slug suffix 기반)
+      // School board templates (keyed by slug suffix)
       uniFree: '학교자유게시판', uniAnonymous: '학교익명게시판',
       uniMeetup: '학교 한인 모임', uniInfo: '학교 유학생 정보',
     },
@@ -115,21 +115,21 @@ export const TRANSLATIONS = {
       languageEn: '영어로 전환',
     },
     emptyState: {
-      // 공통
+      // Common
       noPosts: '아직 게시글이 없어요',
       noPostsCta: '첫 글을 작성해보세요',
       writeFirst: '글쓰기',
-      // 채팅
+      // Chat
       noChats: '아직 채팅방이 없어요',
       noChatsCta: '관심 있는 글에 댓글을 남기거나\n프로필에서 메시지를 보내보세요',
       noChatRequests: '받은 채팅 요청이 없어요',
-      // 알림
+      // Notifications
       noNotifications: '받은 알림이 없어요',
       noNotificationsCta: '활동이 생기면 여기에 표시될게요',
-      // 검색
+      // Search
       noSearchResults: '검색 결과가 없어요',
       noSearchResultsCta: '다른 키워드로 검색해보세요',
-      // 북마크
+      // Bookmarks
       noBookmarks: '저장한 글이 없어요',
       noBookmarksCta: '게시글의 북마크 아이콘으로 저장할 수 있어요',
     },
@@ -218,7 +218,7 @@ export const TRANSLATIONS = {
       transferOwner: '그룹장 양도', transferAsk: '에게 그룹장을 양도하시겠어요?',
       transferOk: '그룹장이 양도되었어요.',
       ownerCantLeave: '그룹장은 모임을 탈퇴할 수 없어요. 다른 회원에게 그룹장을 양도하거나 모임을 폐쇄해주세요.',
-      // 모임 만들기
+      // Create a group
       createTitle: '모임 만들기',
       createTitleSchool: '학교 동아리 만들기',
       nameLabel: '모임 이름', namePh: '예: 토론토 한인 등산 모임',
@@ -231,13 +231,13 @@ export const TRANSLATIONS = {
       nameRequired: '모임 이름을 2자 이상 입력해주세요.',
       categoryRequired: '카테고리를 선택해주세요.',
       duplicateName: '이미 같은 이름의 모임이 있어요.',
-      // 상태
+      // Status
       statusPending: '승인 대기 중', statusActive: '운영 중',
       statusRejected: '거절됨', statusClosed: '폐쇄됨',
       rejectReason: '거절 사유',
-      // 신고/필터
+      // Reporting and filters
       categoryAll: '전체 카테고리',
-      // 알림 설정
+      // Notification settings
       notifyPosts: '새 글 알림', notifyChat: '채팅 알림',
       communityNoPerm: '그룹장 또는 부그룹장만 편집할 수 있어요.',
       communityEditHint: '그룹장·부그룹장이 인스타·카톡 등 모임 소셜 채널과 한 줄 공지를 등록할 수 있어요. 모임 멤버에게만 노출됩니다.',
@@ -488,7 +488,7 @@ export const TRANSLATIONS = {
       verifySchool: '학교 인증하기',
       schoolVerified: '인증됨',
       verifyHint: '학교 인증을 하면 학교 게시판에 참여하고 같은 학교 한인들과 소통할 수 있어요.',
-      // 회원탈퇴 4단계
+      // Account deletion, 4 steps
       deleteTitle: '회원탈퇴',
       deleteStep1Title: '탈퇴 안내',
       deleteStep1Desc: '회원탈퇴 시 아래 데이터가 모두 삭제되며\n복구할 수 없습니다.',
@@ -664,7 +664,7 @@ export const TRANSLATIONS = {
       alreadyApproved: '✓ 이미 승인된 신청입니다.',
       alreadyRejected: '✕ 이미 거절된 신청입니다.',
       doneRejectReason: '거절 사유',
-      // 게시판 관리
+      // Board management
       boardSearch: '게시판/학교 검색', boardNoUniv: '학교 미지정',
       boardGlobal: '일반 게시판', boardSchool: '학교 게시판',
       boardNone: '게시판 없음', boardNew: '새 게시판', boardEdit: '게시판 수정',
@@ -681,14 +681,14 @@ export const TRANSLATIONS = {
       uniDeleteMsg: '"{name}" 학교를 삭제할까요?', uniNameRequired: '학교 이름이 필요합니다',
       uniFailed: '실패',
       boardPostCount: '글', boardSortLabel: '정렬', boardAnon: '익명',
-      // 신고 관리
+      // Report management
       rpWaiting: '대기', rpDone: '처리', rpDismissed: '기각',
       rpDeleteTarget: '대상 콘텐츠 삭제', rpDeleteAsk: '신고 대상을 삭제할까요?',
       rpNoReports: '신고 없음', rpDeleteAction: '삭제 처리', rpDismissAction: '기각',
-      // 유저 관리
+      // User management
       usAll: '전체', usActive: '정상', usSuspended: '정지', usBanned: '차단', usDeleted: '탈퇴',
       usSearchPlaceholder: '닉네임 또는 이메일 검색', usNoUsers: '유저 없음', usTotal: '명',
-      // 게시글 관리
+      // Post management
       ptAll: '전체', ptVisible: '공개', ptHidden: '숨김',
       ptGlobal: '일반 게시판', ptSchool: '학교 게시판',
       ptDeleteTitle: '게시글 삭제', ptDeleteAsk: '복구할 수 없어요. 삭제할까요?',
@@ -696,19 +696,19 @@ export const TRANSLATIONS = {
       ptSchoolSelect: '학교 선택', ptSchoolSearch: '학교 이름 검색',
       ptNoSchool: '학교 없음', ptNoPosts: '게시글 없음',
       ptUnpin: '고정해제', ptPin: '고정', ptShow: '공개', ptHide: '숨김',
-      // 시스템 설정
+      // System settings
       sysMaintenance: '점검 모드', sysEnabled: '활성화',
       sysMessage: '안내 메시지', sysMessagePh: '시스템 점검 중입니다...',
       sysForceUpdate: '강제 업데이트', sysMinVersion: '최소 버전 (예: 1.0.5)',
       sysBannedWords: '금지어 사전', sysBannedWordPh: '금지할 단어',
       sysAdd: '추가', sysBlockedIp: '차단 IP', sysSaved: '저장됨',
-      // 문의 관리
+      // Inquiry management
       iqAll: '전체', iqGeneral: '일반', iqAd: '광고',
       iqAllStatus: '전체', iqUnanswered: '미답변', iqAnswered: '답변완료',
       iqReplyInput: '답변 입력', iqNoInquiries: '문의 없음',
       iqContent: '내용', iqReply: '답변', iqReplyPh: '답변을 입력하세요',
       iqSendReply: '답변 보내기',
-      // 공지/푸시
+      // Announcements and push
       bcNoticeTab: '공지 관리', bcPushTab: '푸시 발송',
       bcNewNotice: '새 공지 작성', bcTitlePh: '공지 제목',
       bcContentPh: '공지 내용을 입력하세요', bcPinTop: '상단 고정',
@@ -893,7 +893,7 @@ export const TRANSLATIONS = {
       market: 'Buy & Sell', car: 'Cars & Vehicles', giveaway: 'Free Giveaways',
       jobs: 'Jobs & Part-time', realestate: 'Real Estate', roomrent: 'Room Rent & Stays',
       exchange: 'Currency & Scam Alert', university: 'School Community', fallback: 'Board',
-      // 학교 게시판 템플릿 (slug suffix 기반)
+      // School board templates (keyed by slug suffix)
       uniFree: 'Free Board', uniAnonymous: 'Anonymous Board',
       uniMeetup: 'Korean Meetups', uniInfo: 'Student Info',
     },
@@ -1674,14 +1674,14 @@ export const TRANSLATIONS = {
   },
 };
 
-// 점 표기 키 → 값 ('mypage.editProfile' → '프로필 수정')
+// Dotted key → value (e.g. 'mypage.editProfile')
 export function translate(lang, key) {
   const dict = TRANSLATIONS[lang] ?? TRANSLATIONS.ko;
   const val = key.split('.').reduce((o, k) => (o ? o[k] : undefined), dict);
   return val ?? key;
 }
 
-// 학교 게시판 slug suffix → i18n 키 매핑
+// School board slug suffix → i18n key
 const UNI_SUFFIX_MAP = {
   free: 'uniFree',
   anonymous: 'uniAnonymous',
@@ -1689,11 +1689,11 @@ const UNI_SUFFIX_MAP = {
   info: 'uniInfo',
 };
 
-// 게시판 slug → 번역된 이름 (DB 이름 fallback)
+// Board slug → translated name (falling back to the DB name)
 export function getBoardName(slug, dbName, t) {
   if (!t) return dbName || slug;
 
-  // 학교 게시판: slug가 "university-name-free" 같은 형태
+  // School boards: the slug looks like "university-name-free"
   if (slug && slug.includes('-')) {
     const lastDash = slug.lastIndexOf('-');
     const suffix = slug.substring(lastDash + 1);
@@ -1703,17 +1703,17 @@ export function getBoardName(slug, dbName, t) {
     }
   }
 
-  // 일반 게시판
+  // General boards
   const translated = t(`boardName.${slug}`);
   if (translated === `boardName.${slug}`) return dbName || slug;
   return translated;
 }
 
-// 게시판 slug → 번역된 설명 (DB 설명 fallback)
+// Board slug → translated description (falling back to the DB description)
 export function getBoardDescription(slug, dbDesc, t) {
   if (!t) return dbDesc || '';
 
-  // 학교 게시판: slug가 "university-name-free" 같은 형태
+  // School boards: the slug looks like "university-name-free"
   if (slug && slug.includes('-')) {
     const lastDash = slug.lastIndexOf('-');
     const suffix = slug.substring(lastDash + 1);
@@ -1723,7 +1723,7 @@ export function getBoardDescription(slug, dbDesc, t) {
     }
   }
 
-  // 일반 게시판
+  // General boards
   const translated = t(`boardDesc.${slug}`);
   if (translated === `boardDesc.${slug}`) return dbDesc || '';
   return translated;

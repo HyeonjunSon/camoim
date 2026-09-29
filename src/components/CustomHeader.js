@@ -1,19 +1,20 @@
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from './StyledText';
 import { useTheme } from '../context/ThemeContext';
 
-// 모든 커스텀 헤더의 통일 컴포넌트
-// - 좌측: 뒤로가기 (또는 비워두기)
-// - 중앙: 제목 (절대 위치, 항상 정중앙)
-// - 우측: 액션 버튼 N개 (각각 캡슐로 감쌈)
+// The shared component behind every custom header
+// - left: back button (or nothing)
+// - centre: title (absolutely positioned, always dead centre)
+// - right: N action buttons (each wrapped in a capsule)
 //
-// rightActions 형식:
-//   - 아이콘 버튼: { icon: 'search', onPress, color?, iconSize?, label? }
-//   - 텍스트 버튼: { text: '그룹', onPress, color?, label? }
-// rightContent: 직접 React 노드 넣고 싶을 때 (rightActions 대신)
-// onBack 안 주면 navigation.goBack() 호출
+// rightActions shape:
+//   - icon button: { icon: 'search', onPress, color?, iconSize?, label? }
+//   - text button: { text: 'Group', onPress, color?, label? }
+// rightContent: for passing a React node directly (instead of rightActions)
+// Without onBack, navigation.goBack() is called
 export default function CustomHeader({
   navigation,
   title,
@@ -80,7 +81,7 @@ export default function CustomHeader({
                 )}
               </TouchableOpacity>
             ))
-          ) : null /* 우측 액션 없으면 빈 자리 — 제목은 absoluteFill로 정중앙 유지 */}
+          ) : null /* An empty slot when there are no right actions — the title stays centred via absoluteFill */}
         </View>
       </View>
     </View>

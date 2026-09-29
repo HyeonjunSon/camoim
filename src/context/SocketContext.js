@@ -12,15 +12,15 @@ export function SocketProvider({ children }) {
   const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
 
-  // 이벤트 리스너 저장소 — 여러 화면에서 같은 이벤트 구독 가능
+  // Listener registry — several screens can subscribe to the same event
   const listenersRef = useRef({});
-  // 현재 열려 있는 채팅방 ID (채팅방 안에 있으면 해당 방의 알림 무시)
+  // The chat room currently open (notifications for that room are ignored while inside it)
   const activeRoomRef = useRef(null);
 
-  // 소켓 연결
+  // Connect the socket
   useEffect(() => {
     if (!user) {
-      // 로그아웃 시 해제
+      // Disconnect on logout
       socketRef.current?.disconnect();
       socketRef.current = null;
       setConnected(false);
@@ -47,7 +47,7 @@ export function SocketProvider({ children }) {
         setConnected(false);
       });
 
-      // 모든 이벤트를 등록된 리스너들에게 전달
+      // Fan every event out to the registered listeners
       const eventNames = [
         'new_message',
         'messages_read',
@@ -76,7 +76,7 @@ export function SocketProvider({ children }) {
     };
   }, [user]);
 
-  // 앱이 포그라운드로 돌아올 때 재연결
+  // Reconnect when the app returns to the foreground
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active' && user && socketRef.current && !socketRef.current.connected) {
@@ -86,7 +86,7 @@ export function SocketProvider({ children }) {
     return () => sub.remove();
   }, [user]);
 
-  // 이벤트 구독 — 화면마다 고유 key로 등록
+  // Subscribe — each screen registers under its own key
   const on = useCallback((eventName, key, callback) => {
     if (!listenersRef.current[eventName]) {
       listenersRef.current[eventName] = {};
@@ -94,19 +94,19 @@ export function SocketProvider({ children }) {
     listenersRef.current[eventName][key] = callback;
   }, []);
 
-  // 이벤트 구독 해제
+  // Unsubscribe
   const off = useCallback((eventName, key) => {
     if (listenersRef.current[eventName]) {
       delete listenersRef.current[eventName][key];
     }
   }, []);
 
-  // 소켓 emit
+  // Socket emit
   const emit = useCallback((eventName, data) => {
     socketRef.current?.emit(eventName, data);
   }, []);
 
-  // 소켓 룸 join/leave
+  // Join/leave a socket room
   const joinRoom = useCallback((roomId) => {
     socketRef.current?.emit('join_room', roomId);
   }, []);

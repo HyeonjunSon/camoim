@@ -26,7 +26,7 @@ import { colors } from '../constants/colors'
 
 const Stack = createNativeStackNavigator();
 
-// 마이페이지 스택
+// My page stack
 export default function MyPageStack() {
   const { colors } = useTheme();
   const { t } = useLang();

@@ -1,9 +1,9 @@
-// 대학 이름 관련 유틸
+// University name helpers
 
 /**
- * 대학 이름에서 괄호 안의 약칭만 추출.
- * 예: "University of British Columbia (UBC)" → "UBC"
- *     "McGill University" → "McGill University" (괄호 없으면 원본 반환)
+ * Extracts the parenthesized abbreviation from a university name.
+ * e.g. "University of British Columbia (UBC)" → "UBC"
+ *      "McGill University" → "McGill University" (returned unchanged when there are no parentheses)
  */
 export function toShortUniversityName(name) {
   if (!name) return '';

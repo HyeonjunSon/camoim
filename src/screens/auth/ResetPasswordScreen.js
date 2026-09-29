@@ -9,7 +9,8 @@ import {
   Alert,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Text, TextInput } from '../../components/StyledText';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
@@ -38,7 +39,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
   const pwMatches = password === passwordConfirm && password.length > 0;
   const allValid = emailValid && codeValid && codeVerified && pwValid && pwMatches;
 
-  // 코드/이메일 변경 시 인증 상태 초기화
+  // Reset the verified state when the code or email changes
   const onChangeEmail = (v) => { setEmail(v); setCodeStatus(null); setError(''); };
   const onChangeCode = (v) => {
     setCode(v.replace(/[^0-9]/g, '').slice(0, 6));
@@ -53,7 +54,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
       await verifyResetCode(email.trim(), code.trim());
       setCodeStatus('ok');
     } catch (e) {
-      // 서버가 EXPIRED_CODE / INVALID_CODE 코드 줌
+      // The server returns EXPIRED_CODE / INVALID_CODE
       if (e?.code === 'EXPIRED_CODE') setCodeStatus('expired');
       else setCodeStatus('invalid');
     }

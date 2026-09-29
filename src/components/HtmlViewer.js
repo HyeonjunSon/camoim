@@ -3,9 +3,9 @@ import { WebView } from 'react-native-webview';
 import { View, StyleSheet } from 'react-native';
 import { SERVER_HOST } from '../lib/config';
 
-// 게시글 HTML을 WebView로 안전하게 렌더링
-// - 본문 스크롤은 부모 ScrollView가 처리 (WebView 자체 스크롤 비활성)
-// - 이미지/텍스트가 터치를 가로채지 않도록 함
+// Renders post HTML safely in a WebView
+// - the parent ScrollView owns scrolling (the WebView's own scrolling is off)
+// - keeps images and text from swallowing touches
 export default function HtmlViewer({ html, textColor = '#2B2B2B', linkColor = '#1E88E5', fontSize = 16 }) {
   const [height, setHeight] = useState(80);
 

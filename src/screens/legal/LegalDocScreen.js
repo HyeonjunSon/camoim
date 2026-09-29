@@ -9,7 +9,7 @@ import {
   PRIVACY_POLICY, PRIVACY_VERSION,
 } from '../../constants/legal';
 
-// 이용약관 / 개인정보처리방침 공용 화면
+// Shared screen for the terms of service and privacy policy
 // route.params.type: 'terms' | 'privacy'
 export default function LegalDocScreen({ navigation, route }) {
   const { colors } = useTheme();

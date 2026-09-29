@@ -3,7 +3,7 @@ import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { registerPushToken } from './api';
 
-// 포그라운드 알림 표시 설정
+// Foreground notification display settings
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
@@ -14,15 +14,15 @@ Notifications.setNotificationHandler({
 });
 
 /**
- * 앱 시작 시 호출 — 푸시 토큰 등록
- * 실기기에서만 동작 (시뮬레이터 미지원)
+ * Called at app start to register the push token.
+ * Works on physical devices only (simulators are unsupported).
  */
 export async function registerForPushNotifications() {
   if (!Device.isDevice) {
     return null;
   }
 
-  // Android 알림 채널 설정
+  // Android notification channel setup
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
@@ -32,7 +32,7 @@ export async function registerForPushNotifications() {
     });
   }
 
-  // 권한 요청
+  // Request permission
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
@@ -45,14 +45,14 @@ export async function registerForPushNotifications() {
     return null;
   }
 
-  // Expo Push Token 발급
+  // Obtain the Expo push token
   const tokenData = await Notifications.getExpoPushTokenAsync({
     projectId: 'fa0d6f5e-1203-42d3-bd79-b853010f189b',
   });
 
   const token = tokenData.data;
 
-  // 서버에 토큰 저장
+  // Store the token on the server
   try {
     await registerPushToken(token);
   } catch (e) {
@@ -63,7 +63,7 @@ export async function registerForPushNotifications() {
 }
 
 /**
- * 알림 탭 시 딥링크 처리 핸들러 등록
+ * Registers the deep-link handler for notification taps
  * @param {function} onNavigate - (data) => void  e.g. navigate to PostDetail
  */
 export function addNotificationResponseListener(onNavigate) {
@@ -76,13 +76,13 @@ export function addNotificationResponseListener(onNavigate) {
 }
 
 /**
- * iOS 앱 아이콘 뱃지 카운트 0으로 리셋
- * 앱 시작 시 / 포그라운드 전환 시 / 알림 읽음 시 호출
+ * Resets the iOS app icon badge count to 0.
+ * Called at app start, on foreground, and when a notification is read.
  */
 export async function clearAppBadge() {
   try {
     await Notifications.setBadgeCountAsync(0);
   } catch (e) {
-    // 권한 없거나 시뮬레이터면 무시
+    // Ignored without permission, or on a simulator
   }
 }

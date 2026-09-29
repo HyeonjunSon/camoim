@@ -9,7 +9,8 @@ import {
   RefreshControl,
   ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -22,59 +23,59 @@ import { useLang } from '../../context/LangContext';
 import { formatTime } from '../../lib/time';
 import EmptyState from '../../components/EmptyState';
 
-// 알림 타입별 아이콘 / 배경 / 강조색 — 디자인 통일
+// Icon, background and accent per notification type — keeps the design consistent
 const buildTypeMeta = (colors) => ({
   comment: {
     iconName: 'chatbubble-ellipses',
-    bg: '#DBEAFE',         // 라이트 블루
+    bg: '#DBEAFE',         // Light blue
     color: '#2563EB',
     labelKey: 'notif.catComment',
   },
   reply: {
     iconName: 'arrow-undo',
-    bg: '#E0E7FF',         // 라이트 인디고
+    bg: '#E0E7FF',         // Light indigo
     color: '#4F46E5',
     labelKey: 'notif.catReply',
   },
   like: {
     iconName: 'heart',
-    bg: '#FEE2E2',         // 라이트 레드
+    bg: '#FEE2E2',         // Light red
     color: '#DC2626',
     labelKey: 'notif.catLike',
   },
   chat: {
     iconName: 'mail',
-    bg: '#EDE9FE',         // 라이트 퍼플
+    bg: '#EDE9FE',         // Light purple
     color: '#7C3AED',
     labelKey: 'notif.catChat',
   },
   chat_request: {
     iconName: 'chatbubble-ellipses-outline',
-    bg: '#CFFAFE',         // 라이트 시안
+    bg: '#CFFAFE',         // Light cyan
     color: '#0891B2',
     labelKey: 'notif.catChatRequest',
   },
   university_leader: {
     iconName: 'school',
-    bg: '#DCFCE7',         // 라이트 그린
+    bg: '#DCFCE7',         // Light green
     color: '#16A34A',
     labelKey: 'notif.catDefault',
   },
   group_approved: {
     iconName: 'people',
-    bg: '#FEF3C7',         // 라이트 옐로
+    bg: '#FEF3C7',         // Light yellow
     color: '#D97706',
     labelKey: 'notif.catDefault',
   },
   default: {
     iconName: 'notifications',
-    bg: '#EDE9FE',         // 라이트 퍼플
+    bg: '#EDE9FE',         // Light purple
     color: '#7C3AED',
     labelKey: 'notif.catDefault',
   },
 });
 
-// 댓글 메시지에서 인용 부분을 분리 — "...남겼어요: 'xxx'" 패턴
+// Split the quoted part out of a comment message — the "...left a comment: 'xxx'" pattern
 function splitCommentMessage(message) {
   if (!message) return { lead: '', quote: '' };
   const m = message.match(/^(.*?:\s*)["'"](.*)["'"]\s*$/s);
@@ -82,7 +83,7 @@ function splitCommentMessage(message) {
   return { lead: message, quote: '' };
 }
 
-// 알림을 오늘/어제/그 외 날짜별 섹션으로 그룹화
+// Group notifications into today / yesterday / older date sections
 function groupNotifications(notifs, t) {
   const todayLabel = t('time.today') || '오늘';
   const yesterdayLabel = t('time.yesterday') || '어제';
@@ -93,7 +94,7 @@ function groupNotifications(notifs, t) {
 
   const today = [];
   const yesterday = [];
-  const older = new Map(); // key: "5월 8일", value: { sortKey, data }
+  const older = new Map(); // key: a date label, value: { sortKey, data }
 
   for (const n of notifs) {
     const ts = new Date(n.createdAt).getTime();
@@ -113,7 +114,7 @@ function groupNotifications(notifs, t) {
   const sections = [];
   if (today.length) sections.push({ title: todayLabel, data: today });
   if (yesterday.length) sections.push({ title: yesterdayLabel, data: yesterday });
-  // 최신 날짜부터 표시
+  // Newest dates first
   Array.from(older.entries())
     .sort((a, b) => b[1].sortKey - a[1].sortKey)
     .forEach(([title, { data }]) => sections.push({ title, data }));
@@ -134,13 +135,13 @@ function NotificationCard({ item, onPress, t, styles, colors }) {
       onPress={() => onPress(item)}
       activeOpacity={0.7}
     >
-      {/* 아이콘 (배경 원) */}
+      {/* Icon (circular background) */}
       <View style={[styles.iconWrap, { backgroundColor: meta.bg }]}>
         <Ionicons name={meta.iconName} size={18} color={meta.color} />
         {!item.isRead && <View style={[styles.unreadDot, { borderColor: colors.surface }]} />}
       </View>
 
-      {/* 본문 */}
+      {/* Body */}
       <View style={styles.cardBody}>
         <View style={styles.cardTopRow}>
           <Text style={[styles.categoryLabel, { color: meta.color }]}>{t(meta.labelKey)}</Text>
@@ -207,7 +208,7 @@ export default function NotificationScreen() {
     }
 
     if (notification.type === 'chat_request') {
-      // 채팅탭 → 받은 요청 박스로 이동 (ChatList의 box 토글이 'requests'로 열림)
+      // Chat tab → the received-requests box (ChatList's box toggle opens on 'requests')
       navigation.navigate('Chat', { screen: 'ChatList', params: { initialBox: 'requests' } });
     } else if (notification.type === 'chat' && notification.roomId) {
       navigation.navigate('Chat', { screen: 'ChatList' });
@@ -216,7 +217,7 @@ export default function NotificationScreen() {
     }
   }
 
-  // '댓글' 필터는 대댓글(reply)도 포함
+  // The 'comments' filter includes replies too
   const matchesFilter = (n, key) =>
     key === 'comment' ? (n.type === 'comment' || n.type === 'reply') : n.type === key;
   const filtered = filter === 'all'
@@ -228,7 +229,7 @@ export default function NotificationScreen() {
 
   return (
     <View style={styles.container}>
-      {/* 헤더 */}
+      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 4 : 16 }]}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerTitle}>{t('notif.title')}</Text>
@@ -243,7 +244,7 @@ export default function NotificationScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 필터 칩 */}
+      {/* Filter chips */}
       <View style={styles.filterWrap}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
           {FILTERS.map(f => {
@@ -308,7 +309,7 @@ const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  // 헤더
+  // Header
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',
     paddingHorizontal: 20, paddingBottom: 12,
@@ -322,7 +323,7 @@ const createStyles = (colors) => StyleSheet.create({
   headerBadgeText: { fontSize: 10, fontWeight: '800', color: colors.white },
   markAllText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
 
-  // 필터 칩
+  // Filter chips
   filterWrap: { paddingBottom: 12 },
   filterRow: { paddingHorizontal: 16, gap: 8 },
   chip: {
@@ -337,13 +338,13 @@ const createStyles = (colors) => StyleSheet.create({
     width: 6, height: 6, borderRadius: 3, backgroundColor: colors.danger,
   },
 
-  // 섹션 헤더 (오늘/어제/날짜)
+  // Section header (today / yesterday / date)
   sectionHeader: {
     fontSize: 15, fontWeight: '800', color: colors.text,
     marginTop: 18, marginBottom: 10, paddingHorizontal: 4,
   },
 
-  // 카드
+  // Card
   card: {
     flexDirection: 'row', gap: 12,
     paddingVertical: 14, paddingHorizontal: 14,

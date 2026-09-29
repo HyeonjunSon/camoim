@@ -1,20 +1,20 @@
-// 한인 업체 지도 — 공통 상수 (지도/제보/관리 화면이 모두 여기서 import)
-// 카테고리 색상은 테마 무관 고정값 (핀·칩 브랜드 컬러), 아이콘은 lib/icons.js 단일 소스
+// Korean business map — shared constants (the map, submission and admin screens all import from here)
+// Category colours are fixed regardless of theme (brand colours for pins and chips); icons come from the single source in lib/icons.js
 import { BIZ_CATEGORY_ICONS } from '../lib/icons';
 
-// label = 한국어 fallback(관리자 화면용), labelKey = i18n 키(유저 화면은 t(labelKey) 사용)
+// label = Korean fallback for the admin screens, labelKey = i18n key (user-facing screens use t(labelKey))
 export const BUSINESS_CATEGORIES = [
   { key: 'food',   label: '음식점',        labelKey: 'biz.catFood',   ion: BIZ_CATEGORY_ICONS.food.ion,   color: '#FB923C', soft: '#FFF4ED' },
   { key: 'cafe',   label: '카페·베이커리', labelKey: 'biz.catCafe',   ion: BIZ_CATEGORY_ICONS.cafe.ion,   color: '#D97706', soft: '#FEF3C7' },
   { key: 'mart',   label: '마트',          labelKey: 'biz.catMart',   ion: BIZ_CATEGORY_ICONS.mart.ion,   color: '#10B981', soft: '#ECFDF5' },
   { key: 'hair',   label: '미용실',        labelKey: 'biz.catHair',   ion: BIZ_CATEGORY_ICONS.hair.ion,   color: '#8B5CF6', soft: '#F5F3FF' },
   { key: 'clinic', label: '병원·한의원',   labelKey: 'biz.catClinic', ion: BIZ_CATEGORY_ICONS.clinic.ion, color: '#F43F5E', soft: '#FFF1F2' },
-  // realty(부동산·이민)는 제외 — 개인 에이전트 핀이 지도를 어지럽혀서 뺌 (서버 스키마 enum엔 유지)
+  // realty (real estate and immigration) is left out — individual agent pins cluttered the map (the enum stays in the server schema)
   { key: 'etc',    label: '기타',          labelKey: 'biz.catEtc',    ion: BIZ_CATEGORY_ICONS.etc.ion,    color: '#9CA3AF', soft: '#F3F4F6' },
 ];
 
-// 지도 "빠른 이동" 도시 단축 + 중심 좌표 (recenter 기준). 제한이 아니라 카메라 프리셋.
-// 숙소는 도시로 안 막힘(주소로 어디든). 아래는 한인 많은 캐나다 주요 도시.
+// "Jump to" city shortcuts and their centre coordinates (used for recentring). A camera preset, not a restriction.
+// Stays are not limited by city (an address can be anywhere). These are the Canadian cities with large Korean populations.
 export const BUSINESS_CITIES = [
   { key: 'toronto',   label: '토론토',   labelKey: 'biz.cityToronto',   latitude: 43.6532,  longitude: -79.3832 },
   { key: 'vancouver', label: '밴쿠버',   labelKey: 'biz.cityVancouver', latitude: 49.2827,  longitude: -123.1207 },
@@ -29,7 +29,7 @@ export const BUSINESS_CITIES = [
   { key: 'halifax',   label: '핼리팩스', labelKey: 'biz.cityHalifax',   latitude: 44.6488,  longitude: -63.5752 },
 ];
 
-// 도시 기본 확대 수준 (위/경도 delta)
+// Default zoom per city (latitude/longitude delta)
 export const CITY_REGION_DELTA = { latitudeDelta: 0.16, longitudeDelta: 0.16 };
 
 const CAT_MAP = Object.fromEntries(BUSINESS_CATEGORIES.map((c) => [c.key, c]));
@@ -45,14 +45,14 @@ export const sourceLabelOf = (source) =>
 export const sourceKeyOf = (source) =>
   source === 'google' ? 'biz.srcGoogle' : source === 'admin' ? 'biz.srcAdmin' : 'biz.srcUser';
 
-// 업체 문제 신고 사유 (서버 reason 키와 매핑)
+// Reasons for reporting a business (mapped to the server's reason keys)
 export const BUSINESS_REPORT_REASONS = [
   { key: 'closed', label: '폐업했어요',              labelKey: 'biz.reasonClosed' },
   { key: 'info',   label: '주소·전화 등 정보가 달라요', labelKey: 'biz.reasonInfo' },
   { key: 'spam',   label: '스팸·중복 등록이에요',      labelKey: 'biz.reasonSpam' },
 ];
 
-// 거리(km) 표시 포맷
+// Distance (km) display format
 export function formatDistance(km) {
   if (km == null || !Number.isFinite(km)) return '';
   if (km < 1) return `${Math.round(km * 1000)}m`;

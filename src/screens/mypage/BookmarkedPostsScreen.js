@@ -14,7 +14,7 @@ import PostCard from '../../components/PostCard';
 import { useLang } from '../../context/LangContext';
 import EmptyState from '../../components/EmptyState';
 
-// 북마크(스크랩)한 글 목록
+// Bookmarked (scrapped) posts
 export default function BookmarkedPostsScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
