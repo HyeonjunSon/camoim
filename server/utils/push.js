@@ -1,17 +1,17 @@
-// Expo Push Notification 발송 유틸
-// Firebase 설정 없이 Expo 서버를 통해 iOS/Android 모두 지원
+// Expo push notification helpers
+// Covers both iOS and Android through Expo's servers, with no Firebase setup
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
-// 사용자의 정확한 unread badge 카운트 계산
-// = 안 읽은 알림 + 안 읽은 채팅 메시지 합계
+// Compute the user's exact unread badge count
+// = unread notifications + unread chat messages
 async function calculateUnreadBadge(userId) {
   if (!userId) return 1;
   try {
     const Notification = require('../models/Notification');
     const ChatRoom = require('../models/ChatRoom');
     const [notifCount, rooms] = await Promise.all([
-      // 채팅 알림은 알림함에서 제외 (채팅 unread로 카운트하므로 중복 방지)
+      // Chat notifications are excluded here (they are counted as chat unread, so this avoids double counting)
       Notification.countDocuments({
         userId,
         isRead: false,
@@ -34,22 +34,22 @@ async function calculateUnreadBadge(userId) {
 }
 
 /**
- * 단일 푸시 알림 발송
+ * Send a single push notification
  * @param {string} pushToken - Expo push token (ExponentPushToken[xxx])
  * @param {string} title
  * @param {string} body
- * @param {object} data - 앱 내 딥링크용 추가 데이터
- * @param {string} recipientUserId - (선택) 수신자 유저 ID — 정확한 badge 카운트 계산용
+ * @param {object} data - extra payload for in-app deep links
+ * @param {string} recipientUserId - optional; used to compute an exact badge count
  */
 async function sendPush(pushToken, title, body, data = {}, recipientUserId = null) {
   if (!pushToken || !pushToken.startsWith('ExponentPushToken')) return;
 
-  // 정확한 unread 카운트로 badge 설정 (수신자 ID 있을 때만)
-  // 새 알림이 +1 되기 전 시점이라 +1 보정 (이 push 자체가 다음 읽지 않은 1건)
+  // Set the badge from the exact unread count (only when we know the recipient)
+  // We are still ahead of the new notification being stored, so add 1 (this push is that unread item)
   let badge = 1;
   if (recipientUserId) {
     const current = await calculateUnreadBadge(recipientUserId);
-    badge = current + 1; // 이 푸시 자체를 +1
+    badge = current + 1; // Count this push itself
   }
 
   try {

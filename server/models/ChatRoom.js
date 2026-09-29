@@ -1,25 +1,25 @@
 const mongoose = require('mongoose');
 
 const chatRoomSchema = new mongoose.Schema({
-  // dm: 1:1, group: 모임 단체, school: 학교 전체 채팅
+  // dm: 1:1, group: club/meetup room, school: university-wide room
   kind: { type: String, enum: ['dm', 'group', 'school'], default: 'dm', index: true },
-  // 그룹 채팅이면 모임 ID + 캐시된 이름/커버 (목록 빠른 조회용)
+  // Group chats: the group ID plus a cached name/cover, which keeps list queries fast
   groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', default: null, index: true },
   groupName: { type: String, default: '' },
   groupCoverImage: { type: String, default: '' },
-  // 학교 전체 채팅이면 학교명 (groupId 대용 — 학교당 1개)
+  // School chats: the university name, standing in for groupId (one room per school)
   university: { type: String, default: '', index: true },
 
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }],
   lastMessage: { type: String, default: '' },
   lastMessageAt: { type: Date, default: Date.now },
-  // 읽지 않은 메시지 수 { userId: count }
+  // Unread message counts, { userId: count }
   unreadCount: { type: Map, of: Number, default: {} },
-  // 채팅 요청 상태: pending(수락 대기) / accepted(수락됨). 그룹 채팅은 항상 accepted.
+  // Chat request state: pending (awaiting accept) / accepted. Group chats are always accepted.
   status: { type: String, enum: ['pending', 'accepted'], default: 'pending', index: true },
-  // 채팅을 먼저 건 사람 (요청자) — DM 전용
+  // Whoever opened the chat (the requester) — DM only
   requesterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  // DM에서 상대가 나간 뒤에도 닉네임/아바타를 보여주기 위한 스냅샷
+  // Snapshot so a nickname/avatar still renders after the other party leaves a DM
   otherSnapshot: {
     id: { type: mongoose.Schema.Types.ObjectId },
     nickname: String,
@@ -27,7 +27,7 @@ const chatRoomSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
-// 두 참여자로 방 찾기용 인덱스
+// Index for finding a room by its two participants
 chatRoomSchema.index({ participants: 1 });
 
 module.exports = mongoose.model('ChatRoom', chatRoomSchema);

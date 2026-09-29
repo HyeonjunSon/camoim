@@ -26,7 +26,7 @@ const { logAdmin } = require('../utils/adminLog');
 
 const router = express.Router();
 
-// 모든 admin 라우트는 로그인 + 관리자 권한 필요
+// Every admin route requires login plus admin privileges
 router.use(requireAuth, requireRole('admin'));
 
 // GET /api/admin/verify-requests?status=pending
@@ -58,7 +58,7 @@ router.get('/verify-requests', async (req, res) => {
   }
 });
 
-// PUT /api/admin/verify-requests/:id/approve — 승인
+// PUT /api/admin/verify-requests/:id/approve
 router.put('/verify-requests/:id/approve', async (req, res) => {
   try {
     const request = await VerifyRequest.findById(req.params.id);
@@ -67,13 +67,13 @@ router.put('/verify-requests/:id/approve', async (req, res) => {
       return res.status(400).json({ success: false, message: '이미 처리된 신청입니다.' });
     }
 
-    // 인증 상태 업데이트
+    // Update the verification state
     request.status = 'approved';
     request.reviewedBy = req.user.id;
     request.reviewedAt = new Date();
     await request.save();
 
-    // 유저 role, verified, university 업데이트
+    // Update the user's role, verified flag and university
     const updateData = {
       verified: true,
       university: request.university,
@@ -81,7 +81,7 @@ router.put('/verify-requests/:id/approve', async (req, res) => {
     };
     await User.findByIdAndUpdate(request.userId, updateData);
 
-    // 학교 게시판 자동 생성 (없으면)
+    // Create the school boards if they do not exist yet
     await ensureUniversityBoards(request.university);
 
     res.json({ success: true, data: { message: '승인 완료' } });
@@ -91,7 +91,7 @@ router.put('/verify-requests/:id/approve', async (req, res) => {
   }
 });
 
-// PUT /api/admin/verify-requests/:id/reject — 거절
+// PUT /api/admin/verify-requests/:id/reject
 router.put('/verify-requests/:id/reject', async (req, res) => {
   try {
     const { adminNote } = req.body;
@@ -114,14 +114,14 @@ router.put('/verify-requests/:id/reject', async (req, res) => {
   }
 });
 
-// 학교 게시판 자동 생성 헬퍼 (free + anonymous 2종)
+// Helper that creates the two school boards (free + anonymous)
 const UNIVERSITY_BOARD_TEMPLATES = [
   { slugSuffix: 'free',      name: '학교자유게시판',     description: '학교 친구들과 자유롭게 이야기해요', isAnonymousAllowed: false, sortOrder: 1 },
   { slugSuffix: 'anonymous', name: '학교 익명',          description: '익명으로 털어놓아요',               isAnonymousAllowed: true,  sortOrder: 2 },
 ];
 
 async function ensureUniversityBoards(universityShortName) {
-  // slug 생성은 server/index.js의 seed/migration과 동일해야 중복 방지됨
+  // Slug generation must match the seed/migration in server/index.js, or duplicates appear
   const prefix = universityShortName.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-');
   for (const tmpl of UNIVERSITY_BOARD_TEMPLATES) {
     const slug = `${prefix}-${tmpl.slugSuffix}`;
@@ -152,8 +152,8 @@ router.get('/reports', async (req, res) => {
       .populate('reporterId', 'nickname email');
 
     const formatted = await Promise.all(reports.map(async (r) => {
-      let targetText = '';        // 본문/제목 등 신고 대상 콘텐츠
-      let liveAuthor = null;      // 현재 살아있는 작성자 (탈퇴 안 했으면)
+      let targetText = '';        // The reported content itself (body, title and so on)
+      let liveAuthor = null;      // The author as they exist now (if the account is still around)
       let liveIsAnonymous = !!r.targetIsAnonymous;
 
       if (r.targetType === 'post') {
@@ -183,8 +183,8 @@ router.get('/reports', async (req, res) => {
         targetText = biz ? `[업체] ${biz.name}` : '(삭제됨)';
       }
 
-      // 작성자 정보: 라이브 우선, 없으면(탈퇴) 신고 시점 스냅샷 사용
-      const isDeleted = !liveAuthor && !!r.targetAuthorId; // 신고 시엔 있었지만 지금은 없음 → 탈퇴
+      // Author details: prefer the live record, falling back to the report-time snapshot for deleted accounts
+      const isDeleted = !liveAuthor && !!r.targetAuthorId; // Present at report time but gone now, so the account was deleted
       const targetAuthor = {
         userId: liveAuthor?._id || r.targetAuthorId || null,
         nickname: liveAuthor?.nickname || r.targetAuthorNickname || '',
@@ -204,7 +204,7 @@ router.get('/reports', async (req, res) => {
         detail: r.detail,
         targetText,
         targetAuthor,
-        // legacy field — 기존 클라이언트 호환
+        // Legacy field — kept for older clients
         targetPreview: targetText
           + (targetAuthor.nickname
               ? ` — by ${targetAuthor.nickname}${targetAuthor.isAnonymous ? ' (익명)' : ''}${isDeleted ? ' (탈퇴)' : ''}`
@@ -221,13 +221,13 @@ router.get('/reports', async (req, res) => {
   }
 });
 
-// PUT /api/admin/reports/:id/resolve — 처리 완료 (게시글/댓글 삭제)
+// PUT /api/admin/reports/:id/resolve — resolve by deleting the post or comment
 router.put('/reports/:id/resolve', async (req, res) => {
   try {
     const report = await Report.findById(req.params.id);
     if (!report) return res.status(404).json({ success: false, message: '신고를 찾을 수 없습니다.' });
 
-    // 대상 게시글/댓글 삭제
+    // Delete the target post or comment
     if (report.targetType === 'post') {
       await Post.findByIdAndDelete(report.targetId);
     } else {
@@ -237,7 +237,7 @@ router.put('/reports/:id/resolve', async (req, res) => {
       }
     }
 
-    // 같은 대상의 모든 신고 resolved 처리
+    // Mark every report against the same target resolved
     await Report.updateMany({ targetId: report.targetId }, { status: 'resolved', adminNote: String(req.body.adminNote || '').slice(0, 1000) });
 
     res.json({ success: true, data: { message: '처리 완료 및 콘텐츠 삭제됨' } });
@@ -247,7 +247,7 @@ router.put('/reports/:id/resolve', async (req, res) => {
   }
 });
 
-// PUT /api/admin/reports/:id/dismiss — 신고 기각
+// PUT /api/admin/reports/:id/dismiss — dismiss the report
 router.put('/reports/:id/dismiss', async (req, res) => {
   try {
     await Report.findByIdAndUpdate(req.params.id, { status: 'dismissed', adminNote: String(req.body.adminNote || '').slice(0, 1000) });
@@ -259,7 +259,7 @@ router.put('/reports/:id/dismiss', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════
-// 유저 관리
+// User management
 // ═══════════════════════════════════════════════════
 
 // GET /api/admin/users?q=&status=&role=&page=
@@ -276,12 +276,12 @@ router.get('/users', async (req, res) => {
       ]});
     }
     if (status === 'active') {
-      // status 필드가 없거나 'active'인 유저 모두 포함
+      // Include users whose status is missing or 'active'
       conditions.push({ $or: [{ status: 'active' }, { status: { $exists: false } }, { status: null }] });
     } else if (status) {
       conditions.push({ status });
     } else {
-      // '전체' 탭: 탈퇴(deleted) 회원은 제외 (탈퇴 탭에서만 노출)
+      // The "all" tab excludes deleted members (they show only under the deleted tab)
       conditions.push({ status: { $ne: 'deleted' } });
     }
     const filter = conditions.length ? (conditions.length === 1 ? conditions[0] : { $and: conditions }) : {};
@@ -312,14 +312,14 @@ router.get('/users/:id', async (req, res) => {
       Post.countDocuments({ userId: u._id }),
       Comment.countDocuments({ userId: u._id }),
       Report.countDocuments({ reporterId: u._id }),
-      // 본인을 대상으로 한 신고 수
+      // Number of reports filed against this user
       (async () => {
         const myPosts = await Post.find({ userId: u._id }).select('_id').lean();
         const myComments = await Comment.find({ userId: u._id }).select('_id').lean();
         const ids = [...myPosts.map(p => p._id), ...myComments.map(c => c._id)];
         return Report.countDocuments({ targetId: { $in: ids } });
       })(),
-      // 이 회원이 학생회장으로 임명된 학교 (해당 학교명 또는 null)
+      // The school where this member is student president (that school's name, or null)
       University.findOne({ leaderUserId: u._id }).select('name').lean().then(r => r?.name || null),
     ]);
 
@@ -386,11 +386,11 @@ router.put('/users/:id/role', async (req, res) => {
     const target = await User.findById(req.params.id);
     if (!target) return res.status(404).json({ success: false, message: '유저를 찾을 수 없어요' });
 
-    // 본인 강등 차단
+    // Do not let an admin demote themselves
     if (String(target._id) === String(req.user.id) && target.role === 'admin' && role !== 'admin') {
       return res.status(400).json({ success: false, message: '본인의 admin 권한은 해제할 수 없어요' });
     }
-    // 마지막 admin 보호
+    // Protect the last remaining admin
     if (target.role === 'admin' && role !== 'admin') {
       const adminCount = await User.countDocuments({ role: 'admin' });
       if (adminCount <= 1) {
@@ -409,7 +409,7 @@ router.put('/users/:id/role', async (req, res) => {
 });
 
 // PUT /api/admin/users/:id/university-leader { isLeader: boolean }
-// 인증 회원을 본인 학교의 학생회장으로 임명/해제. 학교당 1명, 자기 학교만.
+// Appoint or remove a verified member as their own school's president. One per school, own school only.
 router.put('/users/:id/university-leader', async (req, res) => {
   try {
     const target = await User.findById(req.params.id).select('verified university nickname');
@@ -430,7 +430,7 @@ router.put('/users/:id/university-leader', async (req, res) => {
     }
     await uni.save();
 
-    // 임명 시 새 학생회장에게 알림 + 푸시 (해제 시는 알림 없음)
+    // On appointment, notify and push to the new president (removal sends nothing)
     if (isLeader) {
       try {
         await Notification.create({
@@ -464,7 +464,7 @@ router.put('/users/:id/university-leader', async (req, res) => {
   }
 });
 
-// PUT /api/admin/users/:id/profile { nickname?, bio? } — 강제 수정
+// PUT /api/admin/users/:id/profile { nickname?, bio? } — force an edit
 router.put('/users/:id/profile', async (req, res) => {
   try {
     const patch = {};
@@ -483,10 +483,10 @@ router.put('/users/:id/profile', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/users/:id — 강제 탈퇴 (hard delete)
-// 본인 탈퇴(DELETE /api/auth/me)와 동일한 방식:
-//  - 작성 글/댓글은 userId=null, isAnonymous=true 로 전환("탈퇴한 회원" 표시)
-//  - 유저 레코드는 DB에서 완전 삭제, 관련 메타데이터도 정리
+// DELETE /api/admin/users/:id — force deletion (hard delete)
+// Same shape as self-deletion (DELETE /api/auth/me):
+//  - posts and comments move to userId=null, isAnonymous=true (shown as a deleted member)
+//  - the user record is removed from the DB entirely, along with related metadata
 router.delete('/users/:id', async (req, res) => {
   try {
     if (String(req.params.id) === String(req.user.id)) {
@@ -517,7 +517,7 @@ router.delete('/users/:id', async (req, res) => {
       Notification.deleteMany({ userId }),
       Inquiry.deleteMany({ userId }),
       Bookmark.deleteMany({ userId }),
-      // 학교 학생회장 자리 정리 — 죽은 참조 방지
+      // Clear the school president seat so no dangling reference is left
       University.updateMany({ leaderUserId: userId }, { $set: { leaderUserId: null } }),
     ]);
 
@@ -531,7 +531,7 @@ router.delete('/users/:id', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════
-// 콘텐츠 관리 (게시글/댓글)
+// Content management (posts and comments)
 // ═══════════════════════════════════════════════════
 
 // GET /api/admin/posts?q=&boardId=&userId=&hidden=&page=
@@ -609,7 +609,7 @@ router.put('/posts/:id/move', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/posts/:id — 강제 삭제
+// DELETE /api/admin/posts/:id — force delete
 router.delete('/posts/:id', async (req, res) => {
   try {
     const post = await Post.findByIdAndDelete(req.params.id);
@@ -636,7 +636,7 @@ router.delete('/comments/:id', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════
-// 게시판 관리
+// Board management
 // ═══════════════════════════════════════════════════
 
 // GET /api/admin/boards
@@ -659,7 +659,7 @@ router.post('/boards', async (req, res) => {
   try {
     const { slug, name, description = '', isAnonymousAllowed = false, sortOrder = 0, isUniversityBoard = false, university = '' } = req.body;
     if (!slug || !name) return res.status(400).json({ success: false, message: 'slug와 name 필요' });
-    // 학교 게시판이면 university+slug 조합으로 중복 체크
+    // School boards are deduplicated on the university + slug pair
     const dupFilter = isUniversityBoard && university
       ? { slug, university }
       : { slug, isUniversityBoard: false };
@@ -707,7 +707,7 @@ router.delete('/boards/:id', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════
-// 학교 관리 (University)
+// University management
 // ═══════════════════════════════════════════════════
 
 // GET /api/admin/universities
@@ -722,7 +722,7 @@ router.get('/universities', async (req, res) => {
 });
 
 // POST /api/admin/universities
-// 신규 학교 추가 시 free/anonymous 학교 게시판도 자동 생성 (ensureUniversityBoards)
+// Adding a school also creates its free/anonymous boards (ensureUniversityBoards)
 router.post('/universities', async (req, res) => {
   try {
     const name = (req.body?.name || '').trim();
@@ -733,7 +733,7 @@ router.post('/universities', async (req, res) => {
     const exists = await University.findOne({ name });
     if (exists) return res.status(409).json({ success: false, message: '이미 존재하는 학교입니다.' });
     const u = await University.create({ name, fullName, sortOrder, active });
-    // 신규 학교 회원이 인증해도 곧바로 학교 게시판이 보이도록 같은 트랜잭션에서 보드 시드
+    // Boards are seeded in the same transaction so a newly verified member sees them straight away
     await ensureUniversityBoards(name);
     logAdmin(req, 'university.create', { targetType: 'university', targetId: u._id, meta: { name } });
     res.json({ success: true, data: u });
@@ -744,7 +744,7 @@ router.post('/universities', async (req, res) => {
 });
 
 // PUT /api/admin/universities/:id
-// name 변경 시 Board.university / User.university도 함께 갱신
+// Renaming a school also updates Board.university and User.university
 router.put('/universities/:id', async (req, res) => {
   try {
     const u = await University.findById(req.params.id);
@@ -769,7 +769,7 @@ router.put('/universities/:id', async (req, res) => {
 
     await University.findByIdAndUpdate(u._id, patch);
 
-    // name 변경 시 참조하는 컬렉션도 함께 마이그레이션
+    // A rename migrates every collection that references the name
     if (renamed) {
       const VerifyRequest = require('../models/VerifyRequest');
       await Board.updateMany({ university: oldName }, { $set: { university: patch.name } });
@@ -786,7 +786,7 @@ router.put('/universities/:id', async (req, res) => {
 });
 
 // DELETE /api/admin/universities/:id
-// 인증된 회원·게시판이 참조 중이면 거부 (active=false로 비활성화 유도)
+// Refuse while verified members or boards still reference it (deactivate with active=false instead)
 router.delete('/universities/:id', async (req, res) => {
   try {
     const u = await University.findById(req.params.id);
@@ -811,7 +811,7 @@ router.delete('/universities/:id', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════
-// 통계 / 대시보드
+// Stats and dashboard
 // ═══════════════════════════════════════════════════
 
 // GET /api/admin/stats
@@ -829,7 +829,7 @@ router.get('/stats', async (req, res) => {
       newPosts24h, newPosts7d,
       verifyPending, inquiryOpen, groupsPending, businessesPending,
     ] = await Promise.all([
-      User.countDocuments({ status: { $ne: 'deleted' } }), // 탈퇴 제외 (전체 회원수)
+      User.countDocuments({ status: { $ne: 'deleted' } }), // Total members, excluding deleted accounts
       User.countDocuments({ status: 'active' }),
       User.countDocuments({ status: 'suspended' }),
       User.countDocuments({ status: 'banned' }),
@@ -848,7 +848,7 @@ router.get('/stats', async (req, res) => {
       Business.countDocuments({ status: 'pending' }).catch(() => 0),
     ]);
 
-    // 최근 7일 일별 신규 가입 추이
+    // Daily signups over the last 7 days
     const signupTrend = await User.aggregate([
       { $match: { createdAt: { $gte: weekAgo } } },
       { $group: {
@@ -858,7 +858,7 @@ router.get('/stats', async (req, res) => {
       { $sort: { _id: 1 } },
     ]);
 
-    // ── DAU (일일 방문자) — 최근 14일, 시드 계정 제외, 토론토 날짜 기준 ──
+    // ── DAU — last 14 days, seed accounts excluded, Toronto dates ──
     const dayKeys = [...Array(14)].map((_, i) =>
       new Date(Date.now() - i * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Toronto' })
     ).reverse();
@@ -889,7 +889,7 @@ router.get('/stats', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════
-// 시스템 설정 (점검모드, 금지어, 차단 IP)
+// System settings (maintenance mode, banned words, blocked IPs)
 // ═══════════════════════════════════════════════════
 
 // GET /api/admin/settings
@@ -933,7 +933,7 @@ router.put('/settings/:key', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════
-// 관리자 활동 로그
+// Admin activity log
 // ═══════════════════════════════════════════════════
 
 // GET /api/admin/logs?action=&adminId=&page=
@@ -961,7 +961,7 @@ router.get('/logs', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════
-// 알림 — 타겟 푸시 (전체/도시/학교/역할)
+// Notifications — targeted push (everyone / by city / by school / by role)
 // ═══════════════════════════════════════════════════
 
 // POST /api/admin/push { title, body, target: {city?, university?, role?} }
@@ -985,7 +985,7 @@ router.post('/push', async (req, res) => {
   }
 });
 
-// ── 모임 (Group) 승인 ──────────────────────────────────
+// ── Group approval ─────────────────────────────────────
 // GET /api/admin/groups?status=pending_review|active|rejected|closed
 router.get('/groups', async (req, res) => {
   try {
@@ -1003,7 +1003,7 @@ router.get('/groups', async (req, res) => {
   }
 });
 
-// PUT /api/admin/groups/:id/approve — 승인
+// PUT /api/admin/groups/:id/approve
 router.put('/groups/:id/approve', async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -1016,7 +1016,7 @@ router.put('/groups/:id/approve', async (req, res) => {
     group.reviewedAt = new Date();
     await group.save();
 
-    // 그룹 채팅방 자동 생성 — 활성 멤버 전부 참여
+    // Create the group chat room and add every active member
     try {
       const existing = await ChatRoom.findOne({ groupId: group._id, kind: 'group' });
       if (!existing) {
@@ -1050,7 +1050,7 @@ router.put('/groups/:id/approve', async (req, res) => {
   }
 });
 
-// PUT /api/admin/groups/:id/reject — 거절
+// PUT /api/admin/groups/:id/reject
 router.put('/groups/:id/reject', async (req, res) => {
   try {
     const { reason } = req.body || {};
@@ -1065,7 +1065,7 @@ router.put('/groups/:id/reject', async (req, res) => {
     group.reviewedAt = new Date();
     await group.save();
 
-    // 신청자 본인 멤버십도 정리
+    // Also clean up the applicant's own membership
     await GroupMembership.deleteMany({ groupId: group._id });
 
     try {
@@ -1084,12 +1084,12 @@ router.put('/groups/:id/reject', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/groups/:id — admin 강제 폐쇄 (cascade)
+// DELETE /api/admin/groups/:id — admin force-close (cascading)
 router.delete('/groups/:id', async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
-    // 그룹 채팅방 삭제 (메시지·알림까지)
+    // Delete the group chat room, including its messages and notifications
     const chatRoom = await ChatRoom.findOne({ groupId: group._id, kind: 'group' });
     if (chatRoom) {
       await Promise.all([
@@ -1114,7 +1114,7 @@ router.delete('/groups/:id', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════
-// 한인 업체 관리 (지도)
+// Korean business management (map)
 // ═══════════════════════════════════════════════════════════
 function formatAdminBusiness(b) {
   const coords = b.location?.coordinates;
@@ -1142,7 +1142,7 @@ function formatAdminBusiness(b) {
   };
 }
 
-// GET /api/admin/businesses?status= — 전체 목록 + 상태별 카운트
+// GET /api/admin/businesses?status= — full list plus per-status counts
 router.get('/businesses', async (req, res) => {
   try {
     const { status } = req.query;
@@ -1161,7 +1161,7 @@ router.get('/businesses', async (req, res) => {
   }
 });
 
-// PUT /api/admin/businesses/:id — 승인/거절/정보 수정 (주소 변경/좌표 없으면 재지오코딩)
+// PUT /api/admin/businesses/:id — approve/reject/edit (re-geocodes when the address changes or coords are missing)
 router.put('/businesses/:id', async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '업체를 찾을 수 없어요.' });
@@ -1185,7 +1185,7 @@ router.put('/businesses/:id', async (req, res) => {
       addressChanged = true;
     }
 
-    // 좌표 직접 지정 (지오코딩 실패 업체를 관리자가 수동 핀) — 있으면 지오코딩보다 우선
+    // Explicit coordinates, so an admin can pin a business geocoding could not place — these win over geocoding
     const latNum = Number(lat), lngNum = Number(lng);
     const manualCoords = Number.isFinite(latNum) && Number.isFinite(lngNum)
       && latNum >= -90 && latNum <= 90 && lngNum >= -180 && lngNum <= 180;
@@ -1208,7 +1208,7 @@ router.put('/businesses/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/businesses/:id — 삭제 (즐겨찾기·신고 cascade)
+// DELETE /api/admin/businesses/:id — delete, cascading to bookmarks and reports
 router.delete('/businesses/:id', async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '업체를 찾을 수 없어요.' });

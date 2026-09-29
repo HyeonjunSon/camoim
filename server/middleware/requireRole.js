@@ -1,11 +1,11 @@
 const { ROLES } = require('../constants/roles');
 const User = require('../models/User');
 
-// 특정 역할 이상만 허용하는 미들웨어 팩토리
+// Middleware factory that admits only a given role or above
 function requireRole(...roles) {
   return async (req, res, next) => {
     try {
-      // DB에서 최신 role 조회 (JWT 캐시 방지)
+      // Read the current role from the DB (the JWT copy can be stale)
       const user = await User.findById(req.user.id).select('role verified');
       if (!user) {
         return res.status(401).json({ success: false, message: '인증이 필요합니다.' });
@@ -13,7 +13,7 @@ function requireRole(...roles) {
       if (!roles.includes(user.role)) {
         return res.status(403).json({ success: false, message: '접근 권한이 없습니다.' });
       }
-      // req.user에 최신 role 반영
+      // Reflect the fresh role back onto req.user
       req.user.role = user.role;
       req.user.verified = user.verified;
       next();
@@ -23,10 +23,10 @@ function requireRole(...roles) {
   };
 }
 
-// 관리자 전용
+// Admins only
 const requireAdmin = requireRole(ROLES.ADMIN);
 
-// 인증된 학생 전용
+// Verified students only
 async function requireVerifiedStudent(req, res, next) {
   try {
     const user = await User.findById(req.user.id).select('role verified');

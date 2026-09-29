@@ -2,17 +2,17 @@ const mongoose = require('mongoose');
 
 const verifyRequestSchema = new mongoose.Schema({
   userId:         { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  university:     { type: String, required: true },          // 학교 이름 (shortName)
+  university:     { type: String, required: true },          // University name (shortName)
   studentType:    { type: String, enum: ['current', 'alumni'], required: true },
-  graduationYear: { type: Number, default: null },           // 졸업생만 입력
-  fileUrl:        { type: String, required: true },          // 업로드된 서류 경로
+  graduationYear: { type: Number, default: null },           // Alumni only
+  fileUrl:        { type: String, required: true },          // Path to the uploaded document
   status:         { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-  adminNote:      { type: String, default: '' },             // 거절 사유 등
+  adminNote:      { type: String, default: '' },             // Rejection reason and similar notes
   reviewedBy:     { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   reviewedAt:     { type: Date, default: null },
 }, { timestamps: true });
 
-// 본인 신청 상태 조회 + 관리자 pending 목록 조회 핫 쿼리
+// Hot query: a user checking their own request, plus the admin pending list
 verifyRequestSchema.index({ userId: 1, createdAt: -1 });
 verifyRequestSchema.index({ status: 1, createdAt: -1 });
 

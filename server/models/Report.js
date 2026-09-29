@@ -4,8 +4,8 @@ const reportSchema = new mongoose.Schema({
   reporterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   targetType: { type: String, enum: ['post', 'comment', 'user', 'business', 'review', 'stay'], required: true },
   targetId: { type: mongoose.Schema.Types.ObjectId, required: true },
-  postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', default: null }, // 댓글 신고 시 원본 포스트 참조
-  // 신고 시점 작성자 스냅샷 — 추후 작성자가 탈퇴해도 관리자가 누가 썼는지 확인 가능
+  postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', default: null }, // Points back to the parent post when a comment is reported
+  // Author snapshot at report time — lets admins see who wrote it even after the author deletes their account
   targetAuthorId:        { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   targetAuthorNickname:  { type: String, default: '' },
   targetIsAnonymous:     { type: Boolean, default: false },
@@ -14,7 +14,7 @@ const reportSchema = new mongoose.Schema({
     enum: ['spam', 'hate', 'illegal', 'adult', 'etc'],
     required: true,
   },
-  detail: { type: String, default: '' }, // 기타 사유 상세
+  detail: { type: String, default: '' }, // Details for the "other" reason
   status: {
     type: String,
     enum: ['pending', 'resolved', 'dismissed'],
@@ -23,7 +23,7 @@ const reportSchema = new mongoose.Schema({
   adminNote: { type: String, default: '' },
 }, { timestamps: true });
 
-// 같은 유저가 같은 대상을 중복 신고 방지
+// Stops the same user reporting the same target twice
 reportSchema.index({ reporterId: 1, targetId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Report', reportSchema);

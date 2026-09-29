@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, maxlength: 200 },
-  // 소셜 가입자는 비밀번호 없을 수 있음 (Apple/Google 로그인)
+  // Social signups may have no password (Apple/Google login)
   passwordHash: { type: String, default: null },
-  // 소셜 로그인 식별자 (auto-link by email)
+  // Social login identifiers (auto-linked by email)
   appleSub:  { type: String, default: null, sparse: true, index: true },
   googleSub: { type: String, default: null, sparse: true, index: true },
   nickname: { type: String, required: true, unique: true, maxlength: 30 },
@@ -39,36 +39,36 @@ const userSchema = new mongoose.Schema({
   emailVerifyExpires: { type: Date, default: null },
   resetCode: { type: String, default: '' },
   resetExpires: { type: Date, default: null },
-  // 로그인 잠금 (brute-force 방어)
+  // Login lockout (brute-force defence)
   failedLoginCount: { type: Number, default: 0 },
   lockedUntil: { type: Date, default: null },
-  // JWT 무효화용 — 비번 변경/리셋 시 증가시키면 기존 토큰 모두 만료
+  // JWT invalidation — bumping this on a password change or reset expires every existing token
   tokenVersion: { type: Number, default: 0 },
   pushToken: {
     type: String,
     default: '',
   },
-  // 계정 상태 — 관리자 제재용
+  // Account status — for admin enforcement
   status: {
     type: String,
     enum: ['active', 'suspended', 'banned', 'deleted'],
     default: 'active',
     index: true,
   },
-  suspendedUntil: { type: Date, default: null }, // null이고 status=suspended면 무기한
+  suspendedUntil: { type: Date, default: null }, // Null with status=suspended means indefinite
   suspendReason:  { type: String, default: '', maxlength: 500 },
-  // 회원탈퇴 (soft-delete) — status='deleted'와 함께 기록
+  // Account deletion (soft delete) — recorded alongside status='deleted'
   deletedAt:    { type: Date, default: null },
   deleteReason: { type: String, default: '', maxlength: 500 },
   warningCount:   { type: Number, default: 0 },
-  shadowBanned:   { type: Boolean, default: false }, // 본인은 모르고 글이 다른 사람에게 안 보임
+  shadowBanned:   { type: Boolean, default: false }, // The user is not told, and their posts are invisible to everyone else
   notificationSettings: {
-    enabled:    { type: Boolean, default: true }, // 마스터
-    comment:    { type: Boolean, default: true }, // 내 글에 댓글
-    reply:      { type: Boolean, default: true }, // 내 댓글에 답글
-    like:       { type: Boolean, default: true }, // 좋아요
-    chat:       { type: Boolean, default: true }, // 채팅 메시지
-    notice:     { type: Boolean, default: true }, // 공지사항
+    enabled:    { type: Boolean, default: true }, // Master switch
+    comment:    { type: Boolean, default: true }, // Comments on my posts
+    reply:      { type: Boolean, default: true }, // Replies to my comments
+    like:       { type: Boolean, default: true }, // Likes
+    chat:       { type: Boolean, default: true }, // Chat messages
+    notice:     { type: Boolean, default: true }, // Announcements
   },
 }, { timestamps: true });
 

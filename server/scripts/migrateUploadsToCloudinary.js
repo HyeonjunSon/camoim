@@ -1,9 +1,9 @@
 /**
- * 레거시 로컬 업로드 파일(server/uploads/*)을 Cloudinary로 옮기고
- * DB의 /uploads/... URL을 Cloudinary secure_url로 업데이트한다.
+ * Moves legacy local upload files (server/uploads/*) to Cloudinary and rewrites
+ * the /uploads/... URLs in the DB to the Cloudinary secure_url.
  *
- * 멱등: 이미 마이그레이션된 레코드(URL이 http로 시작)는 스킵.
- * 파일이 로컬에 없으면 해당 항목은 건너뛰고 경고만 출력.
+ * Idempotent: records already migrated (their URL starts with http) are skipped.
+ * When the local file is missing, the entry is skipped with a warning.
  */
 require('dotenv').config();
 const path = require('path');
@@ -27,7 +27,7 @@ async function uploadOne(relativeUrl, folder) {
   const filename = relativeUrl.replace(/^\/uploads\//, '');
   const localPath = path.join(UPLOADS_DIR, filename);
   if (!fs.existsSync(localPath)) {
-    console.warn(`  ⚠️  파일 없음: ${localPath}`);
+    console.warn(`  ⚠️  file missing: ${localPath}`);
     return null;
   }
   const res = await cloudinary.uploader.upload(localPath, {
@@ -48,7 +48,7 @@ async function migratePosts() {
     ],
   });
 
-  console.log(`\n📝 posts: ${posts.length}건`);
+  console.log(`\n📝 posts: ${posts.length}`);
   let ok = 0, skip = 0, fail = 0;
 
   for (const post of posts) {
@@ -61,7 +61,7 @@ async function migratePosts() {
           if (!isLegacy(img)) { newImages.push(img); continue; }
           const newUrl = await uploadOne(img, 'camoim/posts');
           if (newUrl) { newImages.push(newUrl); changed = true; }
-          else newImages.push(img); // 파일 없으면 원본 유지
+          else newImages.push(img); // Keep the original when the file is missing
         }
         post.images = newImages;
       }
@@ -73,24 +73,24 @@ async function migratePosts() {
 
       if (changed) {
         await post.save();
-        console.log(`  ✅ post ${post._id} 업데이트`);
+        console.log(`  ✅ post ${post._id} updated`);
         ok++;
       } else {
         skip++;
       }
     } catch (e) {
-      console.error(`  ❌ post ${post._id} 실패:`, e.message);
+      console.error(`  ❌ post ${post._id} failed:`, e.message);
       fail++;
     }
   }
-  console.log(`  결과: ok=${ok} skip=${skip} fail=${fail}`);
+  console.log(`  result: ok=${ok} skip=${skip} fail=${fail}`);
 }
 
 async function migrateVerify() {
   const VerifyRequest = require('../models/VerifyRequest');
   const reqs = await VerifyRequest.find({ fileUrl: { $regex: '^/uploads/' } });
 
-  console.log(`\n🎓 verify requests: ${reqs.length}건`);
+  console.log(`\n🎓 verify requests: ${reqs.length}`);
   let ok = 0, fail = 0;
 
   for (const r of reqs) {
@@ -99,37 +99,37 @@ async function migrateVerify() {
       if (newUrl) {
         r.fileUrl = newUrl;
         await r.save();
-        console.log(`  ✅ verify ${r._id} (${r.status}) 업데이트`);
+        console.log(`  ✅ verify ${r._id} (${r.status}) updated`);
         ok++;
       } else {
         fail++;
       }
     } catch (e) {
-      console.error(`  ❌ verify ${r._id} 실패:`, e.message);
+      console.error(`  ❌ verify ${r._id} failed:`, e.message);
       fail++;
     }
   }
-  console.log(`  결과: ok=${ok} fail=${fail}`);
+  console.log(`  result: ok=${ok} fail=${fail}`);
 }
 
 (async () => {
   if (!process.env.MONGODB_URI) {
-    console.error('MONGODB_URI 없음');
+    console.error('MONGODB_URI is not set');
     process.exit(1);
   }
   if (!process.env.CLOUDINARY_API_KEY) {
-    console.error('CLOUDINARY_* 환경변수 없음');
+    console.error('CLOUDINARY_* environment variables are not set');
     process.exit(1);
   }
   await mongoose.connect(process.env.MONGODB_URI);
-  console.log('✅ Mongo 연결');
+  console.log('✅ connected to Mongo');
 
   await migratePosts();
   await migrateVerify();
 
   await mongoose.disconnect();
-  console.log('\n🎉 마이그레이션 완료');
+  console.log('\n🎉 migration complete');
 })().catch(e => {
-  console.error('치명적 오류:', e);
+  console.error('fatal error:', e);
   process.exit(1);
 });

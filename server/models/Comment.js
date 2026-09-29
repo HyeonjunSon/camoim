@@ -7,14 +7,14 @@ const commentSchema = new mongoose.Schema({
   content: { type: String, required: true },
   isAnonymous: { type: Boolean, default: false },
   likeCount: { type: Number, default: 0 },
-  isPinned: { type: Boolean, default: false }, // 댓글 고정 (게시글 작성자만 가능)
-  isSecret: { type: Boolean, default: false }, // 잠금 댓글 (작성자 + 글 작성자만 열람 가능)
-  // 자동 숨김 (신고 누적)
+  isPinned: { type: Boolean, default: false }, // Pinned comment (only the post author can pin)
+  isSecret: { type: Boolean, default: false }, // Locked comment (visible only to its author and the post author)
+  // Auto-hidden once reports pile up
   autoHidden:  { type: Boolean, default: false, index: true },
   reportCount: { type: Number, default: 0 },
 }, { timestamps: true });
 
-// 게시글 상세 진입 시 댓글 조회 핫 쿼리
+// Hot query: loading comments when a post detail page opens
 commentSchema.index({ postId: 1, createdAt: 1 });
 commentSchema.index({ userId: 1, createdAt: -1 });
 commentSchema.index({ parentId: 1 });

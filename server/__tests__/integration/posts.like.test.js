@@ -1,4 +1,4 @@
-// 좋아요 토글 — 조건부 원자 업데이트 검증 (연타·동시 요청에도 카운트 정확)
+// Like toggle — verifies the conditional atomic update keeps counts exact under rapid taps and concurrency
 jest.mock('../../utils/mailer', () => ({
   generateCode: () => '123456',
   sendVerificationEmail: jest.fn().mockResolvedValue(true),
@@ -34,7 +34,7 @@ const like = (postId, token) =>
   request(app).post(`/api/posts/${postId}/like`).set('Authorization', `Bearer ${token}`);
 
 describe('POST /api/posts/:postId/like', () => {
-  it('누르면 좋아요, 다시 누르면 취소된다', async () => {
+  it('one tap likes, another tap unlikes', async () => {
     const owner = await createUser();
     const liker = await createUser();
     const post = await makePost(owner);
@@ -51,7 +51,7 @@ describe('POST /api/posts/:postId/like', () => {
     expect(saved.likedBy).toHaveLength(0);
   });
 
-  it('남의 글에 좋아요하면 작성자에게 알림이 생긴다 (자기 글은 X)', async () => {
+  it('liking someone else post notifies its author (never your own)', async () => {
     const owner = await createUser();
     const liker = await createUser();
     const post = await makePost(owner);
@@ -63,7 +63,7 @@ describe('POST /api/posts/:postId/like', () => {
     expect(notifs).toHaveLength(1);
   });
 
-  it('여러 유저가 동시에 눌러도 likeCount가 유실되지 않는다', async () => {
+  it('likeCount survives simultaneous taps from several users', async () => {
     const owner = await createUser();
     const post = await makePost(owner);
     const likers = await Promise.all(Array.from({ length: 15 }, () => createUser()));
@@ -76,7 +76,7 @@ describe('POST /api/posts/:postId/like', () => {
     expect(saved.likedBy).toHaveLength(15);
   });
 
-  it('없는 글이면 404', async () => {
+  it('404 for a nonexistent post', async () => {
     const user = await createUser();
     await like('507f1f77bcf86cd799439011', tokenFor(user)).expect(404);
   });

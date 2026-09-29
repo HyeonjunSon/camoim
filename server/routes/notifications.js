@@ -4,7 +4,7 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// 채팅 메시지는 알림함에 안 보여줌 — 채팅탭 뱃지가 그 역할 (Option B)
+// Chat messages never appear in the notification list — the chat tab badge covers them (Option B)
 const NOTIFICATION_FILTER = { type: { $nin: ['chat', 'group_chat'] } };
 
 // GET /api/notifications/unread-count

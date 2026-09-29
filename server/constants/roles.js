@@ -1,4 +1,4 @@
-// 유저 역할 상수
+// User role constants
 const ROLES = {
   ADMIN: 'admin',
   STUDENT: 'student',
@@ -6,7 +6,7 @@ const ROLES = {
   GENERAL: 'general',
 };
 
-// 역할 표시 이름 (프론트용)
+// Display names for the frontend
 const ROLE_LABELS = {
   admin: '관리자',
   student: '학생',

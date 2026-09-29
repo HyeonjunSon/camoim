@@ -1,9 +1,9 @@
-// 학교 인증 서류 90일 자동 삭제 — 개인정보처리방침 ("인증 완료 후 90일 이내 파기") 준수
+// Delete school verification documents after 90 days — required by the privacy policy ("destroyed within 90 days of verification")
 const { v2: cloudinary } = require('cloudinary');
 const VerifyRequest = require('../models/VerifyRequest');
 
 const RETENTION_DAYS = 90;
-const SCAN_INTERVAL_MS = 24 * 60 * 60 * 1000; // 1일 1회
+const SCAN_INTERVAL_MS = 24 * 60 * 60 * 1000; // Once a day
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -11,8 +11,8 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Cloudinary URL → public_id (확장자 제외, 폴더 포함)
-// 예) https://res.cloudinary.com/camoim/image/upload/v123/camoim/verify/abc.jpg → camoim/verify/abc
+// Cloudinary URL to public_id (no extension, folder included)
+// e.g. https://res.cloudinary.com/camoim/image/upload/v123/camoim/verify/abc.jpg becomes camoim/verify/abc
 function extractPublicId(url) {
   if (!url || typeof url !== 'string') return null;
   const m = url.match(/\/upload\/(?:v\d+\/)?([^?#]+)$/);
@@ -44,7 +44,7 @@ async function deleteCloudinaryFile(url) {
 
 async function runCleanup() {
   const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000);
-  // 승인/거절된 지 90일 지난 서류 — pending은 그대로 둠 (관리자 검토 대기 중)
+  // Documents approved or rejected more than 90 days ago — pending ones stay (still awaiting admin review)
   const stale = await VerifyRequest.find({
     status: { $in: ['approved', 'rejected'] },
     reviewedAt: { $lte: cutoff },
@@ -56,7 +56,7 @@ async function runCleanup() {
   let deleted = 0;
   for (const r of stale) {
     await deleteCloudinaryFile(r.fileUrl);
-    // DB 레코드는 삭제하지 않고 fileUrl만 비움 — 감사 추적용 (누가 인증됐는지 기록은 유지)
+    // The DB record is kept and only fileUrl is cleared, preserving the audit trail of who was verified
     await VerifyRequest.updateOne({ _id: r._id }, { $set: { fileUrl: '' } });
     deleted++;
   }
@@ -67,11 +67,11 @@ async function runCleanup() {
 let timer = null;
 function startVerifyCleanupJob() {
   if (timer) return;
-  // 시작 시 30초 후 한 번 실행 (서버 부팅 시 즉시 정리)
+  // Run once 30 seconds after startup (sweeps immediately on boot)
   setTimeout(() => {
     runCleanup().catch((err) => console.error('[verify-cleanup] initial run failed:', err));
   }, 30 * 1000);
-  // 이후 24시간마다
+  // Then every 24 hours
   timer = setInterval(() => {
     runCleanup().catch((err) => console.error('[verify-cleanup] scheduled run failed:', err));
   }, SCAN_INTERVAL_MS);

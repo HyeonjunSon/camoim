@@ -8,8 +8,8 @@ const User = require('../models/User');
 const University = require('../models/University');
 const { isChatBlocked, getBlockedUserIds } = require('../utils/blocks');
 
-// GET /api/chats — 내 채팅방 목록 (DM + 그룹 채팅 통합)
-// ?box=accepted (기본) | requests (내가 받은 요청만) | sent (내가 보낸 대기중)
+// GET /api/chats — my chat rooms (DMs and group chats together)
+// ?box=accepted (default) | requests (only ones sent to me) | sent (mine, still pending)
 router.get('/', requireAuth, async (req, res) => {
   try {
     const box = req.query.box || 'accepted';
@@ -23,7 +23,7 @@ router.get('/', requireAuth, async (req, res) => {
       .populate('participants', 'nickname avatarUrl')
       .sort({ lastMessageAt: -1 });
 
-    // chat 차단된 상대와의 방은 숨김 (DM만)
+    // Hide rooms with anyone chat-blocked (DMs only)
     const chatBlocked = new Set(await getBlockedUserIds(me, 'blockChat'));
 
     const result = rooms
@@ -34,7 +34,7 @@ router.get('/', requireAuth, async (req, res) => {
         return !chatBlocked.has(String(other._id));
       })
       .map(room => {
-        // 그룹 채팅 — 모임 정보 노출
+        // Group chat — expose the group details
         if (room.kind === 'group') {
           return {
             id: room._id,
@@ -51,7 +51,7 @@ router.get('/', requireAuth, async (req, res) => {
             status: 'accepted',
           };
         }
-        // 학교 전체 채팅
+        // School-wide chat
         if (room.kind === 'school') {
           return {
             id: room._id,
@@ -67,7 +67,7 @@ router.get('/', requireAuth, async (req, res) => {
             status: 'accepted',
           };
         }
-        // DM — 기존 형식
+        // DM — the original shape
         const other = room.participants.find(p => p && String(p._id) !== String(me));
         const hasNullParticipant = room.participants.some(p => p === null);
         const otherDeleted = !other && hasNullParticipant;
@@ -97,7 +97,7 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/chats — 채팅방 생성 or 기존 방 반환
+// POST /api/chats — create a room, or return the existing one
 router.post('/', requireAuth, async (req, res) => {
   try {
     const { targetUserId } = req.body;
@@ -109,19 +109,19 @@ router.post('/', requireAuth, async (req, res) => {
     const target = await User.findById(targetUserId).select('nickname avatarUrl');
     if (!target) return res.status(404).json({ success: false, message: '사용자를 찾을 수 없어요.' });
 
-    // 차단 체크 (양방향)
+    // Block check (both directions)
     if (await isChatBlocked(req.user.id, targetUserId)) {
       return res.status(403).json({ success: false, message: '차단된 사용자와는 채팅할 수 없어요.' });
     }
 
-    // 1) 둘 다 active한 기존 방 찾기
+    // 1) Look for an existing room where both sides are active
     let room = await ChatRoom.findOne({
       participants: { $all: [req.user.id, targetUserId], $size: 2 },
     });
 
-    // 2) 한 명이 나간 orphan room이 있으면 재활성화 (메시지는 클리어)
-    //    - 같은 roomId 유지 → 데이터 정리 + DB 비대 방지
-    //    - 옛 대화 내역은 삭제 (프라이버시 + 신선한 시작)
+    // 2) Reactivate an orphan room one party left (clearing its messages)
+    //    - reusing the same roomId keeps data tidy and the DB from bloating
+    //    - the old conversation is deleted (privacy, and a clean slate)
     if (!room) {
       const orphan = await ChatRoom.findOne({
         $or: [
@@ -130,19 +130,19 @@ router.post('/', requireAuth, async (req, res) => {
         ],
       });
       if (orphan) {
-        // 옛 메시지 + 알림 모두 삭제
+        // Delete both the old messages and their notifications
         await Promise.all([
           Message.deleteMany({ roomId: orphan._id }),
           Notification.deleteMany({ roomId: orphan._id }),
         ]);
-        // 빠진 참여자 다시 추가
+        // Add the missing participant back
         if (!orphan.participants.some(p => String(p) === String(req.user.id))) {
           orphan.participants.push(req.user.id);
         }
         if (!orphan.participants.some(p => String(p) === String(targetUserId))) {
           orphan.participants.push(targetUserId);
         }
-        // 새 요청 사이클 시작 — pending, 내가 요청자
+        // Start a fresh request cycle — pending, with me as the requester
         orphan.status = 'pending';
         orphan.requesterId = req.user.id;
         orphan.otherSnapshot = undefined;
@@ -154,7 +154,7 @@ router.post('/', requireAuth, async (req, res) => {
       }
     }
 
-    // 3) 그래도 없으면 새 방 생성
+    // 3) Still nothing, so create a new room
     if (!room) {
       room = await ChatRoom.create({
         participants: [req.user.id, targetUserId],
@@ -178,7 +178,7 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/chats/:roomId/messages — 메시지 목록 (페이지네이션)
+// GET /api/chats/:roomId/messages — message list (paginated)
 router.get('/:roomId/messages', requireAuth, async (req, res) => {
   try {
     const room = await ChatRoom.findById(req.params.roomId);
@@ -188,7 +188,7 @@ router.get('/:roomId/messages', requireAuth, async (req, res) => {
     }
 
     const limit = parseInt(req.query.limit) || 50;
-    const before = req.query.before; // 이 메시지 이전 것들 로드 (무한스크롤)
+    const before = req.query.before; // Load what came before this message (infinite scroll)
 
     const query = { roomId: req.params.roomId };
     if (before) query._id = { $lt: before };
@@ -198,17 +198,17 @@ router.get('/:roomId/messages', requireAuth, async (req, res) => {
       .limit(limit)
       .populate('senderId', 'nickname');
 
-    // 읽음 처리
+    // Mark as read
     await Message.updateMany(
       { roomId: req.params.roomId, readBy: { $ne: req.user.id } },
       { $addToSet: { readBy: req.user.id } }
     );
-    // 내 unread 초기화
+    // Reset my unread count
     await ChatRoom.findByIdAndUpdate(req.params.roomId, {
       $set: { [`unreadCount.${req.user.id}`]: 0 },
     });
 
-    // senderId를 문자열 ID로 변환 (클라이언트에서 me.id와 비교 가능하도록)
+    // Stringify senderId so the client can compare it against me.id
     const formatted = messages.reverse().map(m => ({
       id: m._id,
       roomId: m.roomId,
@@ -219,10 +219,10 @@ router.get('/:roomId/messages', requireAuth, async (req, res) => {
       createdAt: m.createdAt,
     }));
 
-    // 그룹 채팅은 otherLeft/otherDeleted 개념 없음
+    // Group chats have no otherLeft/otherDeleted notion
     let otherLeft = false;
     let otherDeleted = false;
-    // DM에서만 상대 이탈/탈퇴 판정 (group/school은 N명이라 무의미)
+    // Only DMs track whether the other party left or deleted their account (meaningless for N-person group/school rooms)
     if (room.kind === 'dm') {
       if (room.participants.length < 2) {
         otherLeft = true;
@@ -251,7 +251,7 @@ router.get('/:roomId/messages', requireAuth, async (req, res) => {
         university: room.university,
         name: room.groupName || room.university,
         memberCount: room.participants.length,
-        // 학교 학생회장 ID — 클라가 메시지 sender와 비교해 ⭐ 배지 노출
+        // School president ID — the client compares it to a message sender to show the ⭐ badge
         leaderUserId: await University.findOne({ name: room.university })
           .select('leaderUserId').lean()
           .then(u => u?.leaderUserId || null),
@@ -263,7 +263,7 @@ router.get('/:roomId/messages', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/chats/:roomId/accept — 채팅 요청 수락 (수신자만)
+// PUT /api/chats/:roomId/accept — accept a chat request (recipient only)
 router.put('/:roomId/accept', requireAuth, async (req, res) => {
   try {
     const room = await ChatRoom.findById(req.params.roomId);
@@ -279,8 +279,8 @@ router.put('/:roomId/accept', requireAuth, async (req, res) => {
     }
     room.status = 'accepted';
     await room.save();
-    // 이 방에 대한 chat_request 알림 자동 읽음 처리
-    // (수신자가 알림 카드를 직접 탭 안 하고 채팅탭에서 바로 수락한 케이스 커버)
+    // Auto-read the chat_request notification for this room
+    // (covers accepting straight from the chat tab without tapping the notification card)
     Notification.updateMany(
       { userId: req.user.id, type: 'chat_request', roomId: room._id, isRead: false },
       { $set: { isRead: true } }
@@ -292,8 +292,8 @@ router.put('/:roomId/accept', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/chats/:roomId — 채팅방 나가기
-// 내가 나가면 participants에서 제거, 둘 다 나가면 방+메시지 완전 삭제
+// DELETE /api/chats/:roomId — leave the room
+// Leaving removes me from participants; once both are gone the room and messages are deleted outright
 router.delete('/:roomId', requireAuth, async (req, res) => {
   try {
     const room = await ChatRoom.findById(req.params.roomId);
@@ -301,42 +301,42 @@ router.delete('/:roomId', requireAuth, async (req, res) => {
     if (!room.participants.some(p => String(p) === String(req.user.id))) {
       return res.status(403).json({ success: false, message: '권한이 없어요.' });
     }
-    // 그룹 채팅방은 모임에서 나가야 함
+    // Leaving a group chat means leaving the group itself
     if (room.kind === 'group') {
       return res.status(400).json({
         success: false,
         message: '그룹 채팅방은 모임에서 나가야 떠날 수 있어요.',
       });
     }
-    // 학교 전체 채팅: 참여자에서 본인 제거 (방은 유지)
+    // School-wide chat: remove myself from participants (the room stays)
     if (room.kind === 'school') {
       room.participants = room.participants.filter(p => String(p) !== String(req.user.id));
       await room.save();
       return res.json({ success: true, data: { message: '나갔어요.' } });
     }
 
-    // 나가기 전에 상대방 ID 확보
+    // Grab the other party's ID before leaving
     const otherId = room.participants.find(p => String(p) !== String(req.user.id));
 
-    // 이 방에 대한 chat_request 알림 자동 읽음 처리
-    // (수신자가 거절/나가기 → 요청이 해결된 것이므로 알림도 정리)
+    // Auto-read the chat_request notification for this room
+    // (declining or leaving resolves the request, so its notification is cleaned up too)
     Notification.updateMany(
       { userId: req.user.id, type: 'chat_request', roomId: room._id, isRead: false },
       { $set: { isRead: true } }
     ).catch(() => {});
 
-    // 나가는 사람의 정보를 스냅샷으로 저장 (상대방이 나중에 닉네임을 볼 수 있도록)
+    // Snapshot the leaver's details so the other party can still see a nickname later
     const leaver = await User.findById(req.user.id).select('nickname avatarUrl');
 
-    // participants에서 나를 제거
+    // Remove myself from participants
     room.participants = room.participants.filter(p => String(p) !== String(req.user.id));
 
     if (room.participants.length === 0) {
-      // 둘 다 나갔으면 방+메시지 완전 삭제
+      // Both gone — delete the room and its messages outright
       await Message.deleteMany({ roomId: room._id });
       await room.deleteOne();
     } else {
-      // 상대방을 위해 나간 사람 정보 스냅샷 저장
+      // Snapshot the leaver's details for the other party
       if (leaver) {
         room.otherSnapshot = {
           id: leaver._id,
@@ -347,9 +347,9 @@ router.delete('/:roomId', requireAuth, async (req, res) => {
       await room.save();
     }
 
-    // 소켓으로 상대방에게 나감 알림
-    // 1) 채팅방 소켓 룸 (상대가 채팅방 화면에 있을 때)
-    // 2) user_{상대} 개인 룸 (상대가 어느 화면에 있든)
+    // Tell the other party over the socket
+    // 1) the chat room socket room (if they are on the chat screen)
+    // 2) their personal user_{id} room (wherever they happen to be)
     const io = req.app.get('io');
     if (io) {
       const payload = {
@@ -369,7 +369,7 @@ router.delete('/:roomId', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/chats/check/:userId — 특정 유저와의 채팅 상태 확인
+// GET /api/chats/check/:userId — check the chat state with a given user
 router.get('/check/:userId', requireAuth, async (req, res) => {
   try {
     const room = await ChatRoom.findOne({

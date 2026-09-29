@@ -1,5 +1,5 @@
-// 숙소 지도 — 목록/상세/등록/수정/즐겨찾기/신고 (유저용 마켓플레이스)
-// 프라이버시: 정확 주소·정확 좌표는 절대 응답에 넣지 않음 (approx만 노출).
+// Stay map — list, detail, create, edit, bookmark, report (a user-run marketplace)
+// Privacy: the exact address and exact coordinates never enter a response (approx only).
 const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
@@ -46,7 +46,7 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// 정확 위치 노출(운영 결정): location(정확좌표) + address 표기. 없으면 approxLocation fallback.
+// Exact location is exposed by product decision: location (exact coords) + address, falling back to approxLocation.
 function formatStay(s, bookmarkedSet, viewer) {
   const coords = s.location?.coordinates || s.approxLocation?.coordinates;
   const host = s.host && typeof s.host === 'object' ? s.host : null;
@@ -92,7 +92,7 @@ function sanitizeConditions(input) {
   return input.filter((c) => STAY_CONDITIONS.includes(c)).slice(0, 12);
 }
 
-// ── GET /api/stays?city=&type=&near=lng,lat ── 활성 숙소 (approx 좌표만) ──
+// ── GET /api/stays?city=&type=&near=lng,lat ── active stays (approx coords only) ──
 router.get('/', optionalAuth, async (req, res) => {
   try {
     const { city, type, near } = req.query;
@@ -125,7 +125,7 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 });
 
-// ── GET /api/stays/mine ── 내가 올린 숙소 (관리/수정용) ──
+// ── GET /api/stays/mine ── stays I posted (for managing and editing) ──
 router.get('/mine', requireAuth, async (req, res) => {
   try {
     const list = await StayListing.find({ host: req.user.id })
@@ -142,7 +142,7 @@ router.post('/upload-image', requireAuth, upload.single('image'), (req, res) => 
   res.json({ success: true, url: req.file.path });
 });
 
-// ── GET /api/stays/by-post/:postId ── 이 글로 만든 내 숙소가 있으면 id 반환 (버튼 상태용) ──
+// ── GET /api/stays/by-post/:postId ── returns my stay id for this post, if one exists (drives the button state) ──
 router.get('/by-post/:postId', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.postId)) return res.json({ success: true, stayId: null });
@@ -154,7 +154,7 @@ router.get('/by-post/:postId', requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/stays ── 숙소 등록 (호스트 = 본인) ──
+// ── POST /api/stays ── create a stay (the host is the caller) ──
 router.post('/', requireAuth, async (req, res) => {
   try {
     const { title, stayType, address } = req.body;
@@ -168,7 +168,7 @@ router.post('/', requireAuth, async (req, res) => {
     const doc = {
       title: title.trim(),
       stayType,
-      city: (req.body.city || '').trim(), // 참고용 라벨 (옵션)
+      city: (req.body.city || '').trim(), // Optional display label
       price,
       priceUnit: req.body.priceUnit === 'night' ? 'night' : 'month',
       deposit: Number.isFinite(Number(req.body.deposit)) ? Math.max(0, Number(req.body.deposit)) : 0,
@@ -185,13 +185,13 @@ router.post('/', requireAuth, async (req, res) => {
       hostNickname: req.user.nickname || '',
       status: 'active',
     };
-    // roomrent 글에서 온 경우 원본 글 연결 (입주완료 동기화용)
+    // Link back to the source roomrent post, to keep the filled status in sync
     if (req.body.sourcePostId && mongoose.isValidObjectId(req.body.sourcePostId)) {
       doc.sourcePostId = req.body.sourcePostId;
     }
 
-    // 주소 → 정확 좌표(서버 전용) → 대략 좌표(노출용). 실패해도 저장은 진행 (지도 핀만 안 뜸)
-    // 도시 힌트 없이 전체 주소로 지오코딩 (캐나다 어디든)
+    // Address to exact coords (server-only) to approx coords (public). Saving proceeds on failure; only the map pin is missing
+    // Geocode the full address with no city hint (anywhere in Canada)
     const geo = await geocodeAddress(doc.address, doc.city || null);
     if (geo) {
       doc.location = { type: 'Point', coordinates: [geo.lng, geo.lat] };
@@ -207,7 +207,7 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-// ── GET /api/stays/:id ── 상세 (정확 주소는 여전히 비노출) ──
+// ── GET /api/stays/:id ── detail (the exact address is still withheld) ──
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '숙소를 찾을 수 없습니다.' });
@@ -227,7 +227,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
   }
 });
 
-// ── PUT /api/stays/:id ── 수정 (호스트 본인만) ──
+// ── PUT /api/stays/:id ── edit (host only) ──
 router.put('/:id', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '숙소를 찾을 수 없습니다.' });
@@ -252,7 +252,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     if (Number.isFinite(Number(b.minLeaseMonths))) s.minLeaseMonths = Math.max(0, Number(b.minLeaseMonths));
     if (b.includes != null) s.includes = String(b.includes).trim().slice(0, 200);
 
-    // 주소 변경 시에만 재지오코딩 (정확+대략 갱신)
+    // Re-geocode only when the address changed (refreshes both exact and approx)
     if (b.address != null && String(b.address).trim() && String(b.address).trim() !== s.address) {
       s.address = String(b.address).trim().slice(0, 200);
       const geo = await geocodeAddress(s.address, s.city);
@@ -271,7 +271,7 @@ router.put('/:id', requireAuth, async (req, res) => {
   }
 });
 
-// ── PUT /api/stays/:id/status ── 입주가능/입주완료 토글 (호스트 본인) ──
+// ── PUT /api/stays/:id/status ── toggle available/filled (host only) ──
 router.put('/:id/status', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '숙소를 찾을 수 없습니다.' });
@@ -290,7 +290,7 @@ router.put('/:id/status', requireAuth, async (req, res) => {
   }
 });
 
-// ── DELETE /api/stays/:id ── 삭제 (호스트 본인 또는 관리자) ──
+// ── DELETE /api/stays/:id ── delete (host or admin) ──
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '숙소를 찾을 수 없습니다.' });
@@ -309,7 +309,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/stays/:id/bookmark ── 즐겨찾기 토글 ──
+// ── POST /api/stays/:id/bookmark ── toggle the bookmark ──
 router.post('/:id/bookmark', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '숙소를 찾을 수 없습니다.' });
@@ -340,7 +340,7 @@ router.post('/:id/bookmark', requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/stays/:id/report ── 신고 ──
+// ── POST /api/stays/:id/report ── report ──
 router.post('/:id/report', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '숙소를 찾을 수 없습니다.' });

@@ -1,4 +1,4 @@
-// 광역권 매핑: 주변 소도시를 큰 도시에 합쳐서 검색
+// Metro-area mapping: fold nearby small towns into the large city for search
 const METRO_AREAS = [
   [
     'Toronto', 'Mississauga', 'Brampton', 'Markham', 'Vaughan',

@@ -1,5 +1,5 @@
-// 리스트 응답용 본문 프리뷰 — HTML 태그 제거 + 특수 마커 제거 + 길이 제한
-// 클라이언트 HomeScreen.getPreview()와 동일 규칙 (서버에서 미리 잘라 페이로드 절감)
+// Body preview for list responses — strips HTML tags and special markers, then truncates
+// Same rules as HomeScreen.getPreview() on the client (trimming server-side shrinks the payload)
 function toContentPreview(html, maxLen = 300) {
   if (!html || typeof html !== 'string') return '';
   return html

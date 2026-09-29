@@ -24,8 +24,8 @@ const User = require('../models/User');
     console.log('desc       :', (b.description || '(none)').slice(0, 200));
     console.log('images     :', (b.images || []).length, 'img');
     console.log('source     :', b.source);
-    console.log('status     :', b.status, b.status === 'pending' ? '  <-- 승인 대기' : '');
-    console.log('location   :', b.location ? JSON.stringify(b.location) : '(none) <-- 지도 핀 안뜸');
+    console.log('status     :', b.status, b.status === 'pending' ? '  <-- awaiting approval' : '');
+    console.log('location   :', b.location ? JSON.stringify(b.location) : '(none) <-- no map pin');
     if (b.location?.coordinates?.length === 2) {
       const [lng, lat] = b.location.coordinates;
       console.log('  -> lat/lng:', lat, lng, `  https://maps.google.com/?q=${lat},${lng}`);

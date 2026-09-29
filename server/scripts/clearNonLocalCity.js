@@ -1,9 +1,10 @@
 /**
- * 비-로컬 보드(자유/익명/정보/이민/유학/워홀/환전 등) 글의 city 필드를 빈값으로 정리.
- * 회원가입 시 프로필 도시(예: Toronto)가 모든 글에 자동 복사되던 과거 버그의 잔재를 제거.
+ * Clear the city field on posts from non-local boards (free, anonymous, info, immigration,
+ * study abroad, working holiday, currency exchange and so on). Removes the residue of an old bug
+ * where the profile city (Toronto, say) was copied onto every post at signup.
  *
- * 멱등: 이미 비어있는 글은 업데이트 대상에서 제외됨.
- * 실행: node server/scripts/clearNonLocalCity.js
+ * Idempotent: posts already cleared are excluded from the update.
+ * Run: node server/scripts/clearNonLocalCity.js
  */
 require('dotenv').config();
 const mongoose = require('mongoose');
@@ -14,15 +15,15 @@ const { LOCAL_BOARD_SLUGS } = require('../constants/boards');
 async function run() {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    console.error('MONGODB_URI 환경변수가 없습니다.');
+    console.error('MONGODB_URI is not set.');
     process.exit(1);
   }
   await mongoose.connect(uri);
-  console.log('✅ DB 연결');
+  console.log('✅ connected to the DB');
 
   const localBoards = await Board.find({ slug: { $in: LOCAL_BOARD_SLUGS } }).select('_id slug').lean();
   const localBoardIds = localBoards.map(b => b._id);
-  console.log(`로컬 보드 ${localBoards.length}개:`, localBoards.map(b => b.slug).join(', '));
+  console.log(`${localBoards.length} local boards:`, localBoards.map(b => b.slug).join(', '));
 
   const filter = {
     boardId: { $nin: localBoardIds },
@@ -30,22 +31,22 @@ async function run() {
   };
 
   const before = await Post.countDocuments(filter);
-  console.log(`정리 대상 글 수: ${before}`);
+  console.log(`posts to clean up: ${before}`);
 
   if (before === 0) {
-    console.log('정리할 글이 없습니다.');
+    console.log('nothing to clean up.');
     await mongoose.disconnect();
     return;
   }
 
   const result = await Post.updateMany(filter, { $set: { city: '' } });
-  console.log(`✅ 업데이트 완료: matched=${result.matchedCount}, modified=${result.modifiedCount}`);
+  console.log(`✅ update complete: matched=${result.matchedCount}, modified=${result.modifiedCount}`);
 
   await mongoose.disconnect();
 }
 
 run().catch(async (err) => {
-  console.error('마이그레이션 실패:', err);
+  console.error('migration failed:', err);
   try { await mongoose.disconnect(); } catch {}
   process.exit(1);
 });

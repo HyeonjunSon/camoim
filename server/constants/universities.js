@@ -1,8 +1,8 @@
-// 캐나다 주요 Post-Secondary 기관 화이트리스트
-// 인증은 학생증·재학증명서 서류 업로드 → 관리자 검토 방식
-// 정렬: 알파벳순 (shortName 기준)
+// Whitelist of major Canadian post-secondary institutions
+// Verification works by uploading a student card or enrolment letter for an admin to review
+// Order: alphabetical by shortName
 const UNIVERSITIES = [
-  // ── Universities (알파벳순) ──
+  // ── Universities (alphabetical) ──
   { name: 'Acadia University', shortName: 'Acadia University' },
   { name: 'Algoma University', shortName: 'Algoma University' },
   { name: 'Athabasca University', shortName: 'Athabasca University' },
@@ -59,7 +59,7 @@ const UNIVERSITIES = [
   { name: 'Wilfrid Laurier University', shortName: 'Wilfrid Laurier University' },
   { name: 'York University', shortName: 'York University' },
 
-  // ── Colleges & Polytechnics (알파벳순) ──
+  // ── Colleges & Polytechnics (alphabetical) ──
   { name: 'Algonquin College', shortName: 'Algonquin College' },
   { name: 'BCIT', shortName: 'British Columbia Institute of Technology (BCIT)' },
   { name: 'Bow Valley College', shortName: 'Bow Valley College' },
@@ -90,12 +90,12 @@ const UNIVERSITIES = [
   { name: 'Vancouver Community College', shortName: 'Vancouver Community College (VCC)' },
 ];
 
-// 기존 shortName → 새 shortName 매핑 (DB 마이그레이션용)
+// Old shortName → new shortName (for the DB migration)
 const SHORT_NAME_MIGRATION = {
-  // 괄호 공백 오류 수정
+  // Fixes spacing errors around parentheses
   'University of Toronto(UofT)': 'University of Toronto (UofT)',
   'University of British Columbia(UBC)': 'University of British Columbia (UBC)',
-  // 단순 약어 → 풀네임
+  // Bare abbreviation → full name
   'UofT': 'University of Toronto (UofT)',
   'UBC': 'University of British Columbia (UBC)',
   'McGill': 'McGill University',
@@ -123,7 +123,7 @@ const SHORT_NAME_MIGRATION = {
   'Humber': 'Humber College',
   'SAIT': 'Southern Alberta Institute of Technology (SAIT)',
   'Langara': 'Langara College',
-  // name 필드(풀네임) → shortName 통일
+  // name field (full name) → normalized to shortName
   'University of Toronto': 'University of Toronto (UofT)',
   'University of British Columbia': 'University of British Columbia (UBC)',
   'University of Alberta': 'University of Alberta (UAlberta)',

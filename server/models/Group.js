@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// community: 그룹장이 직접 꾸미는 소셜 링크 + 공지 (학교 커뮤니티 카드와 동일 패턴)
+// community: social links plus a notice the group owner curates (same pattern as the school community card)
 const communitySchema = new mongoose.Schema({
   instagram: { type: String, default: '', maxlength: 300 },
   kakaoOpen: { type: String, default: '', maxlength: 300 },
@@ -9,8 +9,8 @@ const communitySchema = new mongoose.Schema({
   notice:    { type: String, default: '', maxlength: 500 },
 }, { _id: false });
 
-// 사용자가 만드는 주제별 모임 (그룹)
-// admin 승인 후 활성화됨. 활성화되면 게시판 + 그룹 채팅이 자동으로 묶여서 운영됨.
+// User-created interest groups
+// Activated after admin approval. Once active, a board and a group chat are wired up automatically.
 const groupSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true, maxlength: 50 },
   description: { type: String, default: '', maxlength: 500 },
@@ -21,23 +21,23 @@ const groupSchema = new mongoose.Schema({
     default: 'general',
     index: true,
   },
-  city: { type: String, default: '', maxlength: 100, index: true }, // 지역 모임이면
-  // 학교 한정 동아리: 빈 문자열 = 누구나 가입, 값 있으면 인증된 해당 학교 회원만
+  city: { type: String, default: '', maxlength: 100, index: true }, // Set for local groups
+  // University-only club: empty string = open to all, a value restricts it to verified members of that school
   university: { type: String, default: '', maxlength: 100, index: true },
 
-  // 그룹장 + 부그룹장
+  // Owner + co-owners
   ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   managerIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 
-  // 캐시 카운트
+  // Cached counts
   memberCount: { type: Number, default: 1 },
   postCount: { type: Number, default: 0 },
 
-  // 가입 정책
+  // Join policy
   joinPolicy: { type: String, enum: ['open', 'approval'], default: 'open' },
   maxMembers: { type: Number, default: 500 },
 
-  // Admin 승인 워크플로
+  // Admin approval workflow
   status: {
     type: String,
     enum: ['pending_review', 'active', 'rejected', 'closed'],
@@ -49,7 +49,7 @@ const groupSchema = new mongoose.Schema({
   reviewedAt: { type: Date, default: null },
   closedAt: { type: Date, default: null },
 
-  // 그룹장(또는 부그룹장)이 꾸미는 소셜·공지 카드
+  // Social/notice card curated by the owner (or a co-owner)
   community: { type: communitySchema, default: () => ({}) },
 }, { timestamps: true });
 

@@ -1,12 +1,12 @@
-// 한인 업체 일괄 import — CSV 또는 JSON 파일을 읽어 Business 컬렉션에 등록
+// Bulk business import — reads a CSV or JSON file into the Business collection
 //
-// 사용법:
-//   railway run node scripts/importBusinesses.js <파일경로> [--pending] [--source admin|user]
-//   (로컬 테스트) node scripts/importBusinesses.js scripts/businesses.template.csv
+// Usage:
+//   railway run node scripts/importBusinesses.js <file> [--pending] [--source admin|user]
+//   (local test) node scripts/importBusinesses.js scripts/businesses.template.csv
 //
-// - 좌표(lat/lng) 없으면 주소로 자동 지오코딩 (Nominatim, 초당 1건 준수)
-// - (name + address) 기준 중복 방지 → 재실행해도 안전(있으면 갱신)
-// - 기본 status=approved (바로 지도 노출), --pending 주면 승인 대기로 등록
+// - With no lat/lng, the address is geocoded automatically (Nominatim, 1 request per second)
+// - Deduplicated on (name + address), so re-running is safe (existing rows are updated)
+// - Defaults to status=approved (visible on the map immediately); --pending files them for review
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
@@ -14,7 +14,7 @@ const connectDB = require('../db');
 const Business = require('../models/Business');
 const { geocodeAddress } = require('../utils/geocode');
 
-// ── 카테고리/도시 별칭 → 내부 key 매핑 (사람이 쓴 라벨/영문 모두 허용) ──
+// ── Category and city aliases mapped to internal keys (human-written labels and English both accepted) ──
 const CATEGORY_ALIASES = {
   food: 'food', 음식점: 'food', 식당: 'food', restaurant: 'food', 한식: 'food', bbq: 'food', 'korean restaurant': 'food',
   cafe: 'cafe', 카페: 'cafe', 베이커리: 'cafe', bakery: 'cafe', coffee: 'cafe', '카페·베이커리': 'cafe', 디저트: 'cafe',
@@ -39,7 +39,7 @@ function resolveCity(v) {
   return CITY_ALIASES[String(v).trim().toLowerCase()] || null;
 }
 
-// ── 견고한 CSV 파서 (따옴표 안 콤마/줄바꿈 처리, UTF-8) ──
+// ── Resilient CSV parser (handles quoted commas and newlines, UTF-8) ──
 function parseCSV(text) {
   const rows = [];
   let row = [], field = '', inQuotes = false;
@@ -83,7 +83,7 @@ async function main() {
   const file = process.argv[2];
   const flags = process.argv.slice(3);
   if (!file) {
-    console.log('사용법: node scripts/importBusinesses.js <file.csv|file.json> [--pending] [--source admin|user]');
+    console.log('Usage: node scripts/importBusinesses.js <file.csv|file.json> [--pending] [--source admin|user]');
     process.exit(1);
   }
   const asPending = flags.includes('--pending');
@@ -91,7 +91,7 @@ async function main() {
   const source = srcFlag >= 0 && ['admin', 'user', 'google'].includes(flags[srcFlag + 1]) ? flags[srcFlag + 1] : 'admin';
 
   const rows = loadRows(path.resolve(file));
-  console.log(`📄 ${rows.length}개 행 읽음 · source=${source} · status=${asPending ? 'pending' : 'approved'}`);
+  console.log(`📄 read ${rows.length} rows · source=${source} · status=${asPending ? 'pending' : 'approved'}`);
 
   await connectDB();
 
@@ -105,7 +105,7 @@ async function main() {
 
     if (!name || !category || !city || !address) {
       skipped++;
-      console.warn(`  ⚠︎ [${i + 1}] 스킵 — 필수값 누락/인식불가 (name="${name}", category="${row.category}", city="${row.city}", address="${address}")`);
+      console.warn(`  ⚠︎ [${i + 1}] skipped — missing or unrecognized required field (name="${name}", category="${row.category}", city="${row.city}", address="${address}")`);
       continue;
     }
 
@@ -118,7 +118,7 @@ async function main() {
       const geo = await geocodeAddress(address, city);
       if (geo) { location = { type: 'Point', coordinates: [geo.lng, geo.lat] }; geocoded++; }
       else geoFail++;
-      await sleep(1100); // Nominatim 이용정책: 초당 1건
+      await sleep(1100); // Nominatim usage policy: 1 request per second
     }
 
     const images = String(row.images || '').split('|').map((s) => s.trim()).filter(Boolean);
@@ -142,12 +142,12 @@ async function main() {
       await Business.create(doc);
       added++;
     }
-    console.log(`  [${i + 1}/${rows.length}] ${name} · ${city}/${category}${location ? '' : ' ⚠︎좌표없음'}`);
+    console.log(`  [${i + 1}/${rows.length}] ${name} · ${city}/${category}${location ? '' : ' ⚠︎ no coordinates'}`);
   }
 
   console.log('─'.repeat(40));
-  console.log(`✅ 완료: 추가 ${added} · 갱신 ${updated} · 스킵 ${skipped} · 지오코딩 ${geocoded}건(실패 ${geoFail})`);
+  console.log(`✅ done: ${added} added · ${updated} updated · ${skipped} skipped · ${geocoded} geocoded (${geoFail} failed)`);
   process.exit(0);
 }
 
-main().catch((e) => { console.error('❌ import 실패:', e); process.exit(1); });
+main().catch((e) => { console.error('❌ import failed:', e); process.exit(1); });

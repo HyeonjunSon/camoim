@@ -1,11 +1,11 @@
-// 학교 커뮤니티 전용 엔드포인트
-// - GET /api/universities/chat — 본인 학교 전체 채팅방 (lazy-create + 자동 입장)
-// - GET /api/universities/members/count — 본인 학교 인증 회원 수
-// - GET /api/universities/members — 본인 학교 인증 회원 검색 (학생회장 인수인계용)
-// - GET /api/universities/community — 본인 학교 커뮤니티 카드 (소셜 링크 + 공지)
-// - PUT /api/universities/community — 학생회장 또는 admin만 편집 가능
-// - PUT /api/universities/leader/transfer — 현 학생회장이 다른 인증 회원에게 인수인계
-// - DELETE /api/universities/leader — 현 학생회장이 사임
+// Endpoints for the school community
+// - GET /api/universities/chat — my school's all-hands chat room (lazy-created, auto-joined)
+// - GET /api/universities/members/count — verified member count at my school
+// - GET /api/universities/members — search verified members at my school (for handing over the presidency)
+// - GET /api/universities/community — my school's community card (social links + a notice)
+// - PUT /api/universities/community — editable only by the student president or an admin
+// - PUT /api/universities/leader/transfer — the sitting president hands over to another verified member
+// - DELETE /api/universities/leader — the sitting president steps down
 const express = require('express');
 const ChatRoom = require('../models/ChatRoom');
 const User = require('../models/User');
@@ -22,27 +22,27 @@ function emptyCommunity() {
   return { instagram: '', kakaoOpen: '', discord: '', homepage: '', notice: '' };
 }
 
-// 학생회장이 핸들·짧은 URL 입력해도 탭하면 외부 앱이 열리도록 저장 시점에 정규화
+// Normalize on save, so a handle or short URL the president typed still opens the external app on tap
 // - instagram: "@uoft.korean" / "uoft.korean" → "https://instagram.com/uoft.korean"
-// - kakaoOpen / discord / homepage: scheme 없으면 "https://" prefix
-// - notice: 일반 텍스트 (URL 변환 없음)
+// - kakaoOpen / discord / homepage: prefix "https://" when no scheme is present
+// - notice: plain text (no URL conversion)
 function normalizeCommunityField(field, raw) {
   const s = String(raw || '').trim();
   if (!s || field === 'notice') return s;
   if (/^https?:\/\//i.test(s)) return s;
   if (field === 'instagram') {
     const handle = s.replace(/^@/, '').replace(/^instagram\.com\//i, '').replace(/^www\.instagram\.com\//i, '');
-    // 핸들에 슬래시 없으면 instagram.com/{handle} 로
+    // A handle with no slash becomes instagram.com/{handle}
     if (!handle.includes('/') && !handle.includes('.')) {
       return `https://instagram.com/${handle}`;
     }
     return `https://${handle.replace(/^https?:\/\//, '')}`;
   }
-  // 그 외는 https:// prefix만
+  // Everything else just gets the https:// prefix
   return `https://${s.replace(/^\/+/, '')}`;
 }
 
-// GET /api/universities/members/count — 본인 학교 인증 회원 수
+// GET /api/universities/members/count — verified member count at my school
 router.get('/members/count', requireAuth, async (req, res) => {
   try {
     const me = await User.findById(req.user.id).select('verified university').lean();
@@ -57,8 +57,8 @@ router.get('/members/count', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/universities/chat — 학교 전체 채팅방 정보 (인증 회원 전용)
-// 첫 진입 시 채팅방 생성 + 본인 자동 추가
+// GET /api/universities/chat — school-wide chat room info (verified members only)
+// On first entry, create the room and add the caller
 router.get('/chat', requireAuth, async (req, res) => {
   try {
     const me = await User.findById(req.user.id).select('verified university').lean();
@@ -69,16 +69,16 @@ router.get('/chat', requireAuth, async (req, res) => {
 
     let room = await ChatRoom.findOne({ kind: 'school', university });
     if (!room) {
-      // 첫 진입 — 방 생성
+      // First entry — create the room
       room = await ChatRoom.create({
         kind: 'school',
         university,
-        groupName: university,        // 헤더 표시용 캐시
+        groupName: university,        // Cached for the header
         participants: [req.user.id],
         status: 'accepted',
       });
     } else if (!room.participants.some(p => String(p) === String(req.user.id))) {
-      // 기존 방에 처음 들어옴 — 참여자 추가
+      // First time in an existing room — add the participant
       room.participants.push(req.user.id);
       await room.save();
     }
@@ -98,9 +98,9 @@ router.get('/chat', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/universities/community — 본인 학교 커뮤니티 카드
-// canEdit = admin 또는 본인이 해당 학교 학생회장일 때 true
-// 학생회장 lazy 검증: 임명된 사람이 더 이상 verified=false / 다른 학교 / 탈퇴 상태면 자리 비움
+// GET /api/universities/community — my school's community card
+// canEdit is true for an admin, or for the student president of that school
+// Lazy validation of the president: vacate the seat if they are no longer verified, moved schools, or deleted their account
 router.get('/community', requireAuth, async (req, res) => {
   try {
     const me = await User.findById(req.user.id).select('verified university role').lean();
@@ -136,7 +136,7 @@ router.get('/community', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/universities/community — 학생회장 또는 admin만
+// PUT /api/universities/community — student president or admin only
 router.put('/community', requireAuth, async (req, res) => {
   try {
     const me = await User.findById(req.user.id).select('verified university role').lean();
@@ -168,8 +168,8 @@ router.put('/community', requireAuth, async (req, res) => {
 });
 
 // GET /api/universities/members?search=&limit=50&includeSelf=true|false
-// 같은 학교 인증 회원 목록. includeSelf=false (기본, picker용)는 본인 제외,
-// true는 본인 포함 (커뮤니티 멤버 리스트 화면용)
+// Verified members at the same school. includeSelf=false (the default, for the picker) excludes the caller,
+// true includes them (for the community member list screen)
 router.get('/members', requireAuth, async (req, res) => {
   try {
     const me = await User.findById(req.user.id).select('verified university').lean();
@@ -193,7 +193,7 @@ router.get('/members', requireAuth, async (req, res) => {
       .sort({ nickname: 1 })
       .limit(limit)
       .lean();
-    // 학생회장 ID 같이 전달 → 클라에서 ⭐ 배지
+    // Send the president's ID too, so the client can show the ⭐ badge
     const uni = await University.findOne({ name: me.university }).select('leaderUserId').lean();
     res.json({
       success: true,
@@ -207,7 +207,7 @@ router.get('/members', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/universities/leader/transfer { newUserId } — 현 학생회장이 다음 회장에게 인수인계
+// PUT /api/universities/leader/transfer { newUserId } — the sitting president hands over to the next one
 router.put('/leader/transfer', requireAuth, async (req, res) => {
   try {
     const me = await User.findById(req.user.id).select('verified university').lean();
@@ -232,7 +232,7 @@ router.put('/leader/transfer', requireAuth, async (req, res) => {
     uni.leaderUserId = next._id;
     await uni.save();
 
-    // 새 학생회장에게 알림 + 푸시
+    // Notify and push to the new president
     try {
       await Notification.create({
         userId: next._id,
@@ -260,7 +260,7 @@ router.put('/leader/transfer', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/universities/leader — 현 학생회장이 사임 (학교는 학생회장 공석 상태가 됨)
+// DELETE /api/universities/leader — the sitting president steps down (the seat is left vacant)
 router.delete('/leader', requireAuth, async (req, res) => {
   try {
     const me = await User.findById(req.user.id).select('verified university').lean();

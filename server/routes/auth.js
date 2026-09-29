@@ -9,7 +9,7 @@ const University = require('../models/University');
 const { generateCode, sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer');
 const { verifyAppleIdToken, verifyGoogleIdToken } = require('../utils/socialAuth');
 
-// 자동화 테스트에서는 rate limit을 건너뛴다 (NODE_ENV=test는 운영에서 절대 설정되지 않음)
+// Automated tests skip the rate limit (NODE_ENV=test is never set in production)
 const skipInTest = () => process.env.NODE_ENV === 'test';
 
 const loginLimiter = rateLimit({
@@ -48,23 +48,23 @@ const resetLimiter = rateLimit({
 const router = express.Router();
 const ALLOWED_SIGNUP_ROLES = [ROLES.STUDENT, ROLES.WORKING_HOLIDAY, ROLES.GENERAL];
 
-// 가입 전 이메일 인증 코드 임시 저장 (메모리)
+// Pre-signup email codes, held in memory
 const pendingCodes = new Map(); // email -> { code, expires }
 
-// POST /api/auth/send-code — 가입 전 이메일 인증 코드 발송
+// POST /api/auth/send-code — send the pre-signup email verification code
 router.post('/send-code', codeLimiter, async (req, res) => {
   const { email } = req.body || {};
   try {
     if (!email) return res.status(400).json({ success: false, message: '이메일을 입력해주세요.' });
 
-    // 이미 가입된 이메일인지 확인
+    // Check whether the email is already registered
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) return res.status(409).json({ success: false, message: '이미 가입된 이메일입니다.' });
 
     const code = generateCode();
     pendingCodes.set(email.toLowerCase(), {
       code,
-      expires: Date.now() + 10 * 60 * 1000, // 10분
+      expires: Date.now() + 10 * 60 * 1000, // 10 minutes
     });
 
     await sendVerificationEmail(email, code);
@@ -81,7 +81,7 @@ router.post('/send-code', codeLimiter, async (req, res) => {
   }
 });
 
-// POST /api/auth/check-code — 가입 전 인증 코드 확인
+// POST /api/auth/check-code — check the pre-signup code
 router.post('/check-code', codeLimiter, async (req, res) => {
   try {
     const { email, code } = req.body;
@@ -97,7 +97,7 @@ router.post('/check-code', codeLimiter, async (req, res) => {
       return res.status(400).json({ success: false, message: '인증 코드가 일치하지 않습니다.' });
     }
 
-    // 인증 성공 — verified 마킹
+    // Verified — mark the account
     pending.verified = true;
     res.json({ success: true, message: '이메일 인증이 완료되었습니다.' });
   } catch (err) {
@@ -106,7 +106,7 @@ router.post('/check-code', codeLimiter, async (req, res) => {
   }
 });
 
-// POST /api/auth/forgot-password — 가입된 이메일에 재설정 코드 전송
+// POST /api/auth/forgot-password — mail a reset code to a registered address
 router.post('/forgot-password', resetLimiter, async (req, res) => {
   try {
     const { email } = req.body || {};
@@ -115,11 +115,11 @@ router.post('/forgot-password', resetLimiter, async (req, res) => {
     }
     const user = await User.findOne({ email: email.toLowerCase() });
 
-    // user enumeration 방어 — 가입 여부와 무관하게 동일 응답
+    // Defends against user enumeration — the response is identical whether or not the account exists
     if (user) {
       const code = generateCode();
       user.resetCode = code;
-      user.resetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15분
+      user.resetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
       await user.save();
       try {
         await sendPasswordResetEmail(user.email, code);
@@ -137,7 +137,7 @@ router.post('/forgot-password', resetLimiter, async (req, res) => {
   }
 });
 
-// POST /api/auth/verify-reset-code — 비밀번호 재설정 코드 사전 검증 (consume 안 함)
+// POST /api/auth/verify-reset-code — pre-check the reset code without consuming it
 router.post('/verify-reset-code', resetLimiter, async (req, res) => {
   try {
     const { email, code } = req.body || {};
@@ -161,7 +161,7 @@ router.post('/verify-reset-code', resetLimiter, async (req, res) => {
   }
 });
 
-// POST /api/auth/reset-password — 코드 검증 + 비밀번호 변경
+// POST /api/auth/reset-password — verify the code and change the password
 router.post('/reset-password', resetLimiter, async (req, res) => {
   try {
     const { email, code, newPassword } = req.body || {};
@@ -189,7 +189,7 @@ router.post('/reset-password', resetLimiter, async (req, res) => {
     user.passwordHash = passwordHash;
     user.resetCode = '';
     user.resetExpires = null;
-    user.tokenVersion = (user.tokenVersion || 0) + 1; // 기존 모든 토큰 무효화
+    user.tokenVersion = (user.tokenVersion || 0) + 1; // Invalidate every existing token
     user.failedLoginCount = 0;
     user.lockedUntil = null;
     await user.save();
@@ -220,12 +220,12 @@ router.post('/register', registerLimiter, async (req, res) => {
       return res.status(409).json({ success: false, message: `이미 사용 중인 ${field}입니다.` });
     }
 
-    // 이메일 인증 완료 여부 확인
+    // Confirm the email verification finished
     const pending = pendingCodes.get(email.toLowerCase());
     if (!pending || !pending.verified) {
       return res.status(400).json({ success: false, message: '이메일 인증을 먼저 완료해주세요.' });
     }
-    pendingCodes.delete(email.toLowerCase()); // 사용 완료된 코드 제거
+    pendingCodes.delete(email.toLowerCase()); // Drop the now-used code
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await User.create({
@@ -268,7 +268,7 @@ router.post('/register', registerLimiter, async (req, res) => {
   }
 });
 
-// POST /api/auth/verify-email — 이메일 인증 코드 확인
+// POST /api/auth/verify-email — check the email verification code
 router.post('/verify-email', requireAuth, async (req, res) => {
   try {
     const { code } = req.body;
@@ -297,7 +297,7 @@ router.post('/verify-email', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/auth/resend-email — 인증 코드 재발송
+// POST /api/auth/resend-email — resend the verification code
 router.post('/resend-email', requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -333,12 +333,12 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ success: false, message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
     }
 
-    // 탈퇴(soft-delete)된 계정 — 로그인 차단
+    // Soft-deleted account — refuse the login
     if (user.status === 'deleted') {
       return res.status(403).json({ success: false, code: 'ACCOUNT_DELETED', message: '탈퇴 처리된 계정입니다.' });
     }
 
-    // 소셜 로그인 전용 계정 (비밀번호 없음) — 비번 로그인 차단
+    // Social-only account with no password — refuse password login
     if (!user.passwordHash) {
       const provider = user.appleSub ? 'Apple' : (user.googleSub ? 'Google' : '소셜');
       return res.status(401).json({
@@ -348,7 +348,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       });
     }
 
-    // 잠금 상태 확인 — 잠긴 시간이 지났으면 자동 해제
+    // Check the lockout, releasing it automatically once the window has passed
     if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
       const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
       return res.status(423).json({
@@ -364,7 +364,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       const update = { failedLoginCount: newCount };
       if (newCount >= MAX_FAILED_LOGINS) {
         update.lockedUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
-        update.failedLoginCount = 0; // 잠금 후 카운트 리셋 (잠금 풀린 후 다시 시도 가능)
+        update.failedLoginCount = 0; // Reset the counter after a lockout so the user can try again once it lifts
       }
       await User.updateOne({ _id: user._id }, { $set: update });
       const remaining = Math.max(0, MAX_FAILED_LOGINS - newCount);
@@ -378,7 +378,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       });
     }
 
-    // 로그인 성공 — 카운터 리셋 + 잠금 해제
+    // Successful login — reset the counter and clear the lockout
     if (user.failedLoginCount || user.lockedUntil) {
       await User.updateOne({ _id: user._id }, { $set: { failedLoginCount: 0, lockedUntil: null } });
     }
@@ -414,7 +414,7 @@ router.post('/login', loginLimiter, async (req, res) => {
   }
 });
 
-// POST /api/auth/logout — 현재 토큰 + 동일 사용자의 모든 기존 토큰 무효화
+// POST /api/auth/logout — invalidate this token and every other token for the same user
 router.post('/logout', requireAuth, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.user.id, { $inc: { tokenVersion: 1 } });
@@ -428,7 +428,7 @@ router.post('/logout', requireAuth, async (req, res) => {
 // GET /api/auth/me
 router.get('/me', requireAuth, async (req, res) => {
   try {
-    // passwordHash 존재 여부만 알면 됨 (값 자체는 응답에 노출 X)
+    // Only whether a passwordHash exists matters (the value itself never reaches the response)
     const user = await User.findById(req.user.id).select('+passwordHash');
     if (!user) return res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     res.json({
@@ -446,7 +446,7 @@ router.get('/me', requireAuth, async (req, res) => {
         city: user.city,
         avatarUrl: user.avatarUrl,
         emailVerified: user.emailVerified ?? false,
-        // 소셜로만 가입한 사용자(Apple/Google) 식별용. 탈퇴 시 비밀번호 vs 닉네임 확인 분기에 사용
+        // Identifies social-only signups (Apple/Google), which decides whether deletion asks for a password or a nickname
         hasPassword: !!user.passwordHash,
       },
     });
@@ -480,7 +480,7 @@ router.get('/check-nickname', async (req, res) => {
   }
 });
 
-// GET /api/auth/universities — 활성화된 학교만 정렬해서 반환
+// GET /api/auth/universities — active schools only, sorted
 router.get('/universities', async (req, res) => {
   try {
     const list = await University.find({ active: true })
@@ -494,10 +494,10 @@ router.get('/universities', async (req, res) => {
   }
 });
 
-// DELETE /api/auth/me — 회원탈퇴
-// 본인 확인 후 계정 및 관련 데이터 정리
-// - 이메일 가입자: 비밀번호 입력
-// - 소셜(Apple/Google) 전용 가입자: passwordHash 없으므로 닉네임을 정확히 입력
+// DELETE /api/auth/me — delete the account
+// Confirms identity, then cleans up the account and its data
+// - email signups: enter the password
+// - social-only signups (Apple/Google): no passwordHash, so they retype their nickname exactly
 router.delete('/me', requireAuth, async (req, res) => {
   try {
     const { password, reason, confirmText } = req.body || {};
@@ -507,19 +507,19 @@ router.delete('/me', requireAuth, async (req, res) => {
     if (!currentUser) return res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
 
     if (currentUser.passwordHash) {
-      // 이메일 가입자: 비밀번호 검증
+      // Email signups: verify the password
       if (!password) return res.status(400).json({ success: false, message: '비밀번호를 입력해주세요.' });
       const isMatch = await bcrypt.compare(password, currentUser.passwordHash);
       if (!isMatch) return res.status(401).json({ success: false, message: '비밀번호가 일치하지 않습니다.' });
     } else {
-      // 소셜 전용 가입자: 닉네임 일치 확인 (실수 방지 + 의도 확인)
+      // Social-only signups: match the nickname (guards against mistakes and confirms intent)
       if (!confirmText) return res.status(400).json({ success: false, message: '닉네임을 입력해주세요.' });
       if (String(confirmText).trim() !== currentUser.nickname) {
         return res.status(401).json({ success: false, message: '닉네임이 일치하지 않습니다.' });
       }
     }
 
-    // 탈퇴 이유 로깅 (서비스 개선용)
+    // Log the deletion reason (used to improve the service)
     if (reason) {
       console.log(`[auth] account deletion reason (user: ${userId}): ${reason}`);
     }
@@ -534,13 +534,13 @@ router.delete('/me', requireAuth, async (req, res) => {
     const Bookmark = require('../models/Bookmark');
     const Message = require('../models/Message');
 
-    // 1. 본인 좋아요 회수 (다른 사람 글에서)
+    // 1. Withdraw likes the user left on other people's posts
     await Post.updateMany(
       { likedBy: userId },
       { $pull: { likedBy: userId }, $inc: { likeCount: -1 } }
     );
 
-    // 2. 본인 게시글 hard delete + 그 글에 달린 모든 댓글/북마크/신고 cascade
+    // 2. Hard-delete the user's posts, cascading to their comments, bookmarks and reports
     const userPostIds = await Post.find({ userId }).distinct('_id');
     if (userPostIds.length) {
       await Promise.all([
@@ -551,13 +551,13 @@ router.delete('/me', requireAuth, async (req, res) => {
       ]);
     }
 
-    // 3. 본인이 다른 사람 글에 단 댓글 hard delete
-    //    - 부모 글의 commentCount 감소
-    //    - 댓글 대상 신고 삭제
+    // 3. Hard-delete the comments the user left on other people's posts
+    //    - decrement the parent post's commentCount
+    //    - delete reports targeting those comments
     const userComments = await Comment.find({ userId }).select('_id postId').lean();
     if (userComments.length) {
       const commentIds = userComments.map(c => c._id);
-      // postId별 카운트 집계 (자기 글은 이미 위에서 통째로 삭제됐으므로 자연스럽게 빠짐)
+      // Tally per postId (the user's own posts were already deleted wholesale above, so they drop out naturally)
       const countByPost = new Map();
       for (const c of userComments) {
         if (!c.postId) continue;
@@ -574,26 +574,26 @@ router.delete('/me', requireAuth, async (req, res) => {
       ]);
     }
 
-    // 4. 채팅 메시지 — 내용 마스킹 + 발신자 null (상대방 채팅 흐름은 유지)
+    // 4. Chat messages — mask the content and null the sender, leaving the other party's thread readable
     await Message.updateMany(
       { senderId: userId },
       { $set: { senderId: null, content: '(탈퇴한 사용자가 보낸 메시지)' } }
     );
 
-    // 5. 그 외 본인 데이터 hard delete
+    // 5. Hard-delete everything else belonging to the user
     await Promise.all([
       Block.deleteMany({ $or: [{ blockerId: userId }, { blockedId: userId }] }),
-      Report.deleteMany({ reporterId: userId }), // 본인이 한 신고
+      Report.deleteMany({ reporterId: userId }), // Reports the user filed
       VerifyRequest.deleteMany({ userId }),
       Notification.deleteMany({ userId }),
       Inquiry.deleteMany({ userId }),
       Bookmark.deleteMany({ userId }),
-      // 학교 학생회장 자리 정리 — 죽은 참조 방지
+      // Clear the school president seat so no dangling reference is left
       University.updateMany({ leaderUserId: userId }, { $set: { leaderUserId: null } }),
     ]);
 
-    // 계정은 soft-delete: status='deleted'로 전환하고 신원(이메일/닉네임)은 유지.
-    // tokenVersion을 올려 기존 JWT 즉시 무효화 (requireAuth에서 deleted도 차단됨).
+    // The account is soft-deleted: status becomes 'deleted' while the identity (email, nickname) is retained.
+    // Bumping tokenVersion invalidates existing JWTs at once (requireAuth also blocks 'deleted').
     await User.updateOne(
       { _id: userId },
       {
@@ -601,7 +601,7 @@ router.delete('/me', requireAuth, async (req, res) => {
           status: 'deleted',
           deletedAt: new Date(),
           deleteReason: reason ? String(reason).slice(0, 500) : '',
-          pushToken: '',          // 푸쉬 발송 중단
+          pushToken: '',          // Stop sending push
           lockedUntil: null,
           failedLoginCount: 0,
         },
@@ -615,15 +615,15 @@ router.delete('/me', requireAuth, async (req, res) => {
   }
 });
 
-// ── 소셜 로그인 ─────────────────────────────────────────
-// 공통 흐름:
-//   1) 클라이언트가 Apple/Google idToken 보냄
-//   2) 서버가 검증 → { sub, email } 추출
-//   3) 기존 사용자 매칭:
-//      - appleSub/googleSub로 찾기
-//      - 그 다음 email로 찾기 (자동 연결)
-//   4) 매칭되면 → JWT 발급 (로그인 완료)
-//   5) 매칭 안 되면 → preReg JWT 발급 (Onboarding 화면용)
+// ── Social login ────────────────────────────────────────
+// Shared flow:
+//   1) the client sends an Apple/Google idToken
+//   2) the server verifies it and extracts { sub, email }
+//   3) match against existing users:
+//      - by appleSub/googleSub first
+//      - then by email (auto-link)
+//   4) on a match, issue a JWT (login complete)
+//   5) with no match, issue a preReg JWT (for the onboarding screen)
 
 const socialLimiter = rateLimit({
   skip: skipInTest,
@@ -633,7 +633,7 @@ const socialLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const PREREG_TTL_SEC = 30 * 60; // 30분
+const PREREG_TTL_SEC = 30 * 60; // 30 minutes
 
 function makeAccessToken(user) {
   return jwt.sign(
@@ -669,26 +669,26 @@ function userResponse(user) {
 }
 
 async function findOrPreReg(provider, sub, email) {
-  // provider sub로 우선 매칭
+  // Match on the provider sub first
   const subQuery = provider === 'apple' ? { appleSub: sub } : { googleSub: sub };
   let user = await User.findOne(subQuery);
   if (user) return { user };
 
-  // email로 매칭 (auto-link)
+  // Then match on email (auto-link)
   if (email) {
     user = await User.findOne({ email: email.toLowerCase() });
     if (user) {
-      // 기존 계정에 소셜 sub 연결
+      // Attach the social sub to the existing account
       if (provider === 'apple' && !user.appleSub) user.appleSub = sub;
       if (provider === 'google' && !user.googleSub) user.googleSub = sub;
-      // 소셜은 이미 검증됐으니 emailVerified 자동 설정
+      // Social sign-in is already verified, so set emailVerified automatically
       user.emailVerified = true;
       await user.save();
       return { user, linked: true };
     }
   }
 
-  // 매칭 없음 → onboarding 필요
+  // No match — onboarding is required
   return { user: null };
 }
 
@@ -709,7 +709,7 @@ router.post('/apple', socialLimiter, async (req, res) => {
       return res.json({ success: true, data: { token, user: userResponse(user), linked: !!linked } });
     }
 
-    // 신규 → preReg 토큰 발급, 클라이언트는 Onboarding 화면으로 이동
+    // New user: issue a preReg token and send the client to the onboarding screen
     const preRegToken = makePreRegToken('apple', sub, email || '');
     res.json({
       success: true,
@@ -766,7 +766,7 @@ router.post('/google', socialLimiter, async (req, res) => {
 });
 
 // POST /api/auth/social-complete
-// preReg 토큰 + 추가 정보(닉네임/유형/도시/약관)로 회원가입 완료
+// Finish signup with the preReg token plus the extra details (nickname, type, city, terms)
 router.post('/social-complete', socialLimiter, async (req, res) => {
   try {
     const { preRegToken, nickname, role, city } = req.body || {};
@@ -791,11 +791,11 @@ router.post('/social-complete', socialLimiter, async (req, res) => {
       return res.status(401).json({ success: false, message: '잘못된 인증 토큰이에요.' });
     }
 
-    // 닉네임 중복 확인
+    // Check the nickname is not taken
     const dup = await User.findOne({ nickname: cleanNickname });
     if (dup) return res.status(409).json({ success: false, message: '이미 사용 중인 닉네임입니다.' });
 
-    // 동시간 race로 같은 sub로 이미 만들어졌는지 다시 확인
+    // Re-check whether a concurrent request already created this sub
     const subQuery = payload.provider === 'apple' ? { appleSub: payload.sub } : { googleSub: payload.sub };
     const existing = await User.findOne(subQuery);
     if (existing) {
@@ -806,7 +806,7 @@ router.post('/social-complete', socialLimiter, async (req, res) => {
       return res.json({ success: true, data: { token, user: userResponse(existing) } });
     }
 
-    // 이메일도 한번 더 확인 (race or 다른 경로 가입)
+    // Check the email once more too (a race, or a signup through another path)
     const email = String(payload.email || '').toLowerCase();
     if (email) {
       const byEmail = await User.findOne({ email });
@@ -833,7 +833,7 @@ router.post('/social-complete', socialLimiter, async (req, res) => {
       role,
       city: city ? String(city).trim() : '',
       emailVerified: true,
-      passwordHash: null, // 소셜 전용
+      passwordHash: null, // Social only
       ...(payload.provider === 'apple' ? { appleSub: payload.sub } : { googleSub: payload.sub }),
     });
 

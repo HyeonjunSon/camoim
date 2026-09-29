@@ -1,6 +1,6 @@
-// 핵심 플로우 E2E(백엔드): 로그인 → 채팅 전송 → 수신
-// 실제 Express 앱 + 실제 Socket.io 서버 + in-memory MongoDB를 그대로 띄우고,
-// 두 개의 실제 socket.io 클라이언트로 메시지 왕복을 검증한다.
+// Backend E2E of the core flow: log in, send a chat message, receive it
+// Stands up the real Express app, a real Socket.io server and an in-memory MongoDB,
+// then verifies a message round trip between two real socket.io clients.
 jest.mock('../../utils/mailer', () => ({
   generateCode: () => '123456',
   sendVerificationEmail: jest.fn().mockResolvedValue(true),
@@ -41,7 +41,7 @@ afterAll(async () => {
   await db.close();
 });
 
-// 열린 소켓을 테스트마다 정리
+// Close any open sockets between tests
 let openSockets = [];
 function track(socket) { openSockets.push(socket); return socket; }
 afterEach(async () => {
@@ -50,7 +50,7 @@ afterEach(async () => {
   await db.clear();
 });
 
-// HTTP 로그인으로 진짜 토큰을 받아온다 (소켓 인증도 이 토큰을 그대로 쓴다)
+// Obtain a genuine token via HTTP login (socket auth uses the very same token)
 async function login(user) {
   const res = await request(app)
     .post('/api/auth/login')
@@ -59,36 +59,36 @@ async function login(user) {
   return res.body.data.token;
 }
 
-describe('소켓 인증', () => {
-  it('토큰이 없으면 연결이 거부된다', async () => {
+describe('socket authentication', () => {
+  it('rejects a connection with no token', async () => {
     await expect(connectClient(url, undefined)).rejects.toThrow(/토큰/);
   });
 
-  it('잘못된 토큰이면 연결이 거부된다', async () => {
+  it('rejects a connection with an invalid token', async () => {
     await expect(connectClient(url, 'garbage.token.value')).rejects.toThrow(/유효하지 않은/);
   });
 
-  it('로그인으로 받은 토큰이면 연결된다', async () => {
+  it('accepts a token obtained by logging in', async () => {
     const user = await createUser();
     const socket = track(await connectClient(url, await login(user)));
     expect(socket.connected).toBe(true);
   });
 
-  it('tokenVersion이 바뀐(로그아웃·비번변경) 토큰은 거부된다', async () => {
+  it('rejects a token whose tokenVersion changed (logout or password change)', async () => {
     const user = await createUser();
     const token = await login(user);
     await User.updateOne({ _id: user._id }, { $inc: { tokenVersion: 1 } });
     await expect(connectClient(url, token)).rejects.toThrow(/TOKEN_REVOKED/);
   });
 
-  it('밴된 계정은 거부된다', async () => {
+  it('rejects a banned account', async () => {
     const user = await createUser();
     const token = await login(user);
     await User.updateOne({ _id: user._id }, { $set: { status: 'banned' } });
     await expect(connectClient(url, token)).rejects.toThrow(/ACCOUNT_BANNED/);
   });
 
-  it('정지 기간이 남은 계정은 거부된다', async () => {
+  it('rejects an account still within its suspension', async () => {
     const user = await createUser();
     const token = await login(user);
     await User.updateOne(
@@ -99,8 +99,8 @@ describe('소켓 인증', () => {
   });
 });
 
-describe('로그인 → 메시지 전송 → 수신 (핵심 플로우)', () => {
-  it('보낸 메시지가 상대 소켓에 도착하고 DB에 남는다', async () => {
+describe('log in, send a message, receive it (the core flow)', () => {
+  it('the sent message reaches the other socket and is stored in the DB', async () => {
     const alice = await createUser({ nickname: 'alice' });
     const bob = await createUser({ nickname: 'bob' });
     const room = await createDmRoom(alice, bob);
@@ -124,11 +124,11 @@ describe('로그인 → 메시지 전송 → 수신 (핵심 플로우)', () => {
     const saved = await Message.findById(payload.id);
     expect(saved).not.toBeNull();
     expect(saved.content).toBe('안녕 Bob!');
-    // 보낸 사람은 자기 메시지를 이미 읽은 것으로 처리
+    // The sender's own message counts as already read
     expect(saved.readBy.map(String)).toEqual([String(alice._id)]);
   });
 
-  it('보낸 사람도 같은 new_message를 받는다 (낙관적 UI 동기화)', async () => {
+  it('the sender receives the same new_message (keeps the UI in sync)', async () => {
     const alice = await createUser();
     const bob = await createUser();
     const room = await createDmRoom(alice, bob);
@@ -142,7 +142,7 @@ describe('로그인 → 메시지 전송 → 수신 (핵심 플로우)', () => {
     expect((await echo).content).toBe('echo');
   });
 
-  it('메시지를 보내면 상대의 unreadCount가 오르고 방 미리보기가 갱신된다', async () => {
+  it('sending raises the recipient unreadCount and refreshes the room preview', async () => {
     const alice = await createUser();
     const bob = await createUser();
     const room = await createDmRoom(alice, bob);
@@ -163,7 +163,7 @@ describe('로그인 → 메시지 전송 → 수신 (핵심 플로우)', () => {
     expect(updated.unreadCount.get(String(alice._id)) ?? 0).toBe(0);
   });
 
-  it('채팅방에 들어와 있지 않아도 chat_notification은 받는다', async () => {
+  it('chat_notification arrives even without being inside the room', async () => {
     const alice = await createUser({ nickname: 'alice' });
     const bob = await createUser();
     const room = await createDmRoom(alice, bob);
@@ -172,7 +172,7 @@ describe('로그인 → 메시지 전송 → 수신 (핵심 플로우)', () => {
     const aliceSocket = track(await connectClient(url, await login(alice)));
     const bobSocket = track(await connectClient(url, await login(bob)));
     aliceSocket.emit('join_room', roomId);
-    // bob은 join_room 하지 않음 (채팅 목록 화면에 있는 상황)
+    // bob never calls join_room (he is sitting on the chat list screen)
 
     const notified = waitFor(bobSocket, 'chat_notification');
     aliceSocket.emit('send_message', { roomId, content: '안 읽었지?' });
@@ -183,7 +183,7 @@ describe('로그인 → 메시지 전송 → 수신 (핵심 플로우)', () => {
     expect(payload.content).toBe('안 읽었지?');
   });
 
-  it('read_messages로 읽음 처리하면 unread가 0이 되고 상대에게 알려준다', async () => {
+  it('read_messages zeroes unread and tells the other party', async () => {
     const alice = await createUser();
     const bob = await createUser();
     const room = await createDmRoom(alice, bob);
@@ -212,8 +212,8 @@ describe('로그인 → 메시지 전송 → 수신 (핵심 플로우)', () => {
   });
 });
 
-describe('메시지 전송 방어 로직', () => {
-  it('방 참여자가 아니면 메시지가 저장되지 않는다', async () => {
+describe('send-message guards', () => {
+  it('a non-participant cannot store a message', async () => {
     const alice = await createUser();
     const bob = await createUser();
     const stranger = await createUser();
@@ -229,7 +229,7 @@ describe('메시지 전송 방어 로직', () => {
     expect(await Message.countDocuments({ roomId })).toBe(0);
   });
 
-  it('빈 내용이나 공백만 있는 메시지는 무시한다', async () => {
+  it('ignores empty and whitespace-only messages', async () => {
     const alice = await createUser();
     const bob = await createUser();
     const room = await createDmRoom(alice, bob);
@@ -245,7 +245,7 @@ describe('메시지 전송 방어 로직', () => {
     expect(await Message.countDocuments({ roomId })).toBe(0);
   });
 
-  it('앞뒤 공백은 잘라서 저장한다', async () => {
+  it('trims surrounding whitespace before storing', async () => {
     const alice = await createUser();
     const bob = await createUser();
     const room = await createDmRoom(alice, bob);
@@ -259,7 +259,7 @@ describe('메시지 전송 방어 로직', () => {
     expect((await got).content).toBe('trimmed');
   });
 
-  it('채팅 차단된 상대에게는 send_error가 돌아온다', async () => {
+  it('returns send_error toward a chat-blocked user', async () => {
     const alice = await createUser();
     const bob = await createUser();
     const room = await createDmRoom(alice, bob);
@@ -275,7 +275,7 @@ describe('메시지 전송 방어 로직', () => {
     expect(await Message.countDocuments({ roomId })).toBe(0);
   });
 
-  it('pending DM에서 요청자는 한 통만 보낼 수 있다', async () => {
+  it('in a pending DM the requester may send only one message', async () => {
     const alice = await createUser();
     const bob = await createUser();
     const room = await createDmRoom(alice, bob, { status: 'pending', requesterId: alice._id });
@@ -294,7 +294,7 @@ describe('메시지 전송 방어 로직', () => {
     expect(await Message.countDocuments({ roomId })).toBe(1);
   });
 
-  it('pending DM에서 수신자는 수락 전까지 보낼 수 없다', async () => {
+  it('in a pending DM the recipient cannot send until accepting', async () => {
     const alice = await createUser();
     const bob = await createUser();
     const room = await createDmRoom(alice, bob, { status: 'pending', requesterId: alice._id });
@@ -309,7 +309,7 @@ describe('메시지 전송 방어 로직', () => {
     expect(await Message.countDocuments({ roomId })).toBe(0);
   });
 
-  it('없는 방으로 보내도 서버가 죽지 않는다', async () => {
+  it('sending to a nonexistent room does not crash the server', async () => {
     const alice = await createUser();
     const aliceSocket = track(await connectClient(url, await login(alice)));
     aliceSocket.emit('send_message', {
@@ -321,8 +321,8 @@ describe('메시지 전송 방어 로직', () => {
   });
 });
 
-describe('그룹 채팅', () => {
-  it('그룹 방에서는 차단/승인 검사 없이 전원에게 전달된다', async () => {
+describe('group chat', () => {
+  it('a group room delivers to everyone with no block or approval checks', async () => {
     const alice = await createUser({ nickname: 'alice' });
     const bob = await createUser();
     const carol = await createUser();
@@ -353,7 +353,7 @@ describe('그룹 채팅', () => {
     expect(updated.unreadCount.get(String(carol._id))).toBe(1);
   });
 
-  it('여러 명이 동시에 보내도 unreadCount가 유실되지 않는다 ($inc 원자성)', async () => {
+  it('unreadCount survives simultaneous senders ($inc atomicity)', async () => {
     const alice = await createUser();
     const bob = await createUser();
     const carol = await createUser();
@@ -370,7 +370,7 @@ describe('그룹 채팅', () => {
     const carolSocket = track(await connectClient(url, await login(carol)));
     [aliceSocket, bobSocket, carolSocket].forEach((s) => s.emit('join_room', roomId));
 
-    // carol이 전체 메시지를 다 받을 때까지 대기 (= 서버가 전부 처리 완료)
+    // Wait until carol has received every message (i.e. the server finished processing them all)
     const PER_SENDER = 10;
     const allArrived = new Promise((resolve) => {
       let n = 0;
@@ -386,5 +386,40 @@ describe('그룹 채팅', () => {
     expect(updated.unreadCount.get(String(carol._id))).toBe(PER_SENDER * 2);
     expect(updated.unreadCount.get(String(alice._id))).toBe(PER_SENDER);
     expect(updated.unreadCount.get(String(bob._id))).toBe(PER_SENDER);
+  });
+});
+
+describe('message length limit (checked before the store and room update run in parallel)', () => {
+  it('over 2000 characters returns send_error and leaves message, preview and unread untouched', async () => {
+    const alice = await createUser();
+    const bob = await createUser();
+    const room = await createDmRoom(alice, bob);
+    const roomId = String(room._id);
+
+    const aliceSocket = track(await connectClient(url, await login(alice)));
+    aliceSocket.emit('join_room', roomId);
+
+    const err = waitFor(aliceSocket, 'send_error');
+    aliceSocket.emit('send_message', { roomId, content: 'a'.repeat(2001) });
+    expect((await err).message).toMatch(/2000/);
+
+    expect(await Message.countDocuments({ roomId })).toBe(0);
+    const after = await ChatRoom.findById(roomId);
+    expect(after.lastMessage).toBe('');
+    expect(after.unreadCount.get(String(bob._id)) ?? 0).toBe(0);
+  });
+
+  it('exactly 2000 characters is accepted', async () => {
+    const alice = await createUser();
+    const bob = await createUser();
+    const room = await createDmRoom(alice, bob);
+    const roomId = String(room._id);
+
+    const aliceSocket = track(await connectClient(url, await login(alice)));
+    aliceSocket.emit('join_room', roomId);
+
+    const got = waitFor(aliceSocket, 'new_message');
+    aliceSocket.emit('send_message', { roomId, content: 'a'.repeat(2000) });
+    expect((await got).content).toHaveLength(2000);
   });
 });

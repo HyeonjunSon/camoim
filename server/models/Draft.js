@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
-// 글쓰기 임시저장
-// CreatePostScreen에서 사용자가 작성 중이던 내용을 보관 → 햄버거 버튼으로 불러오기
-// boardId 또는 groupId 중 하나만 채워짐 (둘 다 비어있어도 OK — 보드 안 정해진 단계의 초안)
+// Post drafts
+// Holds what the user was writing in CreatePostScreen, reloaded from the hamburger button
+// Only one of boardId / groupId is filled (both empty is fine — a draft started before a board was picked)
 const draftSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   boardId: { type: mongoose.Schema.Types.ObjectId, ref: 'Board', default: null },
@@ -15,7 +15,7 @@ const draftSchema = new mongoose.Schema({
   tradeStatus: { type: String, enum: ['selling', 'sold'], default: 'selling' },
 }, { timestamps: true });
 
-// 본인 드래프트 목록 최신순
+// Newest-first list of the user's own drafts
 draftSchema.index({ userId: 1, updatedAt: -1 });
 
 module.exports = mongoose.model('Draft', draftSchema);

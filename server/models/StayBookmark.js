@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// 숙소 즐겨찾기 — BusinessBookmark와 동일 패턴 (별도 컬렉션으로 유니크 인덱스 분리)
+// Stay bookmarks — same pattern as BusinessBookmark; its own collection keeps the unique index separate
 const stayBookmarkSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   stayId: { type: mongoose.Schema.Types.ObjectId, ref: 'StayListing', required: true, index: true },

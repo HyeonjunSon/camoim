@@ -5,7 +5,7 @@ const { optionalAuth } = require('../middleware/auth');
 const router = express.Router();
 
 // POST /api/analytics/event { name, props?, platform?, appVersion? }
-// 이벤트 단일 또는 배열 둘 다 받음. 배치 전송 권장.
+// Accepts a single event or an array. Batching is preferred.
 router.post('/event', optionalAuth, async (req, res) => {
   try {
     const userId = req.user?.id || null;
@@ -13,7 +13,7 @@ router.post('/event', optionalAuth, async (req, res) => {
 
     const docs = events
       .filter(e => e && typeof e.name === 'string' && e.name.length <= 60)
-      .slice(0, 50) // 한 번에 최대 50개
+      .slice(0, 50) // At most 50 per call
       .map(e => ({
         userId,
         name: e.name,
@@ -28,7 +28,7 @@ router.post('/event', optionalAuth, async (req, res) => {
 
     res.json({ success: true, data: { received: docs.length } });
   } catch (err) {
-    // 분석 데이터 손실은 사용자 경험에 영향 없도록 silent
+    // Losing analytics data must never affect the user, so failures stay silent
     res.json({ success: true, data: { received: 0 } });
   }
 });

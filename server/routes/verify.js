@@ -15,18 +15,18 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// 학교 인증 서류 → Cloudinary (private folder, 추측 어려운 public_id)
+// School verification documents go to Cloudinary (private folder, hard-to-guess public_id)
 const verifyStorage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: 'camoim/verify',
-    resource_type: 'auto', // jpg/png/pdf 모두 지원
+    resource_type: 'auto', // jpg, png and pdf are all accepted
     allowed_formats: ['jpg', 'jpeg', 'png', 'pdf', 'heic', 'heif'],
   },
 });
 const upload = multer({
   storage: verifyStorage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB 제한
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
     const allowedExts = ['.jpg', '.jpeg', '.png', '.pdf', '.heic', '.heif'];
     const allowedMimes = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'application/pdf'];
@@ -37,7 +37,7 @@ const upload = multer({
   },
 });
 
-// POST /api/verify/apply — 인증 신청
+// POST /api/verify/apply — submit a verification request
 router.post('/apply', requireAuth, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -62,7 +62,7 @@ router.post('/apply', requireAuth, upload.single('file'), async (req, res) => {
       return res.status(400).json({ success: false, message: '졸업연도를 입력해주세요.' });
     }
 
-    // pending 상태 신청만 중복 방지 (approved는 편입/학교변경 신청 허용)
+    // Only a pending request blocks a duplicate (an approved one still allows a transfer or school change)
     const pendingExisting = await VerifyRequest.findOne({
       userId: req.user.id,
       status: 'pending',
@@ -74,7 +74,7 @@ router.post('/apply', requireAuth, upload.single('file'), async (req, res) => {
       });
     }
 
-    // multer-storage-cloudinary가 req.file.path에 Cloudinary URL을 넣어줌
+    // multer-storage-cloudinary puts the Cloudinary URL on req.file.path
     const fileUrl = req.file.path;
 
     await VerifyRequest.create({
@@ -92,7 +92,7 @@ router.post('/apply', requireAuth, upload.single('file'), async (req, res) => {
   }
 });
 
-// GET /api/verify/status — 내 인증 신청 상태 조회
+// GET /api/verify/status — my verification request status
 router.get('/status', requireAuth, async (req, res) => {
   try {
     const request = await VerifyRequest.findOne({ userId: req.user.id })

@@ -10,7 +10,7 @@ const { toContentPreview } = require('../utils/contentPreview');
 const router = express.Router();
 
 // GET /api/search?q=keyword&type=all|posts|groups|users&limit=20
-// 통합 검색 — 게시글 + 모임 + 사용자 한 번에 검색
+// Unified search — posts, groups and users in one call
 router.get('/', optionalAuth, async (req, res) => {
   try {
     const { q, type = 'all', limit: limitQ } = req.query;
@@ -25,7 +25,7 @@ router.get('/', optionalAuth, async (req, res) => {
 
     const results = { posts: [], groups: [], users: [] };
 
-    // ── 게시글 검색 ───────────────────────────────────
+    // ── Post search ──────────────────────────────────
     if (type === 'all' || type === 'posts') {
       const postFilter = {
         isDeleted: { $ne: true },
@@ -55,10 +55,10 @@ router.get('/', optionalAuth, async (req, res) => {
       }));
     }
 
-    // ── 모임 검색 ───────────────────────────────────
+    // ── Group search ─────────────────────────────────
     if (type === 'all' || type === 'groups') {
-      // 학교 동아리는 일반 검색에서 제외 (학교 인증 회원만 볼 수 있는 컨텍스트)
-      // — 예외: 본인 가입한 학교 동아리는 검색 가능
+      // School clubs are excluded from general search (they belong to a verified-members-only context)
+      // — except the school clubs the user has joined, which remain searchable
       const groupFilter = {
         status: 'active',
         $or: [{ name: regex }, { description: regex }],
@@ -68,7 +68,7 @@ router.get('/', optionalAuth, async (req, res) => {
         ? await GroupMembership.find({ userId: req.user.id, status: 'active' }).distinct('groupId')
         : [];
 
-      // 일반 모임(university='') OR 내가 가입한 학교 동아리
+      // General groups (university='') OR school clubs I belong to
       groupFilter.$and = [
         groupFilter.$or ? { $or: groupFilter.$or } : {},
         {
@@ -97,11 +97,11 @@ router.get('/', optionalAuth, async (req, res) => {
       }));
     }
 
-    // ── 사용자 검색 (닉네임만) ───────────────────────
+    // ── User search (nickname only) ──────────────────
     if (type === 'all' || type === 'users') {
       const userFilter = {
         nickname: regex,
-        deletedAt: { $exists: false }, // 탈퇴 사용자 제외
+        deletedAt: { $exists: false }, // Exclude deleted accounts
       };
       const users = await User.find(userFilter)
         .select('_id nickname avatarUrl role verified university')

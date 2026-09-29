@@ -1,14 +1,14 @@
-// 공개 통계 — 유저에게 보여주는 가벼운 지표 (오늘 방문자 수 등)
+// Public stats — lightweight numbers shown to users (today's visitor count and the like)
 const express = require('express');
 const DailyActive = require('../models/DailyActive');
 const User = require('../models/User');
 
 const router = express.Router();
 
-// 60초 메모리 캐시 (홈 진입마다 집계 안 돌게)
+// 60s in-memory cache (so opening the home screen does not re-aggregate every time)
 let cache = { key: '', count: 0, at: 0 };
 
-// GET /api/stats/today-visitors — 오늘(토론토 기준) 방문자 수, 시드 계정 제외
+// GET /api/stats/today-visitors — today's visitors (Toronto date), seed accounts excluded
 router.get('/today-visitors', async (req, res) => {
   try {
     const key = DailyActive.todayKey();

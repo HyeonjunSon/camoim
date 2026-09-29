@@ -1,5 +1,5 @@
-// 인증 플로우 통합 테스트 — 실제 Express 앱 + in-memory MongoDB
-// 이메일 발송(Resend)만 모킹하고 나머지는 운영과 동일한 코드 경로를 탄다.
+// Auth flow integration tests — the real Express app on an in-memory MongoDB
+// Only email delivery (Resend) is mocked; everything else runs the production code path.
 jest.mock('../../utils/mailer', () => ({
   generateCode: () => '123456',
   sendVerificationEmail: jest.fn().mockResolvedValue(true),
@@ -19,7 +19,7 @@ beforeAll(async () => {
 afterEach(() => db.clear());
 afterAll(() => db.close());
 
-// send-code → check-code → register 전체를 거쳐 가입시키는 헬퍼
+// Helper that registers a user through the full send-code to check-code to register flow
 async function signUp(email, password = DEFAULT_PASSWORD, nickname = 'newbie') {
   await request(app).post('/api/auth/send-code').send({ email }).expect(200);
   await request(app).post('/api/auth/check-code').send({ email, code: '123456' }).expect(200);
@@ -27,37 +27,37 @@ async function signUp(email, password = DEFAULT_PASSWORD, nickname = 'newbie') {
 }
 
 describe('POST /api/auth/register', () => {
-  it('이메일 인증을 거친 뒤에는 가입에 성공하고 토큰을 준다', async () => {
+  it('registers and returns a token once the email is verified', async () => {
     const res = await signUp('new@test.local');
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
     expect(typeof res.body.data.token).toBe('string');
     expect(res.body.data.user.email).toBe('new@test.local');
     expect(res.body.data.user.emailVerified).toBe(true);
-    // 비밀번호 해시는 절대 응답에 실리면 안 됨
+    // The password hash must never appear in a response
     expect(JSON.stringify(res.body)).not.toContain('passwordHash');
   });
 
-  it('이메일 인증 없이 가입하면 400', async () => {
+  it('400 when registering without email verification', async () => {
     const res = await request(app)
       .post('/api/auth/register')
       .send({ email: 'skip@test.local', password: DEFAULT_PASSWORD, nickname: 'skipper' });
     expect(res.status).toBe(400);
   });
 
-  it('필수 필드가 빠지면 400', async () => {
+  it('400 when a required field is missing', async () => {
     const res = await request(app).post('/api/auth/register').send({ email: 'a@test.local' });
     expect(res.status).toBe(400);
   });
 
-  it('비밀번호가 6자 미만이면 400', async () => {
+  it('400 when the password is shorter than 6 characters', async () => {
     const res = await request(app)
       .post('/api/auth/register')
       .send({ email: 'short@test.local', password: '12345', nickname: 'shorty' });
     expect(res.status).toBe(400);
   });
 
-  it('이미 쓰는 이메일/닉네임이면 409', async () => {
+  it('409 when the email or nickname is already taken', async () => {
     const existing = await createUser({ email: 'dup@test.local', nickname: 'dupnick' });
     const byEmail = await request(app)
       .post('/api/auth/register')
@@ -70,7 +70,7 @@ describe('POST /api/auth/register', () => {
     expect(byNickname.status).toBe(409);
   });
 
-  it('허용되지 않은 role은 general로 떨어뜨린다 (admin 승격 차단)', async () => {
+  it('falls back to the general role for a disallowed role (blocks admin escalation)', async () => {
     await request(app).post('/api/auth/send-code').send({ email: 'evil@test.local' }).expect(200);
     await request(app).post('/api/auth/check-code').send({ email: 'evil@test.local', code: '123456' }).expect(200);
     const res = await request(app).post('/api/auth/register').send({
@@ -82,7 +82,7 @@ describe('POST /api/auth/register', () => {
 });
 
 describe('POST /api/auth/check-code', () => {
-  it('코드가 틀리면 400', async () => {
+  it('400 on a wrong code', async () => {
     await request(app).post('/api/auth/send-code').send({ email: 'wrong@test.local' }).expect(200);
     const res = await request(app)
       .post('/api/auth/check-code')
@@ -90,7 +90,7 @@ describe('POST /api/auth/check-code', () => {
     expect(res.status).toBe(400);
   });
 
-  it('발송한 적 없는 이메일이면 400', async () => {
+  it('400 for an email that was never sent a code', async () => {
     const res = await request(app)
       .post('/api/auth/check-code')
       .send({ email: 'never@test.local', code: '123456' });
@@ -99,7 +99,7 @@ describe('POST /api/auth/check-code', () => {
 });
 
 describe('POST /api/auth/login', () => {
-  it('올바른 자격증명이면 토큰을 준다', async () => {
+  it('returns a token for valid credentials', async () => {
     const user = await createUser({ email: 'login@test.local' });
     const res = await request(app)
       .post('/api/auth/login')
@@ -109,7 +109,7 @@ describe('POST /api/auth/login', () => {
     expect(res.body.data.user.id).toBe(String(user._id));
   });
 
-  it('이메일 대소문자는 무시한다', async () => {
+  it('ignores email casing', async () => {
     const user = await createUser({ email: 'case@test.local' });
     const res = await request(app)
       .post('/api/auth/login')
@@ -118,7 +118,7 @@ describe('POST /api/auth/login', () => {
     expect(res.body.data.user.id).toBe(String(user._id));
   });
 
-  it('비밀번호가 틀리면 401', async () => {
+  it('401 on a wrong password', async () => {
     const user = await createUser();
     const res = await request(app)
       .post('/api/auth/login')
@@ -127,14 +127,14 @@ describe('POST /api/auth/login', () => {
     expect(res.body.code).toBe('INVALID_CREDENTIALS');
   });
 
-  it('없는 계정이면 401 (계정 존재 여부를 흘리지 않는다)', async () => {
+  it('401 for a nonexistent account (never leaks whether it exists)', async () => {
     const res = await request(app)
       .post('/api/auth/login')
       .send({ email: 'ghost@test.local', password: DEFAULT_PASSWORD });
     expect(res.status).toBe(401);
   });
 
-  it('탈퇴한 계정이면 403 ACCOUNT_DELETED', async () => {
+  it('403 ACCOUNT_DELETED for a deleted account', async () => {
     const user = await createUser({ status: 'deleted' });
     const res = await request(app)
       .post('/api/auth/login')
@@ -143,7 +143,7 @@ describe('POST /api/auth/login', () => {
     expect(res.body.code).toBe('ACCOUNT_DELETED');
   });
 
-  it('소셜 전용 계정(비밀번호 없음)이면 401 SOCIAL_ONLY', async () => {
+  it('401 SOCIAL_ONLY for a social-only account with no password', async () => {
     const user = await createUser({ passwordHash: null, googleSub: 'google-123' });
     const res = await request(app)
       .post('/api/auth/login')
@@ -152,7 +152,7 @@ describe('POST /api/auth/login', () => {
     expect(res.body.code).toBe('SOCIAL_ONLY');
   });
 
-  it('연속 실패가 쌓이면 계정을 잠근다', async () => {
+  it('locks the account after repeated failures', async () => {
     const user = await createUser();
     let last;
     for (let i = 0; i < 5; i++) {
@@ -161,7 +161,7 @@ describe('POST /api/auth/login', () => {
         .send({ email: user.email, password: 'nope' });
     }
     expect(last.body.code).toBe('ACCOUNT_LOCKED');
-    // 잠긴 뒤에는 올바른 비밀번호도 423으로 막힌다
+    // Once locked out, even the correct password is refused with a 423
     const locked = await request(app)
       .post('/api/auth/login')
       .send({ email: user.email, password: DEFAULT_PASSWORD });
@@ -170,7 +170,7 @@ describe('POST /api/auth/login', () => {
 });
 
 describe('GET /api/auth/me (requireAuth)', () => {
-  it('토큰이 있으면 내 정보를 준다', async () => {
+  it('returns my profile when a token is present', async () => {
     const user = await createUser();
     const res = await request(app)
       .get('/api/auth/me')
@@ -181,19 +181,19 @@ describe('GET /api/auth/me (requireAuth)', () => {
     expect(res.body.data).not.toHaveProperty('passwordHash');
   });
 
-  it('토큰이 없으면 401', async () => {
+  it('401 without a token', async () => {
     const res = await request(app).get('/api/auth/me');
     expect(res.status).toBe(401);
   });
 
-  it('서명이 깨진 토큰이면 401', async () => {
+  it('401 for a token with a broken signature', async () => {
     const res = await request(app)
       .get('/api/auth/me')
       .set('Authorization', 'Bearer not.a.real.token');
     expect(res.status).toBe(401);
   });
 
-  it('비밀번호 변경으로 tokenVersion이 오르면 옛 토큰은 무효(TOKEN_REVOKED)', async () => {
+  it('old tokens become invalid once a password change bumps tokenVersion (TOKEN_REVOKED)', async () => {
     const user = await createUser();
     const oldToken = tokenFor(user); // v: 0
     user.tokenVersion = 1;
@@ -206,7 +206,7 @@ describe('GET /api/auth/me (requireAuth)', () => {
     expect(res.body.code).toBe('TOKEN_REVOKED');
   });
 
-  it('정지된 계정이면 403 ACCOUNT_SUSPENDED', async () => {
+  it('403 ACCOUNT_SUSPENDED for a suspended account', async () => {
     const user = await createUser({
       status: 'suspended',
       suspendedUntil: new Date(Date.now() + 60_000),
@@ -219,7 +219,7 @@ describe('GET /api/auth/me (requireAuth)', () => {
     expect(res.body.code).toBe('ACCOUNT_SUSPENDED');
   });
 
-  it('정지 기간이 지난 계정은 자동 해제되어 통과한다', async () => {
+  it('an expired suspension is lifted automatically and the request passes', async () => {
     const user = await createUser({
       status: 'suspended',
       suspendedUntil: new Date(Date.now() - 60_000),

@@ -1,10 +1,10 @@
-// JWT 인증 미들웨어
+// JWT authentication middleware
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const DailyActive = require('../models/DailyActive');
 
 const requireAuth = async (req, res, next) => {
-  // Authorization 헤더에서 Bearer 토큰 추출
+  // Pull the Bearer token out of the Authorization header
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -14,14 +14,14 @@ const requireAuth = async (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    // JWT 검증 후 req.user에 유저 정보 첨부
+    // Verify the JWT, then attach the user to req.user
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = { id: decoded.id, email: decoded.email, nickname: decoded.nickname };
-    // 정지/탈퇴 계정 차단 + tokenVersion 검증
+    // Reject suspended/deleted accounts and check tokenVersion
     try {
       const u = await User.findById(decoded.id).select('status suspendedUntil suspendReason role tokenVersion').lean();
       if (!u) return res.status(401).json({ success: false, message: '계정을 찾을 수 없습니다.' });
-      // 비번 변경/리셋으로 tokenVersion이 바뀌었으면 기존 토큰 무효
+      // A password change or reset bumps tokenVersion, invalidating every older token
       const tokenVer = decoded.v || 0;
       const userVer = u.tokenVersion || 0;
       if (tokenVer !== userVer) {
@@ -39,22 +39,22 @@ const requireAuth = async (req, res, next) => {
             suspendedUntil: u.suspendedUntil,
           });
         } else {
-          // 자동 해제
+          // Auto-release
           await User.findByIdAndUpdate(decoded.id, { status: 'active', suspendedUntil: null });
         }
       }
       req.user.role = u.role;
     } catch (e) {
-      // 조회 실패는 통과 (DB 일시 장애 시 서비스 중단 방지)
+      // A failed lookup passes through (a transient DB fault should not take the service down)
     }
-    DailyActive.track(decoded.id); // 일일 방문 기록 (fire-and-forget, 하루 1회)
+    DailyActive.track(decoded.id); // Record the daily visit (fire-and-forget, once per day)
     next();
   } catch (err) {
     return res.status(401).json({ success: false, message: '유효하지 않은 토큰입니다.' });
   }
 };
 
-// 선택적 인증 미들웨어 — 토큰이 있으면 req.user 설정, 없어도 통과
+// Optional auth — sets req.user when a token is present, passes through when it is not
 const optionalAuth = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -62,9 +62,9 @@ const optionalAuth = (req, res, next) => {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = { id: decoded.id, email: decoded.email, nickname: decoded.nickname };
-      DailyActive.track(decoded.id); // 일일 방문 기록
+      DailyActive.track(decoded.id); // Record the daily visit
     } catch (err) {
-      // 토큰 무효 — 비인증 상태로 통과
+      // Invalid token — continue unauthenticated
     }
   }
   next();

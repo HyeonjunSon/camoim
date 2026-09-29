@@ -5,13 +5,13 @@ const Message = require('./models/Message');
 const Notification = require('./models/Notification');
 const GroupMembership = require('./models/GroupMembership');
 const User = require('./models/User');
-const { isChatBlocked } = require('./utils/blocks');
+const { getBlockedUserIds } = require('./utils/blocks');
 const { sendPush } = require('./utils/push');
 
-// 네이티브 모바일 앱 전용 — 브라우저 CORS 검증은 의미 없음.
-// 일부 RN WebSocket 구현이 origin 헤더를 비어있지 않게 보내는 경우 락다운이
-// 연결을 차단해서 실시간 메시지/알림이 끊김. 따라서 origin은 허용.
-// 추후 웹 클라이언트 추가 시 SOCKET_CORS_ORIGINS env 화이트리스트로 다시 좁힘.
+// Native mobile app only — a browser CORS check buys us nothing here.
+// Some RN WebSocket implementations send a non-empty origin header, and a lockdown
+// then refuses the connection, cutting off live messages and alerts. So origins are allowed.
+// If a web client is added later, narrow this again with the SOCKET_CORS_ORIGINS env whitelist.
 const SOCKET_ORIGINS = (process.env.SOCKET_CORS_ORIGINS || '')
   .split(',')
   .map((s) => s.trim())
@@ -21,19 +21,19 @@ function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
       origin: (origin, callback) => {
-        // 1) Origin 없는 요청 (대부분의 native 클라이언트) → 항상 허용
+        // 1) No origin (most native clients) → always allow
         if (!origin) return callback(null, true);
-        // 2) 화이트리스트가 비어 있으면 (env 미설정) → 모든 origin 허용 (native-only 가정)
+        // 2) Empty whitelist (env unset) → allow every origin (native-only assumption)
         if (SOCKET_ORIGINS.length === 0) return callback(null, true);
-        // 3) 화이트리스트가 있으면 거기에 있는 origin만 허용
+        // 3) Whitelist present → allow only the origins it lists
         if (SOCKET_ORIGINS.includes(origin)) return callback(null, true);
         callback(new Error('Origin not allowed by Socket.io CORS'));
       },
     },
   });
 
-  // JWT 인증 미들웨어 — REST requireAuth와 같은 기준 적용
-  // (서명만 보면 로그아웃/비번변경/정지된 토큰으로도 30일간 소켓 연결이 가능했음)
+  // JWT auth middleware — same bar as the REST requireAuth
+  // (checking the signature alone let logged-out, password-changed or suspended tokens hold a socket for 30 days)
   io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error('인증 토큰이 없습니다.'));
@@ -52,7 +52,7 @@ function initSocket(httpServer) {
         return next(new Error('ACCOUNT_SUSPENDED'));
       }
     } catch (e) {
-      // 조회 실패는 통과 (requireAuth와 동일 — DB 일시 장애가 전체 채팅 단절로 번지지 않게)
+      // A failed lookup passes through, as in requireAuth, so a transient DB fault does not sever all chat
     }
     socket.user = { id: decoded.id, nickname: decoded.nickname };
     next();
@@ -62,44 +62,55 @@ function initSocket(httpServer) {
     const userId = socket.user.id;
     console.log(`🔌 소켓 연결: ${socket.user.nickname} (${userId})`);
 
-    // 채팅방 입장
+    // Join a chat room
     socket.on('join_room', (roomId) => {
       socket.join(roomId);
     });
 
-    // 채팅방 퇴장 (화면 이동 시)
+    // Leave the room view (on navigation away)
     socket.on('leave_room', (roomId) => {
       socket.leave(roomId);
     });
 
-    // 채팅방 나가기 (삭제) — 상대에게 알림
+    // Leave the room for good (delete) — notify the other party
     socket.on('exit_room', async ({ roomId }) => {
       socket.to(roomId).emit('room_left', { roomId, userId });
       socket.leave(roomId);
     });
 
-    // 메시지 전송 (DM + 그룹 채팅 모두)
+    // Send a message (DMs and group chats alike)
     socket.on('send_message', async ({ roomId, content }) => {
       try {
         if (!content?.trim()) return;
         const trimmed = content.trim();
 
-        const room = await ChatRoom.findById(roomId);
+        // Anything over 2000 chars fails schema validation anyway — reject before writing (the app input is capped too)
+        if (trimmed.length > 2000) {
+          socket.emit('send_error', { message: '메시지는 2000자까지 보낼 수 있어요.' });
+          return;
+        }
+
+        // Room lookup ‖ my chat block list (cached), in parallel — these used to run serially.
+        // Fetching the block list before we know the room kind is near-free because it is cached.
+        const [room, chatBlockedIds] = await Promise.all([
+          ChatRoom.findById(roomId).lean(),
+          getBlockedUserIds(userId, 'blockChat'),
+        ]);
         if (!room) return;
         if (!room.participants.some(p => String(p) === String(userId))) return;
 
         const isGroup = room.kind === 'group';
         const isSchool = room.kind === 'school';
-        // 그룹/학교 모두 N명 채팅이라 DM 전용 검사 (차단·승인 대기) 제외
+        // Group and school rooms are both N-person, so the DM-only checks (blocks, pending request) are skipped
         const isMultiUser = isGroup || isSchool;
-        // 이번 메시지가 DM 요청의 첫 메시지인지 — 요청(메시지) 단위 지역 변수
-        // (socket 객체에 두면 같은 소켓의 동시 전송끼리 플래그를 공유해 꼬일 수 있음)
+        // Whether this message is the first of a DM request — scoped per message, not per socket
+        // (on the socket object, concurrent sends from the same socket would share and corrupt the flag)
         let isFirstRequestMessage = false;
 
-        // DM: 차단 체크 + 요청 단계 1통 제한
+        // DM: block check plus the one-message limit while a request is pending
         if (!isMultiUser) {
           const otherIdEarly = room.participants.find(p => String(p) !== String(userId));
-          if (otherIdEarly && await isChatBlocked(userId, otherIdEarly)) {
+          if (otherIdEarly && chatBlockedIds.includes(String(otherIdEarly))) {
             socket.emit('send_error', { message: '차단된 사용자와는 채팅할 수 없어요.' });
             return;
           }
@@ -113,32 +124,41 @@ function initSocket(httpServer) {
               socket.emit('send_error', { message: '상대가 수락하기 전에는 메시지를 한 통만 보낼 수 있어요.' });
               return;
             }
-            // 첫 요청 메시지 표시 — 메시지 저장 후 수신자에게 chat_request 알림 생성
+            // Mark the first request message — after saving, raise a chat_request notification for the recipient
             isFirstRequestMessage = true;
           }
         }
 
-        // 메시지 저장
-        const message = await Message.create({
+        // Build and validate the message document with no DB round trip, because the two writes below fire together
+        // and catching validation first prevents a state where the room preview and unread moved but no message exists
+        const message = new Message({
           roomId,
           senderId: userId,
           content: trimmed,
           readBy: [userId],
         });
+        await message.validate();
 
-        // 다른 참여자(들)의 unread +1
+        // Bump the other participants' unread by 1
         const otherIds = room.participants
           .map(p => String(p))
           .filter(id => id !== String(userId));
 
-        // $inc로 원자적 증가 — 읽고(cur) 다시 쓰는(cur+1) 방식은 동시 전송 시
-        // 두 요청이 같은 cur를 읽어 카운트 1개가 유실됨 (lost update)
+        // Atomic $inc — a read-then-write (cur, then cur+1) loses a count when two sends
+        // read the same cur (a lost update)
         const incs = {};
         for (const oid of otherIds) incs[`unreadCount.${oid}`] = 1;
-        await ChatRoom.updateOne(
-          { _id: roomId },
-          { $set: { lastMessage: trimmed, lastMessageAt: new Date() }, $inc: incs }
-        );
+
+        // Save the message ‖ update the room — independent, so they run together (this used to be two serial round trips).
+        // Emitting only after both settle avoids the race where the recipient's read_messages (unread=0) lands
+        // before the $inc and leaves an already-read message sitting at unread 1.
+        await Promise.all([
+          message.save(),
+          ChatRoom.updateOne(
+            { _id: roomId },
+            { $set: { lastMessage: trimmed, lastMessageAt: new Date() }, $inc: incs }
+          ),
+        ]);
 
         const payload = {
           id: message._id,
@@ -151,11 +171,11 @@ function initSocket(httpServer) {
           kind: room.kind,
         };
 
-        // 방 안의 모든 사람에게 전송
+        // Broadcast to everyone in the room
         io.to(roomId).emit('new_message', payload);
 
-        // DM 첫 요청 메시지면 수신자 알림함에 chat_request 레코드 생성
-        // (일반 채팅 메시지는 안 쌓지만, 요청은 사용자가 채팅탭 안 들어가면 모를 수 있어서 별도 알림)
+        // On the first DM request message, add a chat_request record to the recipient's notifications
+        // (ordinary chat messages are not stored, but a request would go unseen until they open the chat tab)
         if (isFirstRequestMessage && otherIds.length > 0) {
           for (const oid of otherIds) {
             Notification.create({
@@ -167,11 +187,11 @@ function initSocket(httpServer) {
           }
         }
 
-        // 채팅 메시지는 알림함(Notification)에 안 쌓음 — 채팅탭 unread 뱃지로
-        // 충분하고, 카톡/슬랙 등 표준 패턴. 실시간 chat_notification 이벤트만 발송
+        // Chat messages are deliberately not stored as Notifications — the unread badge on the chat tab
+        // is enough, and matches what KakaoTalk and Slack do. Only the live chat_notification event is emitted
         let recipients = otherIds;
         if (isGroup) {
-          // 그룹 채팅: notifyChat=true인 멤버에게만 실시간 알림
+          // Group chat: live notification only for members with notifyChat=true
           const enabledMembers = await GroupMembership.find({
             groupId: room.groupId,
             userId: { $in: otherIds },
@@ -180,7 +200,7 @@ function initSocket(httpServer) {
           }).distinct('userId');
           recipients = enabledMembers.map(String);
         }
-        // 학교 채팅: 모든 참여자에게 실시간 (별도 토글 없음)
+        // School chat: live notification for every participant (no per-member toggle)
 
         for (const rid of recipients) {
           io.to(`user_${rid}`).emit('chat_notification', {
@@ -192,8 +212,8 @@ function initSocket(httpServer) {
           });
         }
 
-        // OS 푸시 알림 — 앱이 백그라운드/종료 상태일 때도 배너로 도착하게
-        // (소켓 chat_notification은 앱이 켜져있을 때만 작동)
+        // OS push, so the banner still arrives when the app is backgrounded or killed
+        // (the chat_notification socket event only works while the app is running)
         try {
           const recipientUsers = await User.find({
             _id: { $in: recipients },
@@ -206,7 +226,7 @@ function initSocket(httpServer) {
 
           await Promise.all(recipientUsers.map(u => {
             const ns = u.notificationSettings;
-            // 마스터 OFF 또는 chat OFF면 푸시 skip
+            // Skip the push when the master switch or the chat toggle is off
             if (!u.pushToken) return Promise.resolve();
             if (ns?.enabled === false) return Promise.resolve();
             if (ns?.chat === false) return Promise.resolve();
@@ -226,33 +246,36 @@ function initSocket(httpServer) {
       }
     });
 
-    // 메시지 읽음 처리
+    // Mark messages read
     socket.on('read_messages', async ({ roomId }) => {
       try {
-        // 아직 안 읽은 메시지에 내 ID 추가
-        await Message.updateMany(
-          { roomId, readBy: { $ne: userId } },
-          { $addToSet: { readBy: userId } }
-        );
-        // unread 카운트 초기화
-        await ChatRoom.findByIdAndUpdate(roomId, {
-          $set: { [`unreadCount.${userId}`]: 0 },
-        });
-        // 레거시 채팅 알림이 남아있을 수 있어 한 번만 정리
-        // (Option B 이후로는 채팅 알림 자체를 안 만들지만 옛 데이터 청소)
-        await Notification.deleteMany({
-          userId, roomId, type: { $in: ['chat', 'group_chat'] },
-        });
-        // 룸 전체(본인 포함)에게 읽음 알림 전송 — 본인은 뱃지 갱신용
+        // The three writes are independent, so they run together (this used to be three serial round trips)
+        await Promise.all([
+          // Add my ID to messages that are still unread
+          Message.updateMany(
+            { roomId, readBy: { $ne: userId } },
+            { $addToSet: { readBy: userId } }
+          ),
+          // Reset the unread count
+          ChatRoom.updateOne({ _id: roomId }, {
+            $set: { [`unreadCount.${userId}`]: 0 },
+          }),
+          // Legacy chat notifications may linger — clean them up once
+          // (since Option B we no longer create chat notifications, but old data still needs sweeping)
+          Notification.deleteMany({
+            userId, roomId, type: { $in: ['chat', 'group_chat'] },
+          }),
+        ]);
+        // Tell the whole room, including the sender, so their own badge refreshes
         io.to(roomId).emit('messages_read', { roomId, readerId: userId });
-        // 본인 개인 룸에도 전송 (홈 알림 뱃지 갱신용, 채팅방 밖에 있을 때)
+        // Also send to the user's personal room, which refreshes the home badge while they are outside the chat
         io.to(`user_${userId}`).emit('messages_read', { roomId, readerId: userId });
       } catch (err) {
         console.error('읽음 처리 오류:', err);
       }
     });
 
-    // 개인 알림용 룸 입장 (앱 실행 중일 때)
+    // Join the personal notification room (while the app is running)
     socket.join(`user_${userId}`);
 
     socket.on('disconnect', () => {

@@ -1,13 +1,13 @@
-// 캐나다 한국일보 업소록 CSV → CaMoim Business 등록 (제휴 허가 하 사용, 출처 표기 포함)
+// Korea Times Canada business directory CSV → CaMoim businesses (used under a partnership, with attribution)
 //
-// 사용법:
+// Usage:
 //   railway run node scripts/importKoreatimes.js <directory.csv> [--pending]
 //
-// - 원본 CSV 컬럼: category_id, category_kr, category_en, name_kr, name_en, phone, address, detail_url
-// - category_id로 CaMoim 카테고리 매핑, 업체 아닌 분류(종교/단체/공공/언론/대기업지사/B2B)는 제외
-// - 주소에서 도시 추출 → GTA=toronto / BC=vancouver / QC=montreal, 그 외는 건너뜀
-// - 좌표는 여기서 안 찍음(대량). 등록 후 scripts/geocodeBusinesses.js 로 배치 지오코딩
-// - (name + address) 중복 방지 → 재실행 안전
+// - Source CSV columns: category_id, category_kr, category_en, name_kr, name_en, phone, address, detail_url
+// - category_id maps to a CaMoim category; non-business entries (religion, associations, public bodies, media, corporate branches, B2B) are dropped
+// - City is derived from the address: GTA=toronto / BC=vancouver / QC=montreal; anything else is skipped
+// - Coordinates are not resolved here (too many). Run scripts/geocodeBusinesses.js afterwards
+// - Deduplicated on (name + address), so re-running is safe
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
@@ -16,33 +16,33 @@ const Business = require('../models/Business');
 
 const SOURCE_NAME = '캐나다 한국일보';
 
-// ── category_id → CaMoim 카테고리 (명시 매핑 외 나머지 = etc, EXCLUDE = 건너뜀) ──
+// ── category_id → CaMoim category (anything unmapped becomes etc; EXCLUDE is skipped) ──
 const CATEGORY_MAP = {
-  '2004': 'food',                                                   // 음식점
-  '2002': 'cafe', '2010': 'cafe',                                   // 떡집·방앗간 / 제과점
-  '2003': 'mart', '2006': 'mart', '2009': 'mart',                  // 생선·식품점·정육점
-  '2161': 'hair',                                                   // 미용실·이발관만 (재료·화장품·피부는 EXCLUDE)
-  // 병원·의료·한의원·약국·물리치료·검안 등
+  '2004': 'food',                                                   // Restaurants
+  '2002': 'cafe', '2010': 'cafe',                                   // Rice-cake and mill shops / bakeries
+  '2003': 'mart', '2006': 'mart', '2009': 'mart',                  // Fishmongers, grocers and butchers
+  '2161': 'hair',                                                   // Hair salons and barbers only (supplies, cosmetics and skincare are EXCLUDEd)
+  // Clinics, medical practices, oriental medicine, pharmacies, physiotherapy, optometry and so on
   '2012': 'clinic', '2014': 'clinic', '2018': 'clinic', '2019': 'clinic', '2020': 'clinic',
   '2021': 'clinic', '2022': 'clinic', '2023': 'clinic', '2024': 'clinic', '2025': 'clinic',
   '2026': 'clinic', '2027': 'clinic', '2028': 'clinic', '2029': 'clinic', '2030': 'clinic',
   '2031': 'clinic', '2032': 'clinic', '2160': 'clinic', '2210': 'clinic',
 };
 
-// 지도에 안 넣을 분류 (업체 아님 / 순수 B2B / 종교 / 단체 / 공공 / 언론 / 대기업지사 / 잡음)
+// Categories kept off the map (not a business / pure B2B / religion / associations / public bodies / media / corporate branches / noise)
 const EXCLUDE = new Set([
-  '2001',                                                              // 분류 오류/잡음
-  '2162', '2167', '2168',                                              // 미용재료·피부미용·화장품 (미용실 아님 — 제외 결정)
-  '2053', '2076', '2078', '2079', '2080', '2081',                     // 부동산·이민·모기지·보험 (제외 결정)
-  '2005', '2007', '2011', '2054', '2070', '2075', '2077', '2089', '2101', '2108', '2116', // B2B/도매/제조/사무기기
-  '2173', '2183',                                                     // 공공기관/정부
-  '2182', '2185',                                                     // 언론사(한국일보 본사 포함)/방송
-  '2186',                                                             // 한국 대기업 지사
-  '2179', '2184', '2187', '2188', '2189', '2190', '2191', '2192', '2193', // 단체/협회/한인회/동창회
-  '2178', '2180', '2181', '2194', '2195', '2196', '2198', '2199', '2200', '2201', '2203', '2204', '2205', '2206', '2207', '2208', '2209', // 종교
+  '2001',                                                              // Misclassified or noisy rows
+  '2162', '2167', '2168',                                              // Beauty supplies, skincare and cosmetics (not salons — deliberately excluded)
+  '2053', '2076', '2078', '2079', '2080', '2081',                     // Real estate, immigration, mortgage and insurance (deliberately excluded)
+  '2005', '2007', '2011', '2054', '2070', '2075', '2077', '2089', '2101', '2108', '2116', // B2B, wholesale, manufacturing and office equipment
+  '2173', '2183',                                                     // Public bodies and government
+  '2182', '2185',                                                     // News outlets (including the Korea Times head office) and broadcasters
+  '2186',                                                             // Korean conglomerate branch offices
+  '2179', '2184', '2187', '2188', '2189', '2190', '2191', '2192', '2193', // Associations, Korean community groups and alumni networks
+  '2178', '2180', '2181', '2194', '2195', '2196', '2198', '2199', '2200', '2201', '2203', '2204', '2205', '2206', '2207', '2208', '2209', // Religion
 ]);
 
-// GTA(토론토 광역권) → toronto 로 통합
+// Fold the Greater Toronto Area into toronto
 const GTA = new Set([
   'toronto', 'north york', 'scarborough', 'etobicoke', 'york', 'east york', 'weston', 'downsview',
   'markham', 'mississauga', 'richmond hill', 'thornhill', 'vaughan', 'concord', 'woodbridge', 'maple',
@@ -55,14 +55,14 @@ function detectCity(address) {
   if (!m) return null;
   const city = m[1].replace(/^[NSEW]\.\s*/i, '').trim().toLowerCase();
   const prov = m[2].toUpperCase();
-  if (prov === 'ON') return GTA.has(city) ? 'toronto' : null; // 온타리오는 GTA만
+  if (prov === 'ON') return GTA.has(city) ? 'toronto' : null; // In Ontario, only the GTA is covered
   if (prov === 'BC') return 'vancouver';
   if (prov === 'QC') return 'montreal';
   return null;
 }
 
 function parseCSV(text) {
-  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1); // BOM 제거
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1); // Strip the BOM
   const rows = [];
   let row = [], field = '', inQuotes = false;
   for (let i = 0; i < text.length; i++) {
@@ -88,14 +88,14 @@ async function main() {
   const flags = process.argv.slice(2);
   const file = flags.find((a) => !a.startsWith('--'));
   const asPending = flags.includes('--pending');
-  const dry = flags.includes('--dry'); // DB 안 건드리고 개수만 미리보기
-  // --only=food,cafe,mart,hair,clinic → 이 카테고리만 등록 (없으면 전부)
+  const dry = flags.includes('--dry'); // Preview the counts without touching the DB
+  // --only=food,cafe,mart,hair,clinic → import just these categories (all of them when omitted)
   const onlyArg = flags.find((a) => a.startsWith('--only='));
   const ONLY = onlyArg ? new Set(onlyArg.slice(7).split(',').map((s) => s.trim()).filter(Boolean)) : null;
-  if (!file) { console.log('사용법: node scripts/importKoreatimes.js <directory.csv> [--pending] [--dry] [--only=food,cafe,...]'); process.exit(1); }
+  if (!file) { console.log('Usage: node scripts/importKoreatimes.js <directory.csv> [--pending] [--dry] [--only=food,cafe,...]'); process.exit(1); }
 
   const rows = parseCSV(fs.readFileSync(path.resolve(file), 'utf8'));
-  console.log(`📄 ${rows.length}행 · 상태=${asPending ? 'pending' : 'approved'} · 출처="${SOURCE_NAME}"${ONLY ? ` · only=[${[...ONLY].join(',')}]` : ''}${dry ? ' · [DRY-RUN: DB 안 씀]' : ''}`);
+  console.log(`📄 ${rows.length} rows · status=${asPending ? 'pending' : 'approved'} · source="${SOURCE_NAME}"${ONLY ? ` · only=[${[...ONLY].join(',')}]` : ''}${dry ? ' · [DRY RUN: no DB writes]' : ''}`);
 
   if (!dry) await connectDB();
   let added = 0, updated = 0, skipCat = 0, skipCity = 0, skipBad = 0, skipOnly = 0, wouldImport = 0;
@@ -134,13 +134,13 @@ async function main() {
   }
 
   console.log('─'.repeat(48));
-  if (dry) console.log(`✅ 등록 예정: ${wouldImport}개`);
-  else console.log(`✅ 등록: 추가 ${added} · 갱신 ${updated}`);
-  console.log(`⏭  제외: 분류(업체아님) ${skipCat}${ONLY ? ` · only필터 ${skipOnly}` : ''} · 도시밖 ${skipCity} · 필수값누락 ${skipBad}`);
-  console.log('📊 카테고리별:', catCount);
-  console.log('🏙  도시별:', cityCount);
-  if (!dry) console.log('👉 다음: railway run node scripts/geocodeBusinesses.js --limit 300  (좌표 배치 등록)');
+  if (dry) console.log(`✅ would import: ${wouldImport}`);
+  else console.log(`✅ imported: ${added} added · ${updated} updated`);
+  console.log(`⏭  skipped: not-a-business category ${skipCat}${ONLY ? ` · only filter ${skipOnly}` : ''} · outside covered cities ${skipCity} · missing required fields ${skipBad}`);
+  console.log('📊 by category:', catCount);
+  console.log('🏙  by city:', cityCount);
+  if (!dry) console.log('👉 next: railway run node scripts/geocodeBusinesses.js --limit 300  (batch geocoding)');
   process.exit(0);
 }
 
-main().catch((e) => { console.error('❌ import 실패:', e); process.exit(1); });
+main().catch((e) => { console.error('❌ import failed:', e); process.exit(1); });

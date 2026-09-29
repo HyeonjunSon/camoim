@@ -6,11 +6,11 @@ const notificationSchema = new mongoose.Schema({
   refId: { type: mongoose.Schema.Types.ObjectId, default: null },
   postId: { type: mongoose.Schema.Types.ObjectId, default: null },
   message: { type: String, required: true },
-  roomId: { type: mongoose.Schema.Types.ObjectId, default: null }, // 채팅 알림용
+  roomId: { type: mongoose.Schema.Types.ObjectId, default: null }, // For chat notifications
   isRead: { type: Boolean, default: false },
 }, { timestamps: true });
 
-// 알림 목록/미읽음 카운트 핫 쿼리
+// Hot query: notification list and unread count
 notificationSchema.index({ userId: 1, createdAt: -1 });
 notificationSchema.index({ userId: 1, isRead: 1 });
 

@@ -16,6 +16,7 @@ const StayListing = require('../models/StayListing');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { sendPush } = require('../utils/push');
 const { getBlockedUserIds } = require('../utils/blocks');
+const { getAllBoards } = require('../utils/boardCache');
 const { containsBannedWord } = require('../middleware/systemGuard');
 const mongoose = require('mongoose');
 
@@ -25,21 +26,21 @@ const { toContentPreview } = require('../utils/contentPreview');
 
 const router = express.Router();
 
-// Cloudinary 설정
+// Cloudinary configuration
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// HTML content에서 <img src="..."> 추출 → 썸네일/이미지 목록용
+// Pull <img src="..."> out of the HTML content for thumbnails and the image list
 function extractImagesFromHtml(html) {
   if (!html || typeof html !== 'string') return [];
   const matches = [...html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)];
   return matches.map(m => m[1]).slice(0, 10);
 }
 
-// ── Cloudinary 이미지 업로드 설정 (최대 5장, 각 10MB)
+// ── Cloudinary upload settings (up to 5 images, 10MB each)
 const cloudStorage = new CloudinaryStorage({
   cloudinary,
   params: {
@@ -53,7 +54,7 @@ const uploadImages = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-// GET /api/posts?search=키워드&limit=20 — 게시글 검색
+// GET /api/posts?search=keyword&limit=20 — search posts
 router.get('/', optionalAuth, async (req, res) => {
   try {
     const { search, limit: limitQ } = req.query;
@@ -62,7 +63,7 @@ router.get('/', optionalAuth, async (req, res) => {
     if (!search?.trim()) return res.json({ success: true, data: [] });
 
     const blocked = await getBlockedUserIds(req.user?.id);
-    // 학교 게시판 글은 검색에서 제외
+    // School board posts are excluded from search
     const uniBoardIds = await Board.find({ isUniversityBoard: true }).distinct('_id');
     const regex = new RegExp(search.trim(), 'i');
     const posts = await Post.find({
@@ -103,7 +104,7 @@ router.get('/feed', optionalAuth, async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    // 학교 게시판 글은 홈 피드에서 제외
+    // School board posts are excluded from the home feed
     const uniBoardIds = await Board.find({ isUniversityBoard: true }).distinct('_id');
 
     const blocked = await getBlockedUserIds(req.user?.id);
@@ -137,7 +138,7 @@ router.get('/feed', optionalAuth, async (req, res) => {
       boardSlug: p.boardId?.slug,
       boardId: p.boardId?._id,
       nickname: p.isAnonymous ? '익명' : (p.userId?.nickname ?? '탈퇴한 회원'),
-      thumbnail: p.images?.[0] ?? null, // 첫 번째 이미지
+      thumbnail: p.images?.[0] ?? null, // First image
       city: p.city || '',
       tradeStatus: p.tradeStatus || 'selling',
     }));
@@ -149,66 +150,123 @@ router.get('/feed', optionalAuth, async (req, res) => {
   }
 });
 
-// GET /api/posts/hot-by-board?limit=4&hours=48
-// 게시판별 인기글 (각 board 최대 N개) — 인기 탭 섹션용
+// Join only the author's nickname — project so the whole user document (passwordHash and friends) never comes along
+// (the let/$expr form, compatible with MongoDB 3.6+)
+const LOOKUP_AUTHOR_NICKNAME = {
+  $lookup: {
+    from: 'users',
+    let: { uid: '$userId' },
+    pipeline: [
+      { $match: { $expr: { $eq: ['$_id', '$$uid'] } } },
+      { $project: { nickname: 1 } },
+    ],
+    as: 'author',
+  },
+};
+
+// GET /api/posts/hot-by-board?limit=4&hours=48[&top=5]
+// Hot posts per board (at most `limit` each) — powers the home hot section
+//
+// Performance: this used to be one board-list query plus one aggregate per board (13 of them).
+// That exceeded the connection pool (10), so some queries queued. Now boards come from cache and posts take one aggregate.
+//
+// top: the app flattens every board and keeps only the 5 highest hotScore entries. When top is given the server
+// returns just those N (the response shape is unchanged, so older clients omitting top still work).
+// The selection rule matches the app exactly: cut to `limit` per board, flatten in board order,
+// stable-sort by hotScore, then take the first N.
 router.get('/hot-by-board', optionalAuth, async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 4;
+    const limit = Math.min(parseInt(req.query.limit) || 4, 20);
     const hours = parseInt(req.query.hours) || 48;
+    const top = parseInt(req.query.top) || 0;
     const since = new Date(Date.now() - hours * 60 * 60 * 1000);
-
     const city = req.query.city?.trim() || '';
-    const blocked = await getBlockedUserIds(req.user?.id);
-    const blockedOids = blocked.map(id => new mongoose.Types.ObjectId(id));
+    const cities = expandCity(city);
 
-    // 일반 게시판만 (학교 게시판 제외)
-    const boards = await Board.find({ isUniversityBoard: false }).sort({ sortOrder: 1 });
+    const [blocked, allBoards] = await Promise.all([
+      getBlockedUserIds(req.user?.id),
+      getAllBoards(),
+    ]);
+    // General boards only (school boards excluded) — equivalent to the old { isUniversityBoard: false } query
+    const boards = allBoards.filter((b) => b.isUniversityBoard === false);
+    const boardIds = boards.map((b) => b._id);
+    // aggregate does no Mongoose casting, so IDs must be converted to ObjectId for the block filter to bite
+    const blockedOids = blocked.map((id) => new mongoose.Types.ObjectId(id));
 
-    const sections = await Promise.all(
-      boards.map(async (board) => {
-        const posts = await Post.aggregate([
-          { $match: { boardId: board._id, createdAt: { $gte: since }, hidden: { $ne: true }, autoHidden: { $ne: true }, ...(blockedOids.length ? { userId: { $nin: blockedOids } } : {}), ...(expandCity(city) ? { city: { $in: expandCity(city) } } : {}) } },
-          { $addFields: { hotScore: { $add: [{ $multiply: ['$likeCount', 3] }, '$commentCount'] } } },
-          { $sort: { hotScore: -1, createdAt: -1 } },
-          { $limit: limit },
-          {
-            $lookup: {
-              from: 'users',
-              localField: 'userId',
-              foreignField: '_id',
-              as: 'user',
-            },
-          },
-        ]);
+    const rows = await Post.aggregate([
+      { $match: {
+        boardId: { $in: boardIds },
+        createdAt: { $gte: since },
+        hidden: { $ne: true },
+        autoHidden: { $ne: true },
+        ...(blockedOids.length ? { userId: { $nin: blockedOids } } : {}),
+        ...(cities ? { city: { $in: cities } } : {}),
+      } },
+      { $project: {
+        boardId: 1, userId: 1, title: 1, content: 1, isAnonymous: 1,
+        likeCount: 1, commentCount: 1, createdAt: 1,
+        hotScore: { $add: [{ $multiply: [{ $ifNull: ['$likeCount', 0] }, 3] }, { $ifNull: ['$commentCount', 0] }] },
+      } },
+      { $sort: { hotScore: -1, createdAt: -1 } },
+      // Group by board in sorted order, then take the first `limit` ($push preserves input order)
+      { $group: { _id: '$boardId', posts: { $push: '$$ROOT' } } },
+      { $project: { posts: { $slice: ['$posts', limit] } } },
+      { $unwind: '$posts' },
+      { $replaceRoot: { newRoot: '$posts' } },
+      LOOKUP_AUTHOR_NICKNAME,
+    ]);
 
-        if (posts.length === 0) return null;
+    // Sections follow board order (sortOrder); within a section, hotScore order
+    const byBoard = new Map();
+    for (const p of rows) {
+      const k = String(p.boardId);
+      if (!byBoard.has(k)) byBoard.set(k, []);
+      byBoard.get(k).push(p);
+    }
+    const rank = (a, b) => (b.hotScore - a.hotScore) || (b.createdAt - a.createdAt);
+    let sections = boards
+      .map((board) => ({ board, posts: (byBoard.get(String(board._id)) || []).sort(rank) }))
+      .filter((s) => s.posts.length > 0);
 
-        return {
-          boardId: board._id,
-          boardName: board.name,
-          boardSlug: board.slug,
-          posts: posts.map(p => ({
-            id: p._id,
-            title: p.title,
-            content: toContentPreview(p.content),
-            isAnonymous: p.isAnonymous,
-            likeCount: p.likeCount,
-            commentCount: p.commentCount,
-            createdAt: p.createdAt,
-            nickname: p.isAnonymous ? '익명' : (p.user?.[0]?.nickname ?? '탈퇴한 회원'),
-          })),
-        };
-      })
-    );
+    if (top > 0) {
+      // Same approach as the app: flatten in board order, stable-sort by hotScore, take the first `top`
+      const winners = new Set(
+        sections
+          .flatMap((s) => s.posts)
+          .sort((a, b) => b.hotScore - a.hotScore) // Array.prototype.sort is a stable sort
+          .slice(0, top)
+          .map((p) => String(p._id))
+      );
+      sections = sections
+        .map((s) => ({ ...s, posts: s.posts.filter((p) => winners.has(String(p._id))) }))
+        .filter((s) => s.posts.length > 0);
+    }
 
-    res.json({ success: true, data: sections.filter(Boolean) });
+    res.json({
+      success: true,
+      data: sections.map(({ board, posts }) => ({
+        boardId: board._id,
+        boardName: board.name,
+        boardSlug: board.slug,
+        posts: posts.map((p) => ({
+          id: p._id,
+          title: p.title,
+          content: toContentPreview(p.content),
+          isAnonymous: p.isAnonymous,
+          likeCount: p.likeCount,
+          commentCount: p.commentCount,
+          createdAt: p.createdAt,
+          nickname: p.isAnonymous ? '익명' : (p.author?.[0]?.nickname ?? '탈퇴한 회원'),
+        })),
+      })),
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
 
-// GET /api/posts/latest-by-board — 일반 게시판별 최근 글 1개
+// GET /api/posts/latest-by-board — the single latest post per general board
 router.get('/latest-by-board', optionalAuth, async (req, res) => {
   try {
     const blocked = await getBlockedUserIds(req.user?.id);
@@ -244,36 +302,43 @@ router.get('/latest-by-board', optionalAuth, async (req, res) => {
   }
 });
 
-// GET /api/posts/home-sections — 홈 화면 섹션별 데이터 (자유/장터/구인 최신글)
+// GET /api/posts/home-sections — per-section home data (free board, marketplace, jobs)
+//
+// Performance: this used to hit the DB four times serially — block list, boards, posts, then populate (author and board).
+// Now the block list ‖ boards (cached) run together, and the three sections each take one aggregate (with $lookup)
+// in parallel — two serial round trips, or one when the block list is already cached.
 router.get('/home-sections', optionalAuth, async (req, res) => {
   try {
-    const blocked = await getBlockedUserIds(req.user?.id);
     const city = req.query.city?.trim() || '';
-    const baseFilter = { hidden: { $ne: true }, autoHidden: { $ne: true } };
-    if (blocked.length) baseFilter.userId = { $nin: blocked };
+    const cities = expandCity(city);
 
-    // 로컬 게시판 (장터, 구인) — city 필터 적용
+    const [blocked, allBoards] = await Promise.all([
+      getBlockedUserIds(req.user?.id),
+      getAllBoards(),
+    ]);
+    const blockedOids = blocked.map((id) => new mongoose.Types.ObjectId(id));
+
+    // Local boards (marketplace, jobs) — apply the city filter
     const LOCAL_SLUGS = ['market', 'jobs', 'roomrent', 'meetup'];
-
-    // 자유, 장터, 구인 게시판 조회
-    const targetSlugs = ['free', 'market', 'jobs'];
-    const boards = await Board.find({ slug: { $in: targetSlugs } });
-    const boardMap = {};
-    boards.forEach(b => { boardMap[b.slug] = b._id; });
+    const bySlug = new Map(allBoards.map((b) => [b.slug, b]));
 
     const fetchPosts = async (slug, limit) => {
-      const boardId = boardMap[slug];
-      if (!boardId) return [];
-      const filter = { ...baseFilter, boardId };
-      const cities = expandCity(city);
-      if (cities && LOCAL_SLUGS.includes(slug)) filter.city = { $in: cities };
-      const posts = await Post.find(filter)
-        .sort({ createdAt: -1 })
-        .limit(limit)
-        .populate('userId', 'nickname avatar')
-        .populate('boardId', 'name slug')
-        .lean();
-      return posts.map(p => ({
+      const board = bySlug.get(slug);
+      if (!board) return [];
+      const match = {
+        boardId: board._id,
+        hidden: { $ne: true },
+        autoHidden: { $ne: true },
+        ...(blockedOids.length ? { userId: { $nin: blockedOids } } : {}),
+        ...(cities && LOCAL_SLUGS.includes(slug) ? { city: { $in: cities } } : {}),
+      };
+      const posts = await Post.aggregate([
+        { $match: match },
+        { $sort: { createdAt: -1 } },
+        { $limit: limit },
+        LOOKUP_AUTHOR_NICKNAME,
+      ]);
+      return posts.map((p) => ({
         id: p._id,
         title: p.title,
         content: toContentPreview(p.content),
@@ -282,9 +347,9 @@ router.get('/home-sections', optionalAuth, async (req, res) => {
         commentCount: p.commentCount ?? 0,
         viewCount: p.viewCount ?? 0,
         createdAt: p.createdAt,
-        boardName: p.boardId?.name,
-        boardSlug: p.boardId?.slug,
-        nickname: p.isAnonymous ? '익명' : (p.userId?.nickname ?? '탈퇴한 회원'),
+        boardName: board.name,
+        boardSlug: board.slug,
+        nickname: p.isAnonymous ? '익명' : (p.author?.[0]?.nickname ?? '탈퇴한 회원'),
         thumbnail: p.images?.[0] ?? null,
         city: p.city || '',
       }));
@@ -304,7 +369,7 @@ router.get('/home-sections', optionalAuth, async (req, res) => {
 });
 
 // GET /api/posts/hot?page=1&limit=20
-// 최근 48시간 게시글을 인기 점수(likeCount*3 + commentCount) 순으로 반환
+// Posts from the last 48 hours, ranked by popularity (likeCount*3 + commentCount)
 router.get('/hot', optionalAuth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -315,7 +380,7 @@ router.get('/hot', optionalAuth, async (req, res) => {
     const city = req.query.city?.trim() || '';
     const blocked = await getBlockedUserIds(req.user?.id);
     const blockedOids = blocked.map(id => new mongoose.Types.ObjectId(id));
-    // 학교 게시판 글은 인기글에서 제외
+    // School board posts are excluded from hot posts
     const uniBoardIds = await Board.find({ isUniversityBoard: true }).distinct('_id');
     const matchBase = {
       createdAt: { $gte: since },
@@ -378,7 +443,7 @@ router.get('/hot', optionalAuth, async (req, res) => {
 // GET /api/posts/:postId
 router.get('/:postId', optionalAuth, async (req, res) => {
   try {
-    // 조회수 1 증가 후 업데이트된 doc 반환
+    // Increment the view count and return the updated document
     const post = await Post.findByIdAndUpdate(
       req.params.postId,
       { $inc: { viewCount: 1 } },
@@ -390,7 +455,7 @@ router.get('/:postId', optionalAuth, async (req, res) => {
 
     if (!post) return res.status(404).json({ success: false, message: '게시글을 찾을 수 없습니다.' });
 
-    // 모임 글: 멤버만 열람 가능
+    // Group posts: members only
     if (post.groupId) {
       if (!req.user) {
         return res.status(401).json({ success: false, message: '모임 멤버만 볼 수 있어요.' });
@@ -401,11 +466,11 @@ router.get('/:postId', optionalAuth, async (req, res) => {
       if (!membership) {
         return res.status(403).json({ success: false, message: '모임 멤버만 볼 수 있어요.' });
       }
-      // 응답에 사용자의 모임 역할 포함 (프론트에서 owner/manager 판단)
+      // Include the user's group role in the response so the frontend can tell owner/manager apart
       req._myGroupRole = membership.role;
     }
 
-    // 자동 숨김 게시글: 작성자 본인 외에는 접근 불가 (admin은 별도 라우트)
+    // Auto-hidden posts are unreachable except by their author (admins have a separate route)
     if (post.autoHidden) {
       const isOwner = req.user && String(post.userId?._id || post.userId) === String(req.user.id);
       if (!isOwner) {
@@ -416,7 +481,7 @@ router.get('/:postId', optionalAuth, async (req, res) => {
     const liked = req.user ? post.likedBy.some(id => String(id) === String(req.user.id)) : false;
     const bookmarked = req.user ? !!(await Bookmark.findOne({ userId: req.user.id, postId: post._id })) : false;
 
-    // 학교 게시판 글이면 작성자가 학생회장인지 표시
+    // On school boards, flag whether the author is the student president
     let authorIsLeader = false;
     if (post.boardId && !post.isAnonymous && post.userId) {
       const boardDoc = await Board.findById(post.boardId._id).select('isUniversityBoard university').lean();
@@ -464,11 +529,11 @@ router.get('/:postId', optionalAuth, async (req, res) => {
   }
 });
 
-// POST /api/posts/upload-image — 리치 에디터용 단일 이미지 업로드 (Cloudinary URL 반환)
+// POST /api/posts/upload-image — single image upload for the rich editor (returns a Cloudinary URL)
 router.post('/upload-image', requireAuth, uploadImages.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: '이미지가 없습니다.' });
-    // multer-storage-cloudinary가 req.file.path에 Cloudinary URL을 넣어줌
+    // multer-storage-cloudinary puts the Cloudinary URL on req.file.path
     const url = req.file.path;
     res.json({ success: true, data: { url } });
   } catch (err) {
@@ -477,7 +542,7 @@ router.post('/upload-image', requireAuth, uploadImages.single('image'), async (r
   }
 });
 
-// POST /api/posts (multipart/form-data — 이미지 최대 4장)
+// POST /api/posts (multipart/form-data — up to 4 images)
 router.post('/', requireAuth, uploadImages.array('images', 5), async (req, res) => {
   try {
     const { boardId, groupId, title, content } = req.body;
@@ -491,7 +556,7 @@ router.post('/', requireAuth, uploadImages.array('images', 5), async (req, res) 
     }
 
     const uploadedImageUrls = (req.files ?? []).map(f => f.path);
-    // 리치 에디터 모드: content가 HTML이면 거기서 이미지 URL 추출
+    // Rich editor mode: when content is HTML, extract the image URLs from it
     const htmlImageUrls = /<img/i.test(content) ? extractImagesFromHtml(content) : [];
     const imageUrls = [...uploadedImageUrls, ...htmlImageUrls].slice(0, 10);
 
@@ -503,7 +568,7 @@ router.post('/', requireAuth, uploadImages.array('images', 5), async (req, res) 
     };
 
     if (groupId) {
-      // 모임 글: 멤버십 확인
+      // Group posts: check membership
       const membership = await GroupMembership.findOne({
         groupId, userId: req.user.id, status: 'active',
       }).lean();
@@ -511,14 +576,14 @@ router.post('/', requireAuth, uploadImages.array('images', 5), async (req, res) 
         return res.status(403).json({ success: false, message: '모임 멤버만 글을 쓸 수 있어요.' });
       }
       postData.groupId = groupId;
-      postData.isAnonymous = false; // 모임 글은 실명
+      postData.isAnonymous = false; // Group posts are never anonymous
     } else {
-      // 일반 게시판 글
+      // General board post
       const board = await Board.findById(boardId).select('slug isAnonymousAllowed').lean();
       const isLocalBoard = board && LOCAL_BOARD_SLUGS.includes(board.slug);
       postData.boardId = boardId;
       postData.city = isLocalBoard ? (req.body.city?.trim() || '') : '';
-      // 익명은 보드 설정이 결정 (클라 조작 방어): 익명 보드면 항상 true, 아니면 항상 false
+      // Anonymity is decided by the board, not the client: always true on an anonymous board, always false otherwise
       postData.isAnonymous = !!board?.isAnonymousAllowed;
     }
 
@@ -536,7 +601,7 @@ router.post('/', requireAuth, uploadImages.array('images', 5), async (req, res) 
 });
 
 // DELETE /api/posts/:postId
-// PUT /api/posts/:postId — 글 수정 (작성자만)
+// PUT /api/posts/:postId — edit a post (author only)
 router.put('/:postId', requireAuth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId);
@@ -549,15 +614,15 @@ router.put('/:postId', requireAuth, async (req, res) => {
     if (title) post.title = title.trim();
     if (content) post.content = content.trim();
 
-    // 리치 에디터 모드(HTML): content에서 이미지 URL 추출하여 갱신
+    // Rich editor mode (HTML): refresh the image URLs from content
     if (content && /<img/i.test(content)) {
       post.images = extractImagesFromHtml(content);
     } else if (content !== undefined) {
-      // 본문이 텍스트만 → 이미지 없음
+      // Text-only body means no images
       post.images = [];
     }
 
-    // 도시: 보드 slug 기준으로 로컬 보드만 저장 허용
+    // City: stored only for local boards, decided by the board slug
     if (req.body.city !== undefined) {
       const board = await Board.findById(post.boardId).select('slug').lean();
       const isLocalBoard = board && LOCAL_BOARD_SLUGS.includes(board.slug);
@@ -578,7 +643,7 @@ router.delete('/:postId', requireAuth, async (req, res) => {
     if (!post) return res.status(404).json({ success: false, message: '게시글을 찾을 수 없습니다.' });
 
     const isAuthor = String(post.userId) === String(req.user.id);
-    // 모임 글이면 owner/manager도 삭제 가능
+    // On group posts, the owner and managers may also delete
     let isGroupMod = false;
     if (post.groupId) {
       const m = await GroupMembership.findOne({
@@ -603,7 +668,7 @@ router.delete('/:postId', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/posts/:postId/pin { pinned } — 모임 글 고정 (owner/manager 전용)
+// PUT /api/posts/:postId/pin { pinned } — pin a group post (owner/manager only)
 router.put('/:postId/pin', requireAuth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId);
@@ -628,7 +693,7 @@ router.put('/:postId/pin', requireAuth, async (req, res) => {
 });
 
 // PUT /api/posts/:postId/trade-status { status: 'selling' | 'sold' }
-// 마켓 류 게시판(market/giveaway/car/roomrent) 작성자만 토글 가능 (admin도 가능)
+// Marketplace boards (market/giveaway/car/roomrent): only the author can toggle (admins too)
 router.put('/:postId/trade-status', requireAuth, async (req, res) => {
   try {
     const { status } = req.body || {};
@@ -653,7 +718,7 @@ router.put('/:postId/trade-status', requireAuth, async (req, res) => {
     post.tradeStatus = status;
     await post.save();
 
-    // 이 글에서 만든 지도 숙소가 있으면 상태 동기화 (입주완료 → closed, 입주가능 → active)
+    // If this post spawned a map stay listing, keep its status in sync (filled to closed, available to active)
     StayListing.updateMany(
       { sourcePostId: post._id },
       { status: status === 'sold' ? 'closed' : 'active' }
@@ -671,9 +736,9 @@ router.post('/:postId/like', requireAuth, async (req, res) => {
   try {
     const postId = req.params.postId;
     const userId = req.user.id;
-    // 조건부 원자 업데이트로 토글 — findById → 수정 → save()는 동시 요청 시
-    // likeCount가 유실되거나 같은 유저가 두 번 카운트될 수 있었음.
-    // 필터의 likedBy 조건이 "아직 안 누름 / 이미 누름"을 DB가 판정하게 한다.
+    // Conditional atomic update for the toggle — findById, mutate, save() could lose a likeCount
+    // or double-count the same user under concurrent requests.
+    // The likedBy condition in the filter lets the DB decide "not yet liked" versus "already liked".
     const fields = 'userId title isAnonymous likeCount';
     const unliked = await Post.findOneAndUpdate(
       { _id: postId, likedBy: userId },
@@ -689,7 +754,7 @@ router.post('/:postId/like', requireAuth, async (req, res) => {
     const alreadyLiked = !!unliked;
 
     if (!alreadyLiked) {
-      // 자기 글이 아닐 때만 알림 발송
+      // Notify only when it is not the user's own post
       if (String(post.userId) !== String(userId)) {
         const [liker, postOwner] = await Promise.all([
           User.findById(userId).select('nickname'),
@@ -697,7 +762,7 @@ router.post('/:postId/like', requireAuth, async (req, res) => {
         ]);
         const likerName = post.isAnonymous ? '익명' : (liker?.nickname ?? '누군가');
 
-        // DB 알림 저장
+        // Store the notification
         await Notification.create({
           userId: post.userId,
           type: 'like',
@@ -706,7 +771,7 @@ router.post('/:postId/like', requireAuth, async (req, res) => {
           message: `"${post.title.slice(0, 20)}" 글에 좋아요를 받았어요`,
         });
 
-        // 푸시 알림 발송
+        // Send the push
         const ns = postOwner?.notificationSettings;
         if (postOwner?.pushToken && ns?.enabled !== false && ns?.like !== false) {
           sendPush(
@@ -727,7 +792,7 @@ router.post('/:postId/like', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/posts/:postId/bookmark — 북마크 토글
+// POST /api/posts/:postId/bookmark — toggle the bookmark
 router.post('/:postId/bookmark', requireAuth, async (req, res) => {
   try {
     const postId = req.params.postId;
@@ -748,7 +813,7 @@ router.post('/:postId/bookmark', requireAuth, async (req, res) => {
 // GET /api/posts/:postId/comments
 router.get('/:postId/comments', optionalAuth, async (req, res) => {
   try {
-    // 잠금 댓글 마스킹을 위해 게시글 작성자 id 조회
+    // Look up the post author's id so locked comments can be masked
     const post = await Post.findById(req.params.postId).select('userId');
     const requesterId = req.user?.id ? String(req.user.id) : null;
     const postAuthorId = post?.userId ? String(post.userId) : null;
@@ -758,21 +823,21 @@ router.get('/:postId/comments', optionalAuth, async (req, res) => {
     if (blocked.length) commentFilter.userId = { $nin: blocked };
 
     const comments = await Comment.find(commentFilter)
-      .sort({ isPinned: -1, createdAt: 1 }) // 고정 댓글 먼저
+      .sort({ isPinned: -1, createdAt: 1 }) // Pinned comments first
       .populate('userId', 'nickname avatarUrl');
 
-    // 트리 구조 빌드
+    // Build the tree
     const topLevel = [];
     const replyMap = {};
 
     comments.forEach(c => {
       const commentAuthorId = c.userId?._id ? String(c.userId._id) : null;
-      // 잠금 댓글: 댓글 작성자 또는 게시글 작성자만 열람 가능
+      // Locked comments are readable only by their author and the post author
       const canSee = !c.isSecret ||
         (requesterId && (requesterId === commentAuthorId || requesterId === postAuthorId));
 
-      // 수정됨 표시 — updatedAt이 createdAt보다 2초 이상 늦으면 편집된 것으로 간주
-      // (mongoose의 자동 timestamp는 생성/저장 시 ms 차이가 살짝 있어서 토널런스)
+      // "Edited" marker — treat it as edited when updatedAt trails createdAt by more than 2 seconds
+      // (mongoose's automatic timestamps differ by a few ms on create/save, hence the tolerance)
       const wasEdited = c.updatedAt && c.createdAt &&
         (new Date(c.updatedAt).getTime() - new Date(c.createdAt).getTime() > 2000);
 
@@ -786,13 +851,13 @@ router.get('/:postId/comments', optionalAuth, async (req, res) => {
         updatedAt: c.updatedAt,
         edited: wasEdited,
         parentId: c.parentId,
-        userId: c.userId?._id,        // 항상 포함 (클라이언트에서 권한 확인용)
+        userId: c.userId?._id,        // Always included, so the client can check permissions
         nickname: c.isAnonymous ? '익명' : (c.userId?.nickname ?? '탈퇴한 회원'),
         avatarUrl: c.isAnonymous ? null : c.userId?.avatarUrl,
         isPinned: c.isPinned ?? false,
         replies: [],
       } : {
-        // 잠금 댓글 — 내용 마스킹
+        // Locked comment — mask the body
         id: c._id,
         isSecretMasked: true,
         createdAt: c.createdAt,
@@ -822,7 +887,7 @@ router.get('/:postId/comments', optionalAuth, async (req, res) => {
   }
 });
 
-// PUT /api/posts/:postId/comments/:commentId/pin — 댓글 고정 토글 (게시글 작성자만)
+// PUT /api/posts/:postId/comments/:commentId/pin — toggle a pinned comment (post author only)
 router.put('/:postId/comments/:commentId/pin', requireAuth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId);
@@ -835,14 +900,14 @@ router.put('/:postId/comments/:commentId/pin', requireAuth, async (req, res) => 
     const comment = await Comment.findById(req.params.commentId);
     if (!comment) return res.status(404).json({ success: false, message: '댓글을 찾을 수 없습니다.' });
 
-    // 이미 고정된 댓글이면 해제, 아니면 고정 (1개만 고정 가능)
+    // Unpin if it is already pinned, otherwise pin it (only one comment can be pinned)
     if (comment.isPinned) {
       comment.isPinned = false;
       await comment.save();
       return res.json({ success: true, data: { isPinned: false } });
     }
 
-    // 기존 고정 댓글 해제 후 새로 고정
+    // Unpin the previous one, then pin this
     await Comment.updateMany({ postId: req.params.postId, isPinned: true }, { isPinned: false });
     comment.isPinned = true;
     await comment.save();
@@ -868,7 +933,7 @@ router.post('/:postId/comments', requireAuth, async (req, res) => {
     const post = await Post.findById(req.params.postId);
     if (!post) return res.status(404).json({ success: false, message: '게시글을 찾을 수 없습니다.' });
 
-    // 익명은 보드 설정에 따라 강제: 익명 보드면 true, 아니면 false (클라 조작 방어)
+    // Anonymity is forced by the board: true on an anonymous board, false otherwise (client cannot override)
     const board = await Board.findById(post.boardId).select('isAnonymousAllowed').lean();
     const enforcedIsAnonymous = !!board?.isAnonymousAllowed;
 
@@ -883,15 +948,15 @@ router.post('/:postId/comments', requireAuth, async (req, res) => {
 
     await Post.findByIdAndUpdate(req.params.postId, { $inc: { commentCount: 1 } });
 
-    // 알림 발송:
-    //  - 대댓글(parentId 있음) → 부모 댓글 작성자에게만 (type 'reply'). 글 작성자에겐 X.
-    //  - 최상위 댓글 → 글 작성자에게 (type 'comment').
-    //  - 본인에게는 알림 안 보냄.
+    // Notifications:
+    //  - a reply (parentId set) notifies only the parent comment's author (type 'reply'), never the post author.
+    //  - a top-level comment notifies the post author (type 'comment').
+    //  - never notify yourself.
     const commenter = await User.findById(req.user.id).select('nickname');
     const commenterName = enforcedIsAnonymous ? '익명' : (commenter?.nickname ?? '누군가');
 
     if (parentId) {
-      // 대댓글 → 부모 댓글 작성자에게만 알림
+      // Reply — notify the parent comment's author only
       const parent = await Comment.findById(parentId).select('userId').lean();
       if (parent && String(parent.userId) !== String(req.user.id)) {
         const parentOwner = await User.findById(parent.userId).select('pushToken notificationSettings');
@@ -916,7 +981,7 @@ router.post('/:postId/comments', requireAuth, async (req, res) => {
         }
       }
     } else if (String(post.userId) !== String(req.user.id)) {
-      // 최상위 댓글 → 글 작성자에게 알림
+      // Top-level comment — notify the post author
       const postOwner = await User.findById(post.userId).select('pushToken notificationSettings');
 
       await Notification.create({
@@ -946,7 +1011,7 @@ router.post('/:postId/comments', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/posts/:postId/comments/:commentId — 댓글 삭제 (댓글 작성자만)
+// DELETE /api/posts/:postId/comments/:commentId — delete a comment (its author only)
 router.delete('/:postId/comments/:commentId', requireAuth, async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.commentId);
@@ -963,7 +1028,7 @@ router.delete('/:postId/comments/:commentId', requireAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/posts/:postId/comments/:commentId — 댓글 수정 (작성자만)
+// PATCH /api/posts/:postId/comments/:commentId — edit a comment (its author only)
 router.patch('/:postId/comments/:commentId', requireAuth, async (req, res) => {
   try {
     const { content } = req.body;

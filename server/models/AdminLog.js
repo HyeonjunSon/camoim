@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// 모든 관리자 액션을 기록 — 감사 로그
+// Every admin action is recorded — audit log
 const adminLogSchema = new mongoose.Schema({
   adminId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   adminName:  { type: String, default: '' },

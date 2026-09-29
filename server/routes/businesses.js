@@ -1,5 +1,5 @@
-// 한인 업체 지도 — 목록/상세/제보/즐겨찾기/신고 (유저용)
-// 관리자 승인/수정/삭제는 routes/admin.js 에 있음 (/api/admin/businesses)
+// Korean business map — list, detail, submission, bookmark, report (user-facing)
+// Admin approve/edit/delete lives in routes/admin.js (/api/admin/businesses)
 const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
@@ -15,7 +15,7 @@ const { geocodeAddress } = require('../utils/geocode');
 
 const router = express.Router();
 
-// Cloudinary — 업체 사진 전용 폴더
+// Cloudinary — folder reserved for business photos
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -33,7 +33,7 @@ const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 const CATEGORIES = Business.CATEGORIES;
 
-// 업체 신고 사유 → Report 스키마 enum 매핑 (사람이 읽는 라벨은 detail에 저장)
+// Business report reasons mapped onto the Report schema enum (the human-readable label goes in detail)
 const REPORT_REASONS = {
   closed: { reason: 'etc',  label: '폐업했어요' },
   info:   { reason: 'etc',  label: '주소·전화 등 정보가 달라요' },
@@ -83,7 +83,7 @@ async function bookmarkedSetFor(userId) {
 }
 
 // ── GET /api/businesses?city=&category=&near=lng,lat ──────────────
-// 승인된 업체만. near 주어지면 거리(distanceKm) 계산 + 가까운 순 정렬
+// Approved businesses only. With near, compute distanceKm and sort nearest first
 router.get('/', optionalAuth, async (req, res) => {
   try {
     const { city, category, near } = req.query;
@@ -114,7 +114,7 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 });
 
-// ── GET /api/businesses/trending?city= ── 이번 주 조회수 TOP 5 (⚠️ '/:id'보다 먼저 선언)
+// ── GET /api/businesses/trending?city= ── top 5 by views this week (⚠️ must be declared before '/:id')
 router.get('/trending', optionalAuth, async (req, res) => {
   try {
     const week = BusinessWeeklyStat.currentWeekKey();
@@ -138,7 +138,7 @@ router.get('/trending', optionalAuth, async (req, res) => {
   }
 });
 
-// ── 리뷰 집계 재계산 → Business.ratingAvg/ratingCount 비정규화 갱신 ──
+// ── Recompute the review rollup into Business.ratingAvg / ratingCount ──
 async function recomputeRating(businessId) {
   const [agg] = await BusinessReview.aggregate([
     { $match: { businessId: new mongoose.Types.ObjectId(businessId) } },
@@ -161,7 +161,7 @@ function formatReview(r, userId) {
   };
 }
 
-// ── GET /api/businesses/:id/reviews ── 리뷰 목록 (최신순 50개)
+// ── GET /api/businesses/:id/reviews ── review list (50 newest)
 router.get('/:id/reviews', optionalAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '업체를 찾을 수 없습니다.' });
@@ -173,7 +173,7 @@ router.get('/:id/reviews', optionalAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/businesses/:id/reviews ── 리뷰 작성/수정 (1인 1리뷰 upsert)
+// ── POST /api/businesses/:id/reviews ── create or edit a review (one per user, upsert)
 router.post('/:id/reviews', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '업체를 찾을 수 없습니다.' });
@@ -205,7 +205,7 @@ router.post('/:id/reviews', requireAuth, async (req, res) => {
   }
 });
 
-// ── DELETE /api/businesses/:id/reviews ── 내 리뷰 삭제
+// ── DELETE /api/businesses/:id/reviews ── delete my review
 router.delete('/:id/reviews', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '업체를 찾을 수 없습니다.' });
@@ -219,7 +219,7 @@ router.delete('/:id/reviews', requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/businesses/:id/reviews/:reviewId/report ── 리뷰 신고 (UGC 정책)
+// ── POST /api/businesses/:id/reviews/:reviewId/report ── report a review (UGC policy)
 router.post('/:id/reviews/:reviewId/report', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.reviewId)) return res.status(404).json({ success: false, message: '리뷰를 찾을 수 없습니다.' });
@@ -236,7 +236,7 @@ router.post('/:id/reviews/:reviewId/report', requireAuth, async (req, res) => {
         detail: `업체 리뷰 신고: "${(review.text || '').slice(0, 80)}"`,
       });
     } catch (e) {
-      if (e.code !== 11000) throw e; // 중복 신고는 조용히 성공
+      if (e.code !== 11000) throw e; // A duplicate report succeeds quietly
     }
     res.json({ success: true, message: '신고가 접수되었어요.' });
   } catch (err) {
@@ -245,13 +245,13 @@ router.post('/:id/reviews/:reviewId/report', requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/businesses/upload-image ── 업체 사진 업로드 → URL 반환
+// ── POST /api/businesses/upload-image ── upload a business photo and return its URL
 router.post('/upload-image', requireAuth, upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: '이미지가 없습니다.' });
   res.json({ success: true, url: req.file.path });
 });
 
-// ── POST /api/businesses ── 유저 제보 (status=pending). 관리자면 즉시 승인
+// ── POST /api/businesses ── user submission (status=pending). Admins are approved immediately
 router.post('/', requireAuth, async (req, res) => {
   try {
     const { name, category, city, address, phone, hours, description } = req.body;
@@ -278,7 +278,7 @@ router.post('/', requireAuth, async (req, res) => {
       submitterNickname: req.user.nickname || '',
     };
 
-    // 주소 → 좌표 (best-effort). 실패해도 저장은 진행
+    // Address to coordinates, best effort. The save proceeds even if it fails
     const geo = await geocodeAddress(doc.address, city);
     if (geo) doc.location = { type: 'Point', coordinates: [geo.lng, geo.lat] };
 
@@ -290,7 +290,7 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-// ── GET /api/businesses/:id ── 상세 (승인 / 본인 제보 / 관리자만)
+// ── GET /api/businesses/:id ── detail (approved, own submission, or admin)
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '업체를 찾을 수 없습니다.' });
@@ -303,7 +303,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
       return res.status(404).json({ success: false, message: '업체를 찾을 수 없습니다.' });
     }
 
-    // 주간 조회수 +1 (트렌딩 랭킹용) — 실패해도 응답에 영향 없음
+    // Bump the weekly view count for the trending ranking — a failure must not affect the response
     if (b.status === 'approved') {
       BusinessWeeklyStat.updateOne(
         { businessId: b._id, week: BusinessWeeklyStat.currentWeekKey() },
@@ -320,7 +320,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/businesses/:id/bookmark ── 즐겨찾기 토글
+// ── POST /api/businesses/:id/bookmark ── toggle the bookmark
 router.post('/:id/bookmark', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '업체를 찾을 수 없습니다.' });
@@ -339,7 +339,7 @@ router.post('/:id/bookmark', requireAuth, async (req, res) => {
         await Business.updateOne({ _id: biz._id }, { $inc: { bookmarkCount: 1 } });
         bookmarked = true;
       } catch (e) {
-        if (e.code === 11000) bookmarked = true; // 동시요청 중복 — 이미 즐겨찾기 상태로 간주
+        if (e.code === 11000) bookmarked = true; // Concurrent duplicate — treat it as already bookmarked
         else throw e;
       }
     }
@@ -351,7 +351,7 @@ router.post('/:id/bookmark', requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/businesses/:id/report ── 문제 신고 (폐업/정보변경/스팸)
+// ── POST /api/businesses/:id/report ── report a problem (closed, wrong info, spam)
 router.post('/:id/report', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '업체를 찾을 수 없습니다.' });
@@ -369,7 +369,7 @@ router.post('/:id/report', requireAuth, async (req, res) => {
       });
       await Business.updateOne({ _id: biz._id }, { $inc: { reportCount: 1 } });
     } catch (e) {
-      if (e.code !== 11000) throw e; // 중복 신고는 조용히 성공 처리
+      if (e.code !== 11000) throw e; // A duplicate report succeeds quietly
     }
     res.json({ success: true, message: '신고가 접수되었어요.' });
   } catch (err) {

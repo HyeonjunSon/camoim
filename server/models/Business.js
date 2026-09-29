@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
-// 한인 업체 (지도) — 유저 제보 + 관리자 등록, 승인 후 지도 노출
-// Google Places 자동 수집은 1.0.x에서 보류 (source enum에 'google'은 향후용으로 남김)
+// Korean-run businesses (map) — user submissions + admin entries, shown on the map once approved
+// Automatic Google Places import is on hold for 1.0.x ('google' stays in the source enum for later)
 const CATEGORIES = ['food', 'cafe', 'mart', 'hair', 'clinic', 'realty', 'etc'];
 const CITIES = ['toronto', 'vancouver', 'montreal'];
 
@@ -15,7 +15,7 @@ const businessSchema = new mongoose.Schema({
   description: { type: String, default: '', maxlength: 1000 },
   images:      { type: [String], default: [] },
 
-  // GeoJSON Point — [lng, lat]. 지오코딩 실패 시 미설정(지도 핀 제외, 리스트엔 노출)
+  // GeoJSON Point — [lng, lat]. Left unset when geocoding fails (dropped from the map, still in the list)
   location: {
     type: { type: String, enum: ['Point'] },
     coordinates: { type: [Number] },
@@ -25,20 +25,20 @@ const businessSchema = new mongoose.Schema({
   status:   { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
 
   submittedBy:       { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  submitterNickname: { type: String, default: '' }, // 제보 시점 스냅샷
-  sourceName: { type: String, default: '' }, // 출처 표기 (예: 캐나다 한국일보) — 제휴 데이터 attribution
+  submitterNickname: { type: String, default: '' }, // Snapshot taken at submission time
+  sourceName: { type: String, default: '' }, // Attribution for partner data (e.g. Korea Times Canada)
 
   bookmarkCount: { type: Number, default: 0 },
   reportCount:   { type: Number, default: 0 },
-  // 리뷰 집계 (BusinessReview 비정규화 — 목록/지도에서 join 없이 별점 표시)
+  // Review rollup (denormalized from BusinessReview so list and map show stars without a join)
   ratingAvg:   { type: Number, default: 0 },
   ratingCount: { type: Number, default: 0 },
   rejectedReason: { type: String, default: '' },
 }, { timestamps: true });
 
-// 지리 검색용 (location 없는 문서는 자동 제외)
+// Geo search (documents without location are excluded automatically)
 businessSchema.index({ location: '2dsphere' });
-// 지도 목록 필터 조합
+// Filter combination used by the map list
 businessSchema.index({ city: 1, status: 1, category: 1 });
 
 businessSchema.statics.CATEGORIES = CATEGORIES;

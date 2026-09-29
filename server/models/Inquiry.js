@@ -7,7 +7,7 @@ const inquirySchema = new mongoose.Schema({
   category: { type: String, enum: CATEGORIES, required: true },
   title: { type: String, required: true, maxlength: 200 },
   content: { type: String, required: true, maxlength: 5000 },
-  // 디바이스 메타 (사용자에겐 안 보임)
+  // Device metadata (never shown to the user)
   appVersion: { type: String, default: '' },
   platform:   { type: String, default: '' },
   osVersion:  { type: String, default: '' },

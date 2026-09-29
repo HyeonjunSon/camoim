@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
-// 업체 주간 조회수 — "이번 주 인기 TOP" 랭킹용
-// 상세 조회 시 (businessId, week) 문서에 $inc. week 예: '2026-W28'
+// Weekly business view counts — powers the "trending this week" ranking
+// $inc on the (businessId, week) document when a detail page opens. week looks like '2026-W28'
 const businessWeeklyStatSchema = new mongoose.Schema({
   businessId: { type: mongoose.Schema.Types.ObjectId, ref: 'Business', required: true },
   week:       { type: String, required: true }, // 'YYYY-Www'
@@ -9,10 +9,10 @@ const businessWeeklyStatSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 businessWeeklyStatSchema.index({ businessId: 1, week: 1 }, { unique: true });
-// 이번 주 상위 정렬
+// Top-of-week sort
 businessWeeklyStatSchema.index({ week: 1, views: -1 });
 
-// 현재 주 키 (UTC 기준 ISO 주차 근사 — 랭킹 용도라 엄밀한 ISO-8601일 필요 없음)
+// Current week key (approximate ISO week in UTC — a ranking does not need strict ISO-8601)
 businessWeeklyStatSchema.statics.currentWeekKey = function () {
   const d = new Date();
   const start = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));

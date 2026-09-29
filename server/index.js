@@ -9,9 +9,9 @@ const app = require('./app');
 const httpServer = http.createServer(app);
 const PORT = process.env.PORT || 4000;
 
-// 기본 게시판 데이터 시드 (없을 때만)
+// Seed default boards (only when missing)
 async function seedBoards() {
-  // 공식 글로벌 게시판 slug 목록 (이 외 일반 게시판은 삭제)
+  // Official global board slugs (any other general board is removed)
   const officialSlugs = [
     'free', 'anonymous',
     'meetup',
@@ -58,7 +58,7 @@ async function seedBoards() {
   console.log('✅ 기본 게시판 확인 완료');
 }
 
-// University 마스터 데이터 시드 — constants/universities.js의 풀 리스트를 DB에 upsert
+// Seed University master data — upserts the full list from constants/universities.js
 async function seedUniversities() {
   const { UNIVERSITIES } = require('./constants/universities');
   let added = 0;
@@ -78,28 +78,28 @@ async function seedUniversities() {
   else console.log('✅ 학교 마스터 이미 최신 상태');
 }
 
-// 학교 게시판 시드/정리: 현재 템플릿은 free + anonymous 2종 (meetup/info는 1.0.5에서 제거)
+// Seed/clean school boards: the current template is free + anonymous (meetup/info dropped in 1.0.5)
 async function migrateUniversityBoards() {
-  // 1) 옛 학교 자유게시판 이름 정리: "학교 자유게시판" → "학교자유게시판"
+  // 1) Normalize the old school free-board name
   await Board.updateMany(
     { isUniversityBoard: true, slug: /-free$/, name: '학교 자유게시판' },
     { $set: { name: '학교자유게시판' } }
   );
 
-  // 2) 옛 sortOrder 갱신: anonymous → 2
+  // 2) Refresh the old sortOrder: anonymous becomes 2
   await Board.updateMany(
     { isUniversityBoard: true, slug: /-anonymous$/ },
     { $set: { sortOrder: 2 } }
   );
 
-  // 2-1) 학교자유게시판 익명 비허용으로 전환
+  // 2-1) Turn off anonymous posting on the school free board
   await Board.updateMany(
     { isUniversityBoard: true, slug: /-free$/ },
     { $set: { isAnonymousAllowed: false } }
   );
 
-  // 3) 사용 안 하는 옛 게시판(notice/qna) 제거
-  // 글이 있으면 보존을 위해 그냥 두고, 비어있을 때만 삭제
+  // 3) Drop unused legacy boards (notice/qna)
+  // Boards that still hold posts are left alone; only empty ones are deleted
   const Post = require('./models/Post');
   const stale = await Board.find({ isUniversityBoard: true, slug: { $regex: /-(notice|qna)$/ } });
   for (const b of stale) {
@@ -107,8 +107,8 @@ async function migrateUniversityBoards() {
     if (cnt === 0) await b.deleteOne();
   }
 
-  // 4) 캐나다 주요 대학 + 이미 인증된 학교 목록을 합쳐 게시판 생성
-  // (관리자는 모든 학교에 접근해야 하므로 미리 시드)
+  // 4) Create boards for the union of major Canadian universities and already-verified schools
+  // (seeded up front because admins need access to every school)
   const SEED_UNIVERSITIES = [
     'University of Toronto (UofT)',
     'University of British Columbia (UBC)',
@@ -162,7 +162,7 @@ async function migrateUniversityBoards() {
   console.log('✅ 학교 게시판 마이그레이션 완료');
 }
 
-// 학교 이름 풀네임 마이그레이션 (약어 → 풀네임)
+// Migrate school names from abbreviations to full names
 async function migrateUniversityNames() {
   const { SHORT_NAME_MIGRATION } = require('./constants/universities');
   const User = require('./models/User');
@@ -173,16 +173,16 @@ async function migrateUniversityNames() {
   for (const [oldName, newName] of Object.entries(SHORT_NAME_MIGRATION)) {
     if (oldName === newName) continue;
 
-    // Board.university 필드 업데이트
+    // Update the Board.university field
     const r1 = await Board.updateMany({ university: oldName }, { $set: { university: newName } });
-    // User.university 필드
+    // User.university field
     const r2 = await User.updateMany({ university: oldName }, { $set: { university: newName } });
-    // VerifyRequest.university 필드
+    // VerifyRequest.university field
     const r3 = await VerifyRequest.updateMany({ university: oldName }, { $set: { university: newName } });
     count += (r1.modifiedCount || 0) + (r2.modifiedCount || 0) + (r3.modifiedCount || 0);
   }
 
-  // slug 정리: university 필드 기반으로 올바른 slug 보장
+  // Slug cleanup: guarantee the correct slug based on the university field
   const uniBoards = await Board.find({ isUniversityBoard: true, university: { $ne: null } });
   let slugFixed = 0;
   for (const b of uniBoards) {
@@ -208,7 +208,7 @@ async function migrateUniversityNames() {
   else console.log('✅ 학교 이름 이미 최신 상태');
 }
 
-// 학교 게시판 meetup/info 제거 — 1.0.5에서 폐기 결정 (글/댓글까지 cascade 삭제)
+// Remove the meetup/info school boards — retired in 1.0.5 (cascades to posts and comments)
 async function cleanupLegacyMeetupInfoBoards() {
   const Post = require('./models/Post');
   const Comment = require('./models/Comment');
@@ -244,8 +244,8 @@ connectDB().then(async () => {
   await migrateUniversityNames();
   await cleanupLegacyMeetupInfoBoards();
   const io = initSocket(httpServer);
-  app.set('io', io); // 라우트에서 req.app.get('io')로 접근 가능
-  startVerifyCleanupJob(); // 인증 서류 90일 자동 삭제 cron
+  app.set('io', io); // Routes reach this via req.app.get('io')
+  startVerifyCleanupJob(); // Cron: delete verification documents after 90 days
   httpServer.listen(PORT, () => {
     console.log(`🚀 서버 시작: http://localhost:${PORT}`);
   });

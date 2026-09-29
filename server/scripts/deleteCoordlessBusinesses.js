@@ -1,13 +1,13 @@
-// 좌표 없는 업체 삭제 — 단, Whatasign(주소가 아예 없는 케이스)은 보존.
-// cascade: BusinessBookmark + Report (관리자 DELETE 라우트와 동일)
-// 실행: railway run node scripts/deleteCoordlessBusinesses.js
+// Delete businesses with no coordinates — except Whatasign, which has no address at all and is kept.
+// Cascade: BusinessBookmark + Report (same as the admin DELETE route)
+// Run: railway run node scripts/deleteCoordlessBusinesses.js
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Business = require('../models/Business');
 const BusinessBookmark = require('../models/BusinessBookmark');
 const Report = require('../models/Report');
 
-const KEEP = /whatasign/i; // 보존할 업체명 패턴
+const KEEP = /whatasign/i; // Name patterns to preserve
 
 (async () => {
   await mongoose.connect(process.env.MONGODB_URI);
@@ -23,9 +23,9 @@ const KEEP = /whatasign/i; // 보존할 업체명 패턴
   const toDelete = coordless.filter((b) => !KEEP.test(b.name || ''));
   const kept = coordless.filter((b) => KEEP.test(b.name || ''));
 
-  console.log(`좌표 없는 업체 ${coordless.length}개`);
-  console.log(`보존 ${kept.length}개: ${kept.map((b) => b.name).join(', ') || '(없음)'}`);
-  console.log(`삭제 대상 ${toDelete.length}개:\n`);
+  console.log(`${coordless.length} businesses with no coordinates`);
+  console.log(`keeping ${kept.length}: ${kept.map((b) => b.name).join(', ') || '(none)'}`);
+  console.log(`${toDelete.length} to delete:\n`);
 
   for (const b of toDelete) {
     const [bm, rp] = await Promise.all([
@@ -36,6 +36,6 @@ const KEEP = /whatasign/i; // 보존할 업체명 패턴
     console.log(`🗑  ${b.name}  ← ${b.address}  (bookmark ${bm.deletedCount}, report ${rp.deletedCount})`);
   }
 
-  console.log(`\n완료: ${toDelete.length}개 삭제, ${kept.length}개 보존`);
+  console.log(`\ndone: ${toDelete.length} deleted, ${kept.length} kept`);
   await mongoose.disconnect();
 })().catch((e) => { console.error(e); process.exit(1); });

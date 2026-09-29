@@ -12,7 +12,7 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Cloudinary 아바타 업로드 설정
+// Cloudinary avatar upload settings
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -84,7 +84,7 @@ router.get('/me/posts', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/users/me/liked-posts — 내가 좋아요한 글
+// GET /api/users/me/liked-posts — posts I liked
 router.get('/me/liked-posts', requireAuth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -126,7 +126,7 @@ router.get('/me/liked-posts', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/users/me/bookmarks — 내가 북마크한 글
+// GET /api/users/me/bookmarks — posts I bookmarked
 router.get('/me/bookmarks', requireAuth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -146,7 +146,7 @@ router.get('/me/bookmarks', requireAuth, async (req, res) => {
       .populate('userId', 'nickname')
       .populate('boardId', 'name slug');
 
-    // 북마크 순서 유지
+    // Preserve the bookmark order
     const postMap = {};
     posts.forEach(p => { postMap[String(p._id)] = p; });
 
@@ -180,7 +180,7 @@ router.get('/me/bookmarks', requireAuth, async (req, res) => {
 // PUT /api/users/me
 router.put('/me', requireAuth, async (req, res) => {
   try {
-    // school 필드는 받지 않음 — 학교는 인증 흐름(VerifyRequest 승인)으로만 user.university 설정
+    // The school field is not accepted here — user.university is set only through the verification flow (an approved VerifyRequest)
     const { nickname, location, bio, role, city } = req.body;
     const update = {};
     if (nickname) {
@@ -194,7 +194,7 @@ router.put('/me', requireAuth, async (req, res) => {
     if (bio !== undefined) update.bio = bio;
     if (city !== undefined) update.city = city;
 
-    // 역할 업데이트: admin으로 자가 승격 방지
+    // Role update: prevent self-promotion to admin
     if (role !== undefined) {
       if (role === 'admin') {
         return res.status(403).json({ success: false, message: '관리자 역할은 직접 설정할 수 없습니다.' });
@@ -228,7 +228,7 @@ router.put('/me', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/users/me/notifications — 알림 설정 조회
+// GET /api/users/me/notifications — read notification settings
 router.get('/me/notifications', requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('notificationSettings');
@@ -239,7 +239,7 @@ router.get('/me/notifications', requireAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/users/me/notifications — 알림 설정 업데이트
+// PATCH /api/users/me/notifications — update notification settings
 router.patch('/me/notifications', requireAuth, async (req, res) => {
   try {
     const allowed = ['enabled', 'comment', 'reply', 'like', 'chat', 'notice'];
@@ -257,7 +257,7 @@ router.patch('/me/notifications', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/users/me/push-token — Expo 푸시 토큰 등록/갱신
+// PUT /api/users/me/push-token — register or refresh the Expo push token
 router.put('/me/push-token', requireAuth, async (req, res) => {
   try {
     const { pushToken } = req.body;
@@ -270,7 +270,7 @@ router.put('/me/push-token', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/users/me/blocks — 내가 차단한 사용자 목록
+// GET /api/users/me/blocks — users I blocked
 router.get('/me/blocks', requireAuth, async (req, res) => {
   try {
     const blocks = await Block.find({ blockerId: req.user.id })
@@ -292,7 +292,7 @@ router.get('/me/blocks', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/users/:userId/block-status — 특정 사용자에 대한 내 차단 상태
+// GET /api/users/:userId/block-status — my block state toward a given user
 router.get('/:userId/block-status', requireAuth, async (req, res) => {
   try {
     const block = await Block.findOne({
@@ -311,7 +311,7 @@ router.get('/:userId/block-status', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/users/:userId/block — 차단 생성/업데이트 (둘 다 false면 해제)
+// PUT /api/users/:userId/block — create or update a block (both false lifts it)
 router.put('/:userId/block', requireAuth, async (req, res) => {
   try {
     const { blockChat = true, hideContent = true } = req.body;
@@ -324,7 +324,7 @@ router.put('/:userId/block', requireAuth, async (req, res) => {
       return res.status(403).json({ success: false, message: '관리자는 차단할 수 없습니다.' });
     }
 
-    // 둘 다 false면 차단 해제
+    // Both false means unblock
     if (!blockChat && !hideContent) {
       await Block.deleteOne({ blockerId: req.user.id, blockedId: req.params.userId });
       return res.json({ success: true, data: { blocked: false, blockChat: false, hideContent: false } });
@@ -345,7 +345,7 @@ router.put('/:userId/block', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/users/:userId/block — 차단 완전 해제
+// DELETE /api/users/:userId/block — lift the block entirely
 router.delete('/:userId/block', requireAuth, async (req, res) => {
   try {
     await Block.deleteOne({ blockerId: req.user.id, blockedId: req.params.userId });
@@ -356,7 +356,7 @@ router.delete('/:userId/block', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/users/:userId — 프로필 + 작성 글 목록
+// GET /api/users/:userId — profile plus their posts
 router.get('/:userId', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId).select('-passwordHash -email -pushToken');
@@ -378,8 +378,8 @@ router.get('/:userId', async (req, res) => {
       thumbnail: p.images?.[0] ?? null,
     }));
 
-    // ── 거래 평판 — 사용자가 작성한 거래 게시글 중 sold 상태인 것 카운트
-    // (시장/나눔/자동차/룸렌트 모두 거래 보드에 해당)
+    // ── Trade reputation — how many of the user's trade posts reached the sold state
+    // (market, giveaway, car and roomrent all count as trade boards)
     const tradeBoards = await Board.find({ slug: { $in: TRADE_BOARD_SLUGS } }).select('_id').lean();
     const tradeBoardIds = tradeBoards.map(b => b._id);
     const tradeSoldCount = await Post.countDocuments({

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
-// 일일 활성 유저(DAU) 기록 — 유저가 하루에 한 번이라도 API를 쓰면 (userId, date) 1건
-// 날짜는 토론토 기준 (유저 대부분이 동부 시간대)
+// Daily active users — one (userId, date) record per user per day they touch the API
+// Dates are Toronto-based (most users are in the Eastern time zone)
 const dailyActiveSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   date:   { type: String, required: true }, // 'YYYY-MM-DD' (America/Toronto)
@@ -10,24 +10,24 @@ const dailyActiveSchema = new mongoose.Schema({
 dailyActiveSchema.index({ userId: 1, date: 1 }, { unique: true });
 dailyActiveSchema.index({ date: 1 });
 
-// 토론토 기준 오늘 날짜 키 ('en-CA' 로케일 = YYYY-MM-DD 형식)
+// Today's date key in Toronto (the 'en-CA' locale yields YYYY-MM-DD)
 dailyActiveSchema.statics.todayKey = function () {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Toronto' });
 };
 
-// 방문 기록 (fire-and-forget) — 같은 유저·같은 날은 메모리 캐시로 스킵해 DB 부하 최소화
+// Record a visit, fire-and-forget — an in-memory cache skips repeats for the same user and day to spare the DB
 const seen = new Map(); // userId → dateKey
 dailyActiveSchema.statics.track = function (userId) {
   if (!userId) return;
   const key = this.todayKey();
-  if (seen.get(String(userId)) === key) return; // 오늘 이미 기록함
+  if (seen.get(String(userId)) === key) return; // Already recorded today
   seen.set(String(userId), key);
-  if (seen.size > 20000) seen.clear(); // 메모리 상한 (자정 넘으면 자연히 다시 기록됨)
+  if (seen.size > 20000) seen.clear(); // Memory ceiling (the cache naturally starts recording again past midnight)
   this.updateOne(
     { userId, date: key },
     { $setOnInsert: { userId, date: key } },
     { upsert: true }
-  ).catch(() => { seen.delete(String(userId)); }); // 실패 시 다음 요청에서 재시도
+  ).catch(() => { seen.delete(String(userId)); }); // On failure, retry on the next request
 };
 
 module.exports = mongoose.model('DailyActive', dailyActiveSchema);

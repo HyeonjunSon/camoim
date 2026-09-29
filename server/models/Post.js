@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
 const postSchema = new mongoose.Schema({
-  // 일반 게시판 글이면 채워짐. 모임 글은 null.
+  // Set for regular board posts. Null for group posts.
   boardId: { type: mongoose.Schema.Types.ObjectId, ref: 'Board', default: null },
-  // 모임 게시판 글이면 채워짐. 일반 게시판은 null.
+  // Set for group board posts. Null for regular boards.
   groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', default: null, index: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   title: { type: String, required: true, maxlength: 500 },
@@ -13,28 +13,28 @@ const postSchema = new mongoose.Schema({
   likeCount: { type: Number, default: 0 },
   commentCount: { type: Number, default: 0 },
   likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  images: [{ type: String }], // 첨부 이미지 URL 목록 (최대 4개)
-  city: { type: String, default: '', index: true }, // 작성자 도시 (유저 프로필에서 자동 복사)
-  // 관리자 모더레이션
-  hidden:     { type: Boolean, default: false, index: true }, // 관리자가 숨김 처리
+  images: [{ type: String }], // Attached image URLs (max 4)
+  city: { type: String, default: '', index: true }, // Author's city (copied from their profile)
+  // Admin moderation
+  hidden:     { type: Boolean, default: false, index: true }, // Hidden by an admin
   hiddenReason: { type: String, default: '' },
-  // 자동 숨김 (신고 누적)
+  // Auto-hidden once reports pile up
   autoHidden:   { type: Boolean, default: false, index: true },
   reportCount:  { type: Number, default: 0 },
-  pinned:     { type: Boolean, default: false }, // 게시판 상단 고정
-  // 마켓 류 게시판 (사고팔고/나눔/자동차/룸렌트) 거래 상태
+  pinned:     { type: Boolean, default: false }, // Pinned to the top of the board
+  // Trade status, for marketplace-style boards (market, giveaway, car, roomrent)
   tradeStatus: { type: String, enum: ['selling', 'sold'], default: 'selling', index: true },
 }, { timestamps: true });
 
-// boardId 또는 groupId 중 하나는 반드시 있어야 함
+// Exactly one of boardId / groupId must be present
 postSchema.pre('validate', function (next) {
   if (!this.boardId && !this.groupId) {
-    return next(new Error('boardId 또는 groupId 중 하나는 필요합니다.'));
+    return next(new Error('A post needs either a boardId or a groupId.'));
   }
   next();
 });
 
-// 핫 쿼리용 복합 인덱스 — 게시판 목록/내 글/홈 피드 전부 이 인덱스로 빨라짐
+// Compound index for the hot queries — board listings, my posts and the home feed all ride on it
 postSchema.index({ boardId: 1, createdAt: -1 });
 postSchema.index({ userId: 1, createdAt: -1 });
 postSchema.index({ createdAt: -1 });

@@ -1,5 +1,5 @@
-// 좌표 없이 저장된 업체를 개선된 지오코더로 재시도해 채운다 (idempotent).
-// 실행: railway run node scripts/backfillBusinessGeo.js
+// Retry the improved geocoder against businesses saved without coordinates (idempotent).
+// Run: railway run node scripts/backfillBusinessGeo.js
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Business = require('../models/Business');
@@ -8,7 +8,7 @@ const { geocodeAddress } = require('../utils/geocode');
 (async () => {
   await mongoose.connect(process.env.MONGODB_URI);
 
-  // location 없거나 좌표 배열이 비어있는 업체
+  // Businesses with no location, or an empty coordinate array
   const list = await Business.find({
     $or: [
       { location: { $exists: false } },
@@ -17,7 +17,7 @@ const { geocodeAddress } = require('../utils/geocode');
     ],
   }).lean();
 
-  console.log(`좌표 없는 업체 ${list.length}개 발견\n`);
+  console.log(`found ${list.length} businesses with no coordinates\n`);
   let fixed = 0, stillFail = 0;
 
   for (const b of list) {
@@ -32,12 +32,12 @@ const { geocodeAddress } = require('../utils/geocode');
       console.log(`   ${geo.lat}, ${geo.lng}`);
     } else {
       stillFail++;
-      console.log(`❌ ${b.name}  ← ${b.address}  (여전히 실패 — 수동 좌표 필요)`);
+      console.log(`❌ ${b.name}  ← ${b.address}  (still failing — needs manual coordinates)`);
     }
     // Nominatim rate limit
     await new Promise((s) => setTimeout(s, 1200));
   }
 
-  console.log(`\n완료: ${fixed}개 좌표 채움, ${stillFail}개 여전히 실패`);
+  console.log(`\ndone: ${fixed} filled in, ${stillFail} still failing`);
   await mongoose.disconnect();
 })().catch((e) => { console.error(e); process.exit(1); });

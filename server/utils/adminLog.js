@@ -1,6 +1,6 @@
 const AdminLog = require('../models/AdminLog');
 
-// fire-and-forget 로깅 헬퍼
+// Fire-and-forget logging helper
 function logAdmin(req, action, { targetType = '', targetId = '', meta = {} } = {}) {
   AdminLog.create({
     adminId: req.user?.id,

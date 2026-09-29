@@ -1,9 +1,9 @@
-// Apple / Google ID token 검증 + 사용자 정보 추출 헬퍼
+// Apple / Google ID token verification and profile extraction helpers
 const appleSignin = require('apple-signin-auth');
 const { OAuth2Client } = require('google-auth-library');
 
 // ── Apple ──
-// 클라이언트가 보낸 identityToken을 검증하고 { sub, email, emailRelay } 반환
+// Verify the identityToken sent by the client and return { sub, email, emailRelay }
 async function verifyAppleIdToken(identityToken) {
   const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID; // bundleId
   if (!APPLE_CLIENT_ID) throw new Error('APPLE_CLIENT_ID env missing');
@@ -15,15 +15,15 @@ async function verifyAppleIdToken(identityToken) {
   if (!payload?.sub) throw new Error('Invalid Apple token (no sub)');
   return {
     sub: payload.sub,
-    email: payload.email || null, // 사용자가 "이메일 숨기기" 선택하면 relay 이메일
+    email: payload.email || null, // A relay address when the user chose "hide my email"
     emailVerified: !!payload.email_verified,
     isPrivateEmail: !!payload.is_private_email, // privaterelay.appleid.com
   };
 }
 
-// Apple 토큰 revoke (회원탈퇴 시)
-// 단, refresh token이 필요한데 클라이언트에서 받기 어려운 경우가 많음.
-// 현재는 best-effort: refresh token이 저장되어 있으면 호출, 없으면 skip
+// Revoke the Apple token (on account deletion)
+// This needs a refresh token, which the client often cannot supply.
+// Best effort for now: call it when a refresh token is stored, otherwise skip
 async function revokeAppleToken(refreshToken) {
   if (!refreshToken) return false;
   const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID;
@@ -55,14 +55,14 @@ async function revokeAppleToken(refreshToken) {
 }
 
 // ── Google ──
-// 클라이언트(iOS native)에서 받은 idToken 검증
+// Verify the idToken received from the iOS native client
 async function verifyGoogleIdToken(idToken) {
   const GOOGLE_IOS_CLIENT_ID = process.env.GOOGLE_IOS_CLIENT_ID;
   const GOOGLE_WEB_CLIENT_ID = process.env.GOOGLE_WEB_CLIENT_ID;
   if (!GOOGLE_IOS_CLIENT_ID && !GOOGLE_WEB_CLIENT_ID) {
     throw new Error('GOOGLE client ids missing');
   }
-  // 둘 중 어느 쪽 ID로 발급된 토큰이든 허용 (audience array)
+  // Accept a token issued for either client ID (audience array)
   const audience = [GOOGLE_IOS_CLIENT_ID, GOOGLE_WEB_CLIENT_ID].filter(Boolean);
   const client = new OAuth2Client();
   const ticket = await client.verifyIdToken({ idToken, audience });

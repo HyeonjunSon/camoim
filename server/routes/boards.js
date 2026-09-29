@@ -7,10 +7,11 @@ const University = require('../models/University');
 
 const { expandCity } = require('../utils/metro');
 const { toContentPreview } = require('../utils/contentPreview');
+const { getAllBoards } = require('../utils/boardCache');
 
 const router = express.Router();
 
-// 선택적 인증 - 토큰 있으면 파싱, 없어도 통과
+// Optional auth — parse a token when present, pass through when absent
 async function optionalAuth(req, res, next) {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -28,21 +29,14 @@ async function optionalAuth(req, res, next) {
 // GET /api/boards
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    let query = {};
+    // Verified students also see their own school's boards
+    const myUniversity = (req.user?.role === 'student' && req.user?.verified && req.user?.university) || null;
 
-    // 인증된 학생이면 자기 학교 게시판도 포함
-    if (req.user?.role === 'student' && req.user?.verified && req.user?.university) {
-      query = {
-        $or: [
-          { isUniversityBoard: { $ne: true } },
-          { university: req.user.university }
-        ]
-      };
-    } else {
-      query = { isUniversityBoard: { $ne: true } };
-    }
-
-    const boards = await Board.find(query).sort({ isUniversityBoard: 1, sortOrder: 1 });
+    // The board list comes from the cache (utils/boardCache.js) — same ordering as Board.find
+    const all = await getAllBoards();
+    const boards = all.filter((b) =>
+      b.isUniversityBoard !== true || (myUniversity && b.university === myUniversity)
+    );
     res.json({ success: true, data: boards });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
@@ -50,8 +44,8 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 });
 
-// GET /api/boards/university - 학교 게시판 목록
-// admin: 전체 학교 게시판 / 일반 인증 유저: 본인 학교만
+// GET /api/boards/university — list school boards
+// admin: every school's boards / ordinary verified user: their own school only
 router.get('/university', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -61,13 +55,13 @@ router.get('/university', async (req, res) => {
     const user = await User.findById(decoded.id).select('role verified university');
     if (!user) return res.status(401).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
 
-    // admin은 전체 학교 게시판 반환
+    // Admins get every school board
     if (user.role === 'admin') {
       const boards = await Board.find({ isUniversityBoard: true }).sort({ university: 1, sortOrder: 1 });
       return res.json({ success: true, data: boards, isAdmin: true });
     }
 
-    // 일반 인증 유저 (재학생/졸업생): 본인 학교만
+    // Ordinary verified users (students and alumni): their own school only
     if (!user.verified || !user.university) {
       return res.status(403).json({ success: false, message: '학교 인증이 필요합니다.' });
     }
@@ -88,21 +82,21 @@ router.get('/:boardId/posts', async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    // 학교 게시판이면 인증된 학생만 접근 가능
+    // School boards are reachable only by verified students
     const board = await Board.findById(boardId);
     if (!board) return res.status(404).json({ success: false, message: '게시판을 찾을 수 없습니다.' });
 
     if (board.isUniversityBoard) {
-      // 토큰 확인
+      // Check the token
       const token = req.headers.authorization?.split(' ')[1];
       if (!token) return res.status(403).json({ success: false, message: '학교 인증이 필요합니다.' });
 
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await User.findById(decoded.id).select('role verified university');
-        // admin은 모든 학교 게시판 접근 가능
+        // Admins can reach every school board
         if (user && user.role === 'admin') {
-          // 통과
+          // Allowed
         } else if (!user || user.role !== 'student' || !user.verified || user.university !== board.university) {
           return res.status(403).json({ success: false, message: '해당 학교 인증이 필요합니다.' });
         }
@@ -111,7 +105,7 @@ router.get('/:boardId/posts', async (req, res) => {
       }
     }
 
-    // 검색 & 정렬 & 도시 필터
+    // Search, sort and city filter
     const search = req.query.search?.trim();
     const city = req.query.city?.trim();
     const sortBy = req.query.sort || 'latest'; // latest | popular | comments
@@ -123,7 +117,7 @@ router.get('/:boardId/posts', async (req, res) => {
       const regex = new RegExp(search, 'i');
       filter.$or = [{ title: regex }, { content: regex }];
     }
-    // 마켓 류 게시판 거래 상태 필터 — selling | sold | (none = all)
+    // Trade status filter for marketplace boards — selling | sold | (none = all)
     const tradeStatus = req.query.tradeStatus;
     if (tradeStatus === 'selling' || tradeStatus === 'sold') {
       filter.tradeStatus = tradeStatus;
@@ -146,7 +140,7 @@ router.get('/:boardId/posts', async (req, res) => {
       Post.countDocuments(filter),
     ]);
 
-    // 학교 게시판이면 학생회장 ID를 한 번 조회해 글마다 ⭐ 배지 플래그를 붙임
+    // For school boards, look up the president once and flag each post for the ⭐ badge
     let leaderUserId = null;
     if (board.isUniversityBoard && board.university) {
       const uni = await University.findOne({ name: board.university }).select('leaderUserId').lean();

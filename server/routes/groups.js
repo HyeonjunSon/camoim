@@ -1,5 +1,5 @@
-// 모임 (Group) — 사용자 생성, admin 승인 후 활성화
-// 모임 = 게시판 + (Phase 2) 그룹 채팅 + 멤버십
+// Groups — user-created, activated after admin approval
+// A group is a board + (Phase 2) a group chat + memberships
 const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
@@ -16,7 +16,7 @@ const { requireAuth, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Cloudinary 모임 커버 업로드
+// Cloudinary upload for group covers
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -27,7 +27,7 @@ const coverStorage = new CloudinaryStorage({
   params: {
     folder: 'camoim/groups',
     allowed_formats: ['jpg', 'jpeg', 'png', 'heic', 'heif', 'webp'],
-    // 원본 비율 유지 (1200x600 안에 들어가도록만 축소) — 디스플레이에서 contain으로 letterbox
+    // Keep the original ratio, only shrinking to fit inside 1200x600 — the display letterboxes with contain
     transformation: [{ width: 1200, height: 1200, crop: 'limit', quality: 'auto', fetch_format: 'auto' }],
   },
 });
@@ -35,7 +35,7 @@ const uploadCover = multer({ storage: coverStorage, limits: { fileSize: 10 * 102
 
 const VALID_CATEGORIES = ['hobby', 'study', 'local', 'job', 'workinghol', 'general'];
 
-// 멤버 권한 확인
+// Check member permissions
 async function getMyMembership(groupId, userId) {
   if (!userId) return null;
   return GroupMembership.findOne({ groupId, userId, status: { $in: ['active', 'pending'] } });
@@ -47,11 +47,11 @@ function isOwner(membership) {
   return membership && membership.role === 'owner' && membership.status === 'active';
 }
 
-// ── GET /api/groups — 모임 목록 (검색/필터) ─────────────
-// ?box=all (기본) | mine (가입한 모임만)
+// ── GET /api/groups — group list (search/filter) ───────
+// ?box=all (default) | mine (only groups I joined)
 // ?category=hobby&city=Toronto&q=keyword&sort=popular|recent
-// ?university=토론토 대학교 — 학교 한정 동아리만
-// ?excludeUniversity=true — 일반 모임 (학교 한정 제외)
+// ?university=University of Toronto (UofT) — school clubs only
+// ?excludeUniversity=true — general groups only (school clubs excluded)
 router.get('/', optionalAuth, async (req, res) => {
   try {
     const { box = 'all', category, city, q, sort = 'popular', university, excludeUniversity } = req.query;
@@ -63,19 +63,19 @@ router.get('/', optionalAuth, async (req, res) => {
     if (city) filter.city = city;
     if (university) filter.university = university;
     else if (excludeUniversity === 'true') filter.university = '';
-    // 'mine'이 아닌 'all' 기본 모드에서 university/excludeUniversity 미지정 시
-    // 사용자가 보고 가입할 수 있는 모임 + 이미 가입한 모임 노출:
-    //  - admin: 전부
-    //  - 인증 회원: 일반 모임 + 본인 학교 동아리 + 본인이 이미 가입한 그룹 (학교 무관)
-    //  - 그 외 (미인증/비로그인): 일반 모임 + 본인이 가입한 그룹
-    // (이미 가입한 그룹은 학교 무관하게 항상 보여야 함 — 안 그러면 '내 모임' ⊄ '전체'가 되어버림)
+    // In the default 'all' mode (not 'mine') with neither university nor excludeUniversity set,
+    // show the groups a user may see and join, plus the ones they already belong to:
+    //  - admin: everything
+    //  - verified member: general groups + their own school's clubs + any group they already joined
+    //  - everyone else (unverified or logged out): general groups + groups they joined
+    // (already-joined groups must always appear regardless of school, or 'my groups' would not be a subset of 'all')
     if (!university && excludeUniversity !== 'true' && box !== 'mine') {
       let me = null;
       if (req.user) {
         me = await User.findById(req.user.id).select('verified university role').lean();
       }
       if (me?.role === 'admin') {
-        // 필터 안 거는 — 전부
+        // No filter — everything
       } else {
         const universityClause = (me?.verified && me?.university)
           ? { university: { $in: ['', me.university] } }
@@ -124,7 +124,7 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/groups — 모임 신청 (pending_review) ─────────
+// ── POST /api/groups — apply for a group (pending_review) ──
 router.post('/', requireAuth, async (req, res) => {
   try {
     const { name, description, coverImage, category, city, joinPolicy, schoolOnly } = req.body || {};
@@ -138,7 +138,7 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, message: '잘못된 가입 정책이에요.' });
     }
 
-    // 학교 한정 동아리 — 본인 학교 인증돼있어야 만들 수 있고, 그 학교명만 허용
+    // School clubs — the creator must be verified at that school, and only that school name is accepted
     let groupUniversity = '';
     if (schoolOnly) {
       const me = await User.findById(req.user.id).select('verified university').lean();
@@ -148,9 +148,9 @@ router.post('/', requireAuth, async (req, res) => {
       groupUniversity = me.university;
     }
 
-    // 같은 이름 중복 방지 (active 또는 pending_review)
-    // 학교 동아리는 같은 학교 안에서만 unique, 일반 모임은 다른 일반 모임들끼리 unique
-    // (일반 vs 학교 동아리는 서로 다른 카테고리라 같은 이름 허용)
+    // Prevent duplicate names (across active and pending_review)
+    // School clubs are unique within their school; general groups are unique among general groups
+    // (general groups and school clubs are different categories, so the same name is allowed across them)
     const dup = await Group.findOne({
       name: String(name).trim(),
       university: groupUniversity,
@@ -171,7 +171,7 @@ router.post('/', requireAuth, async (req, res) => {
       memberCount: 1,
     });
 
-    // 그룹장 본인 자동 멤버십 (pending_review 동안에도 본인은 active)
+    // The owner's own membership is automatic (active even while the group is pending_review)
     await GroupMembership.create({
       groupId: group._id,
       userId: req.user.id,
@@ -189,7 +189,7 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-// ── GET /api/groups/:id — 모임 상세 ──────────────────────
+// ── GET /api/groups/:id — group detail ─────────────────
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -203,7 +203,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
       return res.status(404).json({ success: false, message: '모임을 찾을 수 없어요.' });
     }
 
-    // 내 멤버십 정보
+    // My membership details
     let myMembership = null;
     if (req.user) {
       const m = await GroupMembership.findOne({ groupId: group._id, userId: req.user.id }).lean();
@@ -212,7 +212,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
       }
     }
 
-    // 커뮤니티 카드 편집 가능 여부 — 그룹장/부그룹장만
+    // Whether the community card is editable — owner and co-owners only
     const canEditCommunity = !!(myMembership &&
       (myMembership.role === 'owner' || myMembership.role === 'manager') &&
       myMembership.status === 'active');
@@ -246,7 +246,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
   }
 });
 
-// ── PUT /api/groups/:id — 모임 정보 수정 (owner) ──────────
+// ── PUT /api/groups/:id — edit the group (owner) ───────
 router.put('/:id', requireAuth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -258,7 +258,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     let coverChanged = false;
     let nameChanged = false;
 
-    // 이름 변경 — 학교 동아리는 같은 학교 안에서만 unique, 일반 모임은 일반들끼리 unique
+    // Rename — school clubs are unique within their school, general groups among general groups
     if (name !== undefined) {
       const trimmed = String(name).trim();
       if (!trimmed || trimmed.length < 2) {
@@ -266,7 +266,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       }
       if (trimmed !== group.name) {
         const dup = await Group.findOne({
-          _id: { $ne: group._id }, // 자기 자신 제외
+          _id: { $ne: group._id }, // Exclude this group itself
           name: trimmed,
           university: group.university || '',
           status: { $in: ['active', 'pending_review'] },
@@ -287,7 +287,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     if (joinPolicy !== undefined && ['open', 'approval'].includes(joinPolicy)) group.joinPolicy = joinPolicy;
     await group.save();
 
-    // 그룹 채팅방의 캐시된 이름/커버 동기화
+    // Sync the cached name/cover on the group chat room
     if (nameChanged || coverChanged) {
       const update = {};
       if (nameChanged) update.groupName = group.name;
@@ -305,7 +305,7 @@ router.put('/:id', requireAuth, async (req, res) => {
   }
 });
 
-// ── PUT /api/groups/:id/community — 그룹 커뮤니티 카드 편집 (owner/manager) ──
+// ── PUT /api/groups/:id/community — edit the community card (owner/manager) ──
 const COMMUNITY_FIELDS = ['instagram', 'kakaoOpen', 'discord', 'homepage', 'notice'];
 
 function normalizeCommunityField(field, raw) {
@@ -345,7 +345,7 @@ router.put('/:id/community', requireAuth, async (req, res) => {
   }
 });
 
-// ── DELETE /api/groups/:id — 모임 폐쇄 (owner) ────────────
+// ── DELETE /api/groups/:id — close the group (owner) ───
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -353,7 +353,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
     const my = await getMyMembership(group._id, req.user.id);
     if (!isOwner(my)) return res.status(403).json({ success: false, message: '그룹장만 폐쇄할 수 있어요.' });
 
-    // 그룹 채팅방 삭제 (메시지·알림까지)
+    // Delete the group chat room, including messages and notifications
     const chatRoom = await ChatRoom.findOne({ groupId: group._id, kind: 'group' });
     if (chatRoom) {
       await Promise.all([
@@ -362,7 +362,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
         chatRoom.deleteOne(),
       ]);
     }
-    // cascade: 글 삭제 + 멤버십 삭제 + 그룹 status='closed' (소프트)
+    // Cascade: delete posts and memberships, then soft-close with group status='closed'
     await Promise.all([
       Post.deleteMany({ groupId: group._id }),
       GroupMembership.deleteMany({ groupId: group._id }),
@@ -378,14 +378,14 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/groups/:id/join — 가입 ─────────────────────
+// ── POST /api/groups/:id/join ──────────────────────────
 router.post('/:id/join', requireAuth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group || group.status !== 'active') {
       return res.status(404).json({ success: false, message: '가입할 수 있는 모임이 아니에요.' });
     }
-    // 학교 한정 동아리: 인증된 같은 학교 회원만 가입 가능
+    // School clubs: only verified members of the same school may join
     if (group.university) {
       const me = await User.findById(req.user.id).select('verified university').lean();
       if (!me?.verified || me.university !== group.university) {
@@ -413,13 +413,13 @@ router.post('/:id/join', requireAuth, async (req, res) => {
     await GroupMembership.create({ groupId: group._id, userId: req.user.id, role: 'member', status });
     if (status === 'active') {
       await Group.findByIdAndUpdate(group._id, { $inc: { memberCount: 1 } });
-      // 그룹 채팅방에 참여자 추가
+      // Add the participant to the group chat room
       ChatRoom.findOneAndUpdate(
         { groupId: group._id, kind: 'group' },
         { $addToSet: { participants: req.user.id } }
       ).catch(() => {});
     } else {
-      // 승인 대기 알림 → 그룹장에게
+      // Notify the owner that an approval is waiting
       try {
         await Notification.create({
           userId: group.ownerId,
@@ -438,7 +438,7 @@ router.post('/:id/join', requireAuth, async (req, res) => {
   }
 });
 
-// ── DELETE /api/groups/:id/leave — 탈퇴 ──────────────────
+// ── DELETE /api/groups/:id/leave ───────────────────────
 router.delete('/:id/leave', requireAuth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -451,7 +451,7 @@ router.delete('/:id/leave', requireAuth, async (req, res) => {
     await my.deleteOne();
     if (my.status === 'active') {
       await Group.findByIdAndUpdate(group._id, { $inc: { memberCount: -1 } });
-      // 그룹 채팅방에서도 제거
+      // Remove them from the group chat room too
       ChatRoom.findOneAndUpdate(
         { groupId: group._id, kind: 'group' },
         { $pull: { participants: req.user.id } }
@@ -464,8 +464,8 @@ router.delete('/:id/leave', requireAuth, async (req, res) => {
   }
 });
 
-// ── GET /api/groups/:id/members — 멤버 목록 ──────────────
-// ?status=active (기본) | pending  (관리자/owner만 pending 조회 가능)
+// ── GET /api/groups/:id/members — member list ──────────
+// ?status=active (default) | pending  (only an admin or the owner may list pending)
 router.get('/:id/members', requireAuth, async (req, res) => {
   try {
     const status = req.query.status === 'pending' ? 'pending' : 'active';
@@ -484,7 +484,7 @@ router.get('/:id/members', requireAuth, async (req, res) => {
       .populate('userId', 'nickname avatarUrl verified university')
       .lean();
     const formatted = members
-      .filter(m => m.userId) // 탈퇴한 사용자 제외
+      .filter(m => m.userId) // Exclude deleted accounts
       .map(m => ({
         id: m.userId._id,
         nickname: m.userId.nickname,
@@ -502,7 +502,7 @@ router.get('/:id/members', requireAuth, async (req, res) => {
   }
 });
 
-// ── PUT /api/groups/:id/members/:userId/approve — 가입 승인 (owner/manager) ──
+// ── PUT /api/groups/:id/members/:userId/approve — approve a join (owner/manager) ──
 router.put('/:id/members/:userId/approve', requireAuth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -521,7 +521,7 @@ router.put('/:id/members/:userId/approve', requireAuth, async (req, res) => {
     target.status = 'active';
     await target.save();
     await Group.findByIdAndUpdate(group._id, { $inc: { memberCount: 1 } });
-    // 그룹 채팅방에도 추가
+    // Add them to the group chat room as well
     ChatRoom.findOneAndUpdate(
       { groupId: group._id, kind: 'group' },
       { $addToSet: { participants: req.params.userId } }
@@ -541,7 +541,7 @@ router.put('/:id/members/:userId/approve', requireAuth, async (req, res) => {
   }
 });
 
-// ── DELETE /api/groups/:id/members/:userId/reject — 가입 거절 (owner/manager) ──
+// ── DELETE /api/groups/:id/members/:userId/reject — reject a join (owner/manager) ──
 router.delete('/:id/members/:userId/reject', requireAuth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -569,7 +569,7 @@ router.delete('/:id/members/:userId/reject', requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/groups/:id/cover — 커버 이미지 업로드 (owner) ──
+// ── POST /api/groups/:id/cover — upload a cover image (owner) ──
 router.post('/:id/cover', requireAuth, uploadCover.single('image'), async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -580,7 +580,7 @@ router.post('/:id/cover', requireAuth, uploadCover.single('image'), async (req, 
 
     group.coverImage = req.file.path;
     await group.save();
-    // 그룹 채팅방 캐시도 업데이트
+    // Update the group chat room's cache too
     ChatRoom.findOneAndUpdate(
       { groupId: group._id, kind: 'group' },
       { groupCoverImage: req.file.path }
@@ -593,7 +593,7 @@ router.post('/:id/cover', requireAuth, uploadCover.single('image'), async (req, 
   }
 });
 
-// ── DELETE /api/groups/:id/members/:userId — 추방 (owner/manager) ──
+// ── DELETE /api/groups/:id/members/:userId — remove a member (owner/manager) ──
 router.delete('/:id/members/:userId', requireAuth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -609,7 +609,7 @@ router.delete('/:id/members/:userId', requireAuth, async (req, res) => {
     if (!target) return res.status(404).json({ success: false, message: '해당 멤버를 찾을 수 없어요.' });
 
     const wasActive = target.status === 'active';
-    // ban 옵션 (req.query.ban=true면 차단)
+    // Ban option (req.query.ban=true also blocks them)
     if (req.query.ban === 'true') {
       target.status = 'banned';
       target.bannedReason = String(req.body?.reason || '').slice(0, 500);
@@ -619,14 +619,14 @@ router.delete('/:id/members/:userId', requireAuth, async (req, res) => {
     }
     if (wasActive) {
       await Group.findByIdAndUpdate(group._id, { $inc: { memberCount: -1 } });
-      // 그룹 채팅방에서도 제거
+      // Remove them from the group chat room too
       ChatRoom.findOneAndUpdate(
         { groupId: group._id, kind: 'group' },
         { $pull: { participants: req.params.userId } }
       ).catch(() => {});
     }
 
-    // 추방당한 사람에게 알림
+    // Notify the removed member
     try {
       await Notification.create({
         userId: req.params.userId,
@@ -642,7 +642,7 @@ router.delete('/:id/members/:userId', requireAuth, async (req, res) => {
   }
 });
 
-// ── PUT /api/groups/:id/members/:userId/role — 부그룹장 임명/해임 (owner) ──
+// ── PUT /api/groups/:id/members/:userId/role — promote/demote a co-owner (owner) ──
 router.put('/:id/members/:userId/role', requireAuth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -668,7 +668,7 @@ router.put('/:id/members/:userId/role', requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/groups/:id/transfer — 그룹장 양도 (owner) ──
+// ── POST /api/groups/:id/transfer — hand over ownership (owner) ──
 router.post('/:id/transfer', requireAuth, async (req, res) => {
   try {
     const { newOwnerId } = req.body || {};
@@ -683,7 +683,7 @@ router.post('/:id/transfer', requireAuth, async (req, res) => {
     const target = await GroupMembership.findOne({ groupId: group._id, userId: newOwnerId, status: 'active' });
     if (!target) return res.status(404).json({ success: false, message: '대상이 모임 멤버가 아니에요.' });
 
-    // owner role 이동
+    // Move the owner role
     await GroupMembership.findOneAndUpdate(
       { groupId: group._id, userId: req.user.id },
       { role: 'member' }
@@ -700,7 +700,7 @@ router.post('/:id/transfer', requireAuth, async (req, res) => {
   }
 });
 
-// ── GET /api/groups/:id/chat — 모임 채팅방 정보 (멤버 전용) ──
+// ── GET /api/groups/:id/chat — group chat room info (members only) ──
 router.get('/:id/chat', requireAuth, async (req, res) => {
   try {
     const groupId = req.params.id;
@@ -715,7 +715,7 @@ router.get('/:id/chat', requireAuth, async (req, res) => {
     }
 
     let room = await ChatRoom.findOne({ groupId, kind: 'group' });
-    // 옛 모임 (Phase 2A 이전 승인됨)인데 채팅방이 없으면 lazy create
+    // Lazily create the room for older groups (approved before Phase 2A) that have none
     if (!room) {
       const group = await Group.findById(groupId).lean();
       if (!group || group.status !== 'active') {
@@ -750,7 +750,7 @@ router.get('/:id/chat', requireAuth, async (req, res) => {
   }
 });
 
-// ── GET /api/groups/:id/posts — 모임 게시판 글 목록 (멤버 전용) ──
+// ── GET /api/groups/:id/posts — group board posts (members only) ──
 router.get('/:id/posts', requireAuth, async (req, res) => {
   try {
     const groupId = req.params.id;
@@ -801,7 +801,7 @@ router.get('/:id/posts', requireAuth, async (req, res) => {
   }
 });
 
-// ── PUT /api/groups/:id/notifications — 내 알림 설정 ───
+// ── PUT /api/groups/:id/notifications — my notification settings ──
 router.put('/:id/notifications', requireAuth, async (req, res) => {
   try {
     const my = await GroupMembership.findOne({ groupId: req.params.id, userId: req.user.id, status: 'active' });

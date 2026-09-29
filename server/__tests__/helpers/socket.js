@@ -1,7 +1,7 @@
-// socket.io 클라이언트용 대기 헬퍼
+// Waiting helpers for the socket.io client
 const { io: ioClient } = require('socket.io-client');
 
-// 토큰으로 연결하고 connect 완료까지 기다린다
+// Connect with a token and wait until the connection is established
 function connectClient(url, token) {
   return new Promise((resolve, reject) => {
     const socket = ioClient(url, {
@@ -15,11 +15,11 @@ function connectClient(url, token) {
   });
 }
 
-// 특정 이벤트 1회를 기다린다 (타임아웃 시 실패)
+// Wait for one occurrence of an event (fails on timeout)
 function waitFor(socket, event, timeoutMs = 4000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
-      () => reject(new Error(`'${event}' 이벤트가 ${timeoutMs}ms 안에 오지 않았습니다.`)),
+      () => reject(new Error(`the '${event}' event did not arrive within ${timeoutMs}ms.`)),
       timeoutMs
     );
     socket.once(event, (payload) => {
@@ -29,10 +29,10 @@ function waitFor(socket, event, timeoutMs = 4000) {
   });
 }
 
-// 지정 시간 동안 이벤트가 오지 않아야 함을 검증할 때 사용
+// Used to assert that an event does NOT arrive within a given window
 function expectNoEvent(socket, event, windowMs = 500) {
   return new Promise((resolve, reject) => {
-    const handler = (payload) => reject(new Error(`오면 안 되는 '${event}' 이벤트 수신: ${JSON.stringify(payload)}`));
+    const handler = (payload) => reject(new Error(`received the '${event}' event, which should never fire: ${JSON.stringify(payload)}`));
     socket.once(event, handler);
     setTimeout(() => {
       socket.off(event, handler);

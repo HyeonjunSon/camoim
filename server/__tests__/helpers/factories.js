@@ -1,4 +1,4 @@
-// 테스트용 사용자/채팅방 생성 헬퍼
+// Helpers that build test users and chat rooms
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../../models/User');
@@ -11,7 +11,7 @@ async function createUser(overrides = {}) {
   const user = await User.create({
     email: `user-${suffix}@test.local`,
     nickname: `tester-${suffix}`,
-    passwordHash: await bcrypt.hash(DEFAULT_PASSWORD, 4), // 테스트는 라운드 낮게
+    passwordHash: await bcrypt.hash(DEFAULT_PASSWORD, 4), // Tests use a low cost factor
     emailVerified: true,
     ...overrides,
   });

@@ -3,16 +3,16 @@ const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// 발신 주소 — Resend에서 도메인 검증 완료된 주소여야 함
-// 도메인 검증 전에는 'onboarding@resend.dev'로 fallback (본인 이메일로만 발송 가능)
+// Sender address — must be a domain already verified with Resend
+// Before domain verification, fall back to 'onboarding@resend.dev' (which can only mail your own address)
 const FROM_ADDRESS = process.env.MAIL_FROM || 'CaMoim <onboarding@resend.dev>';
 
-// 6자리 인증 코드 생성 — Math.random()은 예측 가능한 PRNG라 CSPRNG 사용
+// Generate a 6-digit code — Math.random() is a predictable PRNG, so use a CSPRNG
 function generateCode() {
   return String(crypto.randomInt(100000, 1000000));
 }
 
-// 인증 이메일 발송
+// Send the verification email
 async function sendVerificationEmail(to, code) {
   const text = [
     '캐모임 이메일 인증',
@@ -47,7 +47,7 @@ async function sendVerificationEmail(to, code) {
   });
 
   if (error) {
-    // Resend 에러를 상위로 전달 (routes/auth.js catch 블록에서 로그 찍음)
+    // Let the Resend error bubble up (the catch block in routes/auth.js logs it)
     const err = new Error(error.message || 'Resend 이메일 발송 실패');
     err.code = error.name || 'RESEND_ERROR';
     err.response = error;
@@ -57,7 +57,7 @@ async function sendVerificationEmail(to, code) {
   return data;
 }
 
-// 비밀번호 재설정 이메일 발송
+// Send the password reset email
 async function sendPasswordResetEmail(to, code) {
   const text = [
     'CaMoim Password Reset / 캐모임 비밀번호 재설정',

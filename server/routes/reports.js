@@ -15,7 +15,7 @@ const REASON_LABELS = {
   etc: '기타',
 };
 
-// N건 이상 신고 누적 시 자동 숨김 (Apple UGC 가이드라인 1.2 대응)
+// Auto-hide once N reports accumulate (per Apple UGC guideline 1.2)
 const AUTO_HIDE_THRESHOLD = 3;
 
 async function maybeAutoHide(targetType, targetId) {
@@ -30,11 +30,11 @@ async function maybeAutoHide(targetType, targetId) {
   } else if (targetType === 'comment') {
     await Comment.updateOne({ _id: targetId }, { $set: { autoHidden: true, reportCount: count } });
   }
-  // user 신고는 별도 워크플로 (admin이 검토) — 자동 차단은 위험
+  // User reports follow a separate workflow with admin review — auto-blocking would be risky
   return true;
 }
 
-// POST /api/reports — 게시글 또는 댓글 신고
+// POST /api/reports — report a post or a comment
 router.post('/', requireAuth, async (req, res) => {
   try {
     const { targetType, targetId, postId, reason, detail } = req.body;
@@ -60,7 +60,7 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(409).json({ success: false, message: '이미 신고한 대상입니다.' });
     }
 
-    // 신고 시점 작성자 스냅샷 캡처 — 추후 탈퇴해도 admin이 누가 썼는지 확인 가능
+    // Snapshot the author at report time, so an admin can still tell who wrote it after the account is deleted
     let targetAuthorId = null;
     let targetAuthorNickname = '';
     let targetIsAnonymous = false;
@@ -100,7 +100,7 @@ router.post('/', requireAuth, async (req, res) => {
       detail: String(detail || '').slice(0, 1000).trim(),
     });
 
-    // 자동 숨김 트리거
+    // Auto-hide trigger
     try {
       await maybeAutoHide(targetType, targetId);
     } catch (hideErr) {

@@ -7,7 +7,7 @@ const { sendPush } = require('../utils/push');
 
 const router = express.Router();
 
-// POST /api/inquiries — 사용자 문의 작성
+// POST /api/inquiries — file a user inquiry
 router.post('/', requireAuth, async (req, res) => {
   try {
     const {
@@ -22,7 +22,7 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, message: '잘못된 카테고리입니다.' });
     }
 
-    // 도배 방지: 미답변 문의 5개 이상 차단
+    // Flood guard: refuse once 5 inquiries are awaiting an answer
     const openCount = await Inquiry.countDocuments({
       userId: req.user.id,
       status: 'open',
@@ -53,7 +53,7 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/inquiries/me — 내 문의 목록
+// GET /api/inquiries/me — my inquiries
 router.get('/me', requireAuth, async (req, res) => {
   try {
     const inquiries = await Inquiry.find({ userId: req.user.id })
@@ -74,7 +74,7 @@ router.get('/me', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/inquiries/me/:id — 내 문의 상세
+// GET /api/inquiries/me/:id — one of my inquiries
 router.get('/me/:id', requireAuth, async (req, res) => {
   try {
     const i = await Inquiry.findById(req.params.id);
@@ -101,7 +101,7 @@ router.get('/me/:id', requireAuth, async (req, res) => {
   }
 });
 
-// ─── 관리자 전용 ───
+// ─── Admin only ───
 
 // GET /api/inquiries/admin?type=ad|general&status=open|answered
 router.get('/admin', requireAuth, requireRole('admin'), async (req, res) => {
@@ -138,7 +138,7 @@ router.get('/admin', requireAuth, requireRole('admin'), async (req, res) => {
   }
 });
 
-// PUT /api/inquiries/admin/:id/answer — 답변 작성 + 푸시
+// PUT /api/inquiries/admin/:id/answer — write an answer and push
 router.put('/admin/:id/answer', requireAuth, requireRole('admin'), async (req, res) => {
   try {
     const { answer } = req.body;
@@ -154,7 +154,7 @@ router.put('/admin/:id/answer', requireAuth, requireRole('admin'), async (req, r
     inquiry.answeredAt = new Date();
     await inquiry.save();
 
-    // 사용자 푸시 알림
+    // Push notification to the user
     User.findById(inquiry.userId).select('pushToken notificationSettings').lean()
       .then((u) => {
         if (!u?.pushToken) return;

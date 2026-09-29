@@ -1,18 +1,18 @@
 const mongoose = require('mongoose');
 
-// 자체 이벤트 트래킹 — 사용자 행동 분석용 (외부 SDK 없음, OTA로 추가 가능)
-// 예: search_submit, board_subscribe, post_share, post_create 등
+// In-house event tracking for user behaviour — no third-party SDK, so it can ship over OTA
+// e.g. search_submit, board_subscribe, post_share, post_create
 const analyticsEventSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
-  name: { type: String, required: true, index: true }, // 이벤트명 (snake_case)
-  props: { type: mongoose.Schema.Types.Mixed, default: {} }, // 자유 속성
+  name: { type: String, required: true, index: true }, // Event name (snake_case)
+  props: { type: mongoose.Schema.Types.Mixed, default: {} }, // Free-form properties
   platform: { type: String, enum: ['ios', 'android', 'web', null], default: null },
   appVersion: { type: String, default: '' },
 }, { timestamps: { createdAt: true, updatedAt: false } });
 
-// 시간 + 이벤트별 집계 쿼리용
+// For time-bucketed and per-event aggregation queries
 analyticsEventSchema.index({ name: 1, createdAt: -1 });
-// 30일 후 자동 삭제 (TTL) — 저장 비용 관리
+// Auto-deleted after 30 days (TTL) — keeps storage cost down
 analyticsEventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 30 });
 
 module.exports = mongoose.model('AnalyticsEvent', analyticsEventSchema);

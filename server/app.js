@@ -1,5 +1,5 @@
-// Express 앱 조립만 담당 — listen / DB 연결 / 시드는 index.js가 맡는다.
-// 테스트(supertest)가 서버를 띄우지 않고 앱만 가져다 쓸 수 있게 분리.
+// Assembles the Express app only — listen, DB connection and seeding live in index.js.
+// Split out so tests (supertest) can use the app without starting a server.
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
@@ -36,7 +36,7 @@ app.use(helmet({
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 
-// 점검모드/IP차단/강제업데이트 가드 (admin/health 제외)
+// Maintenance-mode / IP-block / force-update guard (admin and health are exempt)
 app.use(systemGuard);
 
 app.use('/api/auth', authRoutes);
@@ -61,17 +61,17 @@ app.use('/api/drafts', draftRoutes);
 
 app.get('/health', (req, res) => res.json({ success: true, message: 'CaMoim 서버 정상 작동 중' }));
 
-// 개인정보처리방침 · Privacy Policy (App Store 심사 필수 URL)
+// Privacy Policy (required URL for App Store review)
 app.get(['/privacy', '/privacy-policy'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
 });
 
-// 계정 삭제 안내 · Account Deletion (Google Play 필수 URL)
+// Account Deletion (required URL for Google Play)
 app.get(['/delete-account', '/account-deletion'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'delete-account.html'));
 });
 
-// 아동 안전 정책 · Child Safety Standards (Google Play Social 카테고리 필수 URL)
+// Child Safety Standards (required URL for the Google Play Social category)
 app.get(['/child-safety', '/child-safety-standards', '/csae'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'child-safety.html'));
 });

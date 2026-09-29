@@ -7,18 +7,28 @@ const { sendPush } = require('../utils/push');
 
 const router = express.Router();
 
-// GET /api/notices — 공지 목록 (공개)
+// GET /api/notices — announcement list (public)
+// populate would add a second serial query for the author, so $lookup keeps it to one DB round trip
 router.get('/', async (req, res) => {
   try {
-    const notices = await Notice.find()
-      .sort({ pinned: -1, createdAt: -1 })
-      .populate('authorId', 'nickname');
+    const notices = await Notice.aggregate([
+      { $sort: { pinned: -1, createdAt: -1 } },
+      { $lookup: {
+        from: 'users',
+        let: { uid: '$authorId' },
+        pipeline: [
+          { $match: { $expr: { $eq: ['$_id', '$$uid'] } } },
+          { $project: { nickname: 1 } },
+        ],
+        as: 'author',
+      } },
+    ]);
     const data = notices.map(n => ({
       id: n._id,
       title: n.title,
       content: n.content,
       pinned: n.pinned,
-      author: n.authorId?.nickname,
+      author: n.author?.[0]?.nickname,
       createdAt: n.createdAt,
       updatedAt: n.updatedAt,
     }));
@@ -52,7 +62,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/notices — 공지 작성 (관리자)
+// POST /api/notices — create an announcement (admin)
 router.post('/', requireAuth, requireRole('admin'), async (req, res) => {
   try {
     const { title, content, pinned = false, sendPush: doPush = false } = req.body;
@@ -66,7 +76,7 @@ router.post('/', requireAuth, requireRole('admin'), async (req, res) => {
       authorId: req.user.id,
     });
 
-    // 푸시 일괄 발송 (fire-and-forget)
+    // Bulk push, fire-and-forget
     if (doPush) {
       User.find({
         pushToken: { $ne: '' },
@@ -103,7 +113,7 @@ router.post('/', requireAuth, requireRole('admin'), async (req, res) => {
   }
 });
 
-// PUT /api/notices/:id (관리자)
+// PUT /api/notices/:id (admin)
 router.put('/:id', requireAuth, requireRole('admin'), async (req, res) => {
   try {
     const { title, content, pinned } = req.body;
@@ -120,7 +130,7 @@ router.put('/:id', requireAuth, requireRole('admin'), async (req, res) => {
   }
 });
 
-// DELETE /api/notices/:id (관리자)
+// DELETE /api/notices/:id (admin)
 router.delete('/:id', requireAuth, requireRole('admin'), async (req, res) => {
   try {
     await Notice.findByIdAndDelete(req.params.id);

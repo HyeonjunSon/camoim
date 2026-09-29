@@ -1,8 +1,8 @@
-// 글쓰기 임시저장 (드래프트)
-// - GET /api/drafts — 내 드래프트 최신순 (최대 20개)
-// - POST /api/drafts — 새 드래프트 저장
-// - PUT /api/drafts/:id — 본인 드래프트 수정 (auto-save)
-// - DELETE /api/drafts/:id — 본인 드래프트 삭제
+// Post drafts
+// - GET /api/drafts — my drafts, newest first (up to 20)
+// - POST /api/drafts — save a new draft
+// - PUT /api/drafts/:id — edit my draft (auto-save)
+// - DELETE /api/drafts/:id — delete my draft
 const express = require('express');
 const Draft = require('../models/Draft');
 const { requireAuth } = require('../middleware/auth');
@@ -39,7 +39,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/drafts
-// 최대 개수 초과 시 가장 오래된 것 자동 삭제 (FIFO)
+// Past the cap, the oldest draft is dropped automatically (FIFO)
 router.post('/', async (req, res) => {
   try {
     const patch = pickPatch(req.body);
@@ -48,7 +48,7 @@ router.post('/', async (req, res) => {
     }
     const draft = await Draft.create({ ...patch, userId: req.user.id });
 
-    // 정원 초과 정리
+    // Trim back to the cap
     const count = await Draft.countDocuments({ userId: req.user.id });
     if (count > MAX_DRAFTS_PER_USER) {
       const overflow = count - MAX_DRAFTS_PER_USER;

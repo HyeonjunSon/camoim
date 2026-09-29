@@ -1,11 +1,11 @@
-/** 서버 테스트 설정 — Node 환경, in-memory MongoDB 사용 */
+/** Server test configuration — Node environment, in-memory MongoDB */
 module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/__tests__/**/*.test.js'],
   setupFiles: ['<rootDir>/__tests__/helpers/env.js'],
-  // mongodb-memory-server 최초 실행 시 바이너리 다운로드가 걸릴 수 있음
+  // The first mongodb-memory-server run may need to download a binary
   testTimeout: 30000,
-  // 통합 테스트가 같은 in-memory DB를 공유하지 않도록 파일 단위 직렬 실행
+  // Run files serially so integration tests never share one in-memory DB
   maxWorkers: 1,
   collectCoverageFrom: [
     'routes/**/*.js',

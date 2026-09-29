@@ -3,9 +3,9 @@ const mongoose = require('mongoose');
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,  // 연결 실패 시 5초 안에 에러
-      socketTimeoutMS: 45000,          // 소켓 45초 유지
-      maxPoolSize: 10,                 // 연결 풀 유지 (재연결 방지)
+      serverSelectionTimeoutMS: 5000,  // Fail within 5s if the connection cannot be established
+      socketTimeoutMS: 45000,          // Keep sockets alive for 45s
+      maxPoolSize: 10,                 // Hold the connection pool open (avoids reconnect churn)
     });
     console.log('✅ MongoDB 연결 성공');
   } catch (err) {
