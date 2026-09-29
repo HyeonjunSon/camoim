@@ -1,6 +1,6 @@
-# 로그인 플로우 — 이메일/비밀번호로 로그인해서 탭 네비게이션까지 도달하는지 확인
+# Login flow — signs in with email/password and confirms the tab navigation is reached
 appId: com.hyeonjun122.cahanin
-name: 01 로그인
+name: 01 Login
 env:
   EMAIL: ${MAESTRO_EMAIL}
   PASSWORD: ${MAESTRO_PASSWORD}
@@ -12,7 +12,7 @@ tags:
     permissions:
       notifications: deny
 
-# 앱이 로그인 화면까지 뜨는 것을 기다린다 (스플래시/폰트 로딩 여유)
+# Wait for the app to reach the login screen (allowing for splash and font loading)
 - extendedWaitUntil:
     visible:
       id: "login-email"
@@ -30,7 +30,7 @@ tags:
 - tapOn:
     id: "login-submit"
 
-# 로그인 성공 = 하단 탭 네비게이션 진입
+# A successful login lands on the bottom tab navigation
 - extendedWaitUntil:
     visible:
       id: "tab-chat"

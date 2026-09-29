@@ -3,8 +3,8 @@
 Three layers. Further down is slower and closer to reality.
 
 ```
-Client unit (jest-expo)         47 tests · ~1s    pure logic, no native
-Server unit + integration       59 tests · ~14s   real Express + in-memory MongoDB + real Socket.io
+Client unit (jest-expo)         72 tests · ~1s    pure logic, no native
+Server unit + integration       81 tests · ~15s   real Express + in-memory MongoDB + real Socket.io
 Maestro E2E                      2 flows          real app on a device/emulator
 ```
 
@@ -34,6 +34,9 @@ whole app quietly.
 | [`src/lib/__tests__/runtimeLang.test.js`](../src/lib/__tests__/runtimeLang.test.js) | The out-of-React i18n holder, **plus ko/en translation key parity** |
 | [`src/lib/__tests__/university.test.js`](../src/lib/__tests__/university.test.js) | `"… (UBC)" → "UBC"` abbreviation extraction |
 | [`src/constants/__tests__/boards.test.js`](../src/constants/__tests__/boards.test.js) | **Client ↔ server board slug synchronization** |
+| [`src/lib/__tests__/session.test.js`](../src/lib/__tests__/session.test.js) | Cold-start session restore. **Only an auth failure (401, revoked, banned, suspended) signs the user out** — offline, timeout, 5xx, and maintenance keep the session. Pins the fix for the offline-logout bug ([perf/README.md](../perf/README.md#a-bug-fixed-on-the-way)) |
+| [`src/lib/__tests__/perf.test.js`](../src/lib/__tests__/perf.test.js) | Production telemetry: cold start reported once, never for sessions that went through the login screen |
+| [`src/lib/__tests__/storage.test.js`](../src/lib/__tests__/storage.test.js) | Cached-user storage, including a corrupted entry falling back to network restore |
 
 The last two carry the most weight. `CLAUDE.md` contains rules of the form "update both
 sides" — client and server board constants, Korean and English dictionaries. A rule a human
@@ -65,11 +68,13 @@ server/__tests__/
 │   ├── factories.js    createUser / tokenFor / createDmRoom
 │   └── socket.js       connectClient / waitFor / expectNoEvent
 ├── unit/
+│   ├── cache.test.js
 │   ├── contentPreview.test.js
 │   └── metro.test.js
 └── integration/
     ├── auth.test.js          real Express app via supertest
     ├── chat.socket.test.js   real Socket.io server + two real clients
+    ├── home-feed.test.js     home screen APIs, caching and invalidation
     └── posts.like.test.js    like toggle, incl. concurrent requests
 ```
 
@@ -103,7 +108,7 @@ login tests trip the 10-per-15-minutes limit and the rest of the suite fails on 
   suspended account `403`, expired suspension auto-lifted
 - `passwordHash` never appears in any response body
 
-**[`chat.socket.test.js`](../server/__tests__/integration/chat.socket.test.js) — 20 tests** — the core flow
+**[`chat.socket.test.js`](../server/__tests__/integration/chat.socket.test.js) — 22 tests** — the core flow
 
 - Socket JWT handshake: missing and forged tokens rejected, a real login token accepted,
   **revoked (`tokenVersion`), banned, and suspended accounts rejected**
@@ -118,6 +123,33 @@ login tests trip the 10-per-15-minutes limit and the rest of the suite fails on 
 - Group rooms broadcast to all N participants
 - **Concurrency**: 20 simultaneous sends from two users leave every `unreadCount` exact
   (pins the atomic `$inc`)
+- **Validate before writing**: message save and room update now run concurrently, so a
+  2001-character message must be rejected *before* either write — otherwise the room preview
+  and unread count would advance for a message that was never stored
+
+**[`home-feed.test.js`](../server/__tests__/integration/home-feed.test.js) — 13 tests**
+
+Written alongside the [performance work](../perf/README.md) to prove the rewritten queries
+return the same results as the ones they replaced.
+
+- `hot-by-board`: board order, per-board limit, hotScore order; 48-hour window, hidden and
+  school-board posts excluded; author exposed as nickname only
+- **`top=5` returns exactly what the app used to compute client-side** from the full response,
+  including tie-breaking
+- **Blocked users' posts stay hidden in `aggregate()` pipelines.** `aggregate` skips Mongoose
+  casting, so string IDs in `$match` silently match nothing. Mutation-checked: removing the
+  `ObjectId` conversion fails three tests
+- **Blocking and unblocking take effect on the very next request** (cache invalidated by model
+  hooks); adding or editing a board likewise
+- `home-sections` limits, city filter applied only to local boards and expanded to the metro
+  area; `/boards` shows a verified student their own school's boards and no other school's;
+  `/notices` puts pinned first
+
+**[`cache.test.js`](../server/__tests__/unit/cache.test.js) — 7 tests**
+
+- TTL hit and expiry, eviction past `max`, failed loads not cached
+- **Concurrent lookups for one key hit the loader once** (in-flight coalescing)
+- **A load that started before `clear()` doesn't write its stale result back afterwards**
 
 **[`posts.like.test.js`](../server/__tests__/integration/posts.like.test.js) — 4 tests**
 

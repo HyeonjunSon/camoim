@@ -7,14 +7,14 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# 같은 브랜치에 새 푸시가 오면 이전 실행 취소 (러너 시간 절약)
+# A new push to the same branch cancels the previous run (saves runner minutes)
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   client:
-    name: 클라이언트 유닛 테스트 (Expo/RN)
+    name: Client unit tests (Expo/RN)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,14 +25,14 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      # patch-package(postinstall)가 patches/를 적용해야 하므로 ci 그대로 사용
-      - name: 의존성 설치
+      # patch-package (postinstall) must apply patches/, so plain `npm ci` is used
+      - name: Install dependencies
         run: npm ci
 
-      - name: Jest 실행
+      - name: Run Jest
         run: npm test -- --ci --coverage
 
-      - name: 커버리지 업로드
+      - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -42,10 +42,10 @@ jobs:
           if-no-files-found: ignore
 
   server:
-    name: 서버 유닛·통합 테스트 (Express/Socket.io)
+    name: Server unit and integration tests (Express/Socket.io)
     runs-on: ubuntu-latest
     env:
-      # mongodb-memory-server 바이너리 위치를 고정해서 캐시 키와 맞춘다
+      # Pin where mongodb-memory-server puts its binary so it matches the cache key
       MONGOMS_DOWNLOAD_DIR: ${{ github.workspace }}/.cache/mongodb-binaries
     steps:
       - uses: actions/checkout@v4
@@ -56,22 +56,22 @@ jobs:
           cache: npm
           cache-dependency-path: server/package-lock.json
 
-      - name: 의존성 설치
+      - name: Install dependencies
         working-directory: server
         run: npm ci
 
-      # mongodb-memory-server가 받아오는 mongod 바이너리는 매 실행마다 받지 않도록 캐시
-      - name: mongod 바이너리 캐시
+      # Cache the mongod binary so it is not downloaded on every run
+      - name: Cache mongod binary
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/.cache/mongodb-binaries
           key: mongodb-binaries-${{ runner.os }}
 
-      - name: Jest 실행
+      - name: Run Jest
         working-directory: server
         run: npm test -- --ci --coverage
 
-      - name: 커버리지 업로드
+      - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:

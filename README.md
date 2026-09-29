@@ -90,6 +90,32 @@ cost me — is in **[docs/DECISIONS.md](docs/DECISIONS.md)**.
 
 ---
 
+## Performance
+
+Measured, changed, and measured again under identical conditions. Methodology, raw data,
+and the reasoning behind each change: **[perf/README.md](perf/README.md)**.
+
+| Metric | Before | After | |
+|---|---|---|---|
+| Home feed — 5 APIs, server side, p50 | 393 ms | **156 ms** | **−60%** |
+| Chat message round trip (DM), p50 | 299 ms | **152 ms** | **−49%** |
+| Home feed payload | 61.6 KB | **19.7 KB** | **−68%** |
+| App bundle (JS + assets) | 15.66 MiB | **11.83 MiB** | **−24.5%** |
+| Cold start — network wait on the critical path | ~733 ms | **~251 ms** | est. −66% |
+
+The starting point was a production measurement: every MongoDB round trip was costing
+**~70 ms**, because the app server and database sit in different regions. That made the
+number of *sequential* queries per request the dominant cost, so the work was counting them
+on each hot path and removing them — consolidating 13 per-board aggregations into one,
+replacing `populate` with `$lookup`, running independent writes concurrently, and caching
+rarely-changing data with invalidation wired into Mongoose model hooks.
+
+Cold start is an estimate built from measured components; the real number comes from
+production telemetry that ships with the change. Along the way this fixed a bug where
+opening the app offline, or during a deploy, logged the user out.
+
+---
+
 ## Engineering deep dives
 
 Four production problems, written up as symptom → investigation → root cause → fix → trade-off.
@@ -107,8 +133,8 @@ Full text in **[docs/ENGINEERING-NOTES.md](docs/ENGINEERING-NOTES.md)**.
 ## Testing & CI
 
 ```
-Client unit (jest-expo)      47 tests   ~1s    pure logic, no native
-Server unit + integration    59 tests   ~14s   real Express + in-memory MongoDB + real Socket.io
+Client unit (jest-expo)      72 tests   ~1s    pure logic, no native
+Server unit + integration    81 tests   ~15s   real Express + in-memory MongoDB + real Socket.io
 Maestro E2E                   2 flows          real app on a device/emulator
 ```
 
@@ -161,6 +187,7 @@ camoim/
 │   ├── middleware/           auth · requireRole · systemGuard
 │   └── __tests__/            unit + integration
 ├── .maestro/                 E2E flows
+├── perf/                     benchmarks, latency-injection proxy, results
 └── docs/                     architecture, decisions, engineering notes, testing
 ```
 
@@ -186,7 +213,7 @@ moving between networks needs no edit. Production builds always use Railway rega
 this flag.
 
 ```bash
-npm run test:all        # 106 tests
+npm run test:all        # 153 tests
 ```
 
 ---

@@ -38,7 +38,7 @@
 | 항목 | 서비스 | 비고 |
 |---|---|---|
 | 백엔드 호스팅 | **Railway** | GitHub 자동 배포, Root Directory = `server` |
-| DB | **MongoDB Atlas** | 클러스터: `camoim.dipyple.mongodb.net`, Database: `cahanin` |
+| DB | **MongoDB Atlas** | 클러스터 호스트명은 Railway `MONGODB_URI`에만 존재 (공개 레포에 안 적음), Database: `cahanin` |
 | 이미지 | **Cloudinary** | 폴더: `camoim/posts`, `camoim/avatars`, `camoim/verify` |
 | 이메일 | **Resend API** | HTTPS 기반 (Railway가 SMTP 차단) |
 | 도메인 | `camoimapp.com` | Cloudflare DNS, Resend 검증 완료 |
@@ -186,6 +186,7 @@ ipconfig getifaddr en0
 | [docs/DECISIONS.md](docs/DECISIONS.md) | 기술 선택 11건 — 이유 + 트레이드오프 + "다시 고른다면" |
 | [docs/ENGINEERING-NOTES.md](docs/ENGINEERING-NOTES.md) | 프로덕션 문제 4건 상세 (면접용 30초 스크립트 포함) |
 | [docs/TESTING.md](docs/TESTING.md) | 테스트 3계층 + CI |
+| [docs/BUSINESS-MAP-PLAN.md](docs/BUSINESS-MAP-PLAN.md) | 한인업체 지도 설계 문서 + 실제 출시된 결과 차이 |
 | [server/.env.example](server/.env.example) | 서버 환경변수 템플릿 |
 
 기능·구조를 바꾸면 해당 문서도 같이 갱신할 것. 특히 ARCHITECTURE.md의 "Known limits"와
@@ -196,14 +197,15 @@ DECISIONS.md의 트레이드오프는 사실과 어긋나면 역효과가 난다
 ## 🧪 테스트 & CI
 
 ```bash
-npm test             # 클라이언트 Jest (47 tests)
-npm run test:server  # 서버 Jest — 유닛 + 통합 (59 tests)
+npm test             # 클라이언트 Jest (72 tests)
+npm run test:server  # 서버 Jest — 유닛 + 통합 (81 tests)
 npm run test:all     # 둘 다
 ```
 
 - 상세: [docs/TESTING.md](docs/TESTING.md), E2E: [.maestro/README.md](.maestro/README.md)
 - ⚠️ **docs/ 와 README.md, .maestro/README.md 는 영어로 작성** (채용 담당자·북미 지원용).
-  CLAUDE.md와 코드 주석은 한국어 유지. 문서 수정 시 언어 섞지 말 것
+  **코드 주석도 전부 영어**로 통일됨 (2026-09, 공개 레포 + 북미 채용 대비).
+  CLAUDE.md만 한국어 유지. 문서 수정 시 언어 섞지 말 것
 - **CI**: `.github/workflows/ci.yml` — main push/PR마다 양쪽 Jest 자동 실행
 - **서버 앱 분리**: `server/app.js`(Express 조립, 부작용 없음) ↔ `server/index.js`(DB연결·시드·listen).
   테스트는 `app.js`를 supertest로 가져다 쓴다. 새 라우트는 `app.js`에 마운트할 것
@@ -213,12 +215,37 @@ npm run test:all     # 둘 다
 
 ---
 
+## ⚡ 성능 (2주차, 2026-09)
+
+상세·수치: [perf/README.md](perf/README.md). 결과 원본은 `perf/results/*.json`.
+
+- **운영 DB 왕복 1회 ≈ 70ms** (Railway ↔ Atlas 리전 불일치 추정 — 대시보드 확인 필요).
+  그래서 비용은 쿼리 속도가 아니라 **요청당 "직렬" DB 호출 횟수**. 새 API는 독립 쿼리를 `Promise.all`로
+- **캐시** (`server/utils/cache.js`): 게시판 목록(`utils/boardCache.js`, 60s), 차단 목록(`utils/blocks.js`, 30s)
+  - 무효화는 **`models/Board.js`, `models/Block.js`의 Mongoose post 훅**이 자동 처리 — 라우트에서 invalidate 호출 불필요
+  - ⚠️ 드라이버 직접 쓰기(`collection.xxx`, 마이그레이션 스크립트)는 훅을 안 탐 → TTL 후 반영
+  - ⚠️ 단일 인스턴스 전제. 인스턴스 늘리면(AWS 이전 시) 다른 인스턴스는 TTL만큼 낡은 값
+- ⚠️ **`aggregate()`는 Mongoose 캐스팅이 없다** — `$match`에 문자열 ID를 넣으면 조용히 아무것도 안 걸림.
+  `new mongoose.Types.ObjectId(id)`로 변환 필수 (차단 필터가 뚫렸던 함정, `home-feed.test.js`가 지킴)
+- **`$lookup`으로 유저 조인 시 `pipeline`에서 `$project: { nickname: 1 }`** — 유저 문서 전체(passwordHash 등) 끌어오지 않기
+- `GET /posts/hot-by-board?top=5` — 앱은 top=5로 5개만 받음. top 없는 구버전 앱은 기존 응답 그대로(하위 호환)
+- **클라 세션 복원** (`src/lib/session.js`): 캐시 유저로 즉시 렌더 → `/auth/me` 백그라운드 갱신.
+  로그아웃은 **인증 실패(401·정지·탈퇴)일 때만** — 네트워크/5xx/점검은 세션 유지 (예전엔 오프라인 실행 시 로그아웃되던 버그)
+- **아이콘**: `import Ionicons from '@expo/vector-icons/Ionicons'` 만 사용. 배럴(`'@expo/vector-icons'`) import 금지 — 19개 세트 폰트 3.5MB가 번들에 들어감
+- **RUM**: `src/lib/perf.js` → `perf_cold_start` / `perf_feed_load` / `perf_chat_rtt` 이벤트 (기존 analytics 파이프라인).
+  집계: `cd server && railway run node scripts/perf-report.js --since <날짜>`
+- 벤치마크: `node perf/server-bench.js --rtt 70 --hot-top 5 --label <이름>` (in-memory DB + 지연 주입 프록시, 운영 무관)
+- 번들 비교는 **반드시 같은 플래그**로 (`expo export --dump-sourcemap` 유무로 hbc 크기가 4MB↔6MB 차이남)
+
+---
+
 ## 🎨 개발 규칙
 
 - **함수형 컴포넌트 + 훅** 사용
 - `StyleSheet.create()` 사용
 - 색상은 [src/constants/colors.js](src/constants/colors.js)에서 import
-- 한국어 주석 권장
+- **주석은 영어로** (공개 레포 — 북미 채용 담당자가 읽음)
+- 단, `i18n.js`·`legal.js`·서버 API 에러 메시지의 **한국어 문자열은 유지** (사용자 대상 UI)
 - 컴포넌트 파일명: **PascalCase**
 - **git commit 메시지는 영어로** (유저 요청)
 - **파일 저장은 Cloudinary 전용** (로컬 디스크 저장 금지)

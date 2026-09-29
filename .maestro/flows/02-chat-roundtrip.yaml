@@ -1,13 +1,13 @@
-# 핵심 플로우 E2E: 로그인 → 채팅방 진입 → 메시지 전송 → 수신 확인
+# Core flow E2E: log in, open a chat room, send a message, confirm it arrives
 #
-# "수신"을 어떻게 검증하나:
-#   ChatRoomScreen.sendMessage()는 낙관적 렌더링을 하지 않는다. 버블은 오직
-#   서버가 소켓으로 되돌려준 new_message 이벤트로만 그려진다.
-#   따라서 보낸 문구가 대화창에 나타났다는 것은
-#   앱 → WebSocket → Railway 서버 → MongoDB 저장 → 브로드캐스트 → 앱
-#   왕복이 전부 성공했다는 뜻이다.
+# How "arrival" is verified:
+#   ChatRoomScreen.sendMessage() does no optimistic rendering. A bubble is drawn only
+#   from the new_message event the server sends back over the socket.
+#   So the sent text appearing in the thread means the whole round trip
+#   app → WebSocket → Railway server → MongoDB write → broadcast → app
+#   succeeded end to end.
 appId: com.hyeonjun122.cahanin
-name: 02 채팅 전송·수신 왕복
+name: 02 Chat send and receive round trip
 env:
   EMAIL: ${MAESTRO_EMAIL}
   PASSWORD: ${MAESTRO_PASSWORD}
@@ -20,7 +20,7 @@ tags:
     permissions:
       notifications: deny
 
-# ── 로그인 ────────────────────────────────────────────────
+# ── Log in ────────────────────────────────────────────────
 - extendedWaitUntil:
     visible:
       id: "login-email"
@@ -35,7 +35,7 @@ tags:
 - tapOn:
     id: "login-submit"
 
-# ── 채팅 탭 → 첫 번째 채팅방 ──────────────────────────────
+# ── Chat tab → the first chat room ────────────────────────
 - extendedWaitUntil:
     visible:
       id: "tab-chat"
@@ -56,8 +56,8 @@ tags:
       id: "chat-input"
     timeout: 15000
 
-# ── 전송 ──────────────────────────────────────────────────
-# 매 실행마다 고유한 문구를 써서 이전 실행의 메시지와 헷갈리지 않게 한다
+# ── Send ──────────────────────────────────────────────────
+# A unique string per run, so it is never confused with a previous run's message
 - evalScript: ${output.msg = 'maestro-e2e-' + Date.now()}
 - tapOn:
     id: "chat-input"
@@ -65,13 +65,13 @@ tags:
 - tapOn:
     id: "chat-send"
 
-# ── 수신 확인 ─────────────────────────────────────────────
-# 서버가 소켓으로 되돌려준 메시지가 대화창에 그려져야 통과
+# ── Confirm arrival ───────────────────────────────────────
+# Passes only once the message the server echoed over the socket is drawn in the thread
 - extendedWaitUntil:
     visible: ${output.msg}
     timeout: 15000
 
-# 말풍선이 리스트 안에 실제로 그려졌는지 한 번 더 못박는다
+# Pin down that the bubble really rendered inside the list
 - assertVisible:
     id: "chat-messages"
 - assertVisible: ${output.msg}

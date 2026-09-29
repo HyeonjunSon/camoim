@@ -35,15 +35,15 @@ yarn-error.*
 .env
 server/.env
 
-# seed account credentials (캐스모 이관용 — 절대 커밋 금지)
+# Seed account credentials (for the community migration) — never commit
 seed-accounts.env
 server/seed-accounts.env
 
-# 캐스모 이관 작업용 글 목록 (임시)
+# Post list used during the community migration (temporary)
 server/scripts/posts*.json
-# 시드 계정 사전 발급 JWT (절대 커밋 금지)
+# Pre-issued JWTs for seed accounts — never commit
 server/scripts/seed-tokens.json
-# 드립 업로드 로그/상태 (임시)
+# Drip upload logs and state (temporary)
 server/scripts/*.log
 server/scripts/posts-drip-state.json
 
@@ -59,11 +59,11 @@ HANDOFF.md
 # temp
 .text
 
-# server upload cache (Cloudinary 사용 — 로컬 폴더는 레거시)
+# Server upload cache (Cloudinary is used; the local folder is legacy)
 server/uploads/*
 !server/uploads/.gitkeep
 
-# 개인 인터뷰 준비 노트 (약점 목록 포함 — 공개 레포에 올리지 않음)
+# Personal interview prep notes — kept out of the public repo
 INTERVIEW-PREP.ko.md
 
 # test coverage
@@ -77,7 +77,10 @@ server/coverage/
 /ios
 /android
 
-# 운영용 로컬 스크립트 — 커밋하지 않음 (로컬 전용)
+# Local operational scripts — not committed (local only)
 server/scripts/*eed*.js
 server/scripts/drip*.js
 server/scripts/editExchangePosts.js
+
+# IDE workspace files (personal)
+*.code-workspace

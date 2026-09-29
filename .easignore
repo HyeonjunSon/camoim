@@ -1,28 +1,29 @@
-# EAS 빌드 시 제외할 파일/폴더 (앱 빌드에 불필요)
+# Files and folders excluded from EAS builds (not needed by the app bundle)
 
-# 백엔드 전체 제외 (별도 서버로 배포)
+# The whole backend is excluded (it deploys to its own server)
 server/
 
-# 스크립트·워크스페이스
+# Scripts and workspace files
 scripts/
 *.code-workspace
 
-# 테스트 · CI (앱 번들에 불필요)
+# Tests and CI (not needed by the app bundle)
 __tests__/
 jest.config.js
 jest.setup.js
 .maestro/
+perf/
 .github/
 coverage/
 
-# 문서
+# Documentation
 CLAUDE.md
 docs/
 .text
 
-# 로컬 dev
+# Local dev
 .claude/
 
-# managed workflow 유지 — 로컬 prebuild 결과물 무시 (없어야 EAS가 managed로 인식)
+# Stay on the managed workflow — ignore local prebuild output (EAS only treats it as managed when absent)
 ios/
 android/

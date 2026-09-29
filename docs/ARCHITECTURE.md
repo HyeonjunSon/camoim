@@ -112,6 +112,14 @@ maintenance mode need to reject clients that may not have a valid session. It ke
 in-process cache of the `SystemSetting` collection so the admin console can flip maintenance
 mode on and have it take effect almost immediately, without a DB read per request.
 
+
+**Rarely-changing data is cached in process.** The board list (changes a few times a year)
+and each user's block list (changes when someone taps "block") were being re-read on nearly
+every request, at ~70 ms per round trip. [`utils/cache.js`](../server/utils/cache.js) holds
+them with a TTL, coalesces concurrent lookups for the same key, and uses a generation counter
+so a read in flight during an invalidation can't write stale data back. Invalidation lives in
+**Mongoose post-hooks on the `Board` and `Block` models**, so every write path clears the
+cache without route handlers having to remember to.
 ---
 
 ## Real-time chat
@@ -346,7 +354,15 @@ over OTA is in [DECISIONS.md](DECISIONS.md#10-ota-updates-vs-store-builds).
 Written down because pretending they don't exist is worse than owning them.
 
 - **Single instance.** Socket.io state is in-process, so horizontal scaling needs a Redis
-  adapter before a second container. Fine at current load, and a known step, not a surprise.
+  adapter before a second container. The same goes for the in-process caches: a write clears
+  them only in the process that made it, so a second instance would serve a stale block list
+  for up to 30 seconds and a stale board list for up to 60. Fine at current load, and a known
+  step, not a surprise.
+- **App server and database in different regions.** Production measurements put every MongoDB
+  round trip at ~70 ms, where a same-region pair would see 1–3 ms. The code now minimizes
+  *sequential* queries per request, which cut the home feed and chat latency roughly in half
+  ([perf/README.md](../perf/README.md)), but co-locating the two would take the database out of
+  the latency budget entirely — server-side home feed 156 ms → 9 ms in the benchmark.
 - **No cross-collection transactions.** Cascading deletes (post → comments → bookmarks) are
   sequential writes. A crash mid-cascade leaves orphans; the read paths tolerate them, but
   they're not cleaned up.
@@ -357,6 +373,7 @@ Written down because pretending they don't exist is worse than owning them.
   price of not having migrated to ObjectId references early.
 - **Search is a regex scan.** `unifiedSearch` runs `$regex` across posts, groups, and users.
   It's correct and it's fast enough at this size; it won't be at 10×.
-- **No APM.** There's a lightweight `AnalyticsEvent` collection and `DailyActive` tracking,
+- **No APM.** There's a lightweight `AnalyticsEvent` collection, `DailyActive` tracking, and
+  client-side performance telemetry (`perf_*` events — cold start, feed load, chat round trip),
   but no distributed tracing or error aggregation service. Production debugging is
   log-reading.
