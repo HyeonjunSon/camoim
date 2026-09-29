@@ -9,7 +9,8 @@ with roughly 300 users.
 [App Store](https://apps.apple.com/app/id6763469709) ·
 [Google Play](https://play.google.com/store/apps/details?id=com.hyeonjun122.cahanin)
 
-> The app's UI and code comments are in Korean; this documentation is in English.
+> The app's UI is in Korean because its users are — the code, comments and documentation
+> are in English.
 
 ---
 
@@ -229,3 +230,16 @@ npm run test:all        # 153 tests
 `runtimeVersion` follows `app.json`'s `version`, so bumping the version is an explicit signal
 that OTA compatibility with older builds is broken. See
 [docs/DECISIONS.md](docs/DECISIONS.md#10-ota-updates-vs-store-builds).
+
+---
+
+## License
+
+© 2026 Hyeonjun Son. All rights reserved.
+
+This repository is **source-available for portfolio review**, not open source.
+Reading it is welcome; copying, modifying, redistributing or running it as your own
+service is not permitted without written permission.
+
+CaMoim is a live product — the name, branding, App Store and Google Play listings,
+and the community itself belong to the author.

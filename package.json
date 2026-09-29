@@ -1,6 +1,8 @@
 {
   "name": "cahanin",
   "version": "1.0.0",
+  "private": true,
+  "license": "UNLICENSED",
   "main": "index.js",
   "scripts": {
     "start": "expo start",
