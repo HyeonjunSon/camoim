@@ -361,24 +361,26 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     }
   };
 
-  const showReportSheet = () => {
+  // targetType/targetId default to this post, but the same sheet backs comment
+  // reports too (handleCommentMore passes targetType: 'comment').
+  const showReportSheet = (targetType = 'post', targetId = postId) => {
     const reasons = reportReasons(t);
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         { options: [...reasons.map(r => r.label), t('common.cancel')], cancelButtonIndex: reasons.length, title: t('post.reportPick') },
-        async (idx) => { if (idx < reasons.length) await submitReport(reasons[idx].key); }
+        async (idx) => { if (idx < reasons.length) await submitReport(targetType, targetId, reasons[idx].key); }
       );
     } else {
       Alert.alert(t('post.reportTitle'), t('post.reportPick'), [
-        ...reasons.map(r => ({ text: r.label, onPress: () => submitReport(r.key) })),
+        ...reasons.map(r => ({ text: r.label, onPress: () => submitReport(targetType, targetId, r.key) })),
         { text: t('common.cancel'), style: 'cancel' },
       ]);
     }
   };
 
-  const submitReport = async (reason) => {
+  const submitReport = async (targetType, targetId, reason) => {
     try {
-      const res = await reportPost({ targetType: 'post', targetId: postId, reason });
+      const res = await reportPost({ targetType, targetId, reason });
       if (res.success) Alert.alert(t('post.reportDone'), res.data.message);
       else Alert.alert(t('common.error'), res.message ?? t('post.reportFailed'));
     } catch (e) {
@@ -386,7 +388,10 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     }
   };
 
-  const isPostAuthor = post && user && String(post.userId) === String(user.id);
+  // authorId is the real author id even on an anonymous post (userId is masked there) —
+  // without this, the author of their own anonymous post fails this check and loses
+  // edit/delete/pin, and sees Report on their own post.
+  const isPostAuthor = post && user && String(post.authorId) === String(user.id);
 
   const handleAvatarPress = (comment) => {
     if (comment.isAnonymous || !comment.userId) return;
@@ -399,9 +404,14 @@ export default function BoardPostDetailScreen({ route, navigation }) {
 
   const handleCommentMore = (comment, isReply) => {
     const isOwn = user && String(comment.userId) === String(user.id);
+    // Comments carry a real userId even when isAnonymous masks the nickname/avatar
+    // (server/routes/posts.js keeps it "always included, so the client can check
+    // permissions" — report and block ride on that same id).
+    const canBlockCommenter = !isOwn && !!comment.userId;
     const L = {
       reply: t('post.reply'), copy: t('post.copy'), edit: t('common.edit'),
       del: t('common.delete'), pin: t('post.pinned'), unpin: t('post.unpin'),
+      report: t('common.report'), block: t('post.blockAuthor'),
       cancel: t('common.cancel'),
     };
     const opts = [];
@@ -409,6 +419,8 @@ export default function BoardPostDetailScreen({ route, navigation }) {
     opts.push(L.copy);
     if (isOwn) { opts.push(L.edit); opts.push(L.del); }
     if (isPostAuthor && !isReply) opts.push(comment.isPinned ? L.unpin : L.pin);
+    if (!isOwn) opts.push(L.report);
+    if (canBlockCommenter) opts.push(L.block);
     opts.push(L.cancel);
     const cancelIdx = opts.length - 1;
 
@@ -425,6 +437,10 @@ export default function BoardPostDetailScreen({ route, navigation }) {
           Alert.alert(t('common.error'), e.message ?? t('post.deleteFailed'));
         }
       } else if (action === L.pin || action === L.unpin) handlePin(comment);
+      else if (action === L.report) showReportSheet('comment', comment.id);
+      else if (action === L.block) {
+        confirmBlockUser(comment.userId, comment.isAnonymous ? t('common.anonymous') : comment.nickname, refreshComments);
+      }
     };
 
     if (Platform.OS === 'ios') {
@@ -537,10 +553,16 @@ export default function BoardPostDetailScreen({ route, navigation }) {
   };
 
   // Block the author (disabled on anonymous posts and your own)
-  const canBlockAuthor = !post?.isAnonymous && !!post?.userId && !isPostAuthor;
-  const confirmBlockAuthor = () => {
-    if (!canBlockAuthor) return;
-    const nick = post.nickname || '이 사용자';
+  // Block works off authorId, the real id, not the (possibly masked) userId — so
+  // blocking an abusive anonymous poster is possible even though their identity
+  // is never shown. Guideline 1.2 requires this to work regardless of anonymity.
+  const canBlockAuthor = !isPostAuthor && !!post?.authorId;
+  // Shared by the post-level "block author" action and the per-comment "block" action.
+  // onBlocked lets each call site decide what happens next: leaving the post (its
+  // own author is now hidden) vs. just refreshing the comment list in place.
+  const confirmBlockUser = (targetUserId, label, onBlocked) => {
+    if (!targetUserId) return;
+    const nick = label || t('common.anonymous');
     Alert.alert(
       `${nick}님을 차단할까요?`,
       '차단하면 이 사용자의 글과 채팅이 더 이상 보이지 않아요.',
@@ -551,11 +573,9 @@ export default function BoardPostDetailScreen({ route, navigation }) {
           style: 'destructive',
           onPress: async () => {
             try {
-              const res = await setBlock(post.userId, { blockChat: true, hideContent: true });
+              const res = await setBlock(targetUserId, { blockChat: true, hideContent: true });
               if (res.success) {
-                Alert.alert('', '차단되었어요.', [
-                  { text: 'OK', onPress: () => navigation.goBack() },
-                ]);
+                Alert.alert('', '차단되었어요.', [{ text: 'OK', onPress: onBlocked }]);
               } else {
                 Alert.alert(t('common.error'), res.message ?? t('common.serverError'));
               }
@@ -566,6 +586,10 @@ export default function BoardPostDetailScreen({ route, navigation }) {
         },
       ]
     );
+  };
+  const confirmBlockAuthor = () => {
+    if (!canBlockAuthor) return;
+    confirmBlockUser(post.authorId, post.nickname, () => navigation.goBack());
   };
 
   const handleSharePost = async () => {
@@ -591,7 +615,7 @@ export default function BoardPostDetailScreen({ route, navigation }) {
       unpin: '고정 해제',
       del: t('common.delete'),
       report: t('common.report'),
-      block: '작성자 차단',
+      block: t('post.blockAuthor'),
       cancel: t('common.cancel'),
     };
     // Build the options dynamically

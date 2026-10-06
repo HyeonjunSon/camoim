@@ -292,23 +292,33 @@ export default function HomeScreen({ navigation }) {
                   <Text style={styles.freeMeta}>{post.nickname}</Text>
                   <Text style={styles.freeMetaDot}>·</Text>
                   <Text style={styles.freeMeta}>{formatTime(post.createdAt, t)}</Text>
-                  <View style={styles.freeStats}>
+                  {!hasThumbnail && (
+                    <View style={styles.freeStats}>
+                      <Ionicons name="heart-outline" size={11} color={colors.textSecondary} />
+                      <Text style={styles.freeStatText}>{post.likeCount ?? 0}</Text>
+                      <Ionicons name="chatbubble-outline" size={11} color={colors.textSecondary} />
+                      <Text style={styles.freeStatText}>{post.commentCount ?? 0}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              {hasThumbnail && (
+                <View style={styles.freeThumbnailCol}>
+                  <Image
+                    source={{ uri: post.thumbnail.startsWith('http') ? post.thumbnail : `${SERVER_HOST}${post.thumbnail}` }}
+                    style={styles.freeThumbnail}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={150}
+                    accessibilityLabel={t('a11y.postImage')}
+                  />
+                  <View style={styles.freeStatsUnderThumb}>
                     <Ionicons name="heart-outline" size={11} color={colors.textSecondary} />
                     <Text style={styles.freeStatText}>{post.likeCount ?? 0}</Text>
                     <Ionicons name="chatbubble-outline" size={11} color={colors.textSecondary} />
                     <Text style={styles.freeStatText}>{post.commentCount ?? 0}</Text>
                   </View>
                 </View>
-              </View>
-              {hasThumbnail && (
-                <Image
-                  source={{ uri: post.thumbnail.startsWith('http') ? post.thumbnail : `${SERVER_HOST}${post.thumbnail}` }}
-                  style={styles.freeThumbnail}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                  transition={150}
-                  accessibilityLabel={t('a11y.postImage')}
-                />
               )}
             </TouchableOpacity>
           );
@@ -712,9 +722,11 @@ const createStyles = (colors) => StyleSheet.create({
   freeMetaDot: { fontSize: 11, color: colors.textSecondary, marginHorizontal: 3 },
   freeStats: { flexDirection: 'row', alignItems: 'center', marginLeft: 'auto', gap: 3 },
   freeStatText: { fontSize: 10, color: colors.textSecondary, marginLeft: 2 },
+  freeThumbnailCol: { marginLeft: 12, alignItems: 'center' },
   freeThumbnail: {
-    width: 56, height: 56, borderRadius: 10, backgroundColor: colors.inputBg, marginLeft: 12,
+    width: 56, height: 56, borderRadius: 10, backgroundColor: colors.inputBg,
   },
+  freeStatsUnderThumb: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
 
   // 🛍️ Marketplace highlights
   marketScroll: { paddingHorizontal: 16, gap: 10 },

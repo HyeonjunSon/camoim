@@ -1,8 +1,8 @@
 // CaMoim legal documents — Korean draft
 // ⚠️ Should be reviewed by a lawyer before a formal release
 
-export const TERMS_VERSION = '1.0.0';
-export const TERMS_EFFECTIVE_DATE = '2026-04-08';
+export const TERMS_VERSION = '1.1.0';
+export const TERMS_EFFECTIVE_DATE = '2026-10-02';
 
 export const PRIVACY_VERSION = '1.0.0';
 export const PRIVACY_EFFECTIVE_DATE = '2026-04-08';
@@ -76,8 +76,9 @@ export const TERMS_OF_SERVICE = `CaMoim 이용약관
 
 제9조 (게시물의 관리 및 삭제)
 1. 회사는 회원의 게시물이 본 약관 또는 관련 법령을 위반하는 경우, 사전 통보 없이 해당 게시물을 삭제하거나 비공개 처리할 수 있습니다.
-2. 회원으로부터 신고가 접수된 게시물은 운영자 검토 후 조치합니다.
+2. 회원으로부터 신고가 접수된 게시물·댓글은 접수 후 24시간 이내에 운영자가 검토하여 삭제 등 필요한 조치를 취합니다.
 3. 운영자는 위반 정도에 따라 해당 회원에게 경고, 일시 정지, 영구 이용 정지 등의 제재를 부과할 수 있습니다.
+4. 회사는 욕설, 차별, 혐오, 성희롱, 괴롭힘 등 타인의 인격을 침해하는 콘텐츠 및 이를 게시한 회원에 대해 무관용 원칙을 적용합니다. 익명으로 게시되었더라도 동일하게 적용되며, 심각하거나 반복적인 위반이 확인된 회원은 사전 통지 없이 즉시 영구 이용 정지(강제 탈퇴) 조치될 수 있습니다.
 
 
 제10조 (학교 인증)

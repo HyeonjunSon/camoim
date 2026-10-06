@@ -15,12 +15,26 @@ const pad2 = (n) => String(n).padStart(2, '0');
 const KO_LABELS = {
   now: '방금 전', minute: '분 전', hour: '시간 전', day: '일 전',
   monthDay: '{m}월 {d}일', fullDate: '{y}.{m}.{d}',
+  today: '오늘', yesterday: '어제',
 };
 const EN_LABELS = {
   now: 'just now', minute: 'm ago', hour: 'h ago', day: 'd ago',
   monthDay: '{month} {d}', fullDate: '{month} {d}, {y}',
+  today: 'Today', yesterday: 'Yesterday',
 };
 const DEFAULT_LABELS = () => (getRuntimeLang() === 'en' ? EN_LABELS : KO_LABELS);
+
+// Prefer the app's translation, and fall back to the runtime-language label when t()
+// is absent or echoes the key back (untranslated)
+const makePick = (t, fallback) => (key) => {
+  if (!t) return fallback[key];
+  const v = t(`time.${key}`);
+  return v && v !== `time.${key}` ? v : fallback[key];
+};
+
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+const toDate = (input) => (input instanceof Date ? input : new Date(input));
 
 export function formatTime(input, t) {
   if (!input) return '';
@@ -28,19 +42,14 @@ export function formatTime(input, t) {
   const now = new Date();
   const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  const fallback = DEFAULT_LABELS();
-  const pickT = (key, fb) => {
-    if (!t) return fb;
-    const v = t(`time.${key}`);
-    return v && v !== `time.${key}` ? v : fb;
-  };
+  const pickT = makePick(t, DEFAULT_LABELS());
   const labels = {
-    now: pickT('now', fallback.now),
-    minute: pickT('minute', fallback.minute),
-    hour: pickT('hour', fallback.hour),
-    day: pickT('day', fallback.day),
-    monthDay: pickT('monthDay', fallback.monthDay),
-    fullDate: pickT('fullDate', fallback.fullDate),
+    now: pickT('now'),
+    minute: pickT('minute'),
+    hour: pickT('hour'),
+    day: pickT('day'),
+    monthDay: pickT('monthDay'),
+    fullDate: pickT('fullDate'),
   };
 
   // Relative time
@@ -63,6 +72,47 @@ export function formatTime(input, t) {
   }
 
   return labels.fullDate
+    .replace('{y}', y)
+    .replace('{m}', pad2(m))
+    .replace('{d}', pad2(d))
+    .replace('{month}', month);
+}
+
+// Whether two timestamps fall on the same calendar day, in the device's local time.
+// A missing value is never "the same day", so the first message in a list gets a divider.
+export function isSameDay(a, b) {
+  if (!a || !b) return false;
+  const da = toDate(a);
+  const db = toDate(b);
+  if (Number.isNaN(da.getTime()) || Number.isNaN(db.getTime())) return false;
+  return startOfDay(da) === startOfDay(db);
+}
+
+// Label for a chat date divider: "Today" / "Yesterday" / "Sep 29" / "Sep 29, 2025"
+export function formatDateSeparator(input, t) {
+  if (!input) return '';
+  const date = toDate(input);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const now = new Date();
+  const pickT = makePick(t, DEFAULT_LABELS());
+
+  const dayDiff = Math.round((startOfDay(now) - startOfDay(date)) / 86400000);
+  if (dayDiff === 0) return pickT('today');
+  if (dayDiff === 1) return pickT('yesterday');
+
+  const month = MONTHS_EN[date.getMonth()];
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const y = date.getFullYear();
+
+  if (y === now.getFullYear()) {
+    return pickT('monthDay')
+      .replace('{m}', m)
+      .replace('{d}', d)
+      .replace('{month}', month);
+  }
+  return pickT('fullDate')
     .replace('{y}', y)
     .replace('{m}', pad2(m))
     .replace('{d}', pad2(d))

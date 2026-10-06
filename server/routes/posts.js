@@ -516,6 +516,11 @@ router.get('/:postId', optionalAuth, async (req, res) => {
         tradeStatus: post.tradeStatus || 'selling',
         city: post.city ?? '',
         userId: post.isAnonymous ? null : post.userId?._id,
+        // Real author id, kept distinct from the (possibly anonymized) userId above.
+        // Used client-side only for ownership checks and the block/report actions —
+        // never for display or profile navigation, so anonymity is preserved.
+        // Guideline 1.2 requires blocking to work even on anonymous content.
+        authorId: post.userId?._id ?? null,
         nickname: post.isAnonymous ? '익명' : (post.userId?.nickname ?? '탈퇴한 회원'),
         role: post.isAnonymous ? null : post.userId?.role,
         avatarUrl: post.isAnonymous ? null : post.userId?.avatarUrl,

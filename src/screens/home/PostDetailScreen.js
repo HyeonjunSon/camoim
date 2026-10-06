@@ -27,7 +27,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
-import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, setTradeStatus, getStayByPost } from '../../lib/api';
+import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, setBlock, setTradeStatus, getStayByPost } from '../../lib/api';
 import { isTradeBoard, getTradeLabel } from '../../constants/boards';
 import { track } from '../../lib/analytics';
 import { formatTime } from '../../lib/time';
@@ -385,24 +385,26 @@ export default function PostDetailScreen({ route, navigation }) {
   };
 
   // Pick a report reason and submit
-  const showReportSheet = () => {
+  // targetType/targetId default to this post, but the same sheet backs comment
+  // reports too (handleCommentMore passes targetType: 'comment').
+  const showReportSheet = (targetType = 'post', targetId = postId) => {
     const reasons = reportReasons(t);
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         { options: [...reasons.map(r => r.label), t('common.cancel')], cancelButtonIndex: reasons.length, title: t('post.reportPick') },
-        async (idx) => { if (idx < reasons.length) await submitReport(reasons[idx].key); }
+        async (idx) => { if (idx < reasons.length) await submitReport(targetType, targetId, reasons[idx].key); }
       );
     } else {
       Alert.alert(t('post.reportTitle'), t('post.reportPick'), [
-        ...reasons.map(r => ({ text: r.label, onPress: () => submitReport(r.key) })),
+        ...reasons.map(r => ({ text: r.label, onPress: () => submitReport(targetType, targetId, r.key) })),
         { text: t('common.cancel'), style: 'cancel' },
       ]);
     }
   };
 
-  const submitReport = async (reason) => {
+  const submitReport = async (targetType, targetId, reason) => {
     try {
-      const res = await reportPost({ targetType: 'post', targetId: postId, reason });
+      const res = await reportPost({ targetType, targetId, reason });
       if (res.success) Alert.alert(t('post.reportDone'), res.data.message);
       else Alert.alert(t('common.error'), res.message ?? t('post.reportFailed'));
     } catch (e) {
@@ -410,7 +412,44 @@ export default function PostDetailScreen({ route, navigation }) {
     }
   };
 
-  const isPostAuthor = post && user && String(post.userId) === String(user.id);
+  // authorId is the real author id (group posts are never anonymous, so this is
+  // the same value as userId today, but keeping both screens on the same field
+  // keeps them in lockstep if that ever changes).
+  const isPostAuthor = post && user && String(post.authorId ?? post.userId) === String(user.id);
+
+  // Shared by the post-level "block author" action and the per-comment "block" action.
+  const confirmBlockUser = (targetUserId, label, onBlocked) => {
+    if (!targetUserId) return;
+    const nick = label || t('common.anonymous');
+    Alert.alert(
+      `${nick}님을 차단할까요?`,
+      '차단하면 이 사용자의 글과 채팅이 더 이상 보이지 않아요.',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: '차단',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await setBlock(targetUserId, { blockChat: true, hideContent: true });
+              if (res.success) {
+                Alert.alert('', '차단되었어요.', [{ text: 'OK', onPress: onBlocked }]);
+              } else {
+                Alert.alert(t('common.error'), res.message ?? t('common.serverError'));
+              }
+            } catch (e) {
+              Alert.alert(t('common.error'), e.message ?? t('common.serverError'));
+            }
+          },
+        },
+      ]
+    );
+  };
+  const canBlockAuthor = !isPostAuthor && !!(post?.authorId ?? post?.userId);
+  const confirmBlockAuthor = () => {
+    if (!canBlockAuthor) return;
+    confirmBlockUser(post.authorId ?? post.userId, post.nickname, () => navigation.goBack());
+  };
 
   // Trade status toggle (mark filled and so on) — author only, marketplace boards only. Same behaviour as BoardPostDetail.
   const isSold = post?.tradeStatus === 'sold';
@@ -502,38 +541,34 @@ export default function PostDetailScreen({ route, navigation }) {
       edit: t('post.editPostMenu'),
       del: t('common.delete'),
       report: t('common.report'),
+      block: t('post.blockAuthor'),
       cancel: t('common.cancel'),
     };
-    const authorOptions = isPostAuthor ? [L.share, L.edit, L.del, L.report, L.cancel] : [L.share, L.report, L.cancel];
+    const authorOptions = isPostAuthor
+      ? [L.share, L.edit, L.del, L.report, L.cancel]
+      : (canBlockAuthor ? [L.share, L.report, L.block, L.cancel] : [L.share, L.report, L.cancel]);
     const cancelIdx = authorOptions.length - 1;
     const destructiveIdx = isPostAuthor ? authorOptions.indexOf(L.del) : undefined;
+
+    const handle = (idx) => {
+      const action = authorOptions[idx];
+      if (action === L.share) handleSharePost();
+      else if (action === L.edit) navigation.navigate('EditPost', { editPost: post });
+      else if (action === L.del) confirmDeletePost();
+      else if (action === L.report) showReportSheet();
+      else if (action === L.block) confirmBlockAuthor();
+    };
 
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         { options: authorOptions, cancelButtonIndex: cancelIdx, destructiveButtonIndex: destructiveIdx },
-        (idx) => {
-          const action = authorOptions[idx];
-          if (action === L.share) handleSharePost();
-          else if (action === L.edit) navigation.navigate('EditPost', { editPost: post });
-          else if (action === L.del) confirmDeletePost();
-          else if (action === L.report) showReportSheet();
-        }
+        handle
       );
     } else {
-      const items = isPostAuthor
-        ? [
-            { text: L.share, onPress: handleSharePost },
-            { text: L.edit, onPress: () => navigation.navigate('EditPost', { editPost: post }) },
-            { text: L.del, style: 'destructive', onPress: confirmDeletePost },
-            { text: L.report, onPress: showReportSheet },
-            { text: L.cancel, style: 'cancel' },
-          ]
-        : [
-            { text: L.share, onPress: handleSharePost },
-            { text: L.report, onPress: showReportSheet },
-            { text: L.cancel, style: 'cancel' },
-          ];
-      Alert.alert('', '', items);
+      Alert.alert('', '', authorOptions.filter(o => o !== L.cancel).map(o => ({
+        text: o, style: o === L.del ? 'destructive' : 'default',
+        onPress: () => handle(authorOptions.indexOf(o)),
+      })).concat([{ text: L.cancel, style: 'cancel' }]));
     }
   };
 
@@ -551,10 +586,15 @@ export default function PostDetailScreen({ route, navigation }) {
   const handleCommentMore = (comment, isReply) => {
     const isOwn = user && String(comment.userId) === String(user.id);
     const isPostAuth = isPostAuthor;
+    // Comments carry a real userId even when isAnonymous masks the nickname/avatar
+    // (server/routes/posts.js keeps it "always included, so the client can check
+    // permissions" — report and block ride on that same id).
+    const canBlockCommenter = !isOwn && !!comment.userId;
 
     const L = {
       reply: t('post.reply'), copy: t('post.copy'), edit: t('common.edit'),
       del: t('common.delete'), pin: t('post.pinned'), unpin: t('post.unpin'),
+      report: t('common.report'), block: t('post.blockAuthor'),
       cancel: t('common.cancel'),
     };
     const opts = [];
@@ -562,6 +602,8 @@ export default function PostDetailScreen({ route, navigation }) {
     opts.push(L.copy);
     if (isOwn) { opts.push(L.edit); opts.push(L.del); }
     if (isPostAuth && !isReply) opts.push(comment.isPinned ? L.unpin : L.pin);
+    if (!isOwn) opts.push(L.report);
+    if (canBlockCommenter) opts.push(L.block);
     opts.push(L.cancel);
     const cancelIdx = opts.length - 1;
 
@@ -578,6 +620,10 @@ export default function PostDetailScreen({ route, navigation }) {
           Alert.alert(t('common.error'), e.message ?? t('post.deleteFailed'));
         }
       } else if (action === L.pin || action === L.unpin) handlePin(comment);
+      else if (action === L.report) showReportSheet('comment', comment.id);
+      else if (action === L.block) {
+        confirmBlockUser(comment.userId, comment.isAnonymous ? t('common.anonymous') : comment.nickname, refreshComments);
+      }
     };
 
     if (Platform.OS === 'ios') {

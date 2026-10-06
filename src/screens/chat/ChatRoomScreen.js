@@ -19,6 +19,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
+import { formatDateSeparator, isSameDay } from '../../lib/time';
 import { useSocket } from '../../context/SocketContext';
 import { getToken } from '../../lib/storage';
 import { API_BASE_URL } from '../../lib/config';
@@ -241,6 +242,8 @@ export default function ChatRoomScreen({ route, navigation }) {
     const isMine = String(item.senderId) === String(me?.id);
     const prevItem = messages[index - 1];
     const showAvatar = !isMine && String(prevItem?.senderId) !== String(item.senderId);
+    // Date divider whenever the calendar day changes (and above the very first message)
+    const showDateDivider = !isSameDay(prevItem?.createdAt, item.createdAt);
     // In a 1:1 chat, show "1" while the other party has not read it (never in groups)
     const unreadCount = (!isGroupChat && isMine && item.readBy)
       ? (item.readBy.some(id => String(id) === String(other?.id)) ? 0 : 1)
@@ -288,35 +291,44 @@ export default function ChatRoomScreen({ route, navigation }) {
     );
 
     return (
-      <View style={[styles.msgRow, isMine ? styles.msgRowRight : styles.msgRowLeft]}>
-        {!isMine && (
-          showAvatar
-            ? (canTapSender
-                ? <TouchableOpacity onPress={openSenderProfile} activeOpacity={0.7}>
-                    <Avatar nickname={senderName || '?'} uri={isGroupChat ? null : other?.avatarUrl} size={28} showLetter />
-                  </TouchableOpacity>
-                : <Avatar nickname={senderName || '?'} uri={isGroupChat ? null : other?.avatarUrl} size={28} showLetter />)
-            : <View style={styles.avatarSpacer} />
+      <View>
+        {showDateDivider && (
+          <View style={styles.dateDividerRow}>
+            <View style={styles.dateDividerLine} />
+            <Text style={styles.dateDividerText}>{formatDateSeparator(item.createdAt, t)}</Text>
+            <View style={styles.dateDividerLine} />
+          </View>
         )}
-        <View style={[styles.bubbleColumn, isMine ? styles.bubbleColumnRight : styles.bubbleColumnLeft]}>
-          {senderHeader}
-          <View style={[styles.bubbleRow, isMine ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
-            {/* My messages: timestamp to the left of the bubble */}
-            {isMine && showTime && (
-              <View style={styles.timeBox}>
-                {unreadCount > 0 && <Text style={styles.unreadBadge}>{unreadCount}</Text>}
-                <Text style={styles.bubbleTime}>{timeStr}</Text>
+        <View style={[styles.msgRow, isMine ? styles.msgRowRight : styles.msgRowLeft]}>
+          {!isMine && (
+            showAvatar
+              ? (canTapSender
+                  ? <TouchableOpacity onPress={openSenderProfile} activeOpacity={0.7}>
+                      <Avatar nickname={senderName || '?'} uri={isGroupChat ? null : other?.avatarUrl} size={28} showLetter />
+                    </TouchableOpacity>
+                  : <Avatar nickname={senderName || '?'} uri={isGroupChat ? null : other?.avatarUrl} size={28} showLetter />)
+              : <View style={styles.avatarSpacer} />
+          )}
+          <View style={[styles.bubbleColumn, isMine ? styles.bubbleColumnRight : styles.bubbleColumnLeft]}>
+            {senderHeader}
+            <View style={[styles.bubbleRow, isMine ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
+              {/* My messages: timestamp to the left of the bubble */}
+              {isMine && showTime && (
+                <View style={styles.timeBox}>
+                  {unreadCount > 0 && <Text style={styles.unreadBadge}>{unreadCount}</Text>}
+                  <Text style={styles.bubbleTime}>{timeStr}</Text>
+                </View>
+              )}
+              <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleOther]}>
+                <Text selectable style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{item.content}</Text>
               </View>
-            )}
-            <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleOther]}>
-              <Text selectable style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{item.content}</Text>
+              {/* Their messages: timestamp to the right of the bubble */}
+              {!isMine && showTime && (
+                <View style={styles.timeBox}>
+                  <Text style={styles.bubbleTime}>{timeStr}</Text>
+                </View>
+              )}
             </View>
-            {/* Their messages: timestamp to the right of the bubble */}
-            {!isMine && showTime && (
-              <View style={styles.timeBox}>
-                <Text style={styles.bubbleTime}>{timeStr}</Text>
-              </View>
-            )}
           </View>
         </View>
       </View>
@@ -516,6 +528,10 @@ const createStyles = (colors) => StyleSheet.create({
   // Keeps the last message from being clipped — enough room above the input bar
   listContent: { padding: 12, gap: 6, paddingBottom: 20 },
 
+
+  dateDividerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 12 },
+  dateDividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  dateDividerText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
 
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginVertical: 1 },
   msgRowRight: { justifyContent: 'flex-end' },
