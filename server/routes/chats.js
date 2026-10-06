@@ -72,13 +72,18 @@ router.get('/', requireAuth, async (req, res) => {
         const hasNullParticipant = room.participants.some(p => p === null);
         const otherDeleted = !other && hasNullParticipant;
         const otherLeft = !other && !hasNullParticipant;
+        // Intro-board chats never reveal the other side's real nickname/avatar, even after they
+        // leave or delete their account — this room only ever existed anonymously.
+        const anonymous = !!room.introPostId;
 
         return {
           id: room._id,
           kind: 'dm',
-          other: other
-            ? { id: other._id, nickname: other.nickname, avatarUrl: other.avatarUrl }
-            : (room.otherSnapshot ?? null),
+          other: anonymous
+            ? { id: other?._id ?? null, nickname: '소개팅 상대', avatarUrl: '', anonymous: true }
+            : (other
+              ? { id: other._id, nickname: other.nickname, avatarUrl: other.avatarUrl }
+              : (room.otherSnapshot ?? null)),
           lastMessage: room.lastMessage,
           lastMessageAt: room.lastMessageAt,
           unreadCount: room.unreadCount?.get(String(me)) ?? 0,
@@ -208,12 +213,15 @@ router.get('/:roomId/messages', requireAuth, async (req, res) => {
       $set: { [`unreadCount.${req.user.id}`]: 0 },
     });
 
+    // Intro-board chats never reveal the real nickname, for either side
+    const anonymous = !!room.introPostId;
+
     // Stringify senderId so the client can compare it against me.id
     const formatted = messages.reverse().map(m => ({
       id: m._id,
       roomId: m.roomId,
       senderId: m.senderId?._id ?? m.senderId,
-      senderNickname: m.senderId?.nickname ?? '알 수 없음',
+      senderNickname: anonymous ? '소개팅 상대' : (m.senderId?.nickname ?? '알 수 없음'),
       content: m.content,
       readBy: m.readBy,
       createdAt: m.createdAt,

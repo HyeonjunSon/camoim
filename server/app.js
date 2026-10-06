@@ -24,6 +24,7 @@ const stayRoutes = require('./routes/stays');
 const draftRoutes = require('./routes/drafts');
 const searchRoutes = require('./routes/search');
 const analyticsRoutes = require('./routes/analytics');
+const introRoutes = require('./routes/intro');
 const { systemGuard } = require('./middleware/systemGuard');
 
 const app = express();
@@ -58,6 +59,7 @@ app.use('/api/stays', stayRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/drafts', draftRoutes);
+app.use('/api/intro', introRoutes);
 
 app.get('/health', (req, res) => res.json({ success: true, message: 'CaMoim 서버 정상 작동 중' }));
 

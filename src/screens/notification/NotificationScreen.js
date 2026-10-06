@@ -55,6 +55,18 @@ const buildTypeMeta = (colors) => ({
     color: '#0891B2',
     labelKey: 'notif.catChatRequest',
   },
+  intro_request: {
+    iconName: 'heart',
+    bg: '#FCE7F3',         // Light pink
+    color: '#EC4899',
+    labelKey: 'notif.catIntro',
+  },
+  intro_accepted: {
+    iconName: 'heart',
+    bg: '#FCE7F3',         // Light pink
+    color: '#EC4899',
+    labelKey: 'notif.catIntro',
+  },
   university_leader: {
     iconName: 'school',
     bg: '#DCFCE7',         // Light green
@@ -212,6 +224,10 @@ export default function NotificationScreen() {
       navigation.navigate('Chat', { screen: 'ChatList', params: { initialBox: 'requests' } });
     } else if (notification.type === 'chat' && notification.roomId) {
       navigation.navigate('Chat', { screen: 'ChatList' });
+    } else if (notification.type === 'intro_request') {
+      navigation.navigate('Home', { screen: 'IntroScreen', params: { initialTab: 'received' } });
+    } else if (notification.type === 'intro_accepted' && notification.postId) {
+      navigation.navigate('Home', { screen: 'IntroDetail', params: { introId: notification.postId } });
     } else if (notification.postId) {
       navigation.navigate('Home', { screen: 'PostDetail', params: { postId: notification.postId } });
     }

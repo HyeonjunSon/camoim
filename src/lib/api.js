@@ -526,6 +526,29 @@ export const setStayStatus = (id, status) => request('PUT', `/stays/${id}/status
 export const toggleStayBookmark = (id) => request('POST', `/stays/${id}/bookmark`);
 export const reportStay = (id, reason) => request('POST', `/stays/${id}/report`, { reason });
 
+// Intro board — fully anonymous, verified-members-only introductions
+export const getIntroMeta = () => request('GET', '/intro/meta');
+export const agreeIntroTerms = () => request('POST', '/intro/agree');
+export const getIntroPosts = ({ gender, region, minBirthYear, maxBirthYear, proxyOnly } = {}) => {
+  const params = new URLSearchParams();
+  if (gender) params.set('gender', gender);
+  if (region) params.set('region', region);
+  if (minBirthYear) params.set('minBirthYear', minBirthYear);
+  if (maxBirthYear) params.set('maxBirthYear', maxBirthYear);
+  if (proxyOnly) params.set('proxyOnly', 'true');
+  const q = params.toString();
+  return request('GET', `/intro${q ? `?${q}` : ''}`);
+};
+export const getMyIntroPosts = () => request('GET', '/intro/mine');
+export const getIntroPost = (id) => request('GET', `/intro/${id}`);
+export const createIntroPost = (data) => request('POST', '/intro', data);
+export const closeIntroPost = (id) => request('DELETE', `/intro/${id}`);
+export const applyToIntroPost = (id, data) => request('POST', `/intro/${id}/requests`, data);
+export const getReceivedIntroRequests = () => request('GET', '/intro/requests/received');
+export const acceptIntroRequest = (id) => request('PUT', `/intro/requests/${id}/accept`);
+export const declineIntroRequest = (id) => request('PUT', `/intro/requests/${id}/decline`);
+export const reportIntroPost = (id, reason) => request('POST', `/intro/${id}/report`, { reason });
+
 export const uploadStayImage = async (asset, onProgress) => {
   const token = await getToken();
   const formData = new FormData();

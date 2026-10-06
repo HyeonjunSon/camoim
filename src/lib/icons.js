@@ -4,6 +4,7 @@
 
 // Icon per board slug (shared by HomeScreen, BoardListScreen and UniversityBoardScreen)
 export const BOARD_ICONS = {
+  intro: { ion: 'heart', color: '#EC4899' },
   free: { ion: 'chatbubble-ellipses', color: '#6366F1' },
   anonymous: { ion: 'eye-off', color: '#F97316' },
   meetup: { ion: 'people', color: '#FB923C' },

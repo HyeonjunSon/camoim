@@ -118,6 +118,8 @@ export default function BoardListScreen({ navigation }) {
   };
 
   const generalBoards = boards.filter(b => !b.isUniversityBoard);
+  // 'intro' has its own posting flow (self/proxy picker) via IntroScreen's own FAB, not this generic write picker
+  const writableBoards = generalBoards.filter(b => b.slug !== 'intro');
 
   // Compute the filtered board list
   const getFilteredBoards = () => {
@@ -140,6 +142,7 @@ export default function BoardListScreen({ navigation }) {
     : filteredBoards;
 
   function goToBoard(item) {
+    if (item.slug === 'intro') return navigation.navigate('IntroScreen');
     navigation.navigate('BoardFeed', {
       boardId: item.id,
       boardSlug: item.slug,
@@ -410,12 +413,12 @@ export default function BoardListScreen({ navigation }) {
               showsVerticalScrollIndicator={false}
               bounces={false}
             >
-              {generalBoards.map((board, idx) => {
+              {writableBoards.map((board, idx) => {
                 const meta = metaFor(board.slug);
                 return (
                   <TouchableOpacity
                     key={String(board.id)}
-                    style={[styles.modalRow, idx < generalBoards.length - 1 && styles.modalRowBorder]}
+                    style={[styles.modalRow, idx < writableBoards.length - 1 && styles.modalRowBorder]}
                     onPress={() => handleWriteSelect(board)}
                     activeOpacity={0.7}
                   >

@@ -19,6 +19,9 @@ const chatRoomSchema = new mongoose.Schema({
   status: { type: String, enum: ['pending', 'accepted'], default: 'pending', index: true },
   // Whoever opened the chat (the requester) — DM only
   requesterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  // Set when this DM was opened from an accepted intro-board request. Both sides are
+  // rendered anonymously (no nickname/avatar) in a room with this set — see ChatRoomScreen/ChatListScreen.
+  introPostId: { type: mongoose.Schema.Types.ObjectId, ref: 'IntroPost', default: null, index: true },
   // Snapshot so a nickname/avatar still renders after the other party leaves a DM
   otherSnapshot: {
     id: { type: mongoose.Schema.Types.ObjectId },

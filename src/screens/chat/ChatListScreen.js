@@ -296,12 +296,12 @@ export default function ChatListScreen({ navigation, route }) {
         >
           <TouchableOpacity
             onPress={() => {
-              if (item.otherDeleted || !item.other?.id) return;
+              if (item.otherDeleted || item.other?.anonymous || !item.other?.id) return;
               navigation.navigate('UserProfile', { userId: item.other.id });
             }}
             activeOpacity={0.8}
             hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-            disabled={item.otherDeleted || !item.other?.id}
+            disabled={item.otherDeleted || item.other?.anonymous || !item.other?.id}
           >
             <Avatar nickname={item.other?.nickname ?? '?'} uri={item.other?.avatarUrl} size={46} showLetter />
           </TouchableOpacity>

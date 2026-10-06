@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const reportSchema = new mongoose.Schema({
   reporterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  targetType: { type: String, enum: ['post', 'comment', 'user', 'business', 'review', 'stay'], required: true },
+  targetType: { type: String, enum: ['post', 'comment', 'user', 'business', 'review', 'stay', 'intro'], required: true },
   targetId: { type: mongoose.Schema.Types.ObjectId, required: true },
   postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', default: null }, // Points back to the parent post when a comment is reported
   // Author snapshot at report time — lets admins see who wrote it even after the author deletes their account

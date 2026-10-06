@@ -5,6 +5,9 @@ import BoardPostDetailScreen from '../screens/board/BoardPostDetailScreen';
 import CreatePostScreen from '../screens/board/CreatePostScreen';
 import StayCreateScreen from '../screens/stay/StayCreateScreen';
 import StayDetailScreen from '../screens/stay/StayDetailScreen';
+import IntroScreen from '../screens/intro/IntroScreen';
+import IntroCreateScreen from '../screens/intro/IntroCreateScreen';
+import IntroDetailScreen from '../screens/intro/IntroDetailScreen';
 import UniversityBoardScreen from '../screens/board/UniversityBoardScreen';
 import SchoolCommunityEditScreen from '../screens/board/SchoolCommunityEditScreen';
 import SchoolMembersScreen from '../screens/board/SchoolMembersScreen';
@@ -45,6 +48,9 @@ export default function BoardStack() {
       <Stack.Screen name="BoardPostDetail" component={BoardPostDetailScreen} options={{ title: t('post.postTitle') }} />
       <Stack.Screen name="StayCreate" component={StayCreateScreen} options={{ headerShown: false }} />
       <Stack.Screen name="StayDetail" component={StayDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="IntroScreen" component={IntroScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="IntroDetail" component={IntroDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="IntroCreate" component={IntroCreateScreen} options={{ headerShown: false, presentation: 'modal', gestureEnabled: false }} />
       <Stack.Screen name="CreatePost"      component={CreatePostScreen}      options={{ headerShown: false, presentation: 'modal', gestureEnabled: false }} />
       <Stack.Screen name="EditPost"        component={CreatePostScreen}      options={{ headerShown: false, presentation: 'modal', gestureEnabled: false }} />
       <Stack.Screen name="VerifyStudent"  component={VerifyStudentScreen}   options={{ title: t('mypage.verifyStudent') }} />

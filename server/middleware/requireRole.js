@@ -42,4 +42,20 @@ async function requireVerifiedStudent(req, res, next) {
   }
 }
 
-module.exports = { requireRole, requireAdmin, requireVerifiedStudent };
+// Any verified user, regardless of role (students, working holiday, general)
+async function requireVerified(req, res, next) {
+  try {
+    const user = await User.findById(req.user.id).select('role verified');
+    if (!user) return res.status(401).json({ success: false, message: '인증이 필요합니다.' });
+    if (!user.verified) {
+      return res.status(403).json({ success: false, message: '인증 회원만 이용할 수 있어요.' });
+    }
+    req.user.role = user.role;
+    req.user.verified = user.verified;
+    next();
+  } catch (err) {
+    res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+  }
+}
+
+module.exports = { requireRole, requireAdmin, requireVerifiedStudent, requireVerified };

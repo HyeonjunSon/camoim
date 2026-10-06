@@ -70,6 +70,15 @@ const userSchema = new mongoose.Schema({
     chat:       { type: Boolean, default: true }, // Chat messages
     notice:     { type: Boolean, default: true }, // Announcements
   },
+  // Intro board: one-time self-attest (19+, agrees to the board's rules), shown once before first use
+  introAgreedAt: { type: Date, default: null },
+  // Intro board: last-used apply-sheet values, so the next request auto-fills
+  introDefaults: {
+    gender: { type: String, default: '' },
+    birthYear: { type: Number, default: null },
+    region: { type: String, default: '' },
+    job: { type: String, default: '' },
+  },
 }, { timestamps: true });
 
 userSchema.index({ createdAt: -1 });

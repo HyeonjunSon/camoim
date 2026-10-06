@@ -160,11 +160,15 @@ function initSocket(httpServer) {
           ),
         ]);
 
+        // Intro-board chats never reveal the real nickname, for either side
+        const anonymous = !isMultiUser && !!room.introPostId;
+        const displayName = anonymous ? '소개팅 상대' : socket.user.nickname;
+
         const payload = {
           id: message._id,
           roomId,
           senderId: userId,
-          senderNickname: socket.user.nickname,
+          senderNickname: displayName,
           content: message.content,
           readBy: message.readBy,
           createdAt: message.createdAt,
@@ -206,7 +210,7 @@ function initSocket(httpServer) {
           io.to(`user_${rid}`).emit('chat_notification', {
             roomId,
             kind: room.kind,
-            senderNickname: socket.user.nickname,
+            senderNickname: displayName,
             content: trimmed,
             groupName: isMultiUser ? room.groupName : undefined,
           });
@@ -221,7 +225,7 @@ function initSocket(httpServer) {
 
           const titleBase = isMultiUser
             ? `${room.groupName} · ${socket.user.nickname}`
-            : socket.user.nickname;
+            : displayName;
           const body = trimmed.length > 100 ? trimmed.slice(0, 100) + '…' : trimmed;
 
           await Promise.all(recipientUsers.map(u => {

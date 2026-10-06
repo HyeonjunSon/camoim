@@ -184,6 +184,7 @@ export default function HomeScreen({ navigation }) {
 
   // Navigate to the board
   const goToBoard = (board) => {
+    if (board.slug === 'intro') return navigation.navigate('IntroScreen');
     navigation.navigate('BoardFeed', {
       boardId: board.id,
       boardSlug: board.slug,

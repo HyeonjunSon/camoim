@@ -23,6 +23,7 @@ import { formatDateSeparator, isSameDay } from '../../lib/time';
 import { useSocket } from '../../context/SocketContext';
 import { getToken } from '../../lib/storage';
 import { API_BASE_URL } from '../../lib/config';
+import { setBlock } from '../../lib/api';
 import Avatar from '../../components/common/Avatar';
 import CustomHeader from '../../components/CustomHeader';
 import { trackTiming } from '../../lib/perf';
@@ -343,16 +344,39 @@ export default function ChatRoomScreen({ route, navigation }) {
   const headerTitle = isGroupChat
     ? (group?.name || t('chat.tabChats'))
     : (otherDeleted ? t('chat.deletedUser') : (other?.nickname ?? t('chat.tabChats')));
+  // Intro-board rooms are anonymous — no profile to view, but the real id is kept server-side
+  // so blocking still works (Apple Guideline 1.2), just via a direct confirm instead of their profile.
+  const confirmBlockPartner = () => {
+    if (!other?.id) return;
+    Alert.alert(t('chat.blockPartner'), t('chat.blockPartnerMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('chat.blockPartner'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const res = await setBlock(other.id, { blockChat: true, hideContent: true });
+            if (res.success) navigation.goBack();
+            else Alert.alert(t('common.error'), res.message ?? t('common.error'));
+          } catch (e) {
+            Alert.alert(t('common.error'), e.message ?? t('common.error'));
+          }
+        },
+      },
+    ]);
+  };
   // School-wide chat has no detail page, so the right action is hidden
   const showRightAction = isSchoolChat
     ? false
     : isGroupChat
       ? !!group?.id
       : !otherDeleted && !!other?.id;
-  const rightLabel = isGroupChat ? '그룹' : t('chat.profile');
+  const rightLabel = isGroupChat ? '그룹' : (other?.anonymous ? t('chat.blockPartner') : t('chat.profile'));
   const onRightPress = () => {
     if (isGroupChat && group?.id) {
       navigation.navigate('GroupDetail', { groupId: group.id });
+    } else if (!isGroupChat && other?.anonymous) {
+      confirmBlockPartner();
     } else if (!isGroupChat && other?.id) {
       navigation.push('UserProfile', { userId: other.id });
     }
