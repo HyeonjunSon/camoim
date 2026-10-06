@@ -1,7 +1,7 @@
 import { normalizeBirthYear, INTRO_JOBS } from '../intro';
 
-// server/models/IntroPost.js's job enum must list every key used here, plus ''
-const serverIntroPost = require('../../../server/models/IntroPost');
+// server/constants/intro.js's job enum must list every key used here, plus ''
+const serverIntro = require('../../../server/constants/intro');
 
 describe('normalizeBirthYear', () => {
   it('expands a 2-digit year below the current-century cutoff to 2000s', () => {
@@ -25,6 +25,6 @@ describe('normalizeBirthYear', () => {
 
 describe('client/server intro job keys stay in sync', () => {
   it('every client job key is accepted by the server enum', () => {
-    INTRO_JOBS.forEach(({ key }) => expect(serverIntroPost.INTRO_JOBS).toContain(key));
+    INTRO_JOBS.forEach(({ key }) => expect(serverIntro.INTRO_JOBS).toContain(key));
   });
 });

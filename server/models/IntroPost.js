@@ -1,13 +1,10 @@
 const mongoose = require('mongoose');
+const { INTRO_GENDERS, INTRO_JOBS, INTRO_CONTACT_TYPES, INTRO_EXPIRY_DAYS } = require('../constants/intro');
 
 // Intro board — fully anonymous, verified-members-only introductions.
 // "self": the author posts about themselves. "proxy": the author posts about a friend
 // (proxyConsent must be true — self-attested, not independently verified).
 // Nothing here is ever shown with the author's real nickname/avatar; see routes/intro.js's formatIntro.
-const INTRO_GENDERS = ['male', 'female'];
-const INTRO_JOBS = ['student', 'office', 'professional', 'business', 'workinghol', ''];
-const INTRO_CONTACT_TYPES = ['instagram', 'kakao', ''];
-const INTRO_EXPIRY_DAYS = 30;
 
 const introPostSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
