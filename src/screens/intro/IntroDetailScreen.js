@@ -2,12 +2,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   View, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert,
-  Modal, ActionSheetIOS, Platform,
+  Modal, ActionSheetIOS, Platform, Linking,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 // The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as Linking from 'expo-linking';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text, TextInput } from '../../components/StyledText';
