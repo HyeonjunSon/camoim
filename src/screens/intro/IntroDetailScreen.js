@@ -15,7 +15,7 @@ import CustomHeader from '../../components/CustomHeader';
 import EmptyState from '../../components/EmptyState';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import WheelPicker from '../../components/WheelPicker';
+import WheelPicker, { PickerField } from '../../components/WheelPicker';
 import { INTRO_GENDERS, INTRO_JOBS, INTRO_ACCENT, BIRTH_YEARS, regionLabel, jobLabel, ageLabel, preferredAgeRangeLabel } from '../../constants/intro';
 import { getIntroPost, getIntroMeta, applyToIntroPost, closeIntroPost, reportIntroPost } from '../../lib/api';
 
@@ -311,11 +311,7 @@ function ApplySheet({ visible, onClose, introId, onSent, styles, colors, t }) {
                   </TouchableOpacity>
                 );
               })}
-              <TouchableOpacity style={[styles.input, { width: 90 }]} activeOpacity={0.7} onPress={() => setYearPickerOpen(true)}>
-                <Text style={{ fontSize: 14, color: birthYear ? colors.text : colors.textSecondary }}>
-                  {birthYear ? String(birthYear) : t('intro.birthYearPh')}
-                </Text>
-              </TouchableOpacity>
+              <PickerField style={{ width: 108 }} value={birthYear ? String(birthYear) : ''} placeholder={t('intro.birthYearPh')} onPress={() => setYearPickerOpen(true)} />
             </View>
             <TextInput value={region} onChangeText={setRegion} placeholder={t('intro.regionPh')}
               placeholderTextColor={colors.textSecondary} style={[styles.input, { marginTop: 7 }]} maxLength={40} />

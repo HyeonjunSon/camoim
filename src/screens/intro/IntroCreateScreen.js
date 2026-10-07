@@ -11,7 +11,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, TextInput } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
-import WheelPicker from '../../components/WheelPicker';
+import WheelPicker, { PickerField } from '../../components/WheelPicker';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { INTRO_GENDERS, INTRO_JOBS, INTRO_ACCENT, BIRTH_YEARS, HEIGHT_CM, AGES, ageRangeToBirthYears } from '../../constants/intro';
@@ -172,20 +172,12 @@ export default function IntroCreateScreen({ navigation }) {
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <View style={{ flex: 1 }}>
               <Field label={t('intro.birthYearLabel')} required>
-                <TouchableOpacity style={styles.input} activeOpacity={0.7} onPress={() => setPickerOpen('birthYear')}>
-                  <Text style={{ fontSize: 15, color: birthYear ? colors.text : colors.textSecondary }}>
-                    {birthYear ? String(birthYear) : t('intro.birthYearPh')}
-                  </Text>
-                </TouchableOpacity>
+                <PickerField value={birthYear ? String(birthYear) : ''} placeholder={t('intro.birthYearPh')} onPress={() => setPickerOpen('birthYear')} />
               </Field>
             </View>
             <View style={{ flex: 1 }}>
               <Field label={t('intro.heightLabelOptional')}>
-                <TouchableOpacity style={styles.input} activeOpacity={0.7} onPress={() => setPickerOpen('height')}>
-                  <Text style={{ fontSize: 15, color: height ? colors.text : colors.textSecondary }}>
-                    {height ? `${height}cm` : t('intro.heightPh')}
-                  </Text>
-                </TouchableOpacity>
+                <PickerField value={height ? `${height}cm` : ''} placeholder={t('intro.heightPh')} onPress={() => setPickerOpen('height')} />
               </Field>
             </View>
           </View>
@@ -223,17 +215,9 @@ export default function IntroCreateScreen({ navigation }) {
 
           <Field label={t('intro.preferAgeLabel')}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TouchableOpacity style={[styles.input, { flex: 1 }]} activeOpacity={0.7} onPress={() => setPickerOpen('prefAgeMin')}>
-                <Text style={{ fontSize: 15, color: prefAgeMin ? colors.text : colors.textSecondary }}>
-                  {prefAgeMin || t('intro.preferAnyAge')}
-                </Text>
-              </TouchableOpacity>
+              <PickerField style={{ flex: 1 }} value={prefAgeMin ? String(prefAgeMin) : ''} placeholder={t('intro.preferAnyAge')} onPress={() => setPickerOpen('prefAgeMin')} />
               <Text style={{ color: colors.textSecondary }}>~</Text>
-              <TouchableOpacity style={[styles.input, { flex: 1 }]} activeOpacity={0.7} onPress={() => setPickerOpen('prefAgeMax')}>
-                <Text style={{ fontSize: 15, color: prefAgeMax ? colors.text : colors.textSecondary }}>
-                  {prefAgeMax || t('intro.preferAnyAge')}
-                </Text>
-              </TouchableOpacity>
+              <PickerField style={{ flex: 1 }} value={prefAgeMax ? String(prefAgeMax) : ''} placeholder={t('intro.preferAnyAge')} onPress={() => setPickerOpen('prefAgeMax')} />
             </View>
           </Field>
 

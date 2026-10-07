@@ -2,9 +2,36 @@
 // Scroll, let go, and the nearest row to the centre band becomes the pick; Confirm commits it.
 import { useRef, useState } from 'react';
 import { Modal, View, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+// The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Text } from './StyledText';
 import { useTheme } from '../context/ThemeContext';
 import { useLang } from '../context/LangContext';
+
+// The button that opens a WheelPicker. Bordered + a chevron, same shape a <select> would have,
+// so it doesn't read as blank/disabled space when no value is picked yet.
+export function PickerField({ value, placeholder, onPress, disabled, style }) {
+  const { colors } = useTheme();
+  const styles = fieldStyles(colors);
+  return (
+    <TouchableOpacity style={[styles.field, style, disabled && { opacity: 0.5 }]} activeOpacity={0.7} onPress={onPress} disabled={disabled}>
+      <Text style={[styles.fieldText, !value && styles.fieldPlaceholder]} numberOfLines={1}>
+        {value || placeholder}
+      </Text>
+      <Ionicons name="chevron-down" size={15} color={colors.textSecondary} />
+    </TouchableOpacity>
+  );
+}
+
+const fieldStyles = (colors) => StyleSheet.create({
+  field: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.inputBg, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
+    paddingVertical: 12, paddingHorizontal: 14,
+  },
+  fieldText: { fontSize: 15, color: colors.text, flexShrink: 1 },
+  fieldPlaceholder: { color: colors.textSecondary },
+});
 
 const ITEM_HEIGHT = 44;
 const VISIBLE_ROWS = 5; // Odd, so one row sits dead centre
