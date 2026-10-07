@@ -1,8 +1,11 @@
 // Intro board — create form. Posting about yourself or (with consent) a friend.
 // Nothing here is ever shown with the author's real nickname/avatar — see routes/intro.js.
 import { useState } from 'react';
-import { View, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Linking } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 // The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,7 +14,7 @@ import CustomHeader from '../../components/CustomHeader';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import { INTRO_GENDERS, INTRO_JOBS, INTRO_REGIONS, INTRO_ACCENT, normalizeBirthYear } from '../../constants/intro';
-import { createIntroPost } from '../../lib/api';
+import { createIntroPost, uploadIntroImage } from '../../lib/api';
 
 export default function IntroCreateScreen({ navigation }) {
   const { colors } = useTheme();
@@ -33,10 +36,40 @@ export default function IntroCreateScreen({ navigation }) {
   const [prefRegion, setPrefRegion] = useState('');
   const [contactType, setContactType] = useState('');
   const [contactValue, setContactValue] = useState('');
+  const [photo, setPhoto] = useState('');
+  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = !!(gender && birthYear.trim() && region && headline.trim())
     && (mode === 'self' || proxyConsent) && !submitting;
+
+  const pickPhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(t('biz.permNeedTitle'), t('biz.permNeedMsg'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('biz.openSettings'), onPress: () => Linking.openSettings() },
+      ]);
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, allowsEditing: true, aspect: [3, 4] });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setUploading(true);
+    try {
+      const manipulated = await ImageManipulator.manipulateAsync(
+        asset.uri, [{ resize: { width: 1000 } }],
+        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      const res = await uploadIntroImage({ uri: manipulated.uri, filename: `intro_${Date.now()}.jpg`, type: 'image/jpeg' });
+      if (res?.success && res.url) setPhoto(res.url);
+      else Alert.alert(t('biz.errorTitle'), t('biz.uploadFail'));
+    } catch {
+      Alert.alert(t('biz.errorTitle'), t('biz.uploadFail'));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const onSubmit = async () => {
     if (!gender) return Alert.alert(t('common.error'), t('intro.needGender'));
@@ -56,6 +89,7 @@ export default function IntroCreateScreen({ navigation }) {
         preferredBirthYearMax: prefMax ? normalizeBirthYear(prefMax) : null,
         preferredRegion: prefRegion,
         contactType, contactValue: contactValue.trim(),
+        photo,
       });
       if (res?.success) {
         navigation.goBack();
@@ -78,6 +112,27 @@ export default function IntroCreateScreen({ navigation }) {
           contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40, gap: 18 }}
           keyboardShouldPersistTaps="handled"
         >
+          <Field label={t('intro.photoLabelOptional')}>
+            <TouchableOpacity style={styles.photoBox} activeOpacity={0.85} onPress={pickPhoto} disabled={uploading}>
+              {uploading ? (
+                <ActivityIndicator color={colors.textSecondary} />
+              ) : photo ? (
+                <>
+                  <Image source={{ uri: photo }} style={styles.photoImg} contentFit="cover" />
+                  <TouchableOpacity style={styles.photoRemove} onPress={() => setPhoto('')} activeOpacity={0.8}>
+                    <Ionicons name="close" size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="camera-outline" size={26} color={colors.textSecondary} />
+                  <Text style={styles.photoEmptyText}>{t('intro.noPhoto')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.hintText}>{t('intro.photoHint')}</Text>
+          </Field>
+
           <Field label={t('intro.modeLabel')}>
             <View style={styles.modeRow}>
               {[{ key: 'self', label: t('intro.modeSelf') }, { key: 'proxy', label: t('intro.modeProxy') }].map((m) => {
@@ -247,6 +302,17 @@ const createStyles = (colors) => StyleSheet.create({
   input: { backgroundColor: colors.inputBg, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 14, fontSize: 15, color: colors.text },
   textarea: { minHeight: 110, textAlignVertical: 'top' },
   hintText: { fontSize: 11, color: colors.textSecondary, marginTop: 4, paddingHorizontal: 2 },
+  photoBox: {
+    width: 120, height: 150, borderRadius: 14, backgroundColor: colors.inputBg,
+    borderWidth: 1.5, borderColor: colors.border, borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center', gap: 6, overflow: 'hidden',
+  },
+  photoImg: { width: '100%', height: '100%' },
+  photoEmptyText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
+  photoRemove: {
+    position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
+  },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   selectChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
   selectChipActive: { borderColor: INTRO_ACCENT, backgroundColor: INTRO_ACCENT + '1A' },

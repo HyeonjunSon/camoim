@@ -73,7 +73,8 @@ describe('POST /api/intro — create', () => {
     const owner = await verifiedUser();
     await agree(owner);
     const created = await request(app).post('/api/intro')
-      .set('Authorization', `Bearer ${tokenFor(owner)}`).send(createBody()).expect(201);
+      .set('Authorization', `Bearer ${tokenFor(owner)}`)
+      .send(createBody({ photo: 'https://res.cloudinary.com/demo/image/upload/v1/camoim/intro/a.jpg' })).expect(201);
     expect(created.body.data.contactValue).toBe('handle'); // Owner sees their own contact right after posting
 
     const other = await verifiedUser();
@@ -82,6 +83,8 @@ describe('POST /api/intro — create', () => {
     const row = list.body.data.find((p) => String(p.id) === String(created.body.data.id));
     expect(row.hasContact).toBe(true);
     expect(row.contactValue).toBe('');
+    // Unlike contact info, the photo (when set) is public immediately — it's how people decide to apply
+    expect(row.photo).toBe('https://res.cloudinary.com/demo/image/upload/v1/camoim/intro/a.jpg');
 
     // The owner's own post never appears in their own browse list
     const ownList = await request(app).get('/api/intro')

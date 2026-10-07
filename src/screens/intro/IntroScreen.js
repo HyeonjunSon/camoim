@@ -2,6 +2,7 @@
 // Fully anonymous: nothing here is ever shown with a real nickname/avatar.
 import { useState, useCallback } from 'react';
 import { View, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Modal, Alert } from 'react-native';
+import { Image } from 'expo-image';
 // The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -192,14 +193,21 @@ function BrowseCard({ item, styles, colors, t, onPress }) {
           <View style={styles.proxyBadge}><Text style={styles.proxyBadgeText}>{t('intro.proxyBadge')}</Text></View>
         )}
       </View>
-      <Text style={styles.cardHeadline} numberOfLines={2}>{item.headline}</Text>
-      <View style={styles.chipWrap}>
-        {!!item.job && <View style={styles.tag}><Text style={styles.tagText}>{jobLabel(item.job, t)}</Text></View>}
-        {!!item.height && <View style={styles.tag}><Text style={styles.tagText}>{item.height}</Text></View>}
-        {(item.preferredBirthYearMin || item.preferredBirthYearMax) && (
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>{item.preferredBirthYearMin || '?'}~{item.preferredBirthYearMax || t('intro.preferAnyAge')}</Text>
+      <View style={styles.cardBodyRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardHeadline} numberOfLines={2}>{item.headline}</Text>
+          <View style={styles.chipWrap}>
+            {!!item.job && <View style={styles.tag}><Text style={styles.tagText}>{jobLabel(item.job, t)}</Text></View>}
+            {!!item.height && <View style={styles.tag}><Text style={styles.tagText}>{item.height}</Text></View>}
+            {(item.preferredBirthYearMin || item.preferredBirthYearMax) && (
+              <View style={styles.tag}>
+                <Text style={styles.tagText}>{item.preferredBirthYearMin || '?'}~{item.preferredBirthYearMax || t('intro.preferAnyAge')}</Text>
+              </View>
+            )}
           </View>
+        </View>
+        {!!item.photo && (
+          <Image source={{ uri: item.photo }} style={styles.cardThumb} contentFit="cover" cachePolicy="memory-disk" />
         )}
       </View>
       <Text style={styles.cardFooter}>{item.expired ? t('intro.expired') : t('intro.daysLeft').replace('{n}', item.daysLeft)}</Text>
@@ -338,6 +346,8 @@ const createStyles = (colors) => StyleSheet.create({
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardMeta: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
   cardHeadline: { fontSize: 16, fontWeight: '800', color: colors.text, flexShrink: 1 },
+  cardBodyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  cardThumb: { width: 64, height: 64, borderRadius: 10, backgroundColor: colors.inputBg },
   cardFooter: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
   proxyBadge: { backgroundColor: INTRO_ACCENT + '1A', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   proxyBadgeText: { fontSize: 10, fontWeight: '700', color: INTRO_ACCENT },

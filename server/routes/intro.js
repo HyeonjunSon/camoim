@@ -12,6 +12,9 @@
 // PUT /requests/:id/decline  owner declines — the requester is never told
 const express = require('express');
 const mongoose = require('mongoose');
+const multer = require('multer');
+const { v2: cloudinary } = require('cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const IntroPost = require('../models/IntroPost');
 const IntroRequest = require('../models/IntroRequest');
 const ChatRoom = require('../models/ChatRoom');
@@ -27,6 +30,21 @@ const { INTRO_GENDERS, INTRO_JOBS, INTRO_CONTACT_TYPES, INTRO_EXPIRY_DAYS } = In
 const router = express.Router();
 
 const DAILY_REQUEST_LIMIT = 10;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'camoim/intro',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'heic', 'heif', 'webp'],
+    transformation: [{ width: 1280, crop: 'limit', quality: 'auto', fetch_format: 'auto' }],
+  },
+});
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 // Same normalization idea as routes/universities.js's normalizeCommunityField, scoped to just Instagram
 function normalizeContact(contactType, raw) {
@@ -60,6 +78,7 @@ function formatIntro(p, { viewerId, showContact } = {}) {
     height: p.height || '',
     headline: p.headline,
     bio: p.bio || '',
+    photo: p.photo || '',
     preferredBirthYearMin: p.preferredBirthYearMin ?? null,
     preferredBirthYearMax: p.preferredBirthYearMax ?? null,
     preferredRegion: p.preferredRegion || '',
@@ -73,6 +92,11 @@ function formatIntro(p, { viewerId, showContact } = {}) {
     createdAt: p.createdAt,
   };
 }
+
+router.post('/upload-image', requireAuth, upload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, message: '이미지가 없습니다.' });
+  res.json({ success: true, url: req.file.path });
+});
 
 // ── GET /api/intro/meta ──
 router.get('/meta', requireAuth, async (req, res) => {
@@ -192,6 +216,7 @@ router.post('/', requireAuth, requireVerified, async (req, res) => {
       preferredRegion: String(b.preferredRegion || '').trim().slice(0, 40),
       contactType,
       contactValue: normalizeContact(contactType, b.contactValue).slice(0, 100),
+      photo: typeof b.photo === 'string' ? b.photo.slice(0, 500) : '',
       expiresAt,
     });
 

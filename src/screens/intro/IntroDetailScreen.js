@@ -5,6 +5,7 @@ import {
   Modal, ActionSheetIOS, Platform, Linking,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { Image } from 'expo-image';
 // The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -124,6 +125,10 @@ export default function IntroDetailScreen({ route, navigation }) {
             <Ionicons name="people" size={16} color={INTRO_ACCENT} />
             <Text style={styles.proxyBannerText}>{t('intro.proxyNote')}</Text>
           </View>
+        )}
+
+        {!!post.photo && (
+          <Image source={{ uri: post.photo }} style={styles.heroPhoto} contentFit="cover" transition={150} />
         )}
 
         <Text style={styles.headline}>{post.headline}</Text>
@@ -346,6 +351,7 @@ const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   proxyBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: INTRO_ACCENT + '12', borderRadius: 10, padding: 12, marginBottom: 16 },
   proxyBannerText: { flex: 1, fontSize: 12, color: colors.text, fontWeight: '600' },
+  heroPhoto: { width: '100%', height: 320, borderRadius: 16, backgroundColor: colors.inputBg, marginBottom: 16 },
   headline: { fontSize: 20, fontWeight: '800', color: colors.text, lineHeight: 28, marginBottom: 16 },
   table: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, overflow: 'hidden' },
   tableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },

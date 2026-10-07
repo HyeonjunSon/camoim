@@ -548,6 +548,21 @@ export const getReceivedIntroRequests = () => request('GET', '/intro/requests/re
 export const acceptIntroRequest = (id) => request('PUT', `/intro/requests/${id}/accept`);
 export const declineIntroRequest = (id) => request('PUT', `/intro/requests/${id}/decline`);
 export const reportIntroPost = (id, reason) => request('POST', `/intro/${id}/report`, { reason });
+export const uploadIntroImage = async (asset, onProgress) => {
+  const token = await getToken();
+  const formData = new FormData();
+  formData.append('image', {
+    uri: asset.uri,
+    name: asset.filename ?? `intro_img_${Date.now()}.jpg`,
+    type: asset.type ?? 'image/jpeg',
+  });
+  return uploadWithProgress({
+    url: `${BASE_URL}/intro/upload-image`,
+    formData,
+    token,
+    onProgress,
+  });
+};
 
 export const uploadStayImage = async (asset, onProgress) => {
   const token = await getToken();

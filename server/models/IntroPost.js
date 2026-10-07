@@ -19,6 +19,7 @@ const introPostSchema = new mongoose.Schema({
 
   headline: { type: String, required: true, trim: true, maxlength: 60 },
   bio: { type: String, default: '', trim: true, maxlength: 1000 },
+  photo: { type: String, default: '' }, // Optional — a Cloudinary URL (camoim/intro)
 
   // Birth years, not ages (e.g. 1994 = "94년생 이후"), matching the birthYear field above
   preferredBirthYearMin: { type: Number, default: null, min: 1900, max: 2100 },
