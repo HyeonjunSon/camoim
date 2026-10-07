@@ -58,7 +58,7 @@ export const TRANSLATIONS = {
       uniMeetup: '학교 한인 모임', uniInfo: '학교 유학생 정보',
     },
     boardDesc: {
-      intro: '인증 회원끼리 소개팅해요',
+      intro: '만 19세 이상이면 누구나 소개팅해요',
       free: '자유롭게 이야기해요', anonymous: '익명으로 털어놓아요',
       meetup: '같이 갈 사람·동행 구해요', immigration: '이민·영주권 정보와 질문',
       study: '유학·학교·교육 정보와 질문', workingholiday: '워홀 정보와 질문',
@@ -849,12 +849,12 @@ export const TRANSLATIONS = {
     intro: {
       consentTitle1: '캐나다에서,', consentTitle2: '괜찮은 사람', consentTitle3: '소개받기',
       consentDesc: '나를 직접 소개하거나, 괜찮은 지인을 대신 소개할 수 있어요. 시작하기 전에 세 가지만 약속해 주세요.',
-      rule1Title: '인증 회원만 보고, 올릴 수 있어요', rule1Desc: '학교 또는 이메일 인증을 마친 만 19세 이상만 이용해요.',
+      rule1Title: '만 19세 이상이면 누구나', rule1Desc: '학교·이메일 인증 여부와 상관없이 로그인한 회원이면 이용할 수 있어요.',
       rule2Title: '실명, 회사명, 연락처는 적지 않아요', rule2Desc: '지인을 소개할 땐 꼭 본인 동의를 먼저 받아 주세요.',
       rule3Title: '수락해야 대화가 시작돼요', rule3Desc: '신청을 받은 쪽이 수락하면 익명 채팅이 열려요. 거절은 상대에게 알리지 않아요.',
       agreeCheck: '만 19세 이상이며, 이용 규칙에 동의해요', start: '시작하기',
 
-      title: '소개팅', subtitle: '인증 회원끼리만 보는 게시판이에요',
+      title: '소개팅', subtitle: '만 19세 이상 회원이면 누구나 이용할 수 있어요',
       tabBrowse: '둘러보기', tabReceived: '받은 신청', tabMine: '내 소개',
       fab: '소개 올리기',
       genderFemale: '여성', genderMale: '남성', proxyOnly: '지인 소개만',
@@ -902,7 +902,7 @@ export const TRANSLATIONS = {
       preferRegionLabel: '원하는 지역 (선택)',
       contactLabelOptional: '연락처 (선택)', contactLockHint: '수락한 상대에게만 보여요',
       contactListHint: '목록과 상세엔 "인스타 있음"만 표시돼요. 전화번호는 적지 말아 주세요.',
-      verifyNote: '인증 회원만 볼 수 있고, 30일 뒤 자동으로 내려가요. 언제든 직접 마감할 수 있어요.',
+      verifyNote: '30일 뒤 자동으로 내려가요. 언제든 직접 마감할 수 있어요.',
       submit: '올리기', createFail: '등록에 실패했어요.',
       needGender: '성별을 선택해 주세요.', needBirthYear: '출생연도를 입력해 주세요.',
       needRegion: '지역을 선택해 주세요.', needHeadline: '한 줄 소개를 입력해 주세요.',
@@ -914,7 +914,6 @@ export const TRANSLATIONS = {
       acceptFail: '수락에 실패했어요.', declineFail: '처리에 실패했어요.',
 
       chatPartnerLabel: '소개팅 상대',
-      boardDesc: '인증 회원끼리 소개팅해요',
     },
   },
   en: {
@@ -974,7 +973,7 @@ export const TRANSLATIONS = {
       uniMeetup: 'Korean Meetups', uniInfo: 'Student Info',
     },
     boardDesc: {
-      intro: 'Introductions for verified members',
+      intro: 'Introductions, open to any member 19+',
       free: 'Talk freely about anything', anonymous: 'Share your thoughts anonymously',
       meetup: 'Find travel buddies & companions', immigration: 'Immigration & PR tips and questions',
       study: 'Education, school & study abroad info', workingholiday: 'Working holiday tips & questions',
@@ -1754,12 +1753,12 @@ export const TRANSLATIONS = {
     intro: {
       consentTitle1: 'Meet someone', consentTitle2: 'good, right', consentTitle3: 'here in Canada',
       consentDesc: 'Introduce yourself, or introduce a friend with their OK. Just three promises before you start.',
-      rule1Title: 'Verified members only', rule1Desc: 'Only members 19+ who finished school or email verification.',
+      rule1Title: 'Open to anyone 19+', rule1Desc: 'Any logged-in member can use it, regardless of school or email verification.',
       rule2Title: 'No real names, employers, or contact info', rule2Desc: 'Always get consent first before introducing a friend.',
       rule3Title: 'Chat opens only after acceptance', rule3Desc: 'An anonymous chat opens once the recipient accepts. Declines are never shown to the sender.',
       agreeCheck: "I'm 19+ and agree to these rules", start: 'Get started',
 
-      title: 'Intro', subtitle: 'Visible to verified members only',
+      title: 'Intro', subtitle: 'Open to any member 19 or older',
       tabBrowse: 'Browse', tabReceived: 'Received', tabMine: 'Mine',
       fab: 'Post an intro',
       genderFemale: 'Woman', genderMale: 'Man', proxyOnly: 'Friend intros only',
@@ -1807,7 +1806,7 @@ export const TRANSLATIONS = {
       preferRegionLabel: 'Preferred region (optional)',
       contactLabelOptional: 'Contact (optional)', contactLockHint: 'Only shown to someone you accept',
       contactListHint: 'The list and detail page only show "Has Instagram" — please don’t add a phone number.',
-      verifyNote: 'Visible to verified members only, and drops off automatically after 30 days. You can close it early anytime.',
+      verifyNote: 'Drops off automatically after 30 days. You can close it early anytime.',
       submit: 'Post', createFail: 'Failed to post.',
       needGender: 'Please choose a gender.', needBirthYear: 'Please enter a birth year.',
       needRegion: 'Please choose a region.', needHeadline: 'Please enter a headline.',
@@ -1819,7 +1818,6 @@ export const TRANSLATIONS = {
       acceptFail: 'Failed to accept.', declineFail: 'Failed to process.',
 
       chatPartnerLabel: 'Intro match',
-      boardDesc: 'Introductions for verified members',
     },
   },
 };

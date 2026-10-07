@@ -28,10 +28,6 @@ beforeAll(async () => {
 afterEach(() => db.clear());
 afterAll(() => db.close());
 
-async function verifiedUser(overrides = {}) {
-  return createUser({ verified: true, ...overrides });
-}
-
 async function agree(user) {
   await request(app).post('/api/intro/agree').set('Authorization', `Bearer ${tokenFor(user)}`).expect(200);
 }
@@ -45,23 +41,28 @@ function createBody(overrides = {}) {
 }
 
 describe('POST /api/intro — create', () => {
-  it('rejects an unverified user', async () => {
+  it('allows an unverified (school/email) account to post and browse — the board is open to everyone', async () => {
     const user = await createUser({ verified: false });
-    await agree(user); // agree doesn't require verification, only create does
-    const res = await request(app).post('/api/intro')
-      .set('Authorization', `Bearer ${tokenFor(user)}`).send(createBody()).expect(403);
-    expect(res.body.success).toBe(false);
+    await agree(user);
+    const created = await request(app).post('/api/intro')
+      .set('Authorization', `Bearer ${tokenFor(user)}`).send(createBody()).expect(201);
+    expect(created.body.success).toBe(true);
+
+    const otherUnverified = await createUser({ verified: false });
+    const list = await request(app).get('/api/intro')
+      .set('Authorization', `Bearer ${tokenFor(otherUnverified)}`).expect(200);
+    expect(list.body.data.find((p) => String(p.id) === String(created.body.data.id))).toBeDefined();
   });
 
   it('rejects before the one-time rules agreement', async () => {
-    const user = await verifiedUser();
+    const user = await createUser();
     const res = await request(app).post('/api/intro')
       .set('Authorization', `Bearer ${tokenFor(user)}`).send(createBody()).expect(403);
     expect(res.body.success).toBe(false);
   });
 
   it('requires proxyConsent when mode is proxy', async () => {
-    const user = await verifiedUser();
+    const user = await createUser();
     await agree(user);
     const res = await request(app).post('/api/intro')
       .set('Authorization', `Bearer ${tokenFor(user)}`)
@@ -70,14 +71,14 @@ describe('POST /api/intro — create', () => {
   });
 
   it('creates a post and never exposes contact to a non-owner browsing the list', async () => {
-    const owner = await verifiedUser();
+    const owner = await createUser();
     await agree(owner);
     const created = await request(app).post('/api/intro')
       .set('Authorization', `Bearer ${tokenFor(owner)}`)
       .send(createBody({ photo: 'https://res.cloudinary.com/demo/image/upload/v1/camoim/intro/a.jpg' })).expect(201);
     expect(created.body.data.contactValue).toBe('handle'); // Owner sees their own contact right after posting
 
-    const other = await verifiedUser();
+    const other = await createUser();
     const list = await request(app).get('/api/intro')
       .set('Authorization', `Bearer ${tokenFor(other)}`).expect(200);
     const row = list.body.data.find((p) => String(p.id) === String(created.body.data.id));
@@ -95,7 +96,7 @@ describe('POST /api/intro — create', () => {
 
 describe('POST /api/intro/:id/requests — apply to chat', () => {
   async function setupPost() {
-    const owner = await verifiedUser();
+    const owner = await createUser();
     await agree(owner);
     const created = await request(app).post('/api/intro')
       .set('Authorization', `Bearer ${tokenFor(owner)}`).send(createBody()).expect(201);
@@ -112,7 +113,7 @@ describe('POST /api/intro/:id/requests — apply to chat', () => {
 
   it('blocks a second pending request to the same post', async () => {
     const { introId } = await setupPost();
-    const requester = await verifiedUser();
+    const requester = await createUser();
     await agree(requester);
     const body = { message: 'hi', gender: 'male', birthYear: 1995, region: 'toronto' };
     await request(app).post(`/api/intro/${introId}/requests`)
@@ -123,9 +124,9 @@ describe('POST /api/intro/:id/requests — apply to chat', () => {
   });
 
   it('enforces the daily request limit across different posts', async () => {
-    const requester = await verifiedUser();
+    const requester = await createUser();
     await agree(requester);
-    const owner = await verifiedUser();
+    const owner = await createUser();
     await agree(owner);
 
     // Create 11 posts from the owner and apply to each as the requester — the 11th should 429
@@ -144,7 +145,7 @@ describe('POST /api/intro/:id/requests — apply to chat', () => {
 
   it('excludes posts from a blocked user in the browse list', async () => {
     const { owner, introId } = await setupPost();
-    const viewer = await verifiedUser();
+    const viewer = await createUser();
     await Block.create({ blockerId: viewer._id, blockedId: owner._id, hideContent: true });
 
     const list = await request(app).get('/api/intro')
@@ -155,11 +156,11 @@ describe('POST /api/intro/:id/requests — apply to chat', () => {
 
 describe('Accept / decline', () => {
   async function setupRequest() {
-    const owner = await verifiedUser();
+    const owner = await createUser();
     await agree(owner);
     const created = await request(app).post('/api/intro')
       .set('Authorization', `Bearer ${tokenFor(owner)}`).send(createBody()).expect(201);
-    const requester = await verifiedUser();
+    const requester = await createUser();
     await agree(requester);
     const applied = await request(app).post(`/api/intro/${created.body.data.id}/requests`)
       .set('Authorization', `Bearer ${tokenFor(requester)}`)
@@ -218,7 +219,7 @@ describe('Accept / decline', () => {
 
   it('only the post owner can accept or decline', async () => {
     const { requestId } = await setupRequest();
-    const stranger = await verifiedUser();
+    const stranger = await createUser();
     await request(app).put(`/api/intro/requests/${requestId}/accept`)
       .set('Authorization', `Bearer ${tokenFor(stranger)}`).expect(403);
     await request(app).put(`/api/intro/requests/${requestId}/decline`)

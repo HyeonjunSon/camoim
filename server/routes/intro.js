@@ -1,4 +1,4 @@
-// Intro board — fully anonymous, verified-members-only introductions.
+// Intro board — fully anonymous introductions, open to any logged-in member (19+ self-attested).
 // GET /                 browse (filters: gender, region, minBirthYear, maxBirthYear, proxyOnly)
 // POST /                create (self or proxy-with-consent)
 // GET /mine             my own posts (active + expired)
@@ -22,7 +22,6 @@ const Report = require('../models/Report');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { requireAuth } = require('../middleware/auth');
-const { requireVerified } = require('../middleware/requireRole');
 const { sendPush } = require('../utils/push');
 const { getBlockedUserIds } = require('../utils/blocks');
 const { INTRO_GENDERS, INTRO_JOBS, INTRO_CONTACT_TYPES, INTRO_EXPIRY_DAYS } = IntroPost;
@@ -128,8 +127,8 @@ router.post('/agree', requireAuth, async (req, res) => {
   }
 });
 
-// ── GET /api/intro ── browse (verified members only) ──
-router.get('/', requireAuth, requireVerified, async (req, res) => {
+// ── GET /api/intro ── browse ──
+router.get('/', requireAuth, async (req, res) => {
   try {
     const { gender, region, minBirthYear, maxBirthYear, proxyOnly } = req.query;
     const filter = { status: 'active', expiresAt: { $gt: new Date() }, userId: { $ne: req.user.id } };
@@ -177,7 +176,7 @@ router.get('/mine', requireAuth, async (req, res) => {
 });
 
 // ── POST /api/intro ── create ──
-router.post('/', requireAuth, requireVerified, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('introAgreedAt').lean();
     if (!user?.introAgreedAt) {
@@ -228,7 +227,7 @@ router.post('/', requireAuth, requireVerified, async (req, res) => {
 });
 
 // ── GET /api/intro/:id ──
-router.get('/:id', requireAuth, requireVerified, async (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '소개글을 찾을 수 없어요.' });
     const p = await IntroPost.findById(req.params.id).lean();
@@ -272,7 +271,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
 });
 
 // ── POST /api/intro/:id/requests ── apply to chat ──
-router.post('/:id/requests', requireAuth, requireVerified, async (req, res) => {
+router.post('/:id/requests', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '소개글을 찾을 수 없어요.' });
     const user = await User.findById(req.user.id).select('introAgreedAt');
