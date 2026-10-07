@@ -14,10 +14,8 @@ import CustomHeader from '../../components/CustomHeader';
 import WheelPicker from '../../components/WheelPicker';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { INTRO_GENDERS, INTRO_JOBS, INTRO_REGIONS, INTRO_ACCENT, BIRTH_YEARS, HEIGHT_CM } from '../../constants/intro';
+import { INTRO_GENDERS, INTRO_JOBS, INTRO_REGIONS, INTRO_ACCENT, BIRTH_YEARS, HEIGHT_CM, AGES, ageRangeToBirthYears } from '../../constants/intro';
 import { createIntroPost, uploadIntroImage } from '../../lib/api';
-
-const PREF_YEAR_VALUES = ['', ...BIRTH_YEARS]; // '' = no preference ("상관없음"), wheeled in at the top
 
 export default function IntroCreateScreen({ navigation }) {
   const { colors } = useTheme();
@@ -34,15 +32,15 @@ export default function IntroCreateScreen({ navigation }) {
   const [height, setHeight] = useState(null);
   const [headline, setHeadline] = useState('');
   const [bio, setBio] = useState('');
-  const [prefMin, setPrefMin] = useState('');
-  const [prefMax, setPrefMax] = useState('');
+  const [prefAgeMin, setPrefAgeMin] = useState('');
+  const [prefAgeMax, setPrefAgeMax] = useState('');
   const [prefRegion, setPrefRegion] = useState('');
   const [contactType, setContactType] = useState('');
   const [contactValue, setContactValue] = useState('');
   const [photo, setPhoto] = useState('');
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(null); // 'birthYear' | 'height' | 'prefMin' | 'prefMax' | null
+  const [pickerOpen, setPickerOpen] = useState(null); // 'birthYear' | 'height' | 'prefAgeMin' | 'prefAgeMax' | null
 
   const canSubmit = !!(gender && birthYear && region && headline.trim())
     && (mode === 'self' || proxyConsent) && !submitting;
@@ -84,13 +82,13 @@ export default function IntroCreateScreen({ navigation }) {
 
     setSubmitting(true);
     try {
+      const { preferredBirthYearMin, preferredBirthYearMax } = ageRangeToBirthYears(prefAgeMin, prefAgeMax);
       const res = await createIntroPost({
         mode, proxyConsent: mode === 'proxy',
         gender, birthYear, region, job, height: height ? `${height}cm` : '',
         headline: headline.trim(), bio: bio.trim(),
-        preferredBirthYearMin: prefMin || null,
-        preferredBirthYearMax: prefMax || null,
-        preferredRegion: prefRegion,
+        preferredBirthYearMin, preferredBirthYearMax,
+        preferredRegion: prefRegion.trim(),
         contactType, contactValue: contactValue.trim(),
         photo,
       });
@@ -232,34 +230,25 @@ export default function IntroCreateScreen({ navigation }) {
             <Text style={styles.hintText}>{bio.length}/1000</Text>
           </Field>
 
-          <Field label={t('intro.preferBirthYearLabel')}>
+          <Field label={t('intro.preferAgeLabel')}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TouchableOpacity style={[styles.input, { flex: 1 }]} activeOpacity={0.7} onPress={() => setPickerOpen('prefMin')}>
-                <Text style={{ fontSize: 15, color: prefMin ? colors.text : colors.textSecondary }}>
-                  {prefMin || t('intro.preferAnyAge')}
+              <TouchableOpacity style={[styles.input, { flex: 1 }]} activeOpacity={0.7} onPress={() => setPickerOpen('prefAgeMin')}>
+                <Text style={{ fontSize: 15, color: prefAgeMin ? colors.text : colors.textSecondary }}>
+                  {prefAgeMin || t('intro.preferAnyAge')}
                 </Text>
               </TouchableOpacity>
               <Text style={{ color: colors.textSecondary }}>~</Text>
-              <TouchableOpacity style={[styles.input, { flex: 1 }]} activeOpacity={0.7} onPress={() => setPickerOpen('prefMax')}>
-                <Text style={{ fontSize: 15, color: prefMax ? colors.text : colors.textSecondary }}>
-                  {prefMax || t('intro.preferAnyAge')}
+              <TouchableOpacity style={[styles.input, { flex: 1 }]} activeOpacity={0.7} onPress={() => setPickerOpen('prefAgeMax')}>
+                <Text style={{ fontSize: 15, color: prefAgeMax ? colors.text : colors.textSecondary }}>
+                  {prefAgeMax || t('intro.preferAnyAge')}
                 </Text>
               </TouchableOpacity>
             </View>
           </Field>
 
           <Field label={t('intro.preferRegionLabel')}>
-            <View style={styles.chipWrap}>
-              {INTRO_REGIONS.map((r) => {
-                const active = prefRegion === r.key;
-                return (
-                  <TouchableOpacity key={r.key} style={[styles.selectChip, active ? styles.selectChipActive : styles.selectChipInactive]}
-                    activeOpacity={0.8} onPress={() => setPrefRegion(active ? '' : r.key)}>
-                    <Text style={[styles.selectChipText, { color: active ? INTRO_ACCENT : colors.textSecondary }]}>{t(r.labelKey)}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <TextInput value={prefRegion} onChangeText={setPrefRegion} placeholder={t('intro.preferRegionPh')}
+              placeholderTextColor={colors.textSecondary} style={styles.input} maxLength={40} />
           </Field>
 
           <Field label={t('intro.contactLabelOptional')}>
@@ -313,23 +302,25 @@ export default function IntroCreateScreen({ navigation }) {
         onClose={() => setPickerOpen(null)}
         accentColor={INTRO_ACCENT}
       />
+      {/* The other bound, once set, prunes out-of-range values entirely rather than letting an
+          inverted range (e.g. min 30 ~ max 25) get picked and then need correcting. */}
       <WheelPicker
-        visible={pickerOpen === 'prefMin'}
-        title={t('intro.preferBirthYearLabel')}
-        values={PREF_YEAR_VALUES}
-        initialValue={prefMin || ''}
+        visible={pickerOpen === 'prefAgeMin'}
+        title={t('intro.preferAgeLabel')}
+        values={['', ...AGES.filter((a) => !prefAgeMax || a <= prefAgeMax)]}
+        initialValue={prefAgeMin || ''}
         formatLabel={(v) => v === '' ? t('intro.preferAnyAge') : String(v)}
-        onSelect={setPrefMin}
+        onSelect={setPrefAgeMin}
         onClose={() => setPickerOpen(null)}
         accentColor={INTRO_ACCENT}
       />
       <WheelPicker
-        visible={pickerOpen === 'prefMax'}
-        title={t('intro.preferBirthYearLabel')}
-        values={PREF_YEAR_VALUES}
-        initialValue={prefMax || ''}
+        visible={pickerOpen === 'prefAgeMax'}
+        title={t('intro.preferAgeLabel')}
+        values={['', ...AGES.filter((a) => !prefAgeMin || a >= prefAgeMin)]}
+        initialValue={prefAgeMax || ''}
         formatLabel={(v) => v === '' ? t('intro.preferAnyAge') : String(v)}
-        onSelect={setPrefMax}
+        onSelect={setPrefAgeMax}
         onClose={() => setPickerOpen(null)}
         accentColor={INTRO_ACCENT}
       />

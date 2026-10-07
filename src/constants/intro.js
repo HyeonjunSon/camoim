@@ -42,6 +42,15 @@ export const BIRTH_YEARS = (() => {
   return years;
 })();
 
+// Preferred-partner-age wheel — the UI picks an age (19-80); the server still stores it as a
+// birth-year range (see ageRangeToBirthYears/birthYearsToAgeRange below), since a birth year
+// stays correct for the life of the post while a stored "age" would quietly go stale.
+export const AGES = (() => {
+  const arr = [];
+  for (let a = 19; a <= 80; a++) arr.push(a);
+  return arr;
+})();
+
 // Height wheel, in cm
 export const HEIGHT_CM = (() => {
   const arr = [];
@@ -49,15 +58,40 @@ export const HEIGHT_CM = (() => {
   return arr;
 })();
 
-// "98" → 1998, "02" → 2002 — the create form and filters both take a 2-digit shorthand
-export function normalizeBirthYear(input) {
-  const s = String(input || '').trim();
-  if (!s) return null;
-  const n = Number(s);
-  if (!Number.isFinite(n)) return null;
-  if (s.length <= 2) {
-    const currentYY = new Date().getFullYear() % 100;
-    return n <= currentYY ? 2000 + n : 1900 + n;
-  }
-  return n;
+export function birthYearToAge(birthYear) {
+  if (!birthYear) return null;
+  return new Date().getFullYear() - birthYear;
+}
+
+export function ageLabel(birthYear, t) {
+  const age = birthYearToAge(birthYear);
+  return age == null ? '' : t('intro.ageWithSuffix').replace('{n}', age);
+}
+
+// ageMin = youngest acceptable, ageMax = oldest acceptable → birth-year bounds (inverted: an
+// older age means an earlier birth year)
+export function ageRangeToBirthYears(ageMin, ageMax) {
+  const nowYear = new Date().getFullYear();
+  return {
+    preferredBirthYearMin: ageMax ? nowYear - ageMax : null,
+    preferredBirthYearMax: ageMin ? nowYear - ageMin : null,
+  };
+}
+
+export function birthYearsToAgeRange(birthYearMin, birthYearMax) {
+  const nowYear = new Date().getFullYear();
+  return {
+    ageMin: birthYearMax ? nowYear - birthYearMax : null,
+    ageMax: birthYearMin ? nowYear - birthYearMin : null,
+  };
+}
+
+// "26~34세" / "26세~" / "~34세" — never shows the raw (and confusingly ordered) birth years
+export function preferredAgeRangeLabel(birthYearMin, birthYearMax, t) {
+  const { ageMin, ageMax } = birthYearsToAgeRange(birthYearMin, birthYearMax);
+  if (ageMin == null && ageMax == null) return '';
+  const suffix = t('intro.ageSuffixShort');
+  if (ageMin != null && ageMax != null) return `${ageMin}~${ageMax}${suffix}`;
+  if (ageMin != null) return `${ageMin}${suffix}~`;
+  return `~${ageMax}${suffix}`;
 }

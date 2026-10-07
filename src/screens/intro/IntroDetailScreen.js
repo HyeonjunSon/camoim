@@ -16,7 +16,7 @@ import EmptyState from '../../components/EmptyState';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import WheelPicker from '../../components/WheelPicker';
-import { INTRO_GENDERS, INTRO_REGIONS, INTRO_JOBS, INTRO_ACCENT, BIRTH_YEARS, regionLabel, jobLabel } from '../../constants/intro';
+import { INTRO_GENDERS, INTRO_REGIONS, INTRO_JOBS, INTRO_ACCENT, BIRTH_YEARS, regionLabel, jobLabel, ageLabel, preferredAgeRangeLabel } from '../../constants/intro';
 import { getIntroPost, getIntroMeta, applyToIntroPost, closeIntroPost, reportIntroPost } from '../../lib/api';
 
 export default function IntroDetailScreen({ route, navigation }) {
@@ -110,8 +110,9 @@ export default function IntroDetailScreen({ route, navigation }) {
     );
   }
 
-  const ageText = `${post.birthYear}${t('intro.bornSuffix') || ''}`;
-  const hasPref = post.preferredBirthYearMin || post.preferredBirthYearMax || post.preferredRegion;
+  const ageText = ageLabel(post.birthYear, t);
+  const prefAgeText = preferredAgeRangeLabel(post.preferredBirthYearMin, post.preferredBirthYearMax, t);
+  const hasPref = !!prefAgeText || !!post.preferredRegion;
 
   return (
     <View style={styles.container}>
@@ -156,15 +157,11 @@ export default function IntroDetailScreen({ route, navigation }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('intro.preferSection')}</Text>
             <View style={styles.chipWrap}>
-              {(post.preferredBirthYearMin || post.preferredBirthYearMax) && (
-                <View style={styles.tag}>
-                  <Text style={styles.tagText}>
-                    {post.preferredBirthYearMin || '?'}~{post.preferredBirthYearMax || t('intro.preferAnyAge')}
-                  </Text>
-                </View>
+              {!!prefAgeText && (
+                <View style={styles.tag}><Text style={styles.tagText}>{prefAgeText}</Text></View>
               )}
               {!!post.preferredRegion && (
-                <View style={styles.tag}><Text style={styles.tagText}>{regionLabel(post.preferredRegion, t)}</Text></View>
+                <View style={styles.tag}><Text style={styles.tagText}>{post.preferredRegion}</Text></View>
               )}
             </View>
           </View>

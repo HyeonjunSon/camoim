@@ -12,7 +12,7 @@ import CustomHeader from '../../components/CustomHeader';
 import EmptyState from '../../components/EmptyState';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { INTRO_GENDERS, INTRO_REGIONS, INTRO_JOBS, INTRO_ACCENT, regionLabel, jobLabel } from '../../constants/intro';
+import { INTRO_GENDERS, INTRO_REGIONS, INTRO_JOBS, INTRO_ACCENT, regionLabel, jobLabel, ageLabel, preferredAgeRangeLabel } from '../../constants/intro';
 import {
   getIntroMeta, agreeIntroTerms, getIntroPosts, getMyIntroPosts,
   getReceivedIntroRequests, acceptIntroRequest, declineIntroRequest,
@@ -222,32 +222,27 @@ export default function IntroScreen({ navigation, route }) {
 }
 
 function BrowseCard({ item, styles, colors, t, onPress }) {
+  const prefAgeText = preferredAgeRangeLabel(item.preferredBirthYearMin, item.preferredBirthYearMax, t);
   return (
     <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={onPress}>
       <View style={styles.cardTopRow}>
         <Text style={styles.cardMeta}>
-          {t(item.gender === 'female' ? 'intro.genderFemale' : 'intro.genderMale')}, {item.birthYear}, {regionLabel(item.region, t)}
+          {t(item.gender === 'female' ? 'intro.genderFemale' : 'intro.genderMale')}, {ageLabel(item.birthYear, t)}, {regionLabel(item.region, t)}
         </Text>
         {item.mode === 'proxy' && (
           <View style={styles.proxyBadge}><Text style={styles.proxyBadgeText}>{t('intro.proxyBadge')}</Text></View>
         )}
       </View>
-      <View style={styles.cardBodyRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.cardHeadline} numberOfLines={2}>{item.headline}</Text>
-          <View style={styles.chipWrap}>
-            {!!item.job && <View style={styles.tag}><Text style={styles.tagText}>{jobLabel(item.job, t)}</Text></View>}
-            {!!item.height && <View style={styles.tag}><Text style={styles.tagText}>{item.height}</Text></View>}
-            {(item.preferredBirthYearMin || item.preferredBirthYearMax) && (
-              <View style={styles.tag}>
-                <Text style={styles.tagText}>{item.preferredBirthYearMin || '?'}~{item.preferredBirthYearMax || t('intro.preferAnyAge')}</Text>
-              </View>
-            )}
-          </View>
-        </View>
+      <View style={styles.cardMainRow}>
+        <Text style={[styles.cardHeadline, { flex: 1 }]} numberOfLines={2}>{item.headline}</Text>
         {!!item.photo && (
           <Image source={{ uri: item.photo }} style={styles.cardThumb} contentFit="cover" cachePolicy="memory-disk" />
         )}
+      </View>
+      <View style={styles.chipWrap}>
+        {!!item.job && <View style={styles.tag}><Text style={styles.tagText}>{jobLabel(item.job, t)}</Text></View>}
+        {!!item.height && <View style={styles.tag}><Text style={styles.tagText}>{item.height}</Text></View>}
+        {!!prefAgeText && <View style={styles.tag}><Text style={styles.tagText}>{prefAgeText}</Text></View>}
       </View>
       <Text style={styles.cardFooter}>{item.expired ? t('intro.expired') : t('intro.daysLeft').replace('{n}', item.daysLeft)}</Text>
     </TouchableOpacity>
@@ -259,7 +254,7 @@ function ReceivedCard({ item, styles, colors, t, onAccept, onDecline }) {
     <View style={styles.card}>
       <Text style={styles.receivedFrom} numberOfLines={1}>{t('intro.receivedFrom').replace('{headline}', item.introHeadline)}</Text>
       <Text style={styles.cardMeta}>
-        {t(item.gender === 'female' ? 'intro.genderFemale' : 'intro.genderMale')}, {item.birthYear}, {regionLabel(item.region, t)}
+        {t(item.gender === 'female' ? 'intro.genderFemale' : 'intro.genderMale')}, {ageLabel(item.birthYear, t)}, {regionLabel(item.region, t)}
       </Text>
       <View style={styles.chipWrap}>
         {!!item.job && <View style={styles.tag}><Text style={styles.tagText}>{jobLabel(item.job, t)}</Text></View>}
@@ -388,8 +383,8 @@ const createStyles = (colors) => StyleSheet.create({
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardMeta: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
   cardHeadline: { fontSize: 16, fontWeight: '800', color: colors.text, flexShrink: 1 },
-  cardBodyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  cardThumb: { width: 64, height: 64, borderRadius: 10, backgroundColor: colors.inputBg },
+  cardMainRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 2 },
+  cardThumb: { width: 72, height: 72, borderRadius: 12, backgroundColor: colors.inputBg },
   cardFooter: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
   proxyBadge: { backgroundColor: INTRO_ACCENT + '1A', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   proxyBadgeText: { fontSize: 10, fontWeight: '700', color: INTRO_ACCENT },

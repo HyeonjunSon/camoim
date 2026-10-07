@@ -1,25 +1,50 @@
-import { normalizeBirthYear, INTRO_JOBS } from '../intro';
+import { INTRO_JOBS, ageRangeToBirthYears, birthYearsToAgeRange, preferredAgeRangeLabel } from '../intro';
 
 // server/constants/intro.js's job enum must list every key used here, plus ''
 const serverIntro = require('../../../server/constants/intro');
 
-describe('normalizeBirthYear', () => {
-  it('expands a 2-digit year below the current-century cutoff to 2000s', () => {
-    expect(normalizeBirthYear('02')).toBe(2002);
+const nowYear = new Date().getFullYear();
+const t = (key) => ({ 'intro.ageSuffixShort': '세' }[key] ?? key);
+
+describe('age range <-> birth year range conversion', () => {
+  it('converts an age range to the inverted birth-year bounds', () => {
+    // "26 to 34 years old" means the youngest (26) sets the latest birth year,
+    // and the oldest (34) sets the earliest birth year
+    expect(ageRangeToBirthYears(26, 34)).toEqual({
+      preferredBirthYearMin: nowYear - 34,
+      preferredBirthYearMax: nowYear - 26,
+    });
   });
 
-  it('expands a 2-digit year above the cutoff to 1900s', () => {
-    expect(normalizeBirthYear('98')).toBe(1998);
+  it('leaves a bound null when that end has no preference', () => {
+    expect(ageRangeToBirthYears('', 34)).toEqual({ preferredBirthYearMin: nowYear - 34, preferredBirthYearMax: null });
+    expect(ageRangeToBirthYears(26, '')).toEqual({ preferredBirthYearMin: null, preferredBirthYearMax: nowYear - 26 });
   });
 
-  it('passes a 4-digit year through unchanged', () => {
-    expect(normalizeBirthYear('1995')).toBe(1995);
+  it('round-trips back to the original age range', () => {
+    const { preferredBirthYearMin, preferredBirthYearMax } = ageRangeToBirthYears(26, 34);
+    expect(birthYearsToAgeRange(preferredBirthYearMin, preferredBirthYearMax)).toEqual({ ageMin: 26, ageMax: 34 });
+  });
+});
+
+describe('preferredAgeRangeLabel', () => {
+  it('formats a full range in ascending age order, never the raw birth years', () => {
+    const { preferredBirthYearMin, preferredBirthYearMax } = ageRangeToBirthYears(26, 34);
+    expect(preferredAgeRangeLabel(preferredBirthYearMin, preferredBirthYearMax, t)).toBe('26~34세');
   });
 
-  it('returns null for empty or non-numeric input', () => {
-    expect(normalizeBirthYear('')).toBeNull();
-    expect(normalizeBirthYear(undefined)).toBeNull();
-    expect(normalizeBirthYear('abcd')).toBeNull();
+  it('formats an open-ended lower bound', () => {
+    const { preferredBirthYearMax } = ageRangeToBirthYears(26, '');
+    expect(preferredAgeRangeLabel(null, preferredBirthYearMax, t)).toBe('26세~');
+  });
+
+  it('formats an open-ended upper bound', () => {
+    const { preferredBirthYearMin } = ageRangeToBirthYears('', 34);
+    expect(preferredAgeRangeLabel(preferredBirthYearMin, null, t)).toBe('~34세');
+  });
+
+  it('returns empty when neither bound is set', () => {
+    expect(preferredAgeRangeLabel(null, null, t)).toBe('');
   });
 });
 
