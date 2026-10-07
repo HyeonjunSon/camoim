@@ -416,7 +416,7 @@ const createStyles = (colors) => StyleSheet.create({
   fabText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
 
   // Consent screen
-  consentContainer: { flex: 1, backgroundColor: colors.background, padding: 24, paddingTop: 40 },
+  consentContainer: { flex: 1, backgroundColor: colors.background, paddingHorizontal: 24, paddingTop: 40 },
   consentTitle: { fontSize: 30, fontWeight: '800', color: colors.text, lineHeight: 40 },
   consentDesc: { fontSize: 14, color: colors.textSecondary, lineHeight: 21, marginTop: 16, marginBottom: 28 },
   ruleRow: { flexDirection: 'row', gap: 14, marginBottom: 22 },

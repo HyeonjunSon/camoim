@@ -210,8 +210,9 @@ router.post('/', requireAuth, async (req, res) => {
       height: String(b.height || '').trim().slice(0, 20),
       headline: String(b.headline).trim().slice(0, 60),
       bio: String(b.bio || '').trim().slice(0, 1000),
-      preferredBirthYearMin: Number.isFinite(Number(b.preferredBirthYearMin)) ? Number(b.preferredBirthYearMin) : null,
-      preferredBirthYearMax: Number.isFinite(Number(b.preferredBirthYearMax)) ? Number(b.preferredBirthYearMax) : null,
+      // Number(null) is 0 (finite!), so null/undefined must be checked before the numeric coercion
+      preferredBirthYearMin: b.preferredBirthYearMin != null && Number.isFinite(Number(b.preferredBirthYearMin)) ? Number(b.preferredBirthYearMin) : null,
+      preferredBirthYearMax: b.preferredBirthYearMax != null && Number.isFinite(Number(b.preferredBirthYearMax)) ? Number(b.preferredBirthYearMax) : null,
       preferredRegion: String(b.preferredRegion || '').trim().slice(0, 40),
       contactType,
       contactValue: normalizeContact(contactType, b.contactValue).slice(0, 100),

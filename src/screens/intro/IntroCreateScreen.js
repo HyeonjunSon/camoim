@@ -11,10 +11,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, TextInput } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
+import WheelPicker from '../../components/WheelPicker';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { INTRO_GENDERS, INTRO_JOBS, INTRO_REGIONS, INTRO_ACCENT, normalizeBirthYear } from '../../constants/intro';
+import { INTRO_GENDERS, INTRO_JOBS, INTRO_REGIONS, INTRO_ACCENT, BIRTH_YEARS, HEIGHT_CM } from '../../constants/intro';
 import { createIntroPost, uploadIntroImage } from '../../lib/api';
+
+const PREF_YEAR_VALUES = ['', ...BIRTH_YEARS]; // '' = no preference ("상관없음"), wheeled in at the top
 
 export default function IntroCreateScreen({ navigation }) {
   const { colors } = useTheme();
@@ -25,10 +28,10 @@ export default function IntroCreateScreen({ navigation }) {
   const [mode, setMode] = useState('self');
   const [proxyConsent, setProxyConsent] = useState(false);
   const [gender, setGender] = useState('');
-  const [birthYear, setBirthYear] = useState('');
+  const [birthYear, setBirthYear] = useState(null);
   const [region, setRegion] = useState('');
   const [job, setJob] = useState('');
-  const [height, setHeight] = useState('');
+  const [height, setHeight] = useState(null);
   const [headline, setHeadline] = useState('');
   const [bio, setBio] = useState('');
   const [prefMin, setPrefMin] = useState('');
@@ -39,8 +42,9 @@ export default function IntroCreateScreen({ navigation }) {
   const [photo, setPhoto] = useState('');
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(null); // 'birthYear' | 'height' | 'prefMin' | 'prefMax' | null
 
-  const canSubmit = !!(gender && birthYear.trim() && region && headline.trim())
+  const canSubmit = !!(gender && birthYear && region && headline.trim())
     && (mode === 'self' || proxyConsent) && !submitting;
 
   const pickPhoto = async () => {
@@ -73,8 +77,7 @@ export default function IntroCreateScreen({ navigation }) {
 
   const onSubmit = async () => {
     if (!gender) return Alert.alert(t('common.error'), t('intro.needGender'));
-    const by = normalizeBirthYear(birthYear);
-    if (!by) return Alert.alert(t('common.error'), t('intro.needBirthYear'));
+    if (!birthYear) return Alert.alert(t('common.error'), t('intro.needBirthYear'));
     if (!region) return Alert.alert(t('common.error'), t('intro.needRegion'));
     if (!headline.trim()) return Alert.alert(t('common.error'), t('intro.needHeadline'));
     if (mode === 'proxy' && !proxyConsent) return Alert.alert(t('common.error'), t('intro.needProxyConsent'));
@@ -83,10 +86,10 @@ export default function IntroCreateScreen({ navigation }) {
     try {
       const res = await createIntroPost({
         mode, proxyConsent: mode === 'proxy',
-        gender, birthYear: by, region, job, height: height.trim(),
+        gender, birthYear, region, job, height: height ? `${height}cm` : '',
         headline: headline.trim(), bio: bio.trim(),
-        preferredBirthYearMin: prefMin ? normalizeBirthYear(prefMin) : null,
-        preferredBirthYearMax: prefMax ? normalizeBirthYear(prefMax) : null,
+        preferredBirthYearMin: prefMin || null,
+        preferredBirthYearMax: prefMax || null,
         preferredRegion: prefRegion,
         contactType, contactValue: contactValue.trim(),
         photo,
@@ -171,14 +174,20 @@ export default function IntroCreateScreen({ navigation }) {
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <View style={{ flex: 1 }}>
               <Field label={t('intro.birthYearLabel')} required>
-                <TextInput value={birthYear} onChangeText={setBirthYear} placeholder={t('intro.birthYearPh')}
-                  placeholderTextColor={colors.textSecondary} style={styles.input} keyboardType="number-pad" maxLength={4} />
+                <TouchableOpacity style={styles.input} activeOpacity={0.7} onPress={() => setPickerOpen('birthYear')}>
+                  <Text style={{ fontSize: 15, color: birthYear ? colors.text : colors.textSecondary }}>
+                    {birthYear ? String(birthYear) : t('intro.birthYearPh')}
+                  </Text>
+                </TouchableOpacity>
               </Field>
             </View>
             <View style={{ flex: 1 }}>
               <Field label={t('intro.heightLabelOptional')}>
-                <TextInput value={height} onChangeText={setHeight} placeholder="160cm"
-                  placeholderTextColor={colors.textSecondary} style={styles.input} maxLength={20} />
+                <TouchableOpacity style={styles.input} activeOpacity={0.7} onPress={() => setPickerOpen('height')}>
+                  <Text style={{ fontSize: 15, color: height ? colors.text : colors.textSecondary }}>
+                    {height ? `${height}cm` : t('intro.heightPh')}
+                  </Text>
+                </TouchableOpacity>
               </Field>
             </View>
           </View>
@@ -225,11 +234,17 @@ export default function IntroCreateScreen({ navigation }) {
 
           <Field label={t('intro.preferBirthYearLabel')}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TextInput value={prefMin} onChangeText={setPrefMin} placeholder={t('intro.birthYearPh')}
-                placeholderTextColor={colors.textSecondary} style={[styles.input, { flex: 1 }]} keyboardType="number-pad" maxLength={4} />
+              <TouchableOpacity style={[styles.input, { flex: 1 }]} activeOpacity={0.7} onPress={() => setPickerOpen('prefMin')}>
+                <Text style={{ fontSize: 15, color: prefMin ? colors.text : colors.textSecondary }}>
+                  {prefMin || t('intro.preferAnyAge')}
+                </Text>
+              </TouchableOpacity>
               <Text style={{ color: colors.textSecondary }}>~</Text>
-              <TextInput value={prefMax} onChangeText={setPrefMax} placeholder={t('intro.preferAnyAge')}
-                placeholderTextColor={colors.textSecondary} style={[styles.input, { flex: 1 }]} keyboardType="number-pad" maxLength={4} />
+              <TouchableOpacity style={[styles.input, { flex: 1 }]} activeOpacity={0.7} onPress={() => setPickerOpen('prefMax')}>
+                <Text style={{ fontSize: 15, color: prefMax ? colors.text : colors.textSecondary }}>
+                  {prefMax || t('intro.preferAnyAge')}
+                </Text>
+              </TouchableOpacity>
             </View>
           </Field>
 
@@ -278,6 +293,46 @@ export default function IntroCreateScreen({ navigation }) {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <WheelPicker
+        visible={pickerOpen === 'birthYear'}
+        title={t('intro.birthYearLabel')}
+        values={BIRTH_YEARS}
+        initialValue={birthYear || BIRTH_YEARS[Math.floor(BIRTH_YEARS.length / 2)]}
+        onSelect={setBirthYear}
+        onClose={() => setPickerOpen(null)}
+        accentColor={INTRO_ACCENT}
+      />
+      <WheelPicker
+        visible={pickerOpen === 'height'}
+        title={t('intro.heightLabelOptional')}
+        values={HEIGHT_CM}
+        initialValue={height || 165}
+        formatLabel={(v) => `${v}cm`}
+        onSelect={setHeight}
+        onClose={() => setPickerOpen(null)}
+        accentColor={INTRO_ACCENT}
+      />
+      <WheelPicker
+        visible={pickerOpen === 'prefMin'}
+        title={t('intro.preferBirthYearLabel')}
+        values={PREF_YEAR_VALUES}
+        initialValue={prefMin || ''}
+        formatLabel={(v) => v === '' ? t('intro.preferAnyAge') : String(v)}
+        onSelect={setPrefMin}
+        onClose={() => setPickerOpen(null)}
+        accentColor={INTRO_ACCENT}
+      />
+      <WheelPicker
+        visible={pickerOpen === 'prefMax'}
+        title={t('intro.preferBirthYearLabel')}
+        values={PREF_YEAR_VALUES}
+        initialValue={prefMax || ''}
+        formatLabel={(v) => v === '' ? t('intro.preferAnyAge') : String(v)}
+        onSelect={setPrefMax}
+        onClose={() => setPickerOpen(null)}
+        accentColor={INTRO_ACCENT}
+      />
     </View>
   );
 }

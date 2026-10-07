@@ -15,7 +15,8 @@ import CustomHeader from '../../components/CustomHeader';
 import EmptyState from '../../components/EmptyState';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { INTRO_GENDERS, INTRO_REGIONS, INTRO_JOBS, INTRO_ACCENT, normalizeBirthYear, regionLabel, jobLabel } from '../../constants/intro';
+import WheelPicker from '../../components/WheelPicker';
+import { INTRO_GENDERS, INTRO_REGIONS, INTRO_JOBS, INTRO_ACCENT, BIRTH_YEARS, regionLabel, jobLabel } from '../../constants/intro';
 import { getIntroPost, getIntroMeta, applyToIntroPost, closeIntroPost, reportIntroPost } from '../../lib/api';
 
 export default function IntroDetailScreen({ route, navigation }) {
@@ -251,11 +252,12 @@ function ContactBox({ post, styles, t, colors }) {
 
 function ApplySheet({ visible, onClose, introId, onSent, styles, colors, t }) {
   const [gender, setGender] = useState('');
-  const [birthYear, setBirthYear] = useState('');
+  const [birthYear, setBirthYear] = useState(null);
   const [region, setRegion] = useState('');
   const [message, setMessage] = useState('');
   const [remaining, setRemaining] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [yearPickerOpen, setYearPickerOpen] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
@@ -264,21 +266,20 @@ function ApplySheet({ visible, onClose, introId, onSent, styles, colors, t }) {
       if (res?.success) {
         const d = res.data.defaults || {};
         if (d.gender) setGender(d.gender);
-        if (d.birthYear) setBirthYear(String(d.birthYear));
+        if (d.birthYear) setBirthYear(d.birthYear);
         if (d.region) setRegion(d.region);
         setRemaining(res.data.dailyRemaining);
       }
     })();
   }, [visible]);
 
-  const canSend = !!(gender && birthYear.trim() && region && message.trim()) && !submitting;
+  const canSend = !!(gender && birthYear && region && message.trim()) && !submitting;
 
   const onSubmit = async () => {
-    const by = normalizeBirthYear(birthYear);
-    if (!by) return;
+    if (!birthYear) return;
     setSubmitting(true);
     try {
-      const res = await applyToIntroPost(introId, { gender, birthYear: by, region, message: message.trim() });
+      const res = await applyToIntroPost(introId, { gender, birthYear, region, message: message.trim() });
       if (res?.success) {
         Alert.alert('', t('intro.sent'));
         onSent();
@@ -313,8 +314,11 @@ function ApplySheet({ visible, onClose, introId, onSent, styles, colors, t }) {
                   </TouchableOpacity>
                 );
               })}
-              <TextInput value={birthYear} onChangeText={setBirthYear} placeholder={t('intro.birthYearPh')}
-                placeholderTextColor={colors.textSecondary} style={[styles.input, { width: 90 }]} keyboardType="number-pad" maxLength={4} />
+              <TouchableOpacity style={[styles.input, { width: 90 }]} activeOpacity={0.7} onPress={() => setYearPickerOpen(true)}>
+                <Text style={{ fontSize: 14, color: birthYear ? colors.text : colors.textSecondary }}>
+                  {birthYear ? String(birthYear) : t('intro.birthYearPh')}
+                </Text>
+              </TouchableOpacity>
             </View>
             <View style={[styles.chipWrap, { marginTop: 7 }]}>
               {INTRO_REGIONS.map((r) => {
@@ -343,6 +347,16 @@ function ApplySheet({ visible, onClose, introId, onSent, styles, colors, t }) {
           </View>
         </KeyboardAvoidingView>
       </View>
+
+      <WheelPicker
+        visible={yearPickerOpen}
+        title={t('intro.birthYearLabel')}
+        values={BIRTH_YEARS}
+        initialValue={birthYear || BIRTH_YEARS[Math.floor(BIRTH_YEARS.length / 2)]}
+        onSelect={setBirthYear}
+        onClose={() => setYearPickerOpen(false)}
+        accentColor={INTRO_ACCENT}
+      />
     </Modal>
   );
 }

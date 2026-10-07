@@ -70,6 +70,16 @@ describe('POST /api/intro — create', () => {
     expect(res.body.success).toBe(false);
   });
 
+  it('stores an explicit null preferred-age range as null, not 0 (Number(null) === 0 is a trap)', async () => {
+    const user = await createUser();
+    await agree(user);
+    const created = await request(app).post('/api/intro')
+      .set('Authorization', `Bearer ${tokenFor(user)}`)
+      .send(createBody({ preferredBirthYearMin: null, preferredBirthYearMax: null })).expect(201);
+    expect(created.body.data.preferredBirthYearMin).toBeNull();
+    expect(created.body.data.preferredBirthYearMax).toBeNull();
+  });
+
   it('creates a post and never exposes contact to a non-owner browsing the list', async () => {
     const owner = await createUser();
     await agree(owner);

@@ -34,6 +34,21 @@ export const jobLabel = (key, t) => {
   return found ? t(found.labelKey) : '';
 };
 
+// Birth-year wheel: 19 (the minimum age) up to 80 years old, most recent first
+export const BIRTH_YEARS = (() => {
+  const nowYear = new Date().getFullYear();
+  const years = [];
+  for (let y = nowYear - 19; y >= nowYear - 80; y--) years.push(y);
+  return years;
+})();
+
+// Height wheel, in cm
+export const HEIGHT_CM = (() => {
+  const arr = [];
+  for (let h = 140; h <= 200; h++) arr.push(h);
+  return arr;
+})();
+
 // "98" → 1998, "02" → 2002 — the create form and filters both take a 2-digit shorthand
 export function normalizeBirthYear(input) {
   const s = String(input || '').trim();
