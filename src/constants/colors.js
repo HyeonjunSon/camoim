@@ -61,6 +61,9 @@ export const lightColors = {
   card: '#FFFFFF',
   inputBg: '#F4F5F9',
   boardColors: lightBoardColors,
+  // Intro board only — tints the gender word on a card so it reads at a glance
+  genderMale: '#3B82F6',
+  genderFemale: '#EC4899',
 };
 
 export const darkColors = {
@@ -85,6 +88,9 @@ export const darkColors = {
   card: '#1A1B22',
   inputBg: '#262830',
   boardColors: darkBoardColors,
+  // Lighter tones so they stay readable on the dark surface
+  genderMale: '#60A5FA',
+  genderFemale: '#F472B6',
 };
 
 // A reactive colors object that tracks the active theme

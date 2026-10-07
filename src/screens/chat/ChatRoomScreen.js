@@ -55,7 +55,14 @@ export default function ChatRoomScreen({ route, navigation }) {
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const s = Keyboard.addListener(showEvt, () => setKeyboardVisible(true));
+    const s = Keyboard.addListener(showEvt, () => {
+      setKeyboardVisible(true);
+      // The keyboard shrinks the list's viewport but leaves the scroll offset alone, which
+      // pushes the newest messages out of sight. Ride up with the keyboard instead (KakaoTalk
+      // behaviour): once as the keyboard animates, once more after the layout settles.
+      flatListRef.current?.scrollToEnd({ animated: true });
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 250);
+    });
     const h = Keyboard.addListener(hideEvt, () => setKeyboardVisible(false));
     return () => { s.remove(); h.remove(); };
   }, []);

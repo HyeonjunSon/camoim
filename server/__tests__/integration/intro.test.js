@@ -254,6 +254,47 @@ describe('Accept / decline', () => {
   });
 });
 
+describe('Several accepted matches stay tellable apart in the chat list', () => {
+  it('labels each anonymous intro room without ever exposing a nickname', async () => {
+    // One owner, one post, two different people accepted onto it
+    const owner = await createUser({ nickname: 'ownerNick' });
+    await agree(owner);
+    const created = await request(app).post('/api/intro')
+      .set('Authorization', `Bearer ${tokenFor(owner)}`)
+      .send(createBody({ headline: 'Weekend hiker looking to meet' })).expect(201);
+
+    const applicants = [
+      { user: await createUser({ nickname: 'applicantA' }), gender: 'male', birthYear: 1996 },
+      { user: await createUser({ nickname: 'applicantB' }), gender: 'female', birthYear: 2001 },
+    ];
+    for (const a of applicants) {
+      await agree(a.user);
+      const applied = await request(app).post(`/api/intro/${created.body.data.id}/requests`)
+        .set('Authorization', `Bearer ${tokenFor(a.user)}`)
+        .send({ message: 'hi', gender: a.gender, birthYear: a.birthYear, region: 'toronto' }).expect(201);
+      await request(app).put(`/api/intro/requests/${applied.body.data.id}/accept`)
+        .set('Authorization', `Bearer ${tokenFor(owner)}`).expect(200);
+    }
+
+    // The owner's two rooms are labelled by each applicant's own stats, not a shared placeholder
+    const ownerList = await request(app).get('/api/chats')
+      .set('Authorization', `Bearer ${tokenFor(owner)}`).expect(200);
+    const labels = ownerList.body.data.map((r) => r.other.nickname);
+    expect(labels).toHaveLength(2);
+    expect(new Set(labels).size).toBe(2); // distinct, not two copies of "소개팅 상대"
+    expect(labels).toContain(`소개팅 · 남성, 만 ${new Date().getFullYear() - 1996}세`);
+    expect(labels).toContain(`소개팅 · 여성, 만 ${new Date().getFullYear() - 2001}세`);
+    expect(labels.join()).not.toContain('applicant');
+
+    // An applicant sees which post the chat came from, still with no nickname
+    const applicantList = await request(app).get('/api/chats')
+      .set('Authorization', `Bearer ${tokenFor(applicants[0].user)}`).expect(200);
+    expect(applicantList.body.data[0].other.nickname).toBe('소개팅 · Weekend hiker lookin');
+    expect(applicantList.body.data[0].other.anonymous).toBe(true);
+    expect(applicantList.body.data[0].other.nickname).not.toContain('ownerNick');
+  });
+});
+
 describe('Reporting an intro post — admin visibility', () => {
   it('lets an admin see the headline and real author of a reported intro post', async () => {
     const owner = await createUser({ nickname: 'realnickname' });

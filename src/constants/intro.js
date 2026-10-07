@@ -34,6 +34,13 @@ export const jobLabel = (key, t) => {
   return found ? t(found.labelKey) : '';
 };
 
+export const genderLabel = (key, t) =>
+  t(key === 'female' ? 'intro.genderFemale' : 'intro.genderMale');
+
+// Only the gender word itself is tinted — the card keeps the board's own accent
+export const genderColor = (key, colors) =>
+  key === 'female' ? colors.genderFemale : colors.genderMale;
+
 // Birth-year wheel: 19 (the minimum age) up to 80 years old, most recent first
 export const BIRTH_YEARS = (() => {
   const nowYear = new Date().getFullYear();

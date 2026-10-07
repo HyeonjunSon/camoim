@@ -12,7 +12,7 @@ import CustomHeader from '../../components/CustomHeader';
 import EmptyState from '../../components/EmptyState';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { INTRO_GENDERS, INTRO_ACCENT, regionLabel, jobLabel, ageLabel, preferredAgeRangeLabel } from '../../constants/intro';
+import { INTRO_GENDERS, INTRO_ACCENT, regionLabel, jobLabel, ageLabel, genderLabel, genderColor, preferredAgeRangeLabel } from '../../constants/intro';
 import {
   getIntroMeta, agreeIntroTerms, getIntroPosts, getMyIntroPosts,
   getReceivedIntroRequests, acceptIntroRequest, declineIntroRequest,
@@ -229,7 +229,10 @@ function BrowseCard({ item, styles, colors, t, onPress }) {
         <View style={styles.cardContent}>
           <View style={styles.cardTopRow}>
             <Text style={styles.cardMeta}>
-              {t(item.gender === 'female' ? 'intro.genderFemale' : 'intro.genderMale')}, {ageLabel(item.birthYear, t)}, {regionLabel(item.region, t)}
+              <Text style={{ color: genderColor(item.gender, colors), fontWeight: '700' }}>
+                {genderLabel(item.gender, t)}
+              </Text>
+              {`, ${ageLabel(item.birthYear, t)}, ${regionLabel(item.region, t)}`}
             </Text>
             {item.mode === 'proxy' && (
               <View style={styles.proxyBadge}><Text style={styles.proxyBadgeText}>{t('intro.proxyBadge')}</Text></View>
@@ -256,7 +259,10 @@ function ReceivedCard({ item, styles, colors, t, onAccept, onDecline }) {
     <View style={styles.card}>
       <Text style={styles.receivedFrom} numberOfLines={1}>{t('intro.receivedFrom').replace('{headline}', item.introHeadline)}</Text>
       <Text style={styles.cardMeta}>
-        {t(item.gender === 'female' ? 'intro.genderFemale' : 'intro.genderMale')}, {ageLabel(item.birthYear, t)}, {regionLabel(item.region, t)}
+        <Text style={{ color: genderColor(item.gender, colors), fontWeight: '700' }}>
+          {genderLabel(item.gender, t)}
+        </Text>
+        {`, ${ageLabel(item.birthYear, t)}, ${regionLabel(item.region, t)}`}
       </Text>
       <View style={styles.chipWrap}>
         {!!item.job && <View style={styles.tag}><Text style={styles.tagText}>{jobLabel(item.job, t)}</Text></View>}

@@ -6,7 +6,44 @@ const Message = require('../models/Message');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
 const University = require('../models/University');
+const IntroPost = require('../models/IntroPost');
+const IntroRequest = require('../models/IntroRequest');
 const { isChatBlocked, getBlockedUserIds } = require('../utils/blocks');
+
+const GENDER_LABELS = { male: '남성', female: '여성' };
+
+// A per-room display name for anonymous intro chats, so several matches stay tellable apart
+// without ever exposing a nickname. Batched: one IntroPost query + one IntroRequest query total.
+async function buildIntroRoomLabels(rooms, viewerId) {
+  const introRooms = rooms.filter((r) => r.introPostId);
+  const labels = new Map();
+  if (introRooms.length === 0) return labels;
+
+  const [posts, requests] = await Promise.all([
+    IntroPost.find({ _id: { $in: introRooms.map((r) => r.introPostId) } }).select('headline userId').lean(),
+    IntroRequest.find({ roomId: { $in: introRooms.map((r) => r._id) } }).select('roomId snapshot').lean(),
+  ]);
+  const postById = new Map(posts.map((p) => [String(p._id), p]));
+  const reqByRoom = new Map(requests.map((q) => [String(q.roomId), q]));
+  const nowYear = new Date().getFullYear();
+
+  for (const room of introRooms) {
+    const post = postById.get(String(room.introPostId));
+    const isOwner = post && String(post.userId) === String(viewerId);
+    let label = '';
+    if (isOwner) {
+      // The owner sees whoever applied — the same stats the request card showed them
+      const s = reqByRoom.get(String(room._id))?.snapshot;
+      const parts = [GENDER_LABELS[s?.gender], s?.birthYear ? `만 ${nowYear - s.birthYear}세` : null].filter(Boolean);
+      if (parts.length) label = `소개팅 · ${parts.join(', ')}`;
+    } else if (post?.headline) {
+      // The applicant sees which post this chat came from
+      label = `소개팅 · ${post.headline.slice(0, 20)}`;
+    }
+    if (label) labels.set(String(room._id), label);
+  }
+  return labels;
+}
 
 // GET /api/chats — my chat rooms (DMs and group chats together)
 // ?box=accepted (default) | requests (only ones sent to me) | sent (mine, still pending)
@@ -25,6 +62,11 @@ router.get('/', requireAuth, async (req, res) => {
 
     // Hide rooms with anyone chat-blocked (DMs only)
     const chatBlocked = new Set(await getBlockedUserIds(me, 'blockChat'));
+
+    // Intro rooms are anonymous, so every one of them would otherwise read as the same
+    // "소개팅 상대" in the list. Two batched lookups (not one per room) give each a label:
+    // the post's headline for the applicant, the applicant's own stats for the post owner.
+    const introLabels = await buildIntroRoomLabels(rooms, me);
 
     const result = rooms
       .filter(room => {
@@ -80,7 +122,7 @@ router.get('/', requireAuth, async (req, res) => {
           id: room._id,
           kind: 'dm',
           other: anonymous
-            ? { id: other?._id ?? null, nickname: '소개팅 상대', avatarUrl: '', anonymous: true }
+            ? { id: other?._id ?? null, nickname: introLabels.get(String(room._id)) || '소개팅 상대', avatarUrl: '', anonymous: true }
             : (other
               ? { id: other._id, nickname: other.nickname, avatarUrl: other.avatarUrl }
               : (room.otherSnapshot ?? null)),
