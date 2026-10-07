@@ -46,6 +46,12 @@ describe('preferredAgeRangeLabel', () => {
   it('returns empty when neither bound is set', () => {
     expect(preferredAgeRangeLabel(null, null, t)).toBe('');
   });
+
+  it('sorts a legacy inverted pair instead of showing it backwards', () => {
+    // Posts saved before the age-picker existed could have min/max picked independently,
+    // in birth-year terms, producing e.g. preferredBirthYearMin: 2003, Max: 1995
+    expect(preferredAgeRangeLabel(nowYear - 23, nowYear - 31, t)).toBe('23~31세');
+  });
 });
 
 describe('client/server intro job keys stay in sync', () => {

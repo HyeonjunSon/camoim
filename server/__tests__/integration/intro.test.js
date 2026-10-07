@@ -162,6 +162,23 @@ describe('POST /api/intro/:id/requests — apply to chat', () => {
       .set('Authorization', `Bearer ${tokenFor(viewer)}`).expect(200);
     expect(list.body.data.find((p) => String(p.id) === String(introId))).toBeUndefined();
   });
+
+  it('filters region by case-insensitive substring now that it is free text', async () => {
+    const owner = await createUser();
+    await agree(owner);
+    const created = await request(app).post('/api/intro')
+      .set('Authorization', `Bearer ${tokenFor(owner)}`)
+      .send(createBody({ region: 'Downtown Toronto' })).expect(201);
+    const viewer = await createUser();
+
+    const hit = await request(app).get('/api/intro?region=toronto')
+      .set('Authorization', `Bearer ${tokenFor(viewer)}`).expect(200);
+    expect(hit.body.data.find((p) => String(p.id) === String(created.body.data.id))).toBeDefined();
+
+    const miss = await request(app).get('/api/intro?region=vancouver')
+      .set('Authorization', `Bearer ${tokenFor(viewer)}`).expect(200);
+    expect(miss.body.data.find((p) => String(p.id) === String(created.body.data.id))).toBeUndefined();
+  });
 });
 
 describe('Accept / decline', () => {

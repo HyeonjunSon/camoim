@@ -14,7 +14,7 @@ import CustomHeader from '../../components/CustomHeader';
 import WheelPicker from '../../components/WheelPicker';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { INTRO_GENDERS, INTRO_JOBS, INTRO_REGIONS, INTRO_ACCENT, BIRTH_YEARS, HEIGHT_CM, AGES, ageRangeToBirthYears } from '../../constants/intro';
+import { INTRO_GENDERS, INTRO_JOBS, INTRO_ACCENT, BIRTH_YEARS, HEIGHT_CM, AGES, ageRangeToBirthYears } from '../../constants/intro';
 import { createIntroPost, uploadIntroImage } from '../../lib/api';
 
 export default function IntroCreateScreen({ navigation }) {
@@ -42,7 +42,7 @@ export default function IntroCreateScreen({ navigation }) {
   const [submitting, setSubmitting] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(null); // 'birthYear' | 'height' | 'prefAgeMin' | 'prefAgeMax' | null
 
-  const canSubmit = !!(gender && birthYear && region && headline.trim())
+  const canSubmit = !!(gender && birthYear && region.trim() && headline.trim())
     && (mode === 'self' || proxyConsent) && !submitting;
 
   const pickPhoto = async () => {
@@ -76,7 +76,7 @@ export default function IntroCreateScreen({ navigation }) {
   const onSubmit = async () => {
     if (!gender) return Alert.alert(t('common.error'), t('intro.needGender'));
     if (!birthYear) return Alert.alert(t('common.error'), t('intro.needBirthYear'));
-    if (!region) return Alert.alert(t('common.error'), t('intro.needRegion'));
+    if (!region.trim()) return Alert.alert(t('common.error'), t('intro.needRegion'));
     if (!headline.trim()) return Alert.alert(t('common.error'), t('intro.needHeadline'));
     if (mode === 'proxy' && !proxyConsent) return Alert.alert(t('common.error'), t('intro.needProxyConsent'));
 
@@ -85,7 +85,7 @@ export default function IntroCreateScreen({ navigation }) {
       const { preferredBirthYearMin, preferredBirthYearMax } = ageRangeToBirthYears(prefAgeMin, prefAgeMax);
       const res = await createIntroPost({
         mode, proxyConsent: mode === 'proxy',
-        gender, birthYear, region, job, height: height ? `${height}cm` : '',
+        gender, birthYear, region: region.trim(), job, height: height ? `${height}cm` : '',
         headline: headline.trim(), bio: bio.trim(),
         preferredBirthYearMin, preferredBirthYearMax,
         preferredRegion: prefRegion.trim(),
@@ -191,17 +191,8 @@ export default function IntroCreateScreen({ navigation }) {
           </View>
 
           <Field label={t('intro.regionLabel')} required>
-            <View style={styles.chipWrap}>
-              {INTRO_REGIONS.map((r) => {
-                const active = region === r.key;
-                return (
-                  <TouchableOpacity key={r.key} style={[styles.selectChip, active ? styles.selectChipActive : styles.selectChipInactive]}
-                    activeOpacity={0.8} onPress={() => setRegion(r.key)}>
-                    <Text style={[styles.selectChipText, { color: active ? INTRO_ACCENT : colors.textSecondary }]}>{t(r.labelKey)}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <TextInput value={region} onChangeText={setRegion} placeholder={t('intro.regionPh')}
+              placeholderTextColor={colors.textSecondary} style={styles.input} maxLength={40} />
           </Field>
 
           <Field label={t('intro.jobLabel')}>

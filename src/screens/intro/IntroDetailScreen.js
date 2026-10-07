@@ -16,7 +16,7 @@ import EmptyState from '../../components/EmptyState';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
 import WheelPicker from '../../components/WheelPicker';
-import { INTRO_GENDERS, INTRO_REGIONS, INTRO_JOBS, INTRO_ACCENT, BIRTH_YEARS, regionLabel, jobLabel, ageLabel, preferredAgeRangeLabel } from '../../constants/intro';
+import { INTRO_GENDERS, INTRO_JOBS, INTRO_ACCENT, BIRTH_YEARS, regionLabel, jobLabel, ageLabel, preferredAgeRangeLabel } from '../../constants/intro';
 import { getIntroPost, getIntroMeta, applyToIntroPost, closeIntroPost, reportIntroPost } from '../../lib/api';
 
 export default function IntroDetailScreen({ route, navigation }) {
@@ -121,7 +121,7 @@ export default function IntroDetailScreen({ route, navigation }) {
         title=""
         rightActions={[{ icon: 'ellipsis-horizontal', onPress: showMore, label: 'more' }]}
       />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 120 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}>
         {post.mode === 'proxy' && (
           <View style={styles.proxyBanner}>
             <Ionicons name="people" size={16} color={INTRO_ACCENT} />
@@ -161,7 +161,7 @@ export default function IntroDetailScreen({ route, navigation }) {
                 <View style={styles.tag}><Text style={styles.tagText}>{prefAgeText}</Text></View>
               )}
               {!!post.preferredRegion && (
-                <View style={styles.tag}><Text style={styles.tagText}>{post.preferredRegion}</Text></View>
+                <View style={styles.tag}><Text style={styles.tagText}>{regionLabel(post.preferredRegion, t)}</Text></View>
               )}
             </View>
           </View>
@@ -175,27 +175,27 @@ export default function IntroDetailScreen({ route, navigation }) {
           <Ionicons name="warning-outline" size={14} color={colors.textSecondary} style={{ marginTop: 1 }} />
           <Text style={styles.safetyText}>{t('intro.safetyNote')}</Text>
         </View>
-      </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-        {post.isMine ? null : post.myRequestStatus === 'accepted' ? (
-          <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.9}
-            onPress={() => navigation.navigate('ChatRoom', {
-              roomId: post.myRoomId,
-              other: { id: null, nickname: t('intro.chatPartnerLabel'), avatarUrl: '', anonymous: true },
-            })}>
-            <Text style={styles.ctaText}>{t('intro.goToChat')}</Text>
-          </TouchableOpacity>
-        ) : post.myRequestStatus === 'pending' ? (
-          <View style={[styles.ctaBtn, { backgroundColor: colors.inputBg }]}>
-            <Text style={[styles.ctaText, { color: colors.textSecondary }]}>{t('intro.pendingNote')}</Text>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.9} onPress={() => setApplyVisible(true)}>
-            <Text style={styles.ctaText}>{t('intro.applyBtn')}</Text>
-          </TouchableOpacity>
+        {!post.isMine && (
+          post.myRequestStatus === 'accepted' ? (
+            <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.9}
+              onPress={() => navigation.navigate('ChatRoom', {
+                roomId: post.myRoomId,
+                other: { id: null, nickname: t('intro.chatPartnerLabel'), avatarUrl: '', anonymous: true },
+              })}>
+              <Text style={styles.ctaText}>{t('intro.goToChat')}</Text>
+            </TouchableOpacity>
+          ) : post.myRequestStatus === 'pending' ? (
+            <View style={[styles.ctaBtn, { backgroundColor: colors.inputBg }]}>
+              <Text style={[styles.ctaText, { color: colors.textSecondary }]}>{t('intro.pendingNote')}</Text>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.9} onPress={() => setApplyVisible(true)}>
+              <Text style={styles.ctaText}>{t('intro.applyBtn')}</Text>
+            </TouchableOpacity>
+          )
         )}
-      </View>
+      </ScrollView>
 
       <ApplySheet
         visible={applyVisible}
@@ -270,13 +270,13 @@ function ApplySheet({ visible, onClose, introId, onSent, styles, colors, t }) {
     })();
   }, [visible]);
 
-  const canSend = !!(gender && birthYear && region && message.trim()) && !submitting;
+  const canSend = !!(gender && birthYear && region.trim() && message.trim()) && !submitting;
 
   const onSubmit = async () => {
     if (!birthYear) return;
     setSubmitting(true);
     try {
-      const res = await applyToIntroPost(introId, { gender, birthYear, region, message: message.trim() });
+      const res = await applyToIntroPost(introId, { gender, birthYear, region: region.trim(), message: message.trim() });
       if (res?.success) {
         Alert.alert('', t('intro.sent'));
         onSent();
@@ -317,17 +317,8 @@ function ApplySheet({ visible, onClose, introId, onSent, styles, colors, t }) {
                 </Text>
               </TouchableOpacity>
             </View>
-            <View style={[styles.chipWrap, { marginTop: 7 }]}>
-              {INTRO_REGIONS.map((r) => {
-                const active = region === r.key;
-                return (
-                  <TouchableOpacity key={r.key} style={[styles.selectChip, active ? styles.selectChipActive : styles.selectChipInactive]}
-                    activeOpacity={0.8} onPress={() => setRegion(r.key)}>
-                    <Text style={[styles.selectChipText, { color: active ? INTRO_ACCENT : colors.textSecondary }]}>{t(r.labelKey)}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <TextInput value={region} onChangeText={setRegion} placeholder={t('intro.regionPh')}
+              placeholderTextColor={colors.textSecondary} style={[styles.input, { marginTop: 7 }]} maxLength={40} />
             <Text style={styles.hintText}>{t('intro.autoFillHint')}</Text>
 
             <Text style={[styles.label, { marginTop: 14 }]}>{t('intro.messageLabel')}</Text>
@@ -389,8 +380,7 @@ const createStyles = (colors) => StyleSheet.create({
   smallBtnText: { fontSize: 12, fontWeight: '700', color: colors.text },
   safetyNote: { flexDirection: 'row', gap: 8, marginTop: 20, backgroundColor: colors.inputBg, borderRadius: 10, padding: 12 },
   safetyText: { flex: 1, fontSize: 11, color: colors.textSecondary, lineHeight: 16 },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: colors.background, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  ctaBtn: { backgroundColor: INTRO_ACCENT, borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
+  ctaBtn: { backgroundColor: INTRO_ACCENT, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
   ctaText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   // Apply sheet
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },

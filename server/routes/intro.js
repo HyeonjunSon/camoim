@@ -45,6 +45,11 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
+// Region is free text now, so browse filters by substring instead of an exact match
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // Same normalization idea as routes/universities.js's normalizeCommunityField, scoped to just Instagram
 function normalizeContact(contactType, raw) {
   const s = String(raw || '').trim();
@@ -133,7 +138,7 @@ router.get('/', requireAuth, async (req, res) => {
     const { gender, region, minBirthYear, maxBirthYear, proxyOnly } = req.query;
     const filter = { status: 'active', expiresAt: { $gt: new Date() }, userId: { $ne: req.user.id } };
     if (INTRO_GENDERS.includes(gender)) filter.gender = gender;
-    if (region) filter.region = region;
+    if (region) filter.region = { $regex: escapeRegex(String(region).trim()), $options: 'i' };
     if (proxyOnly === 'true') filter.mode = 'proxy';
     if (minBirthYear || maxBirthYear) {
       filter.birthYear = {};

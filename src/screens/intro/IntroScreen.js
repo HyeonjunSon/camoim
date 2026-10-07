@@ -7,12 +7,12 @@ import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { Text } from '../../components/StyledText';
+import { Text, TextInput } from '../../components/StyledText';
 import CustomHeader from '../../components/CustomHeader';
 import EmptyState from '../../components/EmptyState';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { INTRO_GENDERS, INTRO_REGIONS, INTRO_JOBS, INTRO_ACCENT, regionLabel, jobLabel, ageLabel, preferredAgeRangeLabel } from '../../constants/intro';
+import { INTRO_GENDERS, INTRO_ACCENT, regionLabel, jobLabel, ageLabel, preferredAgeRangeLabel } from '../../constants/intro';
 import {
   getIntroMeta, agreeIntroTerms, getIntroPosts, getMyIntroPosts,
   getReceivedIntroRequests, acceptIntroRequest, declineIntroRequest,
@@ -348,17 +348,9 @@ function FilterSheet({ visible, initial, onClose, onApply, styles, colors, t }) 
               );
             })}
           </View>
-          <View style={[styles.chipWrap, { marginTop: 8 }]}>
-            {INTRO_REGIONS.map((r) => {
-              const active = region === r.key;
-              return (
-                <TouchableOpacity key={r.key} style={[styles.selectChip, active ? styles.selectChipActive : styles.selectChipInactive]}
-                  activeOpacity={0.8} onPress={() => setRegion(active ? '' : r.key)}>
-                  <Text style={[styles.selectChipText, { color: active ? INTRO_ACCENT : colors.textSecondary }]}>{t(r.labelKey)}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <TextInput value={region} onChangeText={setRegion} placeholder={t('intro.regionPh')}
+            placeholderTextColor={colors.textSecondary} style={[styles.input, { marginTop: 8 }]} maxLength={40} />
+          <Text style={styles.filterRegionHint}>{t('intro.filterRegionHint')}</Text>
           <TouchableOpacity style={[styles.checkRow, { marginTop: 14 }]} activeOpacity={0.8} onPress={() => setProxyOnly(!proxyOnly)}>
             <Ionicons name={proxyOnly ? 'checkbox' : 'square-outline'} size={20} color={proxyOnly ? INTRO_ACCENT : colors.textSecondary} />
             <Text style={styles.checkText}>{t('intro.proxyOnly')}</Text>
@@ -434,4 +426,6 @@ const createStyles = (colors) => StyleSheet.create({
   selectChipActive: { borderColor: INTRO_ACCENT, backgroundColor: INTRO_ACCENT + '1A' },
   selectChipInactive: { borderColor: colors.border, backgroundColor: colors.surface },
   selectChipText: { fontSize: 13, fontWeight: '600' },
+  input: { backgroundColor: colors.inputBg, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 14, fontSize: 14, color: colors.text },
+  filterRegionHint: { fontSize: 11, color: colors.textSecondary, marginTop: 6, paddingHorizontal: 2 },
 });

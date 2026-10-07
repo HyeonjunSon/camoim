@@ -86,10 +86,13 @@ export function birthYearsToAgeRange(birthYearMin, birthYearMax) {
   };
 }
 
-// "26~34세" / "26세~" / "~34세" — never shows the raw (and confusingly ordered) birth years
+// "26~34세" / "26세~" / "~34세" — never shows the raw (and confusingly ordered) birth years.
+// Sorted defensively: posts saved before the age-picker UI existed may have an inverted
+// birth-year pair (the old UI let min/max be picked independently, in either order).
 export function preferredAgeRangeLabel(birthYearMin, birthYearMax, t) {
-  const { ageMin, ageMax } = birthYearsToAgeRange(birthYearMin, birthYearMax);
+  let { ageMin, ageMax } = birthYearsToAgeRange(birthYearMin, birthYearMax);
   if (ageMin == null && ageMax == null) return '';
+  if (ageMin != null && ageMax != null && ageMin > ageMax) [ageMin, ageMax] = [ageMax, ageMin];
   const suffix = t('intro.ageSuffixShort');
   if (ageMin != null && ageMax != null) return `${ageMin}~${ageMax}${suffix}`;
   if (ageMin != null) return `${ageMin}${suffix}~`;
