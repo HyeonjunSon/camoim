@@ -311,7 +311,7 @@ function ApplySheet({ visible, onClose, introId, onSent, styles, colors, t }) {
                   </TouchableOpacity>
                 );
               })}
-              <PickerField style={{ width: 108 }} value={birthYear ? String(birthYear) : ''} placeholder={t('intro.birthYearPh')} onPress={() => setYearPickerOpen(true)} />
+              <PickerField style={{ width: 108 }} value={birthYear ? ageLabel(birthYear, t) : ''} placeholder={t('intro.birthYearPh')} onPress={() => setYearPickerOpen(true)} />
             </View>
             <TextInput value={region} onChangeText={setRegion} placeholder={t('intro.regionPh')}
               placeholderTextColor={colors.textSecondary} style={[styles.input, { marginTop: 7 }]} maxLength={40} />
@@ -336,6 +336,7 @@ function ApplySheet({ visible, onClose, introId, onSent, styles, colors, t }) {
         visible={yearPickerOpen}
         title={t('intro.birthYearLabel')}
         values={BIRTH_YEARS}
+        formatLabel={(y) => ageLabel(y, t)}
         initialValue={birthYear || BIRTH_YEARS[Math.floor(BIRTH_YEARS.length / 2)]}
         onSelect={setBirthYear}
         onClose={() => setYearPickerOpen(false)}

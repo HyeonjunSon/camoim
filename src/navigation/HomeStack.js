@@ -45,7 +45,7 @@ export default function HomeStack() {
       <Stack.Screen name="StayDetail"   component={StayDetailScreen}  options={{ headerShown: false }} />
       <Stack.Screen name="IntroScreen" component={IntroScreen} options={{ headerShown: false }} />
       <Stack.Screen name="IntroDetail" component={IntroDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="IntroCreate" component={IntroCreateScreen} options={{ headerShown: false, presentation: 'modal', gestureEnabled: false }} />
+      <Stack.Screen name="IntroCreate" component={IntroCreateScreen} options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
       <Stack.Screen name="EditPost"     component={CreatePostScreen}  options={{ headerShown: false, presentation: 'modal', gestureEnabled: false }} />
       <Stack.Screen name="UserProfile"  component={UserProfileScreen} options={{ title: t('nav.profile') }} />
       <Stack.Screen name="ChatRoom"      component={ChatRoomScreen}        options={{ title: t('tabs.chat') }} />

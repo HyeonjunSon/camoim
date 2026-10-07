@@ -14,7 +14,7 @@ import CustomHeader from '../../components/CustomHeader';
 import WheelPicker, { PickerField } from '../../components/WheelPicker';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LangContext';
-import { INTRO_GENDERS, INTRO_JOBS, INTRO_ACCENT, BIRTH_YEARS, HEIGHT_CM, AGES, ageRangeToBirthYears } from '../../constants/intro';
+import { INTRO_GENDERS, INTRO_JOBS, INTRO_ACCENT, BIRTH_YEARS, HEIGHT_CM, AGES, ageRangeToBirthYears, ageLabel } from '../../constants/intro';
 import { createIntroPost, uploadIntroImage } from '../../lib/api';
 
 export default function IntroCreateScreen({ navigation }) {
@@ -172,7 +172,7 @@ export default function IntroCreateScreen({ navigation }) {
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <View style={{ flex: 1 }}>
               <Field label={t('intro.birthYearLabel')} required>
-                <PickerField value={birthYear ? String(birthYear) : ''} placeholder={t('intro.birthYearPh')} onPress={() => setPickerOpen('birthYear')} />
+                <PickerField value={birthYear ? ageLabel(birthYear, t) : ''} placeholder={t('intro.birthYearPh')} onPress={() => setPickerOpen('birthYear')} />
               </Field>
             </View>
             <View style={{ flex: 1 }}>
@@ -262,6 +262,7 @@ export default function IntroCreateScreen({ navigation }) {
         visible={pickerOpen === 'birthYear'}
         title={t('intro.birthYearLabel')}
         values={BIRTH_YEARS}
+        formatLabel={(y) => ageLabel(y, t)}
         initialValue={birthYear || BIRTH_YEARS[Math.floor(BIRTH_YEARS.length / 2)]}
         onSelect={setBirthYear}
         onClose={() => setPickerOpen(null)}

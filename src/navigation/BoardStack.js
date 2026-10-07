@@ -50,7 +50,7 @@ export default function BoardStack() {
       <Stack.Screen name="StayDetail" component={StayDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="IntroScreen" component={IntroScreen} options={{ headerShown: false }} />
       <Stack.Screen name="IntroDetail" component={IntroDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="IntroCreate" component={IntroCreateScreen} options={{ headerShown: false, presentation: 'modal', gestureEnabled: false }} />
+      <Stack.Screen name="IntroCreate" component={IntroCreateScreen} options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
       <Stack.Screen name="CreatePost"      component={CreatePostScreen}      options={{ headerShown: false, presentation: 'modal', gestureEnabled: false }} />
       <Stack.Screen name="EditPost"        component={CreatePostScreen}      options={{ headerShown: false, presentation: 'modal', gestureEnabled: false }} />
       <Stack.Screen name="VerifyStudent"  component={VerifyStudentScreen}   options={{ title: t('mypage.verifyStudent') }} />
