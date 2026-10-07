@@ -447,6 +447,9 @@ export default function HomeScreen({ navigation }) {
               >
                 <View style={[styles.chipIconBox, { backgroundColor: meta.bg }]}>
                   <Ionicons name={meta.ion} size={24} color={meta.text} />
+                  {board.slug === 'intro' && (
+                    <View style={styles.chipNewBadge}><Text style={styles.chipNewBadgeText}>{t('notice.new')}</Text></View>
+                  )}
                 </View>
                 <Text style={styles.chipLabel} numberOfLines={1}>{getBoardName(board.slug, board.name, t)}</Text>
               </TouchableOpacity>
@@ -765,7 +768,15 @@ const createStyles = (colors) => StyleSheet.create({
   chipIconBox: {
     width: 48, height: 48, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+    position: 'relative',
   },
+  chipNewBadge: {
+    position: 'absolute', top: -5, right: -8,
+    backgroundColor: colors.danger, borderRadius: 7, paddingHorizontal: 5, height: 14,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: colors.background,
+  },
+  chipNewBadgeText: { fontSize: 8, fontWeight: '800', color: colors.white },
   chipLabel: { fontSize: 11, color: colors.text, fontWeight: '600', textAlign: 'center' },
 
   // Empty state
