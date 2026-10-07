@@ -14,32 +14,34 @@ const GENDER_LABELS = { male: '남성', female: '여성' };
 
 // A per-room display name for anonymous intro chats, so several matches stay tellable apart
 // without ever exposing a nickname. Batched: one IntroPost query + one IntroRequest query total.
+// Both sides see the same shape — the other person's gender and age, which each of them already
+// published (the post's own fields on one side, the applicant's submitted stats on the other).
 async function buildIntroRoomLabels(rooms, viewerId) {
   const introRooms = rooms.filter((r) => r.introPostId);
   const labels = new Map();
   if (introRooms.length === 0) return labels;
 
   const [posts, requests] = await Promise.all([
-    IntroPost.find({ _id: { $in: introRooms.map((r) => r.introPostId) } }).select('headline userId').lean(),
+    IntroPost.find({ _id: { $in: introRooms.map((r) => r.introPostId) } }).select('userId gender birthYear').lean(),
     IntroRequest.find({ roomId: { $in: introRooms.map((r) => r._id) } }).select('roomId snapshot').lean(),
   ]);
   const postById = new Map(posts.map((p) => [String(p._id), p]));
   const reqByRoom = new Map(requests.map((q) => [String(q.roomId), q]));
   const nowYear = new Date().getFullYear();
 
+  const format = (gender, birthYear) => {
+    const parts = [GENDER_LABELS[gender], birthYear ? `만 ${nowYear - birthYear}세` : null].filter(Boolean);
+    return parts.length ? `소개팅 · ${parts.join(', ')}` : '';
+  };
+
   for (const room of introRooms) {
     const post = postById.get(String(room.introPostId));
-    const isOwner = post && String(post.userId) === String(viewerId);
-    let label = '';
-    if (isOwner) {
-      // The owner sees whoever applied — the same stats the request card showed them
-      const s = reqByRoom.get(String(room._id))?.snapshot;
-      const parts = [GENDER_LABELS[s?.gender], s?.birthYear ? `만 ${nowYear - s.birthYear}세` : null].filter(Boolean);
-      if (parts.length) label = `소개팅 · ${parts.join(', ')}`;
-    } else if (post?.headline) {
-      // The applicant sees which post this chat came from
-      label = `소개팅 · ${post.headline.slice(0, 20)}`;
-    }
+    if (!post) continue;
+    const isOwner = String(post.userId) === String(viewerId);
+    // Owner sees the applicant's stats; the applicant sees the posted person's
+    const label = isOwner
+      ? format(reqByRoom.get(String(room._id))?.snapshot?.gender, reqByRoom.get(String(room._id))?.snapshot?.birthYear)
+      : format(post.gender, post.birthYear);
     if (label) labels.set(String(room._id), label);
   }
   return labels;

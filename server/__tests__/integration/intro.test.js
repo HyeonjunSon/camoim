@@ -286,10 +286,11 @@ describe('Several accepted matches stay tellable apart in the chat list', () => 
     expect(labels).toContain(`소개팅 · 여성, 만 ${new Date().getFullYear() - 2001}세`);
     expect(labels.join()).not.toContain('applicant');
 
-    // An applicant sees which post the chat came from, still with no nickname
+    // An applicant sees the posted person's stats — same shape, still no nickname
+    // (createBody posts a woman born in 1998)
     const applicantList = await request(app).get('/api/chats')
       .set('Authorization', `Bearer ${tokenFor(applicants[0].user)}`).expect(200);
-    expect(applicantList.body.data[0].other.nickname).toBe('소개팅 · Weekend hiker lookin');
+    expect(applicantList.body.data[0].other.nickname).toBe(`소개팅 · 여성, 만 ${new Date().getFullYear() - 1998}세`);
     expect(applicantList.body.data[0].other.anonymous).toBe(true);
     expect(applicantList.body.data[0].other.nickname).not.toContain('ownerNick');
   });
