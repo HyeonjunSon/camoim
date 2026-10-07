@@ -225,26 +225,28 @@ function BrowseCard({ item, styles, colors, t, onPress }) {
   const prefAgeText = preferredAgeRangeLabel(item.preferredBirthYearMin, item.preferredBirthYearMax, t);
   return (
     <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={onPress}>
-      <View style={styles.cardTopRow}>
-        <Text style={styles.cardMeta}>
-          {t(item.gender === 'female' ? 'intro.genderFemale' : 'intro.genderMale')}, {ageLabel(item.birthYear, t)}, {regionLabel(item.region, t)}
-        </Text>
-        {item.mode === 'proxy' && (
-          <View style={styles.proxyBadge}><Text style={styles.proxyBadgeText}>{t('intro.proxyBadge')}</Text></View>
-        )}
-      </View>
-      <View style={styles.cardMainRow}>
-        <Text style={[styles.cardHeadline, { flex: 1 }]} numberOfLines={2}>{item.headline}</Text>
+      <View style={styles.cardOuterRow}>
+        <View style={styles.cardContent}>
+          <View style={styles.cardTopRow}>
+            <Text style={styles.cardMeta}>
+              {t(item.gender === 'female' ? 'intro.genderFemale' : 'intro.genderMale')}, {ageLabel(item.birthYear, t)}, {regionLabel(item.region, t)}
+            </Text>
+            {item.mode === 'proxy' && (
+              <View style={styles.proxyBadge}><Text style={styles.proxyBadgeText}>{t('intro.proxyBadge')}</Text></View>
+            )}
+          </View>
+          <Text style={styles.cardHeadline} numberOfLines={2}>{item.headline}</Text>
+          <View style={styles.chipWrap}>
+            {!!item.job && <View style={styles.tag}><Text style={styles.tagText}>{jobLabel(item.job, t)}</Text></View>}
+            {!!item.height && <View style={styles.tag}><Text style={styles.tagText}>{item.height}</Text></View>}
+            {!!prefAgeText && <View style={styles.tag}><Text style={styles.tagText}>{prefAgeText}</Text></View>}
+          </View>
+          <Text style={styles.cardFooter}>{item.expired ? t('intro.expired') : t('intro.daysLeft').replace('{n}', item.daysLeft)}</Text>
+        </View>
         {!!item.photo && (
           <Image source={{ uri: item.photo }} style={styles.cardThumb} contentFit="cover" cachePolicy="memory-disk" />
         )}
       </View>
-      <View style={styles.chipWrap}>
-        {!!item.job && <View style={styles.tag}><Text style={styles.tagText}>{jobLabel(item.job, t)}</Text></View>}
-        {!!item.height && <View style={styles.tag}><Text style={styles.tagText}>{item.height}</Text></View>}
-        {!!prefAgeText && <View style={styles.tag}><Text style={styles.tagText}>{prefAgeText}</Text></View>}
-      </View>
-      <Text style={styles.cardFooter}>{item.expired ? t('intro.expired') : t('intro.daysLeft').replace('{n}', item.daysLeft)}</Text>
     </TouchableOpacity>
   );
 }
@@ -380,10 +382,11 @@ const createStyles = (colors) => StyleSheet.create({
   tabUnderline: { height: 2, width: '100%', backgroundColor: colors.text, marginTop: 8, borderRadius: 1 },
 
   card: { backgroundColor: colors.surface, borderRadius: 14, padding: 14, gap: 6, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  cardOuterRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cardContent: { flex: 1, gap: 6 },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardMeta: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
   cardHeadline: { fontSize: 16, fontWeight: '800', color: colors.text, flexShrink: 1 },
-  cardMainRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 2 },
   cardThumb: { width: 72, height: 72, borderRadius: 12, backgroundColor: colors.inputBg },
   cardFooter: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
   proxyBadge: { backgroundColor: INTRO_ACCENT + '1A', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
