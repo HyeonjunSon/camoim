@@ -2,6 +2,7 @@
 
 // Accent colour per board slug — tones are split so both light and dark stay readable
 const lightBoardColors = {
+  intro:          '#EC4899',
   free:           '#6366F1',
   anonymous:      '#8B5CF6',
   meetup:         '#FB923C',
@@ -20,6 +21,7 @@ const lightBoardColors = {
 };
 
 const darkBoardColors = {
+  intro:          '#F472B6',
   free:           '#818CF8',
   anonymous:      '#A78BFA',
   meetup:         '#FDBA74',

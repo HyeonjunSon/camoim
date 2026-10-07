@@ -16,6 +16,7 @@ const Message = require('../models/Message');
 const AdminLog = require('../models/AdminLog');
 const SystemSetting = require('../models/SystemSetting');
 const Business = require('../models/Business');
+const IntroPost = require('../models/IntroPost');
 const BusinessBookmark = require('../models/BusinessBookmark');
 const DailyActive = require('../models/DailyActive');
 const { geocodeAddress } = require('../utils/geocode');
@@ -181,6 +182,15 @@ router.get('/reports', async (req, res) => {
       } else if (r.targetType === 'business') {
         const biz = await Business.findById(r.targetId).select('name status').lean();
         targetText = biz ? `[업체] ${biz.name}` : '(삭제됨)';
+      } else if (r.targetType === 'intro') {
+        const intro = await IntroPost.findById(r.targetId).select('headline userId').populate('userId', 'nickname email');
+        if (intro) {
+          targetText = `[소개팅] ${intro.headline}`;
+          liveAuthor = intro.userId || null;
+          liveIsAnonymous = true; // The intro board never shows a nickname to other members
+        } else {
+          targetText = '(삭제됨)';
+        }
       }
 
       // Author details: prefer the live record, falling back to the report-time snapshot for deleted accounts
@@ -227,10 +237,13 @@ router.put('/reports/:id/resolve', async (req, res) => {
     const report = await Report.findById(req.params.id);
     if (!report) return res.status(404).json({ success: false, message: '신고를 찾을 수 없습니다.' });
 
-    // Delete the target post or comment
+    // Delete (or, for intro, hide) the target content
     if (report.targetType === 'post') {
       await Post.findByIdAndDelete(report.targetId);
-    } else {
+    } else if (report.targetType === 'intro') {
+      // Soft-hide, same as the board's own auto-hide-at-5-reports — keeps the record for audit/appeal
+      await IntroPost.findByIdAndUpdate(report.targetId, { $set: { status: 'hidden', autoHidden: true } });
+    } else if (report.targetType === 'comment') {
       await Comment.findByIdAndDelete(report.targetId);
       if (report.postId) {
         await Post.findByIdAndUpdate(report.postId, { $inc: { commentCount: -1 } });

@@ -253,3 +253,50 @@ describe('Accept / decline', () => {
       .set('Authorization', `Bearer ${tokenFor(stranger)}`).expect(403);
   });
 });
+
+describe('Reporting an intro post — admin visibility', () => {
+  it('lets an admin see the headline and real author of a reported intro post', async () => {
+    const owner = await createUser({ nickname: 'realnickname' });
+    await agree(owner);
+    const created = await request(app).post('/api/intro')
+      .set('Authorization', `Bearer ${tokenFor(owner)}`)
+      .send(createBody({ headline: 'Reportable headline' })).expect(201);
+
+    const reporter = await createUser();
+    await request(app).post(`/api/intro/${created.body.data.id}/report`)
+      .set('Authorization', `Bearer ${tokenFor(reporter)}`)
+      .send({ reason: 'spam' }).expect(200);
+
+    const admin = await createUser({ role: 'admin' });
+    const list = await request(app).get('/api/admin/reports')
+      .set('Authorization', `Bearer ${tokenFor(admin)}`).expect(200);
+    const row = list.body.data.find((r) => String(r.targetId) === String(created.body.data.id));
+
+    expect(row).toBeDefined();
+    expect(row.targetText).toBe('[소개팅] Reportable headline');
+    expect(row.targetAuthor.nickname).toBe('realnickname');
+    expect(String(row.targetAuthor.userId)).toBe(String(owner._id));
+  });
+
+  it('resolving a reported intro post hides it instead of touching an unrelated comment', async () => {
+    const owner = await createUser();
+    await agree(owner);
+    const created = await request(app).post('/api/intro')
+      .set('Authorization', `Bearer ${tokenFor(owner)}`).send(createBody()).expect(201);
+    const reporter = await createUser();
+    const reportRes = await request(app).post(`/api/intro/${created.body.data.id}/report`)
+      .set('Authorization', `Bearer ${tokenFor(reporter)}`).send({ reason: 'spam' }).expect(200);
+
+    const admin = await createUser({ role: 'admin' });
+    const list = await request(app).get('/api/admin/reports')
+      .set('Authorization', `Bearer ${tokenFor(admin)}`).expect(200);
+    const row = list.body.data.find((r) => String(r.targetId) === String(created.body.data.id));
+
+    await request(app).put(`/api/admin/reports/${row.id}/resolve`)
+      .set('Authorization', `Bearer ${tokenFor(admin)}`).send({}).expect(200);
+
+    const post = await IntroPost.findById(created.body.data.id).lean();
+    expect(post.status).toBe('hidden');
+    expect(post.autoHidden).toBe(true);
+  });
+});

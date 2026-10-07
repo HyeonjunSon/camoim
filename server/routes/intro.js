@@ -433,12 +433,19 @@ router.put('/requests/:id/decline', requireAuth, async (req, res) => {
 router.post('/:id/report', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: '소개글을 찾을 수 없어요.' });
-    const post = await IntroPost.findById(req.params.id).select('_id');
+    const post = await IntroPost.findById(req.params.id).select('_id userId').populate('userId', 'nickname');
     if (!post) return res.status(404).json({ success: false, message: '소개글을 찾을 수 없어요.' });
 
     const reason = ['spam', 'hate', 'illegal', 'adult', 'etc'].includes(req.body.reason) ? req.body.reason : 'etc';
     try {
-      await Report.create({ reporterId: req.user.id, targetType: 'intro', targetId: post._id, reason, detail: req.body.detail || '' });
+      await Report.create({
+        reporterId: req.user.id, targetType: 'intro', targetId: post._id, reason, detail: req.body.detail || '',
+        // Snapshot for admin review — the intro board never shows a nickname to other members, so
+        // this is the only way an admin can see who posted it (kept even if the account is later deleted)
+        targetAuthorId: post.userId?._id || null,
+        targetAuthorNickname: post.userId?.nickname || '',
+        targetIsAnonymous: true,
+      });
       const r = await IntroPost.findByIdAndUpdate(post._id, { $inc: { reportCount: 1 } }, { new: true }).select('reportCount');
       if (r && r.reportCount >= 5) await IntroPost.updateOne({ _id: post._id }, { $set: { autoHidden: true, status: 'hidden' } });
     } catch (e) {
