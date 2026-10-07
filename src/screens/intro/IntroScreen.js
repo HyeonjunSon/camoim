@@ -30,27 +30,43 @@ export default function IntroScreen({ navigation, route }) {
   const [browseList, setBrowseList] = useState(null);
   const [receivedList, setReceivedList] = useState(null);
   const [mineList, setMineList] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [filterVisible, setFilterVisible] = useState(false);
   const [filters, setFilters] = useState({ gender: '', region: '', proxyOnly: false });
 
   const loadMeta = useCallback(async () => {
-    const res = await getIntroMeta();
-    setAgreed(!!res?.data?.agreed);
-  }, []);
-
-  const loadTab = useCallback(async (which, currentFilters) => {
-    if (which === 'browse') {
-      const res = await getIntroPosts(currentFilters);
-      setBrowseList(res?.success ? res.data : []);
-    } else if (which === 'received') {
-      const res = await getReceivedIntroRequests();
-      setReceivedList(res?.success ? res.data : []);
-    } else if (which === 'mine') {
-      const res = await getMyIntroPosts();
-      setMineList(res?.success ? res.data : []);
+    try {
+      const res = await getIntroMeta();
+      setAgreed(!!res?.data?.agreed);
+    } catch (e) {
+      // A failed /meta still has to resolve the loading state, or the consent screen spins forever
+      setAgreed(false);
     }
   }, []);
+
+  // Every branch must resolve its list state even on failure — an uncaught throw here (e.g. a 403
+  // when the account isn't verified yet) would otherwise leave that tab spinning forever.
+  const loadTab = useCallback(async (which, currentFilters) => {
+    setLoadError('');
+    try {
+      if (which === 'browse') {
+        const res = await getIntroPosts(currentFilters);
+        setBrowseList(res?.success ? res.data : []);
+      } else if (which === 'received') {
+        const res = await getReceivedIntroRequests();
+        setReceivedList(res?.success ? res.data : []);
+      } else if (which === 'mine') {
+        const res = await getMyIntroPosts();
+        setMineList(res?.success ? res.data : []);
+      }
+    } catch (e) {
+      setLoadError(e.message || t('intro.loadFail'));
+      if (which === 'browse') setBrowseList([]);
+      else if (which === 'received') setReceivedList([]);
+      else if (which === 'mine') setMineList([]);
+    }
+  }, [t]);
 
   useFocusEffect(useCallback(() => {
     loadMeta().then(() => loadTab(tab, filters));
@@ -60,26 +76,40 @@ export default function IntroScreen({ navigation, route }) {
   const onRefresh = () => { setRefreshing(true); loadTab(tab, filters).finally(() => setRefreshing(false)); };
 
   const onAgree = async () => {
-    const res = await agreeIntroTerms();
-    if (res?.success) setAgreed(true);
+    try {
+      const res = await agreeIntroTerms();
+      if (res?.success) setAgreed(true);
+      else Alert.alert(t('common.error'), res?.message || t('intro.needAgree'));
+    } catch (e) {
+      Alert.alert(t('common.error'), e.message || t('intro.needAgree'));
+    }
   };
 
   const onAccept = async (reqId) => {
-    const res = await acceptIntroRequest(reqId);
-    if (res?.success) {
-      setReceivedList((prev) => prev.filter((r) => r.id !== reqId));
-      navigation.navigate('ChatRoom', {
-        roomId: res.data.roomId,
-        other: { id: null, nickname: t('intro.chatPartnerLabel'), avatarUrl: '', anonymous: true },
-      });
-    } else {
-      Alert.alert(t('common.error'), res?.message || t('intro.acceptFail'));
+    try {
+      const res = await acceptIntroRequest(reqId);
+      if (res?.success) {
+        setReceivedList((prev) => prev.filter((r) => r.id !== reqId));
+        navigation.navigate('ChatRoom', {
+          roomId: res.data.roomId,
+          other: { id: null, nickname: t('intro.chatPartnerLabel'), avatarUrl: '', anonymous: true },
+        });
+      } else {
+        Alert.alert(t('common.error'), res?.message || t('intro.acceptFail'));
+      }
+    } catch (e) {
+      Alert.alert(t('common.error'), e.message || t('intro.acceptFail'));
     }
   };
 
   const onDecline = async (reqId) => {
-    const res = await declineIntroRequest(reqId);
-    if (res?.success) setReceivedList((prev) => prev.filter((r) => r.id !== reqId));
+    try {
+      const res = await declineIntroRequest(reqId);
+      if (res?.success) setReceivedList((prev) => prev.filter((r) => r.id !== reqId));
+      else Alert.alert(t('common.error'), res?.message || t('intro.declineFail'));
+    } catch (e) {
+      Alert.alert(t('common.error'), e.message || t('intro.declineFail'));
+    }
   };
 
   const applyFilters = (next) => {
@@ -130,7 +160,10 @@ export default function IntroScreen({ navigation, route }) {
             keyExtractor={(p) => String(p.id)}
             contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 90, gap: 10 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={INTRO_ACCENT} />}
-            ListEmptyComponent={<EmptyState icon="heart-outline" title={t('intro.browseEmpty')} />}
+            ListEmptyComponent={
+              <EmptyState icon="heart-outline" title={loadError || t('intro.browseEmpty')}
+                ctaLabel={loadError ? t('common.retry') : undefined} onCtaPress={loadError ? onRefresh : undefined} />
+            }
             renderItem={({ item }) => (
               <BrowseCard item={item} styles={styles} colors={colors} t={t}
                 onPress={() => navigation.navigate('IntroDetail', { introId: item.id })} />
@@ -146,7 +179,10 @@ export default function IntroScreen({ navigation, route }) {
             keyExtractor={(r) => String(r.id)}
             contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 90, gap: 14 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={INTRO_ACCENT} />}
-            ListEmptyComponent={<EmptyState icon="mail-open-outline" title={t('intro.receivedEmpty')} />}
+            ListEmptyComponent={
+              <EmptyState icon="mail-open-outline" title={loadError || t('intro.receivedEmpty')}
+                ctaLabel={loadError ? t('common.retry') : undefined} onCtaPress={loadError ? onRefresh : undefined} />
+            }
             renderItem={({ item }) => (
               <ReceivedCard item={item} styles={styles} colors={colors} t={t} onAccept={() => onAccept(item.id)} onDecline={() => onDecline(item.id)} />
             )}
@@ -162,7 +198,10 @@ export default function IntroScreen({ navigation, route }) {
             keyExtractor={(p) => String(p.id)}
             contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 90, gap: 10 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={INTRO_ACCENT} />}
-            ListEmptyComponent={<EmptyState icon="person-add-outline" title={t('intro.mineEmpty')} />}
+            ListEmptyComponent={
+              <EmptyState icon="person-add-outline" title={loadError || t('intro.mineEmpty')}
+                ctaLabel={loadError ? t('common.retry') : undefined} onCtaPress={loadError ? onRefresh : undefined} />
+            }
             renderItem={({ item }) => (
               <MineCard item={item} styles={styles} colors={colors} t={t}
                 onPress={() => navigation.navigate('IntroDetail', { introId: item.id })} />
