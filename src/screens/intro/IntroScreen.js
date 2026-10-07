@@ -297,29 +297,32 @@ function MineCard({ item, styles, colors, t, onPress }) {
 
 function ConsentScreen({ onAgree, styles, colors, t }) {
   const [checked, setChecked] = useState(false);
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.consentContainer}>
-      <Text style={styles.consentTitle}>{t('intro.consentTitle1')}{'\n'}{t('intro.consentTitle2')}{'\n'}{t('intro.consentTitle3')}</Text>
-      <Text style={styles.consentDesc}>{t('intro.consentDesc')}</Text>
-      {[
-        { icon: 'shield-checkmark-outline', title: t('intro.rule1Title'), desc: t('intro.rule1Desc') },
-        { icon: 'lock-closed-outline', title: t('intro.rule2Title'), desc: t('intro.rule2Desc') },
-        { icon: 'chatbubble-outline', title: t('intro.rule3Title'), desc: t('intro.rule3Desc') },
-      ].map((r, i) => (
-        <View key={i} style={styles.ruleRow}>
-          <View style={styles.ruleIconWrap}><Ionicons name={r.icon} size={18} color={INTRO_ACCENT} /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.ruleTitle}>{r.title}</Text>
-            <Text style={styles.ruleDesc}>{r.desc}</Text>
+    <View style={[styles.consentContainer, { paddingTop: insets.top + 20 }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.consentTitle}>{t('intro.consentTitle1')}{'\n'}{t('intro.consentTitle2')}{'\n'}{t('intro.consentTitle3')}</Text>
+        <Text style={styles.consentDesc}>{t('intro.consentDesc')}</Text>
+        {[
+          { icon: 'shield-checkmark-outline', title: t('intro.rule1Title'), desc: t('intro.rule1Desc') },
+          { icon: 'lock-closed-outline', title: t('intro.rule2Title'), desc: t('intro.rule2Desc') },
+          { icon: 'chatbubble-outline', title: t('intro.rule3Title'), desc: t('intro.rule3Desc') },
+        ].map((r, i) => (
+          <View key={i} style={styles.ruleRow}>
+            <View style={styles.ruleIconWrap}><Ionicons name={r.icon} size={18} color={INTRO_ACCENT} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.ruleTitle}>{r.title}</Text>
+              <Text style={styles.ruleDesc}>{r.desc}</Text>
+            </View>
           </View>
-        </View>
-      ))}
-      <View style={{ flex: 1 }} />
+        ))}
+      </View>
       <TouchableOpacity style={styles.checkRow} activeOpacity={0.8} onPress={() => setChecked(!checked)}>
         <Ionicons name={checked ? 'checkbox' : 'square-outline'} size={20} color={checked ? INTRO_ACCENT : colors.textSecondary} />
         <Text style={styles.checkText}>{t('intro.agreeCheck')}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.startBtn, !checked && { opacity: 0.5 }]} activeOpacity={0.9} disabled={!checked} onPress={onAgree}>
+      <TouchableOpacity style={[styles.startBtn, !checked && { opacity: 0.5 }, { marginBottom: insets.bottom }]}
+        activeOpacity={0.9} disabled={!checked} onPress={onAgree}>
         <Text style={styles.startBtnText}>{t('intro.start')}</Text>
       </TouchableOpacity>
     </View>
