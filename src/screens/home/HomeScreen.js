@@ -763,7 +763,7 @@ const createStyles = (colors) => StyleSheet.create({
   jobTime: { fontSize: 10, color: colors.textSecondary, marginTop: 3 },
 
   // Category chips
-  chipsRow: { gap: 10, paddingRight: 16 },
+  chipsRow: { gap: 10, paddingRight: 16, paddingTop: 8 },
   chip: { alignItems: 'center', width: 70 },
   chipIconBox: {
     width: 48, height: 48, borderRadius: 14,
@@ -771,12 +771,12 @@ const createStyles = (colors) => StyleSheet.create({
     position: 'relative',
   },
   chipNewBadge: {
-    position: 'absolute', top: -5, right: -8,
-    backgroundColor: colors.danger, borderRadius: 7, paddingHorizontal: 5, height: 14,
+    position: 'absolute', top: -6, right: -6,
+    backgroundColor: colors.danger, borderRadius: 7, paddingHorizontal: 6, height: 15,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: colors.background,
   },
-  chipNewBadgeText: { fontSize: 8, fontWeight: '800', color: colors.white },
+  chipNewBadgeText: { fontSize: 8, fontWeight: '800', color: colors.white, lineHeight: 10 },
   chipLabel: { fontSize: 11, color: colors.text, fontWeight: '600', textAlign: 'center' },
 
   // Empty state
