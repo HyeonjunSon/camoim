@@ -27,3 +27,6 @@ docs/
 # Stay on the managed workflow — ignore local prebuild output (EAS only treats it as managed when absent)
 ios/
 android/
+
+# The web app is excluded (it deploys to Vercel)
+web/
