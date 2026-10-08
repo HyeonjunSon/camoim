@@ -65,6 +65,10 @@ const buildBoardMeta = (themeColors) => (slug) => {
 
 const MARKET_CARD_WIDTH = SCREEN_WIDTH * 0.42;
 
+// The intro board isn't a server-side board row — it has its own model and screens, so it's
+// pinned here in client code. Any build without those screens simply never shows it.
+const INTRO_CHIP = { id: 'intro', slug: 'intro', name: '소개팅' };
+
 export default function HomeScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
@@ -436,7 +440,7 @@ export default function HomeScreen({ navigation }) {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chipsRow}
         >
-          {boards.map(board => {
+          {[INTRO_CHIP, ...boards].map(board => {
             const meta = getMeta(board.slug);
             return (
               <TouchableOpacity

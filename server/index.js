@@ -12,8 +12,9 @@ const PORT = process.env.PORT || 4000;
 // Seed default boards (only when missing)
 async function seedBoards() {
   // Official global board slugs (any other general board is removed)
+  // 'intro' is deliberately absent: it has its own model/screens, so serving it as a board row
+  // would make clients that predate those screens open it as an (always empty) normal board
   const officialSlugs = [
-    'intro',
     'free', 'anonymous',
     'meetup',
     'immigration', 'study', 'workingholiday',
@@ -25,7 +26,6 @@ async function seedBoards() {
   await Board.deleteMany({ isUniversityBoard: { $ne: true }, slug: { $nin: officialSlugs } });
 
   const boardDefs = [
-    { slug: 'intro',          name: '소개팅',             description: '만 19세 이상이면 누구나 소개팅해요',   isAnonymousAllowed: false, sortOrder: 0 },
     { slug: 'free',           name: '자유게시판',         description: '자유롭게 이야기해요',                  isAnonymousAllowed: false, sortOrder: 1 },
     { slug: 'anonymous',      name: '익명게시판',         description: '익명으로 털어놓아요',                  isAnonymousAllowed: true,  sortOrder: 2 },
     { slug: 'meetup',         name: '같이가요 함께해요',  description: '같이 갈 사람·동행 구해요',             isAnonymousAllowed: false, sortOrder: 3 },

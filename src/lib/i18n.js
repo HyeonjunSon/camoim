@@ -87,6 +87,11 @@ export const TRANSLATIONS = {
     offline: {
       title: '인터넷 연결 없음', desc: '네트워크 연결을 확인해주세요.\n연결되면 자동으로 복구됩니다.', retry: '다시 시도',
     },
+    update: {
+      title: '새 버전이 준비됐어요',
+      message: '지금 다시 시작하면 바로 적용돼요. 쓰던 내용은 그대로 있어요.',
+      later: '나중에', restart: '지금 적용',
+    },
     errorBoundary: {
       title: '문제가 발생했어요', desc: '예상치 못한 오류가 발생했습니다.\n앱을 다시 시작해주세요.', retry: '다시 시도',
     },
@@ -1032,6 +1037,11 @@ export const TRANSLATIONS = {
     },
     offline: {
       title: 'No Internet Connection', desc: 'Please check your network.\nIt will reconnect automatically.', retry: 'Retry',
+    },
+    update: {
+      title: 'A new version is ready',
+      message: 'Restart now to apply it — anything you were doing stays put.',
+      later: 'Later', restart: 'Restart now',
     },
     errorBoundary: {
       title: 'Something went wrong', desc: 'An unexpected error occurred.\nPlease restart the app.', retry: 'Try Again',

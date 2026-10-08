@@ -23,6 +23,7 @@ import { useLang } from '../../context/LangContext';
 import { getBoardName } from '../../lib/i18n';
 import { toShortUniversityName } from '../../lib/university';
 import { BOARD_ICONS } from '../../lib/icons';
+import { INTRO_ACCENT } from '../../constants/intro';
 import GroupListScreen from '../group/GroupListScreen';
 
 const PINNED_KEY = '@camoim_pinned_boards';
@@ -198,6 +199,30 @@ export default function BoardListScreen({ navigation }) {
   }
 
   // Compact school community banner (a premium-card feel)
+  const IntroBanner = () => (
+    <TouchableOpacity onPress={() => navigation.navigate('IntroScreen')} activeOpacity={0.85}>
+      <LinearGradient
+        colors={[INTRO_ACCENT, INTRO_ACCENT + 'C0']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.schoolBanner}
+      >
+        <View style={styles.schoolBannerShine} pointerEvents="none" />
+        <View style={styles.schoolIconBadge}>
+          <Ionicons name="heart" size={18} color={colors.white} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={styles.schoolTitleRow}>
+            <Text style={styles.schoolTitleLarge} numberOfLines={1}>{t('boardName.intro')}</Text>
+            <View style={styles.introNewTag}><Text style={styles.introNewTagText}>{t('notice.new')}</Text></View>
+          </View>
+          <Text style={styles.schoolSub} numberOfLines={1}>{t('boardDesc.intro')}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={colors.white + 'CC'} />
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+
   const SchoolBanner = () => {
     const uniShort = isAdmin ? t('board.schoolAll') : (toShortUniversityName(user?.university) || t('mypage.school'));
     const subText = isAdmin ? t('board.schoolBoardAdmin') : `Community · ${t('board.forStudents')}`;
@@ -325,6 +350,13 @@ export default function BoardListScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
+        {/* Intro board — not a server board row (clients without its screens would open an empty
+            board feed), so it is pinned here in client code as its own entry */}
+        {filter === 'all' && (
+          <View style={{ paddingHorizontal: 14, marginTop: 14 }}>
+            <IntroBanner />
+          </View>
+        )}
         {/* School community — verified students get the banner, unverified ones get the verification card */}
         {filter === 'all' && hasSchoolAccess && (
           <View style={{ paddingHorizontal: 14, marginTop: 14 }}>
@@ -554,6 +586,11 @@ const createStyles = (colors) => StyleSheet.create({
     flexShrink: 1,
   },
   schoolSub: { fontSize: 11, color: colors.white + 'B8', marginTop: 1, fontWeight: '500' },
+  introNewTag: {
+    marginLeft: 6, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  introNewTagText: { fontSize: 9, fontWeight: '900', color: colors.white, letterSpacing: 0.3 },
 
   // ── Verification prompt card
   verifyCard: {
