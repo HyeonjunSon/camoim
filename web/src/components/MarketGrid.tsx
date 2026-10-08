@@ -21,7 +21,11 @@ export default function MarketGrid({ posts, city }: { posts: PostSummary[]; city
           const sold = post.tradeStatus === 'sold';
           return (
             <li key={post.id}>
-              <Link href={`/posts/${post.id}`} className="flex flex-col gap-2 text-ink">
+              <Link
+                href={`/posts/${post.id}`}
+                prefetch={false}
+                className="flex flex-col gap-2 text-ink"
+              >
                 <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-shade text-[#B4B3BE]">
                   {post.thumbnail ? (
                     <Image

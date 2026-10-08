@@ -46,6 +46,7 @@ export default function FreeAndJobs({
               <li key={post.id}>
                 <Link
                   href={`/posts/${post.id}`}
+                  prefetch={false}
                   className="block border-t border-line-faint py-2.5 text-ink"
                 >
                   <span className="block truncate text-[15px]">{post.title}</span>
@@ -70,6 +71,7 @@ export default function FreeAndJobs({
               <li key={post.id}>
                 <Link
                   href={`/posts/${post.id}`}
+                  prefetch={false}
                   className="flex items-center gap-3 border-t border-line-faint py-2.5 text-ink"
                 >
                   <span

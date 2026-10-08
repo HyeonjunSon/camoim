@@ -79,3 +79,36 @@ jobs:
           path: server/coverage/
           retention-days: 7
           if-no-files-found: ignore
+
+  web:
+    name: Web unit tests and build (Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # The web tests run TypeScript through Node directly, which needs the
+          # native type stripping that only landed unflagged in Node 23.6
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: web
+        run: npm run typecheck
+
+      - name: Run tests
+        working-directory: web
+        run: npm test
+
+      # No API is reached at build time; the value only has to parse as a URL
+      - name: Build
+        working-directory: web
+        env:
+          CAMOIM_API_URL: https://example.invalid/api
+        run: npm run build

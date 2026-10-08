@@ -31,14 +31,46 @@ mints a JWT, so one can never be returned into page JavaScript.
 
 | Path | What it holds |
 |---|---|
+| `src/middleware.ts` | Auth gating, before anything renders |
 | `src/app/page.tsx` | Home — three columns, server-rendered |
+| `src/app/boards/` | Board index and one board's feed |
+| `src/app/posts/[id]/` | Post detail, and its editor |
+| `src/app/write/` | New post |
+| `src/app/search/` | Posts, groups and members in one list |
 | `src/app/(auth)/` | Login and signup |
 | `src/app/api/auth/*` | The only routes that see a JWT |
 | `src/app/api/bff/[...path]` | Authenticated passthrough for client components |
+| `src/app/api/upload/image` | Multipart passthrough to Cloudinary |
 | `src/app/api/rate` | CAD→KRW, cached 10 minutes |
+| `src/lib/sanitize.ts` | The allowlist every post body passes through |
 | `src/lib/api.ts` | Server-side calls to Railway |
 | `src/lib/boards.ts` | Board tones, cities, trade-board slugs |
 | `src/lib/legal.ts` | Re-exports the app's `src/constants/legal.js` |
+
+## Rendering other people's HTML
+
+Post bodies are written by users through the app's pell editor, which makes the
+post renderer the only place in the product where one user's markup lands in
+another's page. Nothing reaches `dangerouslySetInnerHTML` without passing
+`sanitizePostHtml`, whose allowlist is drawn from what the two editors can
+actually emit; `src/lib/sanitize.test.ts` pins the behaviour.
+
+The web editor's toolbar is deliberately the same set pell offers — image, bold,
+italic, underline, H2, align — and `codeBlock`, `blockquote` and
+`horizontalRule` are switched off in `PostEditor.tsx`. A mark TipTap can produce
+but pell cannot would render as unstyled text on a phone.
+
+## Three things that bite
+
+- **Auth redirects belong in middleware.** A `redirect()` inside a page runs
+  during the render; once the shell has started streaming, the status code is
+  already sent. The visitor gets a 200 that redirects late, or not at all.
+- **`loading.tsx` creates that same streaming boundary.** With one in place a
+  missing post answered 200 instead of 404, because `notFound()` ran after the
+  flush. There are none in this app for that reason.
+- **`GET /api/posts/:id` increments `viewCount`.** Every link to a post detail
+  therefore carries `prefetch={false}`; without it, hovering a feed row inflates
+  the count.
 
 ## Shared with the app
 
@@ -74,14 +106,22 @@ cp .env.example .env.local   # CAMOIM_API_URL points at Railway by default
 npm install
 npm run dev                  # http://localhost:3000
 npm run typecheck
+npm test                     # Node's own runner, native TypeScript — needs Node 23.6+
 npm run build
 ```
 
 Pointing `CAMOIM_API_URL` at `http://localhost:4000/api` runs against a local
 backend (`cd ../server && node index.js`).
 
+## Known gap in the API's search
+
+`GET /api/search` matches every post, school boards and group posts included —
+it is not scoped to what the viewer may read. `visiblePosts()` in
+`src/app/search/page.tsx` filters those out on the server before rendering. The
+app has the same exposure, so the real fix belongs upstream.
+
 ## Not built yet
 
-Boards, post detail, the editor, comments, search, chat, the map, groups, the
-school community, the intro board and the admin pages. Links to them resolve to
-the 404 page until each lands.
+Chat, notifications, the map, stay listings, groups, the school community, the
+intro board, blocking and reporting, my page, and the admin pages. Links to them
+resolve to the 404 page until each lands.

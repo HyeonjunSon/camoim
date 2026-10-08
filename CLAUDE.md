@@ -284,21 +284,41 @@ npm run test:all     # 둘 다
   네이버/야후를 직접 치지만 브라우저에선 CORS로 막힌다. 소스 3종·순서는 앱과 동일
 - **Socket.io CORS**: `SOCKET_CORS_ORIGINS`가 비면 모든 origin 허용 분기를 타므로 채팅 단계에서도
   당장 손댈 게 없다. 좁히려면 반드시 빈 화이트리스트=전체허용 분기를 남길 것 (앱이 끊긴다)
-- 명령어: `cd web && npm run dev | typecheck | build`
+- **인증 게이트는 `src/middleware.ts`** — 페이지 안의 `redirect()`는 스트리밍이 시작된 뒤면
+  상태코드를 못 바꿔서 200으로 나간다. 미들웨어는 렌더 전에 돌아 제대로 307을 준다.
+  미들웨어는 **쿠키 존재만** 확인하고 유효성은 API가 판단 → 페이지 안 검사는 2차 방어로 남겨둘 것
+- **`loading.tsx`를 함부로 두지 말 것** — Suspense 경계가 생기면 셸이 200으로 먼저 흘러나가
+  그 뒤의 `notFound()`·`redirect()`가 상태코드에 반영되지 않는다 (없는 글이 404 대신 200)
+- **글 상세 링크는 `prefetch={false}`** — `GET /api/posts/:id`가 `viewCount`를 올리므로
+  링크에 마우스만 올려도 조회수가 오른다. HotPosts·MarketGrid·FreeAndJobs·PostListRow·검색 5곳
+- **`/search` 응답은 뷰어 권한으로 안 걸러져 온다** — 학교 게시판 글과 모임 글이 섞여 온다.
+  `src/app/search/page.tsx`의 `visiblePosts()`가 서버에서 걸러낸다. 앱도 같은 노출이 있으니 서버 수정 검토 필요
+- **글 작성 POST는 JSON으로 보낸다** — `POST /api/posts`는 multer로 감싸져 있지만 multipart가 아니면
+  통과시키고 `express.json()`이 파싱한다 (앱도 이미 JSON으로 보냄). 이미지는 `/api/upload/image`로
+  먼저 올려 Cloudinary URL을 본문 HTML에 심는 방식
+- **`@types/node` v24 + `lib.dom` 충돌** — `Request.formData()`가 빈 타입으로 해석된다.
+  업로드 라우트는 파싱 대신 **원본 바디를 스트리밍 패스스루**해서 이 문제를 비켜간다 (`duplex: 'half'` 필요)
+- 테스트: `cd web && npm test` (Node 내장 러너 + 네이티브 TS, 22개). sanitize·boards·camel 순수 로직.
+  CI `web` job은 Node 24 필요 (네이티브 TS 스트리핑)
+- 명령어: `cd web && npm run dev | typecheck | test | build`
 
 ### 진행 상황
 - [x] 1단계 — 프로젝트 세팅, BFF 인증, 로그인·회원가입·이메일 인증, 홈 화면, 약관/개인정보 페이지
-- [ ] 2단계 — 게시판 목록·피드, 글 상세, 글쓰기·수정(TipTap), 댓글, 검색
+- [x] 2단계 — 게시판 목록·피드(도시·정렬·거래중 필터·페이지네이션), 글 상세(sanitize·좋아요·북마크),
+      댓글(답글·비밀댓글·삭제), 글쓰기·수정(TipTap), 검색
 - [ ] 3단계 — 채팅(Socket.io), 알림, 마이페이지, 차단·신고
 - [ ] 4단계 — 지도(업체·숙소), 숙소 등록, 모임·학교 커뮤니티, 소개팅
 - [ ] 5단계 — 관리자 페이지, Vercel 배포, `camoimapp.com` 연결, 공개 문서(README·ARCHITECTURE) 갱신
 
 ### 웹에서 반드시 지킬 것 (QA)
-- 앱에서 작성된 글 HTML은 **sanitize 후** 렌더 (2단계 글 상세에서 적용)
-- 학교 커뮤니티·익명게시판·소개팅은 **비로그인 접근 차단 + 검색엔진 색인 차단**
+- [x] 앱에서 작성된 글 HTML은 **sanitize 후** 렌더 — `web/src/lib/sanitize.ts` (allowlist + 테스트 10개).
+  `dangerouslySetInnerHTML`은 이 함수를 통과한 값만 받는다
+- [x] 학교 커뮤니티·익명게시판·소개팅은 **비로그인 접근 차단 + 색인 차단** — 차단은 미들웨어,
+  색인은 각 페이지 `robots`. 소개팅은 서버가 보드 row를 더 안 주므로 `/intro`가 앱 안내 페이지
 - 소개팅은 웹에서도 **만 19세 이상 확인** 동일 적용
 - 학생증 업로드는 웹에서도 **`camoim/verify` 폴더 전용**
-- TipTap이 만든 HTML이 앱 pell 에디터에서 깨지지 않는지 **교차 테스트**
+- TipTap이 만든 HTML이 앱 pell 에디터에서 깨지지 않는지 **실기기 교차 테스트** (아직 안 함).
+  툴바를 pell과 같은 세트로 맞추고 codeBlock·blockquote·horizontalRule을 끈 상태 (`PostEditor.tsx`)
 
 ---
 

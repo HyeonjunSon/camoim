@@ -34,11 +34,6 @@ export default function BoardRail({
                   style={{ background: tone.dot }}
                 />
                 <span className="flex-1 truncate">{board.name}</span>
-                {board.slug === 'intro' ? (
-                  <span className="rounded-md bg-[#FFEDD5] px-1.5 py-0.5 text-[11px] font-bold text-[#C2410C]">
-                    NEW
-                  </span>
-                ) : null}
               </Link>
             </li>
           );

@@ -119,6 +119,7 @@ export default function HotPosts({
               <li key={post.id}>
                 <Link
                   href={`/posts/${post.id}`}
+                  prefetch={false}
                   className="flex items-center gap-3.5 border-t border-line-faint py-3 text-ink hover:bg-brand-tint-soft"
                 >
                   <span className="w-5.5 text-[15px] font-bold text-brand-ink">{i + 1}</span>

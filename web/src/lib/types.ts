@@ -47,6 +47,80 @@ export type PostSummary = {
   city?: string;
   // Posts carry no price column — sellers write the price into the title or body.
   tradeStatus?: 'selling' | 'sold';
+  /** School boards only: marks the student president, shown as a star. */
+  authorIsLeader?: boolean;
+  /** Set on a group post, which is readable by that group's members only. */
+  groupId?: string | null;
+  boardId?: string;
+};
+
+/** GET /api/posts/latest-by-board */
+export type LatestByBoard = {
+  boardId: string;
+  latest: {
+    id: string;
+    title: string;
+    createdAt: string;
+    likeCount: number;
+    commentCount: number;
+    nickname: string;
+    thumbnail: string | null;
+  } | null;
+};
+
+/** GET /api/posts/:id */
+export type PostDetail = {
+  id: string;
+  title: string;
+  content: string;
+  isAnonymous: boolean;
+  viewCount: number;
+  likeCount: number;
+  liked: boolean;
+  bookmarked: boolean;
+  commentCount: number;
+  createdAt: string;
+  boardName?: string;
+  boardSlug?: string;
+  boardId?: string;
+  groupId?: string;
+  groupName?: string;
+  pinned: boolean;
+  tradeStatus: 'selling' | 'sold';
+  city: string;
+  userId: string | null;
+  authorId: string | null;
+  nickname: string;
+  role: Role | null;
+  avatarUrl: string | null;
+  authorIsLeader: boolean;
+  images: string[];
+};
+
+/** GET /api/posts/:id/comments — already a tree, replies nested one level deep */
+export type CommentNode = {
+  id: string;
+  content?: string;
+  isAnonymous?: boolean;
+  isSecret?: boolean;
+  /** Set instead of `content` when a locked comment is not yours to read. */
+  isSecretMasked?: boolean;
+  likeCount?: number;
+  createdAt: string;
+  edited?: boolean;
+  parentId: string | null;
+  userId?: string;
+  nickname?: string;
+  avatarUrl?: string | null;
+  isPinned?: boolean;
+  replies: CommentNode[];
+};
+
+/** GET /api/search */
+export type SearchResults = {
+  posts: PostSummary[];
+  groups: { id: string; name: string; description?: string; category?: string; memberCount?: number }[];
+  users: { id: string; nickname: string; avatarUrl?: string | null; university?: string }[];
 };
 
 /** GET /api/posts/hot-by-board */
