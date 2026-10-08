@@ -84,3 +84,8 @@ server/scripts/editExchangePosts.js
 
 # IDE workspace files (personal)
 *.code-workspace
+
+# Next.js (web/)
+.next/
+next-env.d.ts
+.vercel/

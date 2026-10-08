@@ -1,0 +1,114 @@
+@import 'tailwindcss';
+
+/*
+ * Brand tokens.
+ *
+ * The hues come straight from the app's src/constants/colors.js so the two
+ * clients read as one product. Two values are deliberately web-only, because
+ * the app's originals fail WCAG AA on a white page:
+ *
+ *   primary        #7F77DD  white text on it = 3.6:1  ->  --color-brand-strong #6B63D0 (4.6:1)
+ *   textSecondary  #888888  on #FFFFFF       = 3.5:1  ->  --color-muted        #6E6E73 (4.8:1)
+ *
+ * #7F77DD is kept for the logo tile and board dots, where nothing sits on top.
+ * The app side is untouched.
+ */
+@theme {
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+
+  --color-brand: #7f77dd;
+  --color-brand-strong: #6b63d0;
+  --color-brand-ink: #5b53c4;
+  --color-brand-ink-hover: #463fa8;
+  --color-brand-tint: #f1f0fc;
+  --color-brand-tint-soft: #f7f6fe;
+  --color-brand-deep: #2a2563;
+
+  --color-ink: #1a1a1a;
+  --color-ink-2: #2a2a2e;
+  --color-ink-3: #4a4a4f;
+  --color-muted: #6e6e73;
+
+  --color-canvas: #f8f8f8;
+  --color-surface: #ffffff;
+  --color-field: #f4f5f9;
+  --color-shade: #f0eff5;
+
+  --color-line: #e5e5e5;
+  --color-line-soft: #ececef;
+  --color-line-faint: #f1f1f3;
+  --color-line-strong: #e2e2e6;
+
+  --color-danger: #dc2626;
+  --color-positive: #047857;
+  --color-positive-tint: #d1fae5;
+
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --radius-pill: 18px;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every interactive element gets a visible focus ring; the design's custom
+   backgrounds otherwise swallow the UA default. */
+:focus-visible {
+  outline: 2px solid var(--color-brand-ink);
+  outline-offset: 2px;
+}
+
+img {
+  max-width: 100%;
+}
+
+/* Screen-reader-only label, used where the design shows an icon instead of text. */
+.sr-only-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Rendered post bodies. The HTML is produced by the app's pell editor and is
+   sanitised on the server side before it reaches this class. */
+.post-body {
+  font-size: 16px;
+  line-height: 1.75;
+  color: #26262a;
+  overflow-wrap: break-word;
+}
+.post-body p {
+  margin: 0 0 12px;
+}
+.post-body p:last-child {
+  margin-bottom: 0;
+}
+.post-body img {
+  border-radius: 12px;
+  height: auto;
+}
+.post-body a {
+  color: var(--color-brand-ink);
+  text-decoration: underline;
+}

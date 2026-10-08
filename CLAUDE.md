@@ -24,9 +24,12 @@
 ## 🏗 배포 아키텍처 (완성됨)
 
 ```
-[유저 폰 - iOS 앱]
-      │ HTTPS / WSS
-      ▼
+[유저 폰 - iOS/Android 앱]        [브라우저 - 웹 (개발 중)]
+      │ HTTPS / WSS                     │ httpOnly 쿠키
+      │                                 ▼
+      │                         [Next.js on Vercel]  ← camoimapp.com (예정)
+      │                                 │ Bearer JWT
+      ▼                                 ▼
 [Railway 백엔드 서버]  ← https://camoim-production.up.railway.app
       │
       ├─ MongoDB Atlas (운영 DB)
@@ -97,6 +100,12 @@ camoim/
 │   ├── lib/                     # api, config, i18n, storage 등
 │   ├── constants/               # colors, fonts, roles, legal
 │   └── hooks/
+│
+├── web/                         # Next.js 웹 클라이언트 (Vercel 배포 — 개발 중)
+│   └── src/
+│       ├── app/                 # App Router (페이지 + BFF 라우트 핸들러)
+│       ├── components/
+│       └── lib/                 # api(서버전용 fetch), session(쿠키), boards, legal
 │
 └── server/                      # Express 백엔드 (Railway 배포)
     ├── index.js                 # 서버 엔트리
@@ -236,6 +245,60 @@ npm run test:all     # 둘 다
   집계: `cd server && railway run node scripts/perf-report.js --since <날짜>`
 - 벤치마크: `node perf/server-bench.js --rtt 70 --hot-top 5 --label <이름>` (in-memory DB + 지연 주입 프록시, 운영 무관)
 - 번들 비교는 **반드시 같은 플래그**로 (`expo export --dump-sourcemap` 유무로 hbc 크기가 4MB↔6MB 차이남)
+
+---
+
+## 🌐 웹 (web/ — 개발 중, 2026-10)
+
+상세: [web/README.md](web/README.md). 디자인 원본은 Claude 디자인 캔버스 "CaMoim Web"
+(홈 / 게시판 피드 / 글 상세 / 지도 / 채팅 5화면).
+
+- **스택**: Next.js 16 App Router + TypeScript + Tailwind v4. 배포는 Vercel, 도메인은 `camoimapp.com` 루트
+- **인증은 BFF 패턴** — 브라우저는 Railway에 직접 안 붙는다. Next 서버가 JWT를
+  httpOnly 쿠키(`camoim_session`)에 넣고, 서버 쪽에서만 `Bearer`로 붙인다.
+  - 이유: 앱 pell 에디터가 만든 글 HTML을 웹에서 렌더하므로 XSS 표면이 있는데,
+    토큰이 JS에서 안 읽히면 30일 토큰 탈취가 불가능해진다
+  - 같은 도메인 쿠키라 `SameSite=None`·CSRF 토큰 교환이 필요 없다. 쓰기는 `Origin`↔`Host` 일치로 막는다
+  - **서버 auth 코드는 안 건드린다** — `middleware/auth.js`는 그대로 Bearer만 읽는다
+  - 토큰을 발급하는 엔드포인트(`auth/login`·`register`·`apple`·`google`·`social-complete`·`logout`)는
+    범용 프록시 `src/app/api/bff/[...path]`에서 **차단**. 전용 핸들러만 통과
+- **`x-app-version` 헤더를 웹에서 보내지 말 것** — systemGuard의 force-update 게이트는
+  이 헤더가 있을 때만 발동한다. 웹은 스토어 업데이트 개념이 없으니 안 보내는 게 맞다
+- **앱과 동기화 유지해야 하는 4곳**:
+  - `web/src/lib/boards.ts` ← `src/constants/colors.js`, `constants/boards.js`, `constants/cities.js`
+  - `web/src/lib/stays.ts` ← `src/constants/stays.js`
+  - `web/src/lib/camel.ts` ← `src/lib/api.js`의 `toCamel` (`_id`→`id`. 웹도 항상 `.id`)
+  - `web/src/lib/legal.ts` 는 `src/constants/legal.js` 를 **직접 import** — 그래서
+    `next.config.ts`의 `turbopack.root`가 web/이 아니라 레포 루트다. 건드리면 약관 페이지가 깨짐
+- **도시 키는 영문** (`Toronto`, `Vancouver`…) — `src/constants/cities.js`가 단일 소스.
+  `Post.city`와 `?city=` 쿼리가 이 문자열을 그대로 쓴다. **API로 보낼 값은 절대 번역 금지**.
+  화면 표기만 `cityLabel()` (`web/src/lib/boards.ts`)로 한글 변환 — 목록에 없는 도시는 영문 그대로 fallback
+  (metro folding으로 Kitchener 같은 값이 올 수 있음). 앱은 영문을 그대로 보여주므로 표기는 양쪽이 다르다
+- **role 값은 스네이크케이스** (`working_holiday`). `toCamel`은 키만 바꾸고 값은 안 건드린다
+- **웹 전용 색 토큰 2개** (`web/src/app/globals.css`) — 앱 값이 흰 배경에서 AA 미달이라 웹에서만 올림.
+  앱은 안 건드린다
+  - `primary #7F77DD` + 흰 글씨 = 3.6:1 → `--color-brand-strong #6B63D0` (4.6:1)
+  - `textSecondary #888888` on white = 3.5:1 → `--color-muted #6E6E73` (4.8:1)
+  - `#7F77DD`는 로고 타일·보드 점(위에 글자 없음)에만 계속 사용
+- **환율은 서버에서 받는다** (`/api/rate`, 10분 캐시) — 앱의 `CurrencyWidget`은 단말에서
+  네이버/야후를 직접 치지만 브라우저에선 CORS로 막힌다. 소스 3종·순서는 앱과 동일
+- **Socket.io CORS**: `SOCKET_CORS_ORIGINS`가 비면 모든 origin 허용 분기를 타므로 채팅 단계에서도
+  당장 손댈 게 없다. 좁히려면 반드시 빈 화이트리스트=전체허용 분기를 남길 것 (앱이 끊긴다)
+- 명령어: `cd web && npm run dev | typecheck | build`
+
+### 진행 상황
+- [x] 1단계 — 프로젝트 세팅, BFF 인증, 로그인·회원가입·이메일 인증, 홈 화면, 약관/개인정보 페이지
+- [ ] 2단계 — 게시판 목록·피드, 글 상세, 글쓰기·수정(TipTap), 댓글, 검색
+- [ ] 3단계 — 채팅(Socket.io), 알림, 마이페이지, 차단·신고
+- [ ] 4단계 — 지도(업체·숙소), 숙소 등록, 모임·학교 커뮤니티, 소개팅
+- [ ] 5단계 — 관리자 페이지, Vercel 배포, `camoimapp.com` 연결, 공개 문서(README·ARCHITECTURE) 갱신
+
+### 웹에서 반드시 지킬 것 (QA)
+- 앱에서 작성된 글 HTML은 **sanitize 후** 렌더 (2단계 글 상세에서 적용)
+- 학교 커뮤니티·익명게시판·소개팅은 **비로그인 접근 차단 + 검색엔진 색인 차단**
+- 소개팅은 웹에서도 **만 19세 이상 확인** 동일 적용
+- 학생증 업로드는 웹에서도 **`camoim/verify` 폴더 전용**
+- TipTap이 만든 HTML이 앱 pell 에디터에서 깨지지 않는지 **교차 테스트**
 
 ---
 

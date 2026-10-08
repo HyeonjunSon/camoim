@@ -352,6 +352,9 @@ router.get('/home-sections', optionalAuth, async (req, res) => {
         nickname: p.isAnonymous ? '익명' : (p.author?.[0]?.nickname ?? '탈퇴한 회원'),
         thumbnail: p.images?.[0] ?? null,
         city: p.city || '',
+        // Lets a client badge a sold item without a second request. Additive:
+        // older app builds simply ignore it.
+        tradeStatus: p.tradeStatus || 'selling',
       }));
     };
 
