@@ -247,19 +247,7 @@ router.post('/register', registerLimiter, async (req, res) => {
       success: true,
       data: {
         token,
-        user: {
-          id: user._id,
-          email: user.email,
-          nickname: user.nickname,
-          location: user.location,
-          school: user.school,
-          bio: user.bio,
-          role: user.role,
-          verified: user.verified,
-          university: user.university,
-          city: user.city,
-          emailVerified: user.emailVerified,
-        },
+        user: userResponse(user),
       },
     });
   } catch (err) {
@@ -393,19 +381,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       success: true,
       data: {
         token,
-        user: {
-          id: user._id,
-          email: user.email,
-          nickname: user.nickname,
-          location: user.location,
-          school: user.school,
-          bio: user.bio,
-          role: user.role,
-          verified: user.verified,
-          university: user.university,
-          city: user.city,
-          emailVerified: user.emailVerified ?? false,
-        },
+        user: userResponse(user),
       },
     });
   } catch (err) {
@@ -433,22 +409,7 @@ router.get('/me', requireAuth, async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     res.json({
       success: true,
-      data: {
-        id: user._id,
-        email: user.email,
-        nickname: user.nickname,
-        location: user.location,
-        school: user.school,
-        bio: user.bio,
-        role: user.role,
-        verified: user.verified,
-        university: user.university,
-        city: user.city,
-        avatarUrl: user.avatarUrl,
-        emailVerified: user.emailVerified ?? false,
-        // Identifies social-only signups (Apple/Google), which decides whether deletion asks for a password or a nickname
-        hasPassword: !!user.passwordHash,
-      },
+      data: userResponse(user),
     });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
@@ -665,6 +626,10 @@ function userResponse(user) {
     city: user.city,
     avatarUrl: user.avatarUrl,
     emailVerified: user.emailVerified ?? false,
+    // Social-only signups have no password, which decides whether account deletion asks for a
+    // password or for the nickname. Must be on *every* response that carries a user, not just
+    // /auth/me — a Google user who deletes right after signing in never calls /auth/me first.
+    hasPassword: !!user.passwordHash,
   };
 }
 

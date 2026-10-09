@@ -6,6 +6,12 @@ jest.mock('../../utils/mailer', () => ({
   sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
 }));
 
+// Apple/Google token verification talks to the provider over the network
+jest.mock('../../utils/socialAuth', () => ({
+  verifyAppleIdToken: jest.fn(),
+  verifyGoogleIdToken: jest.fn(async () => ({ sub: 'google-sub-1', email: 'social@test.local' })),
+}));
+
 const request = require('supertest');
 const db = require('../helpers/db');
 const { createUser, tokenFor, DEFAULT_PASSWORD } = require('../helpers/factories');
@@ -228,5 +234,71 @@ describe('GET /api/auth/me (requireAuth)', () => {
       .get('/api/auth/me')
       .set('Authorization', `Bearer ${tokenFor(user)}`);
     expect(res.status).toBe(200);
+  });
+});
+
+// hasPassword tells the delete-account screen whether to ask for a password or for the nickname.
+// It used to be hand-written into GET /auth/me only, so every other response that carries a user
+// (login, register, apple, google, social-complete) shipped it as undefined — and a Google user who
+// deleted their account in the same session they signed in was asked for a password they never set.
+// These tests pin the flag to the paths that actually feed AuthContext.
+describe('hasPassword', () => {
+  it('is false on the Google sign-in response for a social-only account', async () => {
+    await createUser({
+      email: 'social@test.local',
+      googleSub: 'google-sub-1',
+      passwordHash: undefined,
+    });
+
+    const res = await request(app).post('/api/auth/google').send({ idToken: 'stub' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.hasPassword).toBe(false);
+  });
+
+  it('is true on the login and register responses for an email account', async () => {
+    const registered = await signUp('haspw@test.local');
+    expect(registered.body.data.user.hasPassword).toBe(true);
+
+    const loggedIn = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'haspw@test.local', password: DEFAULT_PASSWORD });
+    expect(loggedIn.status).toBe(200);
+    expect(loggedIn.body.data.user.hasPassword).toBe(true);
+  });
+});
+
+describe('DELETE /api/auth/me', () => {
+  it('lets a social-only account delete by confirming its nickname', async () => {
+    const user = await createUser({ nickname: 'socialite', passwordHash: undefined });
+
+    const res = await request(app)
+      .delete('/api/auth/me')
+      .set('Authorization', `Bearer ${tokenFor(user)}`)
+      .send({ confirmText: 'socialite' });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('400 when a social-only account sends a password instead of its nickname', async () => {
+    const user = await createUser({ passwordHash: undefined });
+
+    const res = await request(app)
+      .delete('/api/auth/me')
+      .set('Authorization', `Bearer ${tokenFor(user)}`)
+      .send({ password: DEFAULT_PASSWORD });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('401 when an email account sends the wrong password', async () => {
+    const user = await createUser();
+
+    const res = await request(app)
+      .delete('/api/auth/me')
+      .set('Authorization', `Bearer ${tokenFor(user)}`)
+      .send({ password: 'wrong-password' });
+
+    expect(res.status).toBe(401);
   });
 });
