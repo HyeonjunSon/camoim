@@ -58,10 +58,20 @@ export default function SystemStatusGate({ children }) {
     title = t('system.updateRequired');
     actionLabel = t('system.openStore');
     onAction = () => {
+      // Both ids were wrong: Android pointed at a package we never shipped, and iOS opened the
+      // store's front page rather than the app. Sources are eas.json (submit.production.ios
+      // .ascAppId) and app.json (android.package).
       const url = Platform.OS === 'ios'
-        ? 'itms-apps://apps.apple.com'
-        : 'market://details?id=com.camoim.app';
-      Linking.openURL(url).catch(() => {});
+        ? 'itms-apps://apps.apple.com/app/id6763469709'
+        : 'market://details?id=com.hyeonjun122.cahanin';
+      // The market:// and itms-apps:// schemes fail when no store app handles them (an emulator,
+      // a device without Play Services), so fall back to the https page, which a browser opens.
+      Linking.openURL(url).catch(() => {
+        const web = Platform.OS === 'ios'
+          ? 'https://apps.apple.com/app/id6763469709'
+          : 'https://play.google.com/store/apps/details?id=com.hyeonjun122.cahanin';
+        Linking.openURL(web).catch(() => {});
+      });
     };
   } else if (code === 'IP_BLOCKED') {
     icon = 'ban';
@@ -95,7 +105,7 @@ export default function SystemStatusGate({ children }) {
       )}
 
       {!!minVersion && (
-        <Text style={styles.meta}>최소 버전: {minVersion}</Text>
+        <Text style={styles.meta}>{t('system.minVersion')} {minVersion}</Text>
       )}
 
       {actionLabel && (

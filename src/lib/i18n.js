@@ -97,7 +97,7 @@ export const TRANSLATIONS = {
     },
     system: {
       maintenance: '시스템 점검 중', updateRequired: '업데이트가 필요해요',
-      openStore: '스토어 열기', accessBlocked: '접근 차단됨',
+      openStore: '스토어 열기', accessBlocked: '접근 차단됨', minVersion: '최소 버전:',
       suspended: '계정 일시 정지', banned: '계정 영구 정지',
       indefinite: '무기한', soonLifted: '곧 해제', notice: '알림',
     },
@@ -1044,7 +1044,7 @@ export const TRANSLATIONS = {
     },
     system: {
       maintenance: 'System maintenance', updateRequired: 'Update required',
-      openStore: 'Open Store', accessBlocked: 'Access blocked',
+      openStore: 'Open Store', accessBlocked: 'Access blocked', minVersion: 'Minimum version:',
       suspended: 'Account suspended', banned: 'Account permanently banned',
       indefinite: 'Indefinite', soonLifted: 'Lifted soon', notice: 'Notice',
     },
