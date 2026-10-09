@@ -456,9 +456,12 @@ router.get('/universities', async (req, res) => {
 });
 
 // DELETE /api/auth/me — delete the account
-// Confirms identity, then cleans up the account and its data
-// - email signups: enter the password
-// - social-only signups (Apple/Google): no passwordHash, so they retype their nickname exactly
+// Confirms intent, then cleans up the account and its data.
+// Retyping the nickname is the check for every account. The request is already authenticated, and
+// a password could never work for a social signup — nor for an email account that later linked
+// Apple/Google and has not thought about its password since. One path, no dead ends.
+// A password is still accepted when no nickname is sent: app builds older than the OTA that drops
+// the password field keep sending one, and an OTA only reaches builds on the same runtimeVersion.
 router.delete('/me', requireAuth, async (req, res) => {
   try {
     const { password, reason, confirmText } = req.body || {};
@@ -467,17 +470,20 @@ router.delete('/me', requireAuth, async (req, res) => {
     const currentUser = await User.findById(userId).select('+passwordHash');
     if (!currentUser) return res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
 
-    if (currentUser.passwordHash) {
-      // Email signups: verify the password
-      if (!password) return res.status(400).json({ success: false, message: '비밀번호를 입력해주세요.' });
+    const typedNickname = String(confirmText ?? '').trim();
+    if (typedNickname) {
+      if (typedNickname !== currentUser.nickname) {
+        return res.status(401).json({ success: false, message: '닉네임이 일치하지 않습니다.' });
+      }
+    } else if (password) {
+      // Legacy client
+      if (!currentUser.passwordHash) {
+        return res.status(400).json({ success: false, message: '닉네임을 입력해주세요.' });
+      }
       const isMatch = await bcrypt.compare(password, currentUser.passwordHash);
       if (!isMatch) return res.status(401).json({ success: false, message: '비밀번호가 일치하지 않습니다.' });
     } else {
-      // Social-only signups: match the nickname (guards against mistakes and confirms intent)
-      if (!confirmText) return res.status(400).json({ success: false, message: '닉네임을 입력해주세요.' });
-      if (String(confirmText).trim() !== currentUser.nickname) {
-        return res.status(401).json({ success: false, message: '닉네임이 일치하지 않습니다.' });
-      }
+      return res.status(400).json({ success: false, message: '닉네임을 입력해주세요.' });
     }
 
     // Log the deletion reason (used to improve the service)

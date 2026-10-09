@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Text } from '../../components/StyledText';
 import {
   View,
@@ -25,18 +25,19 @@ export default function DeleteAccountScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const { t } = useLang();
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState(1);
   const [reason, setReason] = useState('');
   const [customReason, setCustomReason] = useState('');
-  const [password, setPassword] = useState('');
   const [confirmText, setConfirmText] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Social-only signups (Apple/Google) have no password, so they confirm with their nickname instead
-  const isSocialOnly = user?.hasPassword === false;
+  // The nickname confirms every account, so nothing here depends on how the user signed up.
+  // Refresh anyway: the nickname shown as the target comes from the cached user, and a rename on
+  // another device would otherwise leave an unmatchable string on screen.
+  useEffect(() => { refreshUser(); }, []);
 
   const reasons = [
     t('mypage.deleteReason1'),
@@ -57,9 +58,7 @@ export default function DeleteAccountScreen({ navigation }) {
   const canGoNext = () => {
     if (step === 2) return reason !== '';
     if (step === 3) {
-      return isSocialOnly
-        ? confirmText.trim() === (user?.nickname || '')
-        : password.length >= 1;
+      return !!user?.nickname && confirmText.trim() === user.nickname;
     }
     return true;
   };
@@ -77,11 +76,7 @@ export default function DeleteAccountScreen({ navigation }) {
     setLoading(true);
     try {
       const finalReason = reason === t('mypage.deleteReason5') ? customReason : reason;
-      const res = await deleteMyAccount(
-        isSocialOnly
-          ? { confirmText, reason: finalReason }
-          : { password, reason: finalReason }
-      );
+      const res = await deleteMyAccount({ confirmText, reason: finalReason });
       if (res?.success) {
         await logout().catch(() => {});
       } else {
@@ -89,11 +84,7 @@ export default function DeleteAccountScreen({ navigation }) {
       }
     } catch (e) {
       const msg = e?.message || t('common.serverError');
-      if (msg.includes('비밀번호') || msg.includes('password')) {
-        Alert.alert(t('common.error'), t('mypage.deleteWrongPassword'));
-        setStep(3);
-        setPassword('');
-      } else if (msg.includes('닉네임') || msg.includes('nickname')) {
+      if (msg.includes('닉네임') || msg.includes('nickname')) {
         Alert.alert(t('common.error'), t('mypage.deleteWrongNickname') || '닉네임이 일치하지 않습니다.');
         setStep(3);
         setConfirmText('');
@@ -160,52 +151,28 @@ export default function DeleteAccountScreen({ navigation }) {
     </View>
   );
 
-  // Step 3: identity check — password for email signups, retyped nickname for social-only ones
-  const renderStep3 = () => {
-    if (isSocialOnly) {
-      return (
-        <View style={styles.stepContent}>
-          <Ionicons name="person-outline" size={48} color={colors.primary} style={styles.stepIcon} />
-          <Text style={styles.stepTitle}>{t('mypage.deleteStep3SocialTitle') || '본인 확인'}</Text>
-          <Text style={styles.stepDesc}>
-            {(t('mypage.deleteStep3SocialDesc') || 'Apple/Google 가입 회원은 비밀번호가 없어요.\n계속하려면 본인 닉네임을 정확히 입력해주세요.')}
-          </Text>
-          <View style={styles.nicknameBox}>
-            <Text style={styles.nicknameHint}>
-              {t('mypage.deleteNicknameHint') || '정확히 다음 닉네임을 입력하세요'}
-            </Text>
-            <Text style={styles.nicknameTarget}>{user?.nickname}</Text>
-          </View>
-          <TextInput
-            style={styles.passwordInput}
-            placeholder={t('mypage.deleteNicknamePlaceholder') || '닉네임을 입력하세요'}
-            placeholderTextColor={colors.textSecondary}
-            value={confirmText}
-            onChangeText={setConfirmText}
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoFocus
-          />
-        </View>
-      );
-    }
-    return (
-      <View style={styles.stepContent}>
-        <Ionicons name="lock-closed-outline" size={48} color={colors.primary} style={styles.stepIcon} />
-        <Text style={styles.stepTitle}>{t('mypage.deleteStep3Title')}</Text>
-        <Text style={styles.stepDesc}>{t('mypage.deleteStep3Desc')}</Text>
-        <TextInput
-          style={styles.passwordInput}
-          placeholder={t('mypage.deletePasswordPlaceholder')}
-          placeholderTextColor={colors.textSecondary}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoFocus
-        />
+  // Step 3: intent check — retype the nickname
+  const renderStep3 = () => (
+    <View style={styles.stepContent}>
+      <Ionicons name="person-outline" size={48} color={colors.primary} style={styles.stepIcon} />
+      <Text style={styles.stepTitle}>{t('mypage.deleteStep3Title')}</Text>
+      <Text style={styles.stepDesc}>{t('mypage.deleteStep3Desc')}</Text>
+      <View style={styles.nicknameBox}>
+        <Text style={styles.nicknameHint}>{t('mypage.deleteNicknameHint')}</Text>
+        <Text style={styles.nicknameTarget}>{user?.nickname}</Text>
       </View>
-    );
-  };
+      <TextInput
+        style={styles.confirmInput}
+        placeholder={t('mypage.deleteNicknamePlaceholder')}
+        placeholderTextColor={colors.textSecondary}
+        value={confirmText}
+        onChangeText={setConfirmText}
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoFocus
+      />
+    </View>
+  );
 
   // Step 4: final confirmation
   const renderStep4 = () => (
@@ -331,7 +298,7 @@ const createStyles = (colors) => StyleSheet.create({
     textAlignVertical: 'top',
   },
   // Step 3
-  passwordInput: {
+  confirmInput: {
     width: '100%', padding: 14,
     backgroundColor: colors.card, borderRadius: 10,
     fontSize: 16, color: colors.text, textAlign: 'center',

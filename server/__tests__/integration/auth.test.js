@@ -268,8 +268,10 @@ describe('hasPassword', () => {
   });
 });
 
+// Retyping the nickname confirms every account, whatever it signed up with. A password is only
+// still read for app builds older than the OTA that removed the field.
 describe('DELETE /api/auth/me', () => {
-  it('lets a social-only account delete by confirming its nickname', async () => {
+  it('deletes a social-only account on a matching nickname', async () => {
     const user = await createUser({ nickname: 'socialite', passwordHash: undefined });
 
     const res = await request(app)
@@ -280,18 +282,62 @@ describe('DELETE /api/auth/me', () => {
     expect(res.status).toBe(200);
   });
 
-  it('400 when a social-only account sends a password instead of its nickname', async () => {
-    const user = await createUser({ passwordHash: undefined });
+  it('deletes an email account on a matching nickname, without its password', async () => {
+    const user = await createUser({ nickname: 'emailer' });
+
+    const res = await request(app)
+      .delete('/api/auth/me')
+      .set('Authorization', `Bearer ${tokenFor(user)}`)
+      .send({ confirmText: 'emailer' });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('ignores surrounding whitespace in the typed nickname', async () => {
+    const user = await createUser({ nickname: 'spaced' });
+
+    const res = await request(app)
+      .delete('/api/auth/me')
+      .set('Authorization', `Bearer ${tokenFor(user)}`)
+      .send({ confirmText: '  spaced  ' });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('401 on a mismatched nickname', async () => {
+    const user = await createUser({ nickname: 'careful' });
+
+    const res = await request(app)
+      .delete('/api/auth/me')
+      .set('Authorization', `Bearer ${tokenFor(user)}`)
+      .send({ confirmText: 'carefull' });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when neither a nickname nor a password is sent', async () => {
+    const user = await createUser();
+
+    const res = await request(app)
+      .delete('/api/auth/me')
+      .set('Authorization', `Bearer ${tokenFor(user)}`)
+      .send({ reason: 'just because' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('still accepts a correct password from an older app build', async () => {
+    const user = await createUser();
 
     const res = await request(app)
       .delete('/api/auth/me')
       .set('Authorization', `Bearer ${tokenFor(user)}`)
       .send({ password: DEFAULT_PASSWORD });
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
   });
 
-  it('401 when an email account sends the wrong password', async () => {
+  it('401 when an older app build sends the wrong password', async () => {
     const user = await createUser();
 
     const res = await request(app)
@@ -300,5 +346,16 @@ describe('DELETE /api/auth/me', () => {
       .send({ password: 'wrong-password' });
 
     expect(res.status).toBe(401);
+  });
+
+  it('400 when an older app build sends a password for a social-only account', async () => {
+    const user = await createUser({ passwordHash: undefined });
+
+    const res = await request(app)
+      .delete('/api/auth/me')
+      .set('Authorization', `Bearer ${tokenFor(user)}`)
+      .send({ password: DEFAULT_PASSWORD });
+
+    expect(res.status).toBe(400);
   });
 });
