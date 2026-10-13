@@ -13,6 +13,7 @@ jest.mock('../../utils/socialAuth', () => ({
 }));
 
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 const db = require('../helpers/db');
 const { createUser, tokenFor, DEFAULT_PASSWORD } = require('../helpers/factories');
 
@@ -357,5 +358,59 @@ describe('DELETE /api/auth/me', () => {
       .send({ password: DEFAULT_PASSWORD });
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/auth/socket-ticket', () => {
+  // The web client cannot put its httpOnly cookie on a cross-origin WebSocket
+  // handshake, so it trades the real token for a short-lived ticket. The point of
+  // the scope claim is that the ticket cannot act as the user over REST.
+  it('issues a ticket scoped to the socket', async () => {
+    const user = await createUser({ email: 'ticket@test.local', nickname: 'ticketeer' });
+    const res = await request(app)
+      .post('/api/auth/socket-ticket')
+      .set('Authorization', `Bearer ${tokenFor(user)}`);
+
+    expect(res.status).toBe(200);
+    expect(typeof res.body.data.ticket).toBe('string');
+
+    const decoded = jwt.verify(res.body.data.ticket, process.env.JWT_SECRET);
+    expect(decoded.scope).toBe('socket');
+    expect(String(decoded.id)).toBe(String(user._id));
+    // Two minutes, give or take the clock.
+    expect(decoded.exp - decoded.iat).toBe(120);
+  });
+
+  it('refuses an unauthenticated caller', async () => {
+    const res = await request(app).post('/api/auth/socket-ticket');
+    expect(res.status).toBe(401);
+  });
+
+  it('will not let a ticket stand in for the real token on a REST route', async () => {
+    const user = await createUser({ email: 'replay@test.local', nickname: 'replayer' });
+    const { body } = await request(app)
+      .post('/api/auth/socket-ticket')
+      .set('Authorization', `Bearer ${tokenFor(user)}`)
+      .expect(200);
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${body.data.ticket}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('leaves an optionalAuth route anonymous rather than authenticated', async () => {
+    const user = await createUser({ email: 'optional@test.local', nickname: 'optionally' });
+    const { body } = await request(app)
+      .post('/api/auth/socket-ticket')
+      .set('Authorization', `Bearer ${tokenFor(user)}`)
+      .expect(200);
+
+    // /posts/feed takes optionalAuth: it answers either way, but the ticket must
+    // not make the request count as this user.
+    const res = await request(app)
+      .get('/api/posts/feed')
+      .set('Authorization', `Bearer ${body.data.ticket}`);
+    expect(res.status).toBe(200);
   });
 });

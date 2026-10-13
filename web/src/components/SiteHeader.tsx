@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { User } from '@/lib/types';
 import { BellIcon, PlusIcon, SearchIcon } from './icons';
 import UserMenu from './UserMenu';
+import { ChatBadge, NotificationBadge } from './HeaderBadges';
 
 const NAV = [
   { href: '/', label: '홈', key: 'home' },
@@ -44,11 +45,12 @@ export default function SiteHeader({
                 aria-current={on ? 'page' : undefined}
                 className={
                   on
-                    ? 'rounded-[10px] bg-brand-tint px-3.5 py-2.5 text-[15px] font-semibold text-brand-ink'
-                    : 'rounded-[10px] px-3.5 py-2.5 text-[15px] font-semibold text-ink-3 hover:bg-field'
+                    ? 'flex items-center rounded-[10px] bg-brand-tint px-3.5 py-2.5 text-[15px] font-semibold text-brand-ink'
+                    : 'flex items-center rounded-[10px] px-3.5 py-2.5 text-[15px] font-semibold text-ink-3 hover:bg-field'
                 }
               >
                 {item.label}
+                {item.key === 'chat' && user ? <ChatBadge /> : null}
               </Link>
             );
           })}
@@ -75,9 +77,10 @@ export default function SiteHeader({
               <Link
                 href="/notifications"
                 aria-label="알림"
-                className="flex size-11 items-center justify-center rounded-control text-ink hover:bg-field"
+                className="flex h-11 items-center justify-center rounded-control px-2.5 text-ink hover:bg-field"
               >
                 <BellIcon />
+                <NotificationBadge />
               </Link>
               <Link
                 href="/write"

@@ -43,6 +43,11 @@ function initSocket(httpServer) {
     } catch (err) {
       return next(new Error('유효하지 않은 토큰입니다.'));
     }
+    // The app sends its ordinary token (no scope); the web sends a short-lived
+    // ticket scoped to 'socket'. Anything else is a token meant for somewhere else.
+    if (decoded.scope !== undefined && decoded.scope !== 'socket') {
+      return next(new Error('유효하지 않은 토큰입니다.'));
+    }
     try {
       const u = await User.findById(decoded.id).select('status suspendedUntil tokenVersion').lean();
       if (!u) return next(new Error('계정을 찾을 수 없습니다.'));

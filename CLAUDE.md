@@ -300,13 +300,32 @@ npm run test:all     # 둘 다
   업로드 라우트는 파싱 대신 **원본 바디를 스트리밍 패스스루**해서 이 문제를 비켜간다 (`duplex: 'half'` 필요)
 - 테스트: `cd web && npm test` (Node 내장 러너 + 네이티브 TS, 22개). sanitize·boards·camel 순수 로직.
   CI `web` job은 Node 24 필요 (네이티브 TS 스트리핑)
+- **채팅만 브라우저가 Railway에 직접 붙는다** — WebSocket은 다른 origin이라 httpOnly 쿠키가 안 가고
+  Vercel은 소켓을 프록시 못 한다. 그래서 **단기 티켓** 방식:
+  - `POST /api/auth/socket-ticket` (서버) — 2분 수명 + `scope: 'socket'` 클레임
+  - `middleware/auth.js`가 `scope === 'socket'`을 **거부** → 티켓이 유출돼도 REST에 못 쓴다
+  - `socket.js`는 scope 없음(앱) 또는 `'socket'`(웹)만 수락
+  - 웹은 `/api/socket-ticket` BFF 핸들러로만 받는다. 범용 프록시에선 차단
+  - **`auth`를 콜백으로 넘길 것** (`web/src/lib/socket.ts`) — socket.io가 재연결마다 호출하므로
+    객체로 넘기면 30분 뒤 재연결 때 만료된 티켓을 재전송해서 영구 실패한다
+- **헤더 뱃지(알림·채팅)는 클라이언트에서 가져온다** (`HeaderBadges.tsx`) — 헤더는 모든 페이지에 있고,
+  서버 컴포넌트에서 fetch하면 그 페이지 await가 끝난 뒤에야 도는 **직렬 왕복**이 매 페이지에 붙는다
+- **`data` 옆에 형제 필드를 주는 엔드포인트가 있다** — 채팅 메시지는 `{ data, kind, group, school, otherLeft }`.
+  `apiFetch`는 `data`만 꺼내므로 이런 곳은 `apiFetchEnvelope()`를 쓸 것.
+  BFF 범용 프록시도 이제 **봉투 전체를 그대로 전달**한다
+- **익명 글에는 1:1 채팅 버튼을 띄우지 말 것** — `post.userId`가 null이다 (`authorId`는 차단·신고 전용).
+  채팅을 열면 익명성이 깨진다
+- 테스트: `cd web && npm test` (Node 내장 러너 + 네이티브 TS, 22개). sanitize·boards·camel 순수 로직.
+  ⚠️ **Node 22.6+ 필요** — 레포 기본이 v20.13.1이라 `web/.nvmrc`(=24)로 고정. `cd web && nvm use` 후 실행.
+  CI `web` job은 Node 24 고정
 - 명령어: `cd web && npm run dev | typecheck | test | build`
 
 ### 진행 상황
 - [x] 1단계 — 프로젝트 세팅, BFF 인증, 로그인·회원가입·이메일 인증, 홈 화면, 약관/개인정보 페이지
 - [x] 2단계 — 게시판 목록·피드(도시·정렬·거래중 필터·페이지네이션), 글 상세(sanitize·좋아요·북마크),
       댓글(답글·비밀댓글·삭제), 글쓰기·수정(TipTap), 검색
-- [ ] 3단계 — 채팅(Socket.io), 알림, 마이페이지, 차단·신고
+- [x] 3단계 — 채팅(Socket.io 실시간·요청 수락·나가기), 알림(읽음·헤더 뱃지), 마이페이지(프로필·아바타·
+      내 글/좋아요/북마크·차단 목록), 공개 프로필, 신고·차단, 1:1 채팅 시작
 - [ ] 4단계 — 지도(업체·숙소), 숙소 등록, 모임·학교 커뮤니티, 소개팅
 - [ ] 5단계 — 관리자 페이지, Vercel 배포, `camoimapp.com` 연결, 공개 문서(README·ARCHITECTURE) 갱신
 

@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { HeartIcon } from './icons';
+import ReportButton from './ReportButton';
 
 type Props = {
   postId: string;
@@ -10,6 +11,8 @@ type Props = {
   initialLikeCount: number;
   initialBookmarked: boolean;
   signedIn: boolean;
+  /** Hidden on your own post — reporting yourself makes no sense. */
+  isMine: boolean;
 };
 
 export default function PostActions({
@@ -18,6 +21,7 @@ export default function PostActions({
   initialLikeCount,
   initialBookmarked,
   signedIn,
+  isMine,
 }: Props) {
   const router = useRouter();
   const [liked, setLiked] = useState(initialLiked);
@@ -113,6 +117,17 @@ export default function PostActions({
         </svg>
         {copied ? '복사됐어요' : '링크 복사'}
       </button>
+
+      {!isMine ? (
+        <div className="ml-auto">
+          <ReportButton
+            targetType="post"
+            targetId={postId}
+            signedIn={signedIn}
+            className="flex h-11 items-center rounded-control px-3 text-sm text-muted hover:bg-field hover:text-danger"
+          />
+        </div>
+      ) : null}
 
       {error ? (
         <span role="status" className="text-[13px] text-danger">

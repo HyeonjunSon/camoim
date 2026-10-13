@@ -21,6 +21,8 @@ const TOKEN_MINTING = [
   'auth/social-complete',
   // Must go through /api/auth/logout, which also drops the cookie.
   'auth/logout',
+  // Has its own handler at /api/socket-ticket.
+  'auth/socket-ticket',
 ];
 
 type Ctx = { params: Promise<{ path: string[] }> };
@@ -42,8 +44,10 @@ async function handle(req: Request, ctx: Ctx, method: 'GET' | 'POST' | 'PUT' | '
   const body = method === 'GET' ? undefined : await readJson(req);
 
   try {
-    const data = await apiFetch(`/${joined}${search}`, { method, body });
-    return NextResponse.json({ success: true, data });
+    // The whole envelope is forwarded, not just `data`: some endpoints put
+    // fields beside it (the chat messages route sends `kind` and `school` there).
+    const payload = await apiFetch(`/${joined}${search}`, { method, body, keepEnvelope: true });
+    return NextResponse.json(payload);
   } catch (err) {
     return errorResponse(err);
   }

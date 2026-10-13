@@ -16,6 +16,11 @@ const requireAuth = async (req, res, next) => {
   try {
     // Verify the JWT, then attach the user to req.user
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // A socket ticket (POST /auth/socket-ticket) is only good for a Socket.io
+    // handshake. Refusing it here is what keeps a leaked one from acting as the user.
+    if (decoded.scope === 'socket') {
+      return res.status(401).json({ success: false, message: '유효하지 않은 토큰입니다.' });
+    }
     req.user = { id: decoded.id, email: decoded.email, nickname: decoded.nickname };
     // Reject suspended/deleted accounts and check tokenVersion
     try {
@@ -61,8 +66,12 @@ const optionalAuth = (req, res, next) => {
     const token = authHeader.split(' ')[1];
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = { id: decoded.id, email: decoded.email, nickname: decoded.nickname };
-      DailyActive.track(decoded.id); // Record the daily visit
+      // Socket tickets carry no REST authority here either; the request simply
+      // continues as an anonymous one.
+      if (decoded.scope !== 'socket') {
+        req.user = { id: decoded.id, email: decoded.email, nickname: decoded.nickname };
+        DailyActive.track(decoded.id); // Record the daily visit
+      }
     } catch (err) {
       // Invalid token — continue unauthenticated
     }

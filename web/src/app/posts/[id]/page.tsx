@@ -6,6 +6,7 @@ import SiteHeader from '@/components/SiteHeader';
 import PostActions from '@/components/PostActions';
 import Comments from '@/components/Comments';
 import PostOwnerMenu from '@/components/PostOwnerMenu';
+import StartChatButton from '@/components/StartChatButton';
 import { ApiError, apiFetch, apiFetchOrNull } from '@/lib/api';
 import { getCurrentUser } from '@/lib/user';
 import { sanitizePostHtml } from '@/lib/sanitize';
@@ -196,6 +197,7 @@ export default async function PostDetailPage({ params }: Params) {
                 initialLikeCount={post.likeCount ?? 0}
                 initialBookmarked={post.bookmarked}
                 signedIn={!!user}
+                isMine={isMine}
               />
             </article>
 
@@ -209,18 +211,20 @@ export default async function PostDetailPage({ params }: Params) {
           </main>
 
           <aside className="flex w-full flex-[1_1_300px] flex-col gap-4 lg:max-w-[320px]">
-            {showTrade ? (
+            {showTrade && !isMine ? (
               <section className="rounded-card border border-line-soft bg-surface p-5">
                 <h2 className="text-[15px] font-bold">판매자와 이야기하기</h2>
-                <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
-                  1:1 채팅은 앱에서 바로 열 수 있어요. 웹 채팅도 준비 중이에요.
-                </p>
-                <a
-                  href="https://apps.apple.com/ca/app/camoim/id6763469709"
-                  className="mt-3.5 flex h-12 items-center justify-center rounded-control bg-brand-strong text-base font-bold text-white hover:bg-brand-ink-hover"
-                >
-                  앱에서 채팅하기
-                </a>
+                {post.userId ? (
+                  <div className="mt-3.5">
+                    <StartChatButton targetUserId={post.userId} signedIn={!!user} />
+                  </div>
+                ) : (
+                  // An anonymous post has no one to open a DM with: the API hides
+                  // the author, and revealing them through chat would undo that.
+                  <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
+                    익명으로 올린 글이라 1:1 채팅을 열 수 없어요. 댓글로 물어보세요.
+                  </p>
+                )}
                 <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
                   선입금 요구나 외부 링크 결제는 사기일 수 있어요. 직거래를 권해요.
                 </p>

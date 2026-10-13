@@ -25,6 +25,8 @@ type ApiOptions = {
   auth?: boolean;
   /** Seconds of ISR for anonymous GETs. Ignored once a token is attached. */
   revalidate?: number;
+  /** Return the whole `{ success, data, ... }` envelope instead of just `data`. */
+  keepEnvelope?: boolean;
   signal?: AbortSignal;
 };
 
@@ -42,7 +44,7 @@ export function apiBaseUrl(): string {
  * build to update (server/middleware/systemGuard.js).
  */
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const { method = 'GET', body, auth = true, revalidate, signal } = options;
+  const { method = 'GET', body, auth = true, revalidate, signal, keepEnvelope } = options;
   const token = auth ? await readSessionToken() : null;
 
   const headers: Record<string, string> = { Accept: 'application/json' };
@@ -73,7 +75,18 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     );
   }
 
-  return toCamel<T>(payload?.data ?? payload);
+  return toCamel<T>(keepEnvelope ? payload : (payload?.data ?? payload));
+}
+
+/**
+ * Same call, but returns the whole envelope.
+ *
+ * A few endpoints put fields beside `data` rather than inside it — the chat
+ * messages route answers with `{ data, kind, group, school, otherLeft }` — and
+ * apiFetch would throw those away.
+ */
+export async function apiFetchEnvelope<T>(path: string, options: ApiOptions = {}): Promise<T> {
+  return apiFetch<T>(path, { ...options, keepEnvelope: true });
 }
 
 /** Returns null instead of throwing, for optional sections of a page. */

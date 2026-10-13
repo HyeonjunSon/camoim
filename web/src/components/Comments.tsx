@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { CommentNode } from '@/lib/types';
 import { initial, timeAgo } from '@/lib/format';
+import ReportButton from './ReportButton';
 
 type Props = {
   postId: string;
@@ -168,7 +169,14 @@ export default function Comments({
                     >
                       삭제
                     </button>
-                  ) : null}
+                  ) : (
+                    <ReportButton
+                      targetType="comment"
+                      targetId={node.id}
+                      postId={postId}
+                      signedIn={signedIn}
+                    />
+                  )}
                 </div>
 
                 {replyTo === node.id ? (

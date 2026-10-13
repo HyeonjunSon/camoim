@@ -13,6 +13,7 @@ jest.mock('../../utils/push', () => ({
 
 const http = require('http');
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 const db = require('../helpers/db');
 const { createUser, createDmRoom, DEFAULT_PASSWORD } = require('../helpers/factories');
 const { connectClient, waitFor, expectNoEvent } = require('../helpers/socket');
@@ -79,6 +80,29 @@ describe('socket authentication', () => {
     const token = await login(user);
     await User.updateOne({ _id: user._id }, { $inc: { tokenVersion: 1 } });
     await expect(connectClient(url, token)).rejects.toThrow(/TOKEN_REVOKED/);
+  });
+
+  it('accepts a socket ticket, which is how the web client connects', async () => {
+    // The web keeps its JWT in an httpOnly cookie that a cross-origin WebSocket
+    // handshake cannot carry, so it trades it for a scoped, short-lived ticket.
+    const user = await createUser();
+    const { body } = await request(app)
+      .post('/api/auth/socket-ticket')
+      .set('Authorization', `Bearer ${await login(user)}`)
+      .expect(200);
+
+    const socket = track(await connectClient(url, body.data.ticket));
+    expect(socket.connected).toBe(true);
+  });
+
+  it('rejects a token carrying some other scope', async () => {
+    const user = await createUser();
+    const stray = jwt.sign(
+      { id: String(user._id), nickname: user.nickname, v: 0, scope: 'something-else' },
+      process.env.JWT_SECRET,
+      { expiresIn: '5m' }
+    );
+    await expect(connectClient(url, stray)).rejects.toThrow(/유효하지 않은/);
   });
 
   it('rejects a banned account', async () => {

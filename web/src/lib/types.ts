@@ -182,3 +182,112 @@ export type ExchangeRate = {
   date: string;
   source: string;
 };
+
+// ── Chat ─────────────────────────────────────────────────────────────────────
+
+/** GET /api/chats — the three kinds come back with different shapes. */
+export type ChatRoomSummary = {
+  id: string;
+  kind: 'dm' | 'group' | 'school';
+  lastMessage?: string;
+  lastMessageAt?: string;
+  unreadCount: number;
+  status: 'pending' | 'accepted';
+  /** DM only */
+  other?: { id: string | null; nickname: string; avatarUrl?: string; anonymous?: boolean } | null;
+  requesterId?: string;
+  isRequester?: boolean;
+  otherLeft?: boolean;
+  otherDeleted?: boolean;
+  /** Group chat only */
+  group?: { id: string; name: string; coverImage?: string; memberCount: number };
+  /** School lounge only */
+  school?: { university: string; name: string; memberCount: number };
+};
+
+/** GET /api/chats/:roomId/messages — fields sit beside `data`, so read the envelope. */
+export type ChatMessagesEnvelope = {
+  data: ChatMessage[];
+  otherLeft: boolean;
+  otherDeleted: boolean;
+  kind: 'dm' | 'group' | 'school';
+  group?: { id: string; name: string; coverImage?: string; memberCount: number };
+  school?: { university: string; name: string; memberCount: number; leaderUserId: string | null };
+};
+
+export type ChatMessage = {
+  id: string;
+  roomId: string;
+  senderId: string;
+  senderNickname: string;
+  content: string;
+  readBy: string[];
+  createdAt: string;
+};
+
+// ── Notifications ────────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | 'comment'
+  | 'reply'
+  | 'like'
+  | 'chat_request'
+  | 'verify'
+  | 'report'
+  | 'notice'
+  | 'group'
+  | 'university_leader'
+  | 'intro';
+
+/** GET /api/notifications */
+export type AppNotification = {
+  id: string;
+  type: NotificationType;
+  message: string;
+  isRead: boolean;
+  postId?: string | null;
+  roomId?: string | null;
+  createdAt: string;
+};
+
+// ── Profile, blocks and reports ──────────────────────────────────────────────
+
+/** GET /api/users/:userId */
+export type PublicProfile = {
+  id: string;
+  nickname: string;
+  bio?: string;
+  role: Role;
+  school?: string;
+  city?: string;
+  avatarUrl?: string | null;
+  createdAt: string;
+  verified: boolean;
+  university?: string;
+  tradeSoldCount: number;
+  posts: PostSummary[];
+};
+
+/** GET /api/users/me/blocks */
+export type BlockEntry = {
+  id: string;
+  blockedId: string;
+  nickname: string;
+  avatarUrl?: string | null;
+  blockChat: boolean;
+  hideContent: boolean;
+  createdAt: string;
+};
+
+export type BlockStatus = { blocked: boolean; blockChat: boolean; hideContent: boolean };
+
+/** POST /api/reports — reasons as server/routes/reports.js names them. */
+export const REPORT_REASONS = [
+  { value: 'spam', label: '스팸/도배' },
+  { value: 'hate', label: '욕설/혐오' },
+  { value: 'illegal', label: '불법정보' },
+  { value: 'adult', label: '음란물' },
+  { value: 'etc', label: '기타' },
+] as const;
+
+export type ReportReason = (typeof REPORT_REASONS)[number]['value'];

@@ -306,6 +306,9 @@ router.post('/resend-email', requireAuth, async (req, res) => {
 });
 
 // POST /api/auth/login
+// Long enough for a handshake and a retry, short enough that a leaked ticket is worthless.
+const SOCKET_TICKET_TTL = '2m';
+
 const MAX_FAILED_LOGINS = 5;
 const LOCKOUT_MINUTES = 30;
 
@@ -413,6 +416,35 @@ router.get('/me', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error("[api]", req.method, req.originalUrl, err);
+    res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/auth/socket-ticket — short-lived token for a browser Socket.io handshake
+//
+// The web client keeps its JWT in an httpOnly cookie, which a WebSocket handshake to
+// another origin cannot carry. Its server therefore exchanges the real token for this
+// one. Two properties keep that safe: it lives two minutes, and it carries scope
+// 'socket', which middleware/auth.js refuses — so a leaked ticket cannot be replayed
+// against the REST API. The mobile app does not use this; it holds its own token.
+router.post('/socket-ticket', requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('nickname tokenVersion').lean();
+    if (!user) return res.status(401).json({ success: false, message: '계정을 찾을 수 없습니다.' });
+
+    const ticket = jwt.sign(
+      {
+        id: req.user.id,
+        nickname: user.nickname,
+        v: user.tokenVersion || 0,
+        scope: 'socket',
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: SOCKET_TICKET_TTL }
+    );
+    res.json({ success: true, data: { ticket, expiresInSeconds: 120 } });
+  } catch (err) {
+    console.error('[api]', req.method, req.originalUrl, err);
     res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
   }
 });
