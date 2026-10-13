@@ -37,6 +37,11 @@ mints a JWT, so one can never be returned into page JavaScript.
 | `src/app/posts/[id]/` | Post detail, and its editor |
 | `src/app/write/` | New post |
 | `src/app/search/` | Posts, groups and members in one list |
+| `src/app/chat/` | Room list, and one conversation over Socket.io |
+| `src/app/notifications/` | Notification list |
+| `src/app/mypage/` | Profile, my posts, likes, bookmarks, blocks |
+| `src/app/users/[id]/` | Public profile |
+| `src/app/api/socket-ticket` | The only credential the browser is handed |
 | `src/app/(auth)/` | Login and signup |
 | `src/app/api/auth/*` | The only routes that see a JWT |
 | `src/app/api/bff/[...path]` | Authenticated passthrough for client components |
@@ -46,6 +51,32 @@ mints a JWT, so one can never be returned into page JavaScript.
 | `src/lib/api.ts` | Server-side calls to Railway |
 | `src/lib/boards.ts` | Board tones, cities, trade-board slugs |
 | `src/lib/legal.ts` | Re-exports the app's `src/constants/legal.js` |
+
+## Chat is the exception to the BFF
+
+A WebSocket to Railway is a different origin, so the httpOnly cookie never
+reaches it, and Vercel will not proxy one. The browser therefore connects to
+Railway directly — and the only credential it gets is a ticket:
+
+```
+browser ──POST /api/socket-ticket──▶ Next (reads the cookie)
+                                       │ Bearer <session JWT>
+                                       ▼
+                                  POST /api/auth/socket-ticket
+                                       │
+browser ◀──── ticket: 2 min, scope 'socket' ───┘
+   │
+   └── Socket.io handshake ──▶ Railway
+```
+
+The scope claim is what makes this safe. `middleware/auth.js` refuses a
+`'socket'` scope on both `requireAuth` and `optionalAuth`, so a leaked ticket is
+good for a handshake and nothing else — it cannot act as the user over REST.
+`socket.js` accepts a token with no scope (the app's own) or exactly `'socket'`.
+
+`auth` is given to socket.io as a **callback**, because it is called on every
+connection attempt. Passing the ticket as a value replays an expired one on a
+reconnection half an hour later and fails for good.
 
 ## Rendering other people's HTML
 
@@ -71,6 +102,12 @@ but pell cannot would render as unstyled text on a phone.
 - **`GET /api/posts/:id` increments `viewCount`.** Every link to a post detail
   therefore carries `prefetch={false}`; without it, hovering a feed row inflates
   the count.
+- **Some endpoints put fields beside `data`.** The chat messages route answers
+  `{ data, kind, group, school, otherLeft }`, and `apiFetch` returns only `data`.
+  Use `apiFetchEnvelope` there; the BFF proxy forwards the whole envelope.
+- **Header badges are fetched client-side.** The header is on every page, and a
+  fetch inside it would run only after that page's own awaits resolved — an extra
+  serial round trip everywhere, to an API a region away from its database.
 
 ## Shared with the app
 
@@ -106,7 +143,8 @@ cp .env.example .env.local   # CAMOIM_API_URL points at Railway by default
 npm install
 npm run dev                  # http://localhost:3000
 npm run typecheck
-npm test                     # Node's own runner, native TypeScript — needs Node 23.6+
+nvm use                      # .nvmrc pins 24; the repo default is v20, which cannot run the tests
+npm test                     # Node's own runner, executing the .ts files directly
 npm run build
 ```
 
@@ -122,6 +160,9 @@ app has the same exposure, so the real fix belongs upstream.
 
 ## Not built yet
 
-Chat, notifications, the map, stay listings, groups, the school community, the
-intro board, blocking and reporting, my page, and the admin pages. Links to them
-resolve to the 404 page until each lands.
+The map and stay listings, groups, the school community, the intro board, school
+verification, account deletion, and the admin pages. Links to them resolve to the
+404 page until each lands.
+
+The UI copy is Korean and hard-coded. The app carries Korean and English in
+`src/lib/i18n.js`; the web does not read it yet.
