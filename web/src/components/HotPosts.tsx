@@ -6,8 +6,13 @@ import type { HotBoardSection } from '@/lib/types';
 import { boardTone } from '@/lib/boards';
 import { FlameIcon } from './icons';
 
+/**
+ * 48 hours is the server's own default and what the app shows, so the first tab
+ * matches the app exactly rather than narrowing to 24 and quietly hiding a post
+ * from yesterday evening.
+ */
 const TABS = [
-  { id: 'day', label: '오늘', hours: 24 },
+  { id: 'now', label: '지금', hours: 48 },
   { id: 'week', label: '이번 주', hours: 168 },
 ] as const;
 
@@ -39,16 +44,10 @@ function rank(sections: HotBoardSection[], limit = 5): Ranked[] {
     .slice(0, limit);
 }
 
-export default function HotPosts({
-  initialSections,
-  city,
-}: {
-  initialSections: HotBoardSection[];
-  city: string;
-}) {
-  const [tab, setTab] = useState<TabId>('day');
+export default function HotPosts({ initialSections }: { initialSections: HotBoardSection[] }) {
+  const [tab, setTab] = useState<TabId>('now');
   const [cache, setCache] = useState<Partial<Record<TabId, Ranked[]>>>({
-    day: rank(initialSections),
+    now: rank(initialSections),
   });
   const [pending, startTransition] = useTransition();
   const [failed, setFailed] = useState(false);
@@ -57,8 +56,8 @@ export default function HotPosts({
     setTab(next);
     if (cache[next]) return;
     const hours = TABS.find((t) => t.id === next)!.hours;
+    // No city, for the same reason the server render omits it.
     const params = new URLSearchParams({ limit: '4', top: '5', hours: String(hours) });
-    if (city) params.set('city', city);
     try {
       const res = await fetch(`/api/bff/posts/hot-by-board?${params}`);
       const json = await res.json();

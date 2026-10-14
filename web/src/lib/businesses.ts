@@ -75,6 +75,21 @@ export function stayCityForSlug(slug: string): string | null {
   return SLUG_TO_STAY_CITY[slug] ?? null;
 }
 
+const STAY_CITY_TO_SLUG: Record<string, string> = Object.fromEntries(
+  Object.entries(SLUG_TO_STAY_CITY).map(([slug, name]) => [name, slug])
+);
+
+/**
+ * The other direction: a user's stored city (`User.city`, capitalised English)
+ * into the slug the business endpoints filter on. Null for a city the map does
+ * not cover, which callers should read as "no city filter" rather than "no
+ * results" — Victoria and Quebec are real cities with no map preset.
+ */
+export function mapCitySlugFor(city: string | undefined): string | null {
+  if (!city) return null;
+  return STAY_CITY_TO_SLUG[city] ?? null;
+}
+
 /** Reasons the business report endpoint accepts. */
 export const BUSINESS_REPORT_REASONS = [
   { value: 'closed', label: '폐업했어요' },

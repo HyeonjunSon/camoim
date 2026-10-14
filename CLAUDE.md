@@ -270,6 +270,12 @@ npm run test:all     # 둘 다
   - `web/src/lib/camel.ts` ← `src/lib/api.js`의 `toCamel` (`_id`→`id`. 웹도 항상 `.id`)
   - `web/src/lib/legal.ts` 는 `src/constants/legal.js` 를 **직접 import** — 그래서
     `next.config.ts`의 `turbopack.root`가 web/이 아니라 레포 루트다. 건드리면 약관 페이지가 깨짐
+- ⚠️ **`city`를 넘기면 도시 없는 글이 전부 탈락한다** — 서버가 `city: { $in: [...] }`를 붙이는데
+  도시를 쓰는 건 `LOCAL_BOARD_SLUGS`뿐이다. 즉 `hot-by-board`에 city를 주면 자유·익명·이민·교육·
+  워홀·환전 게시판 글이 통째로 사라진다 (앱이 `getHotByBoard()`를 **인자 없이** 부르는 이유).
+  city는 `home-sections`(마켓·구인)·`/stays`·보드 피드의 명시적 도시 필터에만 쓸 것
+- **`hot-by-board`의 hours 기본값은 48** — 앱은 hours를 안 보내므로 48시간이다.
+  웹 홈 첫 탭도 48(`지금`)로 맞춰야 앱과 같은 목록이 나온다
 - **도시 키는 영문** (`Toronto`, `Vancouver`…) — `src/constants/cities.js`가 단일 소스.
   `Post.city`와 `?city=` 쿼리가 이 문자열을 그대로 쓴다. **API로 보낼 값은 절대 번역 금지**.
   화면 표기만 `cityLabel()` (`web/src/lib/boards.ts`)로 한글 변환 — 목록에 없는 도시는 영문 그대로 fallback
