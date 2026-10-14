@@ -52,6 +52,10 @@ export type PostSummary = {
   /** Set on a group post, which is readable by that group's members only. */
   groupId?: string | null;
   boardId?: string;
+  /** Group boards sort pinned posts first. */
+  pinned?: boolean;
+  avatarUrl?: string | null;
+  userId?: string;
 };
 
 /** GET /api/posts/latest-by-board */
@@ -171,19 +175,21 @@ export type Stay = {
   distanceKm?: number | null;
 };
 
-/** GET /api/universities/community */
+/** GET /api/universities/community — verified members of that school only. */
 export type SchoolCommunity = {
-  university?: string;
-  fullName?: string;
-  canEdit?: boolean;
-  isLeader?: boolean;
-  community?: {
-    instagram?: string;
-    kakaoOpen?: string;
-    discord?: string;
-    homepage?: string;
-    notice?: string;
-  };
+  university: string;
+  community: CommunityLinks;
+  /** The sitting student president, who may edit the card. */
+  isLeader: boolean;
+  canEdit: boolean;
+  hasLeader: boolean;
+};
+
+/** GET /api/universities/members — leaderUserId sits beside `data`. */
+export type SchoolMembersEnvelope = {
+  data: { id: string; nickname: string; avatarUrl?: string | null; role: Role }[];
+  leaderUserId: string | null;
+  university: string;
 };
 
 export type ExchangeRate = {
@@ -355,4 +361,77 @@ export type StayDetail = Stay & {
   bookmarkCount: number;
   bookmarked: boolean;
   createdAt: string;
+};
+
+// ── Groups ───────────────────────────────────────────────────────────────────
+
+export type GroupCategory = 'hobby' | 'study' | 'local' | 'job' | 'workinghol' | 'general';
+
+/** GET /api/groups */
+export type GroupSummary = {
+  id: string;
+  name: string;
+  description: string;
+  coverImage?: string;
+  category: GroupCategory;
+  city?: string;
+  /** Non-empty marks a school club: joinable only by that school's verified members. */
+  university?: string;
+  ownerId: string;
+  memberCount: number;
+  postCount: number;
+  joinPolicy: 'open' | 'approval';
+  createdAt: string;
+};
+
+export type GroupMembershipInfo = {
+  role: 'owner' | 'manager' | 'member';
+  status: 'active' | 'pending' | 'banned';
+  notifyPosts: boolean;
+  notifyChat: boolean;
+};
+
+/** GET /api/groups/:id */
+export type GroupDetail = {
+  id: string;
+  name: string;
+  description: string;
+  coverImage?: string;
+  category: GroupCategory;
+  city?: string;
+  university?: string;
+  owner: { id: string; nickname: string; avatarUrl?: string };
+  memberCount: number;
+  postCount: number;
+  joinPolicy: 'open' | 'approval';
+  maxMembers: number;
+  status: 'pending_review' | 'active' | 'rejected';
+  rejectReason?: string;
+  createdAt: string;
+  myMembership: GroupMembershipInfo | null;
+  community: CommunityLinks;
+  canEditCommunity: boolean;
+};
+
+export type CommunityLinks = {
+  instagram: string;
+  kakaoOpen: string;
+  discord: string;
+  homepage: string;
+  notice: string;
+};
+
+/**
+ * GET /api/groups/:id/members — note `id` is the member's **user** id, not the
+ * membership record's, which is what every management call takes.
+ */
+export type GroupMember = {
+  id: string;
+  nickname: string;
+  avatarUrl?: string;
+  verified: boolean;
+  university?: string;
+  role: 'owner' | 'manager' | 'member';
+  status: 'active' | 'pending' | 'banned';
+  joinedAt: string;
 };

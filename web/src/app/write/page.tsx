@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import SiteHeader from '@/components/SiteHeader';
 import PostForm from '@/components/PostForm';
+import { apiFetchOrNull } from '@/lib/api';
 import { loadBoards } from '@/lib/posts';
+import type { GroupDetail } from '@/lib/types';
 import { getCurrentUser } from '@/lib/user';
 
 export const metadata: Metadata = {
@@ -10,16 +12,23 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-type Props = { searchParams: Promise<{ board?: string }> };
+type Props = { searchParams: Promise<{ board?: string; group?: string }> };
 
 export default async function WritePage({ searchParams }: Props) {
-  const { board } = await searchParams;
+  const { board, group: groupId } = await searchParams;
   const user = await getCurrentUser();
   if (!user) {
     redirect(`/login?next=${encodeURIComponent(board ? `/write?board=${board}` : '/write')}`);
   }
 
-  const boards = await loadBoards();
+  // Writing into a group needs its name for the header, and the fetch doubles as
+  // the membership check: a non-member gets 403 and lands on the 404 page.
+  const [boards, group] = await Promise.all([
+    loadBoards(),
+    groupId ? apiFetchOrNull<GroupDetail>(`/groups/${groupId}`) : Promise.resolve(null),
+  ]);
+
+  if (groupId && (!group || group.myMembership?.status !== 'active')) notFound();
 
   return (
     <>
@@ -32,6 +41,7 @@ export default async function WritePage({ searchParams }: Props) {
         <div className="mt-6">
           <PostForm
             boards={boards}
+            group={group ? { id: group.id, name: group.name } : undefined}
             initialBoardSlug={board}
             defaultCity={user.city ?? ''}
           />

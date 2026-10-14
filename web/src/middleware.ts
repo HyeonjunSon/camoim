@@ -15,7 +15,7 @@ import { SESSION_COOKIE } from '@/lib/session';
  */
 
 /** Signed-in only, whatever the board. */
-const PRIVATE_PREFIXES = ['/write', '/intro', '/notifications', '/mypage', '/chat'];
+const PRIVATE_PREFIXES = ['/write', '/intro', '/notifications', '/mypage', '/chat', '/school'];
 
 /**
  * Boards closed to visitors: the anonymous board, and every school board
@@ -38,7 +38,9 @@ export function middleware(req: NextRequest) {
     /^\/posts\/[^/]+\/edit$/.test(pathname) ||
     pathname === '/stays/new' ||
     pathname === '/businesses/new' ||
-    /^\/stays\/[^/]+\/edit$/.test(pathname);
+    pathname === '/groups/new' ||
+    /^\/stays\/[^/]+\/edit$/.test(pathname) ||
+    /^\/groups\/[^/]+\/(edit|members)$/.test(pathname);
 
   if (!needsAuth) return NextResponse.next();
   if (req.cookies.has(SESSION_COOKIE)) return NextResponse.next();

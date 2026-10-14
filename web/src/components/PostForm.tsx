@@ -11,6 +11,12 @@ type Props = {
   boards: Board[];
   /** Present when editing; absent when writing a new post. */
   postId?: string;
+  /**
+   * Writing into a group instead of a board. A post carries one or the other,
+   * never both (Post has a pre-validate hook for it), and a group post is never
+   * anonymous.
+   */
+  group?: { id: string; name: string };
   initialBoardSlug?: string;
   initialTitle?: string;
   initialHtml?: string;
@@ -27,6 +33,7 @@ function isBlank(html: string): boolean {
 export default function PostForm({
   boards,
   postId,
+  group,
   initialBoardSlug,
   initialTitle = '',
   initialHtml = '',
@@ -51,11 +58,11 @@ export default function PostForm({
   const [busy, setBusy] = useState(false);
 
   const board = writable.find((b) => b.slug === slug);
-  const needsCity = isLocalBoard(slug);
+  const needsCity = !group && isLocalBoard(slug);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!board) return setError('게시판을 선택해주세요.');
+    if (!group && !board) return setError('게시판을 선택해주세요.');
     if (!title.trim()) return setError('제목을 입력해주세요.');
     if (isBlank(html)) return setError('내용을 입력해주세요.');
 
@@ -67,7 +74,7 @@ export default function PostForm({
         method: editing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...(editing ? {} : { boardId: board.id }),
+          ...(editing ? {} : group ? { groupId: group.id } : { boardId: board!.id }),
           title: title.trim(),
           content: html,
           city: needsCity ? city : '',
@@ -87,7 +94,12 @@ export default function PostForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      {!editing ? (
+      {group ? (
+        <p className="text-[13.5px] text-muted">
+          <span className="font-semibold text-ink-3">{group.name}</span> 모임 게시판에 올라가요.
+          멤버만 볼 수 있어요.
+        </p>
+      ) : !editing ? (
         <Field id="board" label="게시판">
           <select
             id="board"
@@ -109,7 +121,7 @@ export default function PostForm({
         </p>
       )}
 
-      {board?.isAnonymousAllowed ? (
+      {!group && board?.isAnonymousAllowed ? (
         <p className="rounded-[10px] bg-brand-tint px-3.5 py-3 text-[13.5px] text-brand-ink-hover">
           이 게시판은 익명으로 올라가요. 닉네임은 표시되지 않아요.
         </p>

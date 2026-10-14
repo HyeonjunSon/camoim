@@ -8,7 +8,7 @@ import { initial } from '@/lib/format';
  * results, so nothing here is shown to a visitor.
  */
 export default function SchoolCard({ school }: { school: SchoolCommunity }) {
-  const name = school.university ?? '';
+  const name = school.university;
 
   return (
     <section className="rounded-card border border-line-soft bg-surface px-5 py-4.5">
@@ -26,9 +26,7 @@ export default function SchoolCard({ school }: { school: SchoolCommunity }) {
           {initial(name)}
         </span>
         <span className="min-w-0">
-          <span className="block truncate text-[15px] font-semibold">
-            {school.fullName || name}
-          </span>
+          <span className="block truncate text-[15px] font-semibold">{name}</span>
           <span className="block text-[12.5px] text-muted">재학생만 볼 수 있어요</span>
         </span>
       </Link>
