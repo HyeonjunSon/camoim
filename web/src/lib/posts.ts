@@ -1,5 +1,5 @@
 import 'server-only';
-import { apiFetch, apiFetchOrNull } from './api';
+import { apiFetch } from './api';
 import type { Board } from './types';
 
 /**
@@ -7,9 +7,14 @@ import type { Board } from './types';
  * uses the slug in its URLs so a link reads and survives. The board list is
  * needed for the sidebar anyway, so the slug is resolved from it rather than
  * costing a lookup of its own.
+ *
+ * This deliberately throws rather than falling back to an empty list. The board
+ * feed decides "no such board" by failing to find the slug here, so a swallowed
+ * network error would turn every real board into a 404 — a status crawlers cache
+ * and visitors read as gone. An error page is the honest answer to an outage.
  */
 export async function loadBoards(): Promise<Board[]> {
-  return (await apiFetchOrNull<Board[]>('/boards', { revalidate: 300 })) ?? [];
+  return apiFetch<Board[]>('/boards', { revalidate: 300 });
 }
 
 export function findBoard(boards: Board[], slug: string): Board | undefined {

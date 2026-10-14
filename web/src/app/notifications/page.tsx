@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NotificationsPage() {
-  // middleware.ts gates this route; a user is expected.
+  // proxy.ts gates this route; a user is expected.
   const [user, notifications] = await Promise.all([
     getCurrentUser(),
     apiFetchOrNull<AppNotification[]>('/notifications'),

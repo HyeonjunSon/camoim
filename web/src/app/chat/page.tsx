@@ -18,7 +18,7 @@ export default async function ChatPage({ searchParams }: Props) {
   const { box: boxParam } = await searchParams;
   const box = (BOXES.includes(boxParam as ChatBox) ? boxParam : 'accepted') as ChatBox;
 
-  // middleware.ts already turned visitors away, so a user is expected here.
+  // proxy.ts already turned visitors away, so a user is expected here.
   const user = await getCurrentUser();
 
   const [rooms, requests] = await Promise.all([

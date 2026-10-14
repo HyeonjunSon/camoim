@@ -18,7 +18,7 @@ type Props = { searchParams: Promise<{ gender?: string; region?: string; proxyOn
 
 export default async function IntroPage({ searchParams }: Props) {
   const sp = await searchParams;
-  // middleware.ts gates /intro, so a signed-in user is expected.
+  // proxy.ts gates /intro, so a signed-in user is expected.
   const user = await getCurrentUser();
 
   const meta = await apiFetchOrNull<IntroMeta>('/intro/meta');

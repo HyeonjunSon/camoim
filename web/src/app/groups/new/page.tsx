@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NewGroupPage() {
-  // middleware.ts gates /groups/new.
+  // proxy.ts gates /groups/new.
   const user = await getCurrentUser();
   if (!user) notFound();
 

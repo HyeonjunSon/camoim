@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NewBusinessPage() {
-  // middleware.ts gates /businesses/new.
+  // proxy.ts gates /businesses/new.
   const user = await getCurrentUser();
 
   return (

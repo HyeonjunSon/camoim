@@ -4,10 +4,13 @@ import { SESSION_COOKIE } from '@/lib/session';
 /**
  * Auth gating happens here rather than in the pages themselves.
  *
+ * (Next 16 renamed this convention from `middleware.ts`; it runs in the same
+ * place in the request path.)
+ *
  * A `redirect()` inside a page runs during the render, and once Next has
  * started streaming the shell the status code is already sent — the visitor
- * ends up on a 200 that redirects late, or not at all. Middleware runs before
- * any of that, so a visitor to a members-only page gets a real 307.
+ * ends up on a 200 that redirects late, or not at all. This runs before any of
+ * that, so a visitor to a members-only page gets a real 307.
  *
  * Only the presence of the session cookie is checked; its validity is the API's
  * business. A forged or expired cookie therefore gets through to the page,
@@ -29,7 +32,7 @@ function isPrivateBoardPath(pathname: string): boolean {
   return slug === 'anonymous' || /-(free|anonymous)$/.test(slug);
 }
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
   const needsAuth =

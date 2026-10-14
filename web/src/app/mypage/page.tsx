@@ -42,7 +42,7 @@ export default async function MyPage({ searchParams }: Props) {
   const { tab: tabParam } = await searchParams;
   const tab = (TABS.some((t) => t.id === tabParam) ? tabParam : 'profile') as Tab;
 
-  // middleware.ts gates /mypage, so a user is expected here.
+  // proxy.ts gates /mypage, so a user is expected here.
   const user = await getCurrentUser();
 
   const endpoint = POST_ENDPOINTS[tab];

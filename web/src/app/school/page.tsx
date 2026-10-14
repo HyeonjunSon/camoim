@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export default async function SchoolPage() {
-  // middleware.ts gates /school, but verification is a second gate the cookie
+  // proxy.ts gates /school, but verification is a second gate the cookie
   // cannot speak for: the API answers 403 for an unverified member.
   const user = await getCurrentUser();
 

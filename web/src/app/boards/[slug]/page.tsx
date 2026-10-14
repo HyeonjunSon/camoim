@@ -53,7 +53,7 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
 
   // A school board the viewer may not see is simply absent from /boards, so an
   // unknown slug and "not your school" are the same 404. Visitors to a private
-  // board never reach this: middleware.ts sent them to the login page.
+  // board never reach this: proxy.ts sent them to the login page.
   if (!board) notFound();
 
   // Second line behind the middleware, for a forged or expired cookie.

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NewStayPage() {
-  // middleware.ts gates /stays/new.
+  // proxy.ts gates /stays/new.
   const user = await getCurrentUser();
 
   return (
