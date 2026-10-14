@@ -118,7 +118,9 @@ export default function MapExplorer({
 
   return (
     <div className="flex flex-wrap items-stretch">
-      <section className="flex w-full flex-[1_1_380px] flex-col border-line bg-surface md:max-w-[420px] md:border-r">
+      {/* Map first on a phone. Stacked the other way round, 120 list rows pushed
+          the map so far down it was effectively gone. */}
+      <section className="order-2 flex w-full flex-col border-line bg-surface md:order-1 md:max-w-[420px] md:flex-[1_1_380px] md:border-r">
         <div className="px-5 pt-5 pb-3.5">
           <div className="grid grid-cols-2 gap-1 rounded-control bg-field p-1">
             {(
@@ -196,7 +198,7 @@ export default function MapExplorer({
             {biz ? '이 조건에 맞는 업체가 없어요.' : '이 조건에 맞는 숙소가 없어요.'}
           </p>
         ) : (
-          <ul className="min-h-0 flex-1 overflow-y-auto border-t border-line-faint">
+          <ul className="border-t border-line-faint md:min-h-0 md:flex-1 md:overflow-y-auto">
             {rows.map((row) => {
               const on = row.id === selectedId;
               return (
@@ -244,7 +246,10 @@ export default function MapExplorer({
         </div>
       </section>
 
-      <section aria-label="지도" className="relative min-h-[480px] w-full flex-[999_1_560px]">
+      <section
+        aria-label="지도"
+        className="relative order-1 h-[46vh] w-full md:order-2 md:h-auto md:min-h-[520px] md:flex-[999_1_560px]"
+      >
         <MapCanvas
           centre={{ lat: city.lat, lng: city.lng }}
           pins={pins}

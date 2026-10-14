@@ -57,7 +57,7 @@ export default function MapCanvas({
   // this panel still works, so say so plainly rather than rendering a grey box.
   if (!MAPS_KEY) {
     return (
-      <div className="flex h-full min-h-[480px] items-center justify-center bg-[#EEF0EC] px-6">
+      <div className="flex h-full min-h-[240px] items-center justify-center bg-[#EEF0EC] px-6">
         <p className="max-w-[320px] text-center text-sm leading-relaxed text-ink-3">
           지도를 불러올 수 없어요.
           <br />
@@ -82,7 +82,7 @@ export default function MapCanvas({
         mapTypeControl={false}
         streetViewControl={false}
         fullscreenControl={false}
-        className="h-full min-h-[480px] w-full"
+        className="h-full min-h-[240px] w-full"
       >
         <Recentre lat={centre.lat} lng={centre.lng} />
         <CentreReporter onIdle={onCentreChange} />

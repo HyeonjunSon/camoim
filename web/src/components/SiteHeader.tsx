@@ -31,8 +31,14 @@ export default function SiteHeader({ user }: { user: User | null }) {
 
   return (
     <header className="border-b border-line bg-surface">
-      <div className="mx-auto flex min-h-16 max-w-[1240px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-2 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 text-ink">
+      {/*
+        DOM order is the mobile order — logo + actions on one line, then the
+        search field, then the nav as a scrolling chip row. `md:order-*` puts
+        them back in the desktop order on one line. At narrow widths the old
+        single row wrapped into four, and the header ate the screen.
+      */}
+      <div className="mx-auto flex min-h-16 max-w-[1240px] flex-wrap items-center gap-x-4 gap-y-2.5 px-4 py-2 sm:px-6 md:gap-x-6">
+        <Link href="/" className="flex shrink-0 items-center gap-2 text-ink md:order-1">
           <span
             aria-hidden
             className="flex size-8 items-center justify-center rounded-[9px] bg-brand text-[17px] font-bold text-white"
@@ -42,7 +48,10 @@ export default function SiteHeader({ user }: { user: User | null }) {
           <span className="text-xl font-bold -tracking-[0.4px]">캐모임</span>
         </Link>
 
-        <nav aria-label="주요 메뉴" className="flex flex-wrap gap-1">
+        <nav
+          aria-label="주요 메뉴"
+          className="-mx-1 order-3 flex w-full gap-1 overflow-x-auto px-1 md:order-2 md:mx-0 md:w-auto md:flex-wrap md:overflow-visible md:px-0"
+        >
           {NAV.map((item) => {
             const on = item.match(pathname);
             return (
@@ -50,11 +59,9 @@ export default function SiteHeader({ user }: { user: User | null }) {
                 key={item.href}
                 href={item.href}
                 aria-current={on ? 'page' : undefined}
-                className={
-                  on
-                    ? 'flex items-center rounded-[10px] bg-brand-tint px-3.5 py-2.5 text-[15px] font-semibold text-brand-ink'
-                    : 'flex items-center rounded-[10px] px-3.5 py-2.5 text-[15px] font-semibold text-ink-3 hover:bg-field'
-                }
+                className={`flex shrink-0 items-center rounded-[10px] px-3 py-2 text-[14.5px] font-semibold whitespace-nowrap md:px-3.5 md:py-2.5 md:text-[15px] ${
+                  on ? 'bg-brand-tint text-brand-ink' : 'text-ink-3 hover:bg-field'
+                }`}
               >
                 {item.label}
                 {item.href === '/chat' && user ? <ChatBadge /> : null}
@@ -65,7 +72,7 @@ export default function SiteHeader({ user }: { user: User | null }) {
 
         <form
           action="/search"
-          className="flex h-11 min-w-0 flex-[1_1_240px] items-center gap-2 rounded-control bg-field px-3.5"
+          className="order-2 flex h-11 w-full min-w-0 items-center gap-2 rounded-control bg-field px-3.5 md:order-3 md:w-auto md:flex-[1_1_240px]"
         >
           <SearchIcon className="shrink-0 text-muted" />
           <label htmlFor="site-search" className="sr-only-label">
@@ -84,7 +91,7 @@ export default function SiteHeader({ user }: { user: User | null }) {
           />
         </form>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 md:order-4 md:ml-0 md:gap-2">
           {user ? (
             <>
               <Link
@@ -97,10 +104,11 @@ export default function SiteHeader({ user }: { user: User | null }) {
               </Link>
               <Link
                 href="/write"
-                className="flex h-11 items-center gap-1.5 rounded-control bg-brand-strong px-4 text-[15px] font-semibold text-white hover:bg-brand-ink-hover"
+                aria-label="글쓰기"
+                className="flex h-11 items-center gap-1.5 rounded-control bg-brand-strong px-3 text-[15px] font-semibold text-white hover:bg-brand-ink-hover sm:px-4"
               >
                 <PlusIcon />
-                글쓰기
+                <span className="hidden sm:inline">글쓰기</span>
               </Link>
               <UserMenu user={user} />
             </>
@@ -108,13 +116,13 @@ export default function SiteHeader({ user }: { user: User | null }) {
             <>
               <Link
                 href="/login"
-                className="flex h-11 items-center rounded-control px-4 text-[15px] font-semibold text-ink-3 hover:bg-field"
+                className="flex h-11 items-center rounded-control px-3 text-[15px] font-semibold text-ink-3 hover:bg-field sm:px-4 sm:text-ink-3"
               >
                 로그인
               </Link>
               <Link
                 href="/signup"
-                className="flex h-11 items-center rounded-control bg-brand-strong px-4 text-[15px] font-semibold text-white hover:bg-brand-ink-hover"
+                className="hidden h-11 items-center rounded-control bg-brand-strong px-4 text-[15px] font-semibold text-white hover:bg-brand-ink-hover sm:flex"
               >
                 회원가입
               </Link>
