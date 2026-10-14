@@ -28,15 +28,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function GroupDetailPage({ params }: Props) {
   const { id } = await params;
-  const user = await getCurrentUser();
 
-  let group: GroupDetail;
-  try {
-    group = await apiFetch<GroupDetail>(`/groups/${id}`);
-  } catch (err) {
+  // user and group are independent, so they go together; the posts list depends
+  // on the membership the group response carries, so it cannot.
+  const [user, groupResult] = await Promise.all([
+    getCurrentUser(),
+    apiFetch<GroupDetail>(`/groups/${id}`).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error })
+    ),
+  ]);
+
+  if (!groupResult.ok) {
+    const err = groupResult.error;
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
+  const group = groupResult.value;
 
   const isMember = group.myMembership?.status === 'active';
   const canManage =

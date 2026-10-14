@@ -46,12 +46,21 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function PostDetailPage({ params }: Params) {
   const { id } = await params;
-  const user = await getCurrentUser();
 
-  let post: PostDetail;
-  try {
-    post = await apiFetch<PostDetail>(`/posts/${id}`);
-  } catch (err) {
+  // One parallel wave. The comments only need the id from the URL, not the post,
+  // so waiting for the post first bought nothing and cost a round trip to an API
+  // ~110ms away — on the page people open most.
+  const [user, postResult, comments] = await Promise.all([
+    getCurrentUser(),
+    apiFetch<PostDetail>(`/posts/${id}`).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error })
+    ),
+    apiFetchOrNull<CommentNode[]>(`/posts/${id}/comments`),
+  ]);
+
+  if (!postResult.ok) {
+    const err = postResult.error;
     if (err instanceof ApiError) {
       // 401/403 is a members-only group post or one auto-hidden by reports.
       if (err.status === 401 && !user) redirect(`/login?next=${encodeURIComponent(`/posts/${id}`)}`);
@@ -59,8 +68,7 @@ export default async function PostDetailPage({ params }: Params) {
     }
     throw err;
   }
-
-  const comments = (await apiFetchOrNull<CommentNode[]>(`/posts/${id}/comments`)) ?? [];
+  const post = postResult.value;
 
   const tone = boardTone(post.boardSlug);
   const showTrade = isTradeBoard(post.boardSlug) && post.tradeStatus;
@@ -203,7 +211,7 @@ export default async function PostDetailPage({ params }: Params) {
 
             <Comments
               postId={post.id}
-              initialComments={comments}
+              initialComments={comments ?? []}
               signedIn={!!user}
               myUserId={user?.id ?? null}
               anonymousBoard={anonymousBoard}

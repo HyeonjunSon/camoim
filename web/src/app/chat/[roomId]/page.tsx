@@ -16,25 +16,34 @@ type Props = { params: Promise<{ roomId: string }> };
 
 export default async function ChatRoomPage({ params }: Props) {
   const { roomId } = await params;
-  const user = await getCurrentUser();
-  if (!user) notFound();
 
-  let envelope: ChatMessagesEnvelope;
-  try {
-    // The envelope carries `kind`, `school` and `otherLeft` beside `data`.
-    envelope = await apiFetchEnvelope<ChatMessagesEnvelope>(`/chats/${roomId}/messages?limit=50`);
-  } catch (err) {
-    if (err instanceof ApiError && [403, 404].includes(err.status)) notFound();
-    throw err;
-  }
-
-  // Three boxes, because a pending request lives in a different one from an
+  // One parallel wave, not three.
+  //
+  // This used to await the user, then the messages, then the room lists — three
+  // serial round trips to an API ~110ms away, before any of their own database
+  // work. Opening a conversation took most of a second for no reason. The lists
+  // are three because a pending request lives in a different box from an
   // accepted conversation and the room has to be found wherever it is.
-  const [accepted, requests, sent] = await Promise.all([
+  const [user, envelopeResult, accepted, requests, sent] = await Promise.all([
+    getCurrentUser(),
+    // The envelope carries `kind`, `school` and `otherLeft` beside `data`.
+    apiFetchEnvelope<ChatMessagesEnvelope>(`/chats/${roomId}/messages?limit=50`).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error })
+    ),
     apiFetchOrNull<ChatRoomSummary[]>('/chats?box=accepted'),
     apiFetchOrNull<ChatRoomSummary[]>('/chats?box=requests'),
     apiFetchOrNull<ChatRoomSummary[]>('/chats?box=sent'),
   ]);
+
+  if (!user) notFound();
+
+  if (!envelopeResult.ok) {
+    const err = envelopeResult.error;
+    if (err instanceof ApiError && [403, 404].includes(err.status)) notFound();
+    throw err;
+  }
+  const envelope = envelopeResult.value;
 
   const everyRoom = [...(accepted ?? []), ...(requests ?? []), ...(sent ?? [])];
   const room = everyRoom.find((r) => r.id === roomId);

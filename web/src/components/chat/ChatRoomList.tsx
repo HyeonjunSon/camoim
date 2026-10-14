@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { ChatRoomSummary } from '@/lib/types';
 import { initial, timeAgo } from '@/lib/format';
+import LinkPending from '../LinkPending';
 
 const BOXES = [
   { id: 'accepted', label: '대화' },
@@ -68,13 +69,29 @@ export default function ChatRoomList({
       </div>
 
       {rooms.length === 0 ? (
-        <p className="px-5 py-10 text-sm text-muted">
-          {box === 'accepted'
-            ? '아직 대화가 없어요. 글에서 판매자에게 말을 걸어보세요.'
-            : box === 'requests'
-              ? '받은 요청이 없어요.'
-              : '보낸 요청이 없어요.'}
-        </p>
+        <div className="px-5 py-10">
+          <p className="text-sm text-muted">
+            {box === 'accepted'
+              ? '아직 대화가 없어요.'
+              : box === 'requests'
+                ? '받은 요청이 없어요.'
+                : '보낸 요청이 없어요.'}
+          </p>
+          {box === 'accepted' ? (
+            <>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
+                대화는 상대방 쪽에서 시작해요. 중고거래 글의 &lsquo;1:1 채팅하기&rsquo;,
+                회원 프로필, 모임 페이지에서 말을 걸 수 있어요.
+              </p>
+              <Link
+                href="/search"
+                className="mt-3.5 flex h-11 items-center justify-center rounded-control bg-brand-strong px-4 text-[15px] font-semibold text-white hover:bg-brand-ink-hover"
+              >
+                회원 찾아서 대화 시작
+              </Link>
+            </>
+          ) : null}
+        </div>
       ) : (
         <ul className="min-h-0 flex-1 overflow-y-auto border-t border-line-faint">
           {rooms.map((room) => {
@@ -115,10 +132,11 @@ export default function ChatRoomList({
                     <span className="mt-0.5 block truncate text-xs text-muted">
                       {roomContext(room)}
                     </span>
-                    <span className="mt-0.5 flex justify-between gap-2">
+                    <span className="mt-0.5 flex items-center justify-between gap-2">
                       <span className="truncate text-sm text-ink-3">
                         {room.lastMessage || '메시지가 없어요'}
                       </span>
+                      <LinkPending />
                       {room.unreadCount > 0 ? (
                         <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-danger px-1.5 text-[11.5px] font-bold text-white">
                           {room.unreadCount}

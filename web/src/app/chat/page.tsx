@@ -39,7 +39,11 @@ export default async function ChatPage({ searchParams }: Props) {
         <div className="flex min-h-[70vh] flex-wrap overflow-hidden rounded-card border border-line-soft bg-surface">
           <ChatRoomList rooms={list} box={box} requestCount={requestCount} />
           <section className="hidden flex-[999_1_520px] items-center justify-center p-10 md:flex">
-            <p className="text-sm text-muted">왼쪽에서 대화를 골라주세요.</p>
+            <p className="max-w-[300px] text-center text-sm leading-relaxed text-muted">
+              {list.length > 0
+                ? '왼쪽에서 대화를 골라주세요.'
+                : '아직 대화가 없어요. 글이나 프로필에서 말을 걸면 여기에 모여요.'}
+            </p>
           </section>
         </div>
       </div>
