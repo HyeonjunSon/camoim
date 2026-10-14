@@ -435,3 +435,61 @@ export type GroupMember = {
   status: 'active' | 'pending' | 'banned';
   joinedAt: string;
 };
+
+// ── Intro board ──────────────────────────────────────────────────────────────
+//
+// Entirely anonymous: no nickname or avatar appears anywhere, and a declined
+// request is never shown to the sender. Posts expire after INTRO_EXPIRY_DAYS.
+
+export type IntroGender = 'male' | 'female';
+export type IntroJob = 'student' | 'office' | 'professional' | 'business' | 'workinghol' | '';
+
+/** GET /api/intro, /api/intro/:id — contact fields are blank unless it is yours. */
+export type IntroPost = {
+  id: string;
+  mode: 'self' | 'proxy';
+  gender: IntroGender;
+  birthYear: number;
+  region: string;
+  job: IntroJob;
+  height: string;
+  headline: string;
+  bio: string;
+  photo: string;
+  preferredBirthYearMin: number | null;
+  preferredBirthYearMax: number | null;
+  preferredRegion: string;
+  hasContact: boolean;
+  contactType: 'instagram' | 'kakao' | '';
+  contactValue: string;
+  status: 'active' | 'hidden' | 'closed';
+  expired: boolean;
+  daysLeft: number;
+  isMine: boolean;
+  createdAt: string;
+  /** Only on /intro/mine */
+  pendingCount?: number;
+};
+
+/** GET /api/intro/meta */
+export type IntroMeta = {
+  agreed: boolean;
+  dailyRemaining: number;
+  defaults: { gender?: IntroGender; birthYear?: number; region?: string; job?: IntroJob };
+};
+
+/** GET /api/intro/requests/received — the requester stays anonymous. */
+export type IntroRequest = {
+  id: string;
+  introPostId: string;
+  introHeadline: string;
+  gender: IntroGender | '';
+  birthYear: number | null;
+  region: string;
+  job: IntroJob;
+  /** 'school' for a verified student, 'email' for any other verified account. */
+  verificationBadge: 'school' | 'email' | '';
+  memberMonths: number;
+  message: string;
+  createdAt: string;
+};

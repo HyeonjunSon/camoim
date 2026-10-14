@@ -4,10 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 /**
- * The business and stay report endpoints take their own small reason sets
- * (`POST /<kind>/:id/report`), separate from the content report in
- * ReportButton. Keeping them apart avoids sending a reason the API would
- * silently remap.
+ * Businesses, stays and intro posts each expose `POST /<kind>/:id/report` with
+ * their own small reason set, separate from the content report in ReportButton.
+ * Keeping them apart avoids sending a reason the API would silently remap.
  */
 export default function SimpleReportButton({
   kind,
@@ -15,7 +14,7 @@ export default function SimpleReportButton({
   reasons,
   signedIn,
 }: {
-  kind: 'businesses' | 'stays';
+  kind: 'businesses' | 'stays' | 'intro';
   id: string;
   reasons: readonly { value: string; label: string }[];
   signedIn: boolean;

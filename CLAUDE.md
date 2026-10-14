@@ -318,6 +318,28 @@ npm run test:all     # 둘 다
 - 테스트: `cd web && npm test` (Node 내장 러너 + 네이티브 TS, 22개). sanitize·boards·camel 순수 로직.
   ⚠️ **Node 22.6+ 필요** — 레포 기본이 v20.13.1이라 `web/.nvmrc`(=24)로 고정. `cd web && nvm use` 후 실행.
   CI `web` job은 Node 24 고정
+- **지도 화면은 도시 어휘가 두 개다** (4단계에서 제일 많이 헤맨 지점)
+  - `Business.city` = **소문자 슬러그** (`toronto`) — `src/constants/businesses.js`의 `BUSINESS_CITIES`
+  - `StayListing.city` = **영문 대문자** (`Toronto`) — `src/constants/cities.js`
+  - 둘을 섞으면 조용히 0건이 나온다. `web/src/lib/businesses.ts`의 `stayCityForSlug()`로 변환
+- **지도는 거리순 상한 120개** — 토론토 업체만 534개고, 목록 행과 마커가 둘 다 실제 DOM이라
+  전부 그리면 패널이 버벅인다. `near`(= **`lng,lat` 순서**)를 항상 넘겨 API가 거리순으로 주게 하고 앞 120개만 렌더
+- **Google Maps 키**: `NEXT_PUBLIC_GOOGLE_MAPS_KEY` (리퍼러 제한 브라우저 키라 공개가 정상).
+  없으면 지도 자리에 안내만 뜨고 목록은 정상 동작 — 설정 공백은 에러가 아니다.
+  ⚠️ 앱 Android/iOS 키와 **같은 Cloud 프로젝트**에서 **Maps JavaScript API**를 따로 켜야 함
+- **업로드 라우트는 `/api/upload/[kind]` 하나** — upstream 경로는 그 파일의 맵에서만 오고 요청에서 안 온다.
+  이게 Cloudinary 폴더 분리(posts/avatars/verify/groups)를 지키는 장치.
+  응답 모양이 엔드포인트마다 다르다 (`data.url` / `data.avatarUrl` / **맨 `url`**) → 호출자가 각자 읽는다
+- **숙소 주소·핀은 정확한 값이 아니다** — 서버가 exact를 안 내보내고 핀도 jitter를 준다.
+  상세 페이지에 그 사실을 명시할 것 (문 앞이라고 오해하면 안 됨)
+- **익명 글엔 1:1 채팅 버튼 금지** — `post.userId`가 null (`authorId`는 차단·신고 전용)
+- **소개팅은 전면 익명** — 닉네임·아바타가 어디에도 안 나온다. 거절은 신청자에게 **안 알린다**.
+  19세 확인은 서버가 `introAgreedAt`만 기록하므로 게이트는 웹에서 구현 (`IntroAgreeGate`, 앱과 같은 문구)
+  - `preferredBirthYearMin/Max`는 **`null`로 보낼 것** — `Number('')`은 0이고 0은 finite라서 서버 검사를 통과한다
+- **모임 멤버 API의 `id`는 멤버십 id가 아니라 유저 id** — 모든 관리 호출이 유저 id를 받는다
+- **글은 board 또는 group 중 하나** (`Post` pre-validate). `/write?group=`은 `groupId`를 보내고
+  보드 선택·도시·익명 안내를 숨긴다 (모임 글은 익명 불가)
+- **zsh에서 `GID`는 특수 변수** (프로세스 group id) — 셸 스크립트에서 ObjectId를 담으면 산술 오류가 난다
 - 명령어: `cd web && npm run dev | typecheck | test | build`
 
 ### 진행 상황
@@ -326,7 +348,8 @@ npm run test:all     # 둘 다
       댓글(답글·비밀댓글·삭제), 글쓰기·수정(TipTap), 검색
 - [x] 3단계 — 채팅(Socket.io 실시간·요청 수락·나가기), 알림(읽음·헤더 뱃지), 마이페이지(프로필·아바타·
       내 글/좋아요/북마크·차단 목록), 공개 프로필, 신고·차단, 1:1 채팅 시작
-- [ ] 4단계 — 지도(업체·숙소), 숙소 등록, 모임·학교 커뮤니티, 소개팅
+- [x] 4단계 — 지도(업체·숙소·리뷰·등록요청), 숙소 등록·수정, 모임(가입·멤버관리·모임글),
+      학교 커뮤니티(링크·학생회장 인수인계), 소개팅(19세 게이트·신청·수락)
 - [ ] 5단계 — 관리자 페이지, Vercel 배포, `camoimapp.com` 연결, 공개 문서(README·ARCHITECTURE) 갱신
 
 ### 웹에서 반드시 지킬 것 (QA)
@@ -334,8 +357,9 @@ npm run test:all     # 둘 다
   `dangerouslySetInnerHTML`은 이 함수를 통과한 값만 받는다
 - [x] 학교 커뮤니티·익명게시판·소개팅은 **비로그인 접근 차단 + 색인 차단** — 차단은 미들웨어,
   색인은 각 페이지 `robots`. 소개팅은 서버가 보드 row를 더 안 주므로 `/intro`가 앱 안내 페이지
-- 소개팅은 웹에서도 **만 19세 이상 확인** 동일 적용
-- 학생증 업로드는 웹에서도 **`camoim/verify` 폴더 전용**
+- [x] 소개팅은 웹에서도 **만 19세 이상 확인** 동일 적용 — `IntroAgreeGate`가 앱과 같은 3개 규칙·
+  같은 체크박스 문구를 쓰고, 동의 없으면 작성·신청 API가 403
+- 학생증 업로드는 웹에서도 **`camoim/verify` 폴더 전용** — 아직 웹에 학교 인증 화면 없음 (앱 안내로 처리)
 - TipTap이 만든 HTML이 앱 pell 에디터에서 깨지지 않는지 **실기기 교차 테스트** (아직 안 함).
   툴바를 pell과 같은 세트로 맞추고 codeBlock·blockquote·horizontalRule을 끈 상태 (`PostEditor.tsx`)
 

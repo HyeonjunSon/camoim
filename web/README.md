@@ -41,7 +41,13 @@ mints a JWT, so one can never be returned into page JavaScript.
 | `src/app/notifications/` | Notification list |
 | `src/app/mypage/` | Profile, my posts, likes, bookmarks, blocks |
 | `src/app/users/[id]/` | Public profile |
+| `src/app/map/` | Businesses and stays on one map |
+| `src/app/businesses/`, `src/app/stays/` | Detail, reviews, and submission forms |
+| `src/app/groups/` | List, detail, members, settings |
+| `src/app/school/` | School community and the president's controls |
+| `src/app/intro/` | The age-gated, anonymous intro board |
 | `src/app/api/socket-ticket` | The only credential the browser is handed |
+| `src/app/api/upload/[kind]` | Every image upload, one folder per kind |
 | `src/app/(auth)/` | Login and signup |
 | `src/app/api/auth/*` | The only routes that see a JWT |
 | `src/app/api/bff/[...path]` | Authenticated passthrough for client components |
@@ -108,6 +114,12 @@ but pell cannot would render as unstyled text on a phone.
 - **Header badges are fetched client-side.** The header is on every page, and a
   fetch inside it would run only after that page's own awaits resolved — an extra
   serial round trip everywhere, to an API a region away from its database.
+- **The map screen has two city vocabularies.** `Business.city` is a lowercase
+  slug (`toronto`); `StayListing.city` is the capitalised English name
+  (`Toronto`). Mixing them returns nothing and reads as an empty city, so
+  `stayCityForSlug()` translates. `near` takes `lng,lat`, in that order.
+- **A stay's address and pin are approximate by design.** The exact values never
+  leave the server, so the detail page says so rather than implying otherwise.
 
 ## Shared with the app
 
@@ -158,11 +170,18 @@ it is not scoped to what the viewer may read. `visiblePosts()` in
 `src/app/search/page.tsx` filters those out on the server before rendering. The
 app has the same exposure, so the real fix belongs upstream.
 
+## Google Maps
+
+The map needs `NEXT_PUBLIC_GOOGLE_MAPS_KEY`: a browser key restricted by HTTP
+referrer, created in the same Cloud project as the app's Android and iOS keys,
+with **Maps JavaScript API** enabled separately. Such a key is public by design,
+which is why it is a `NEXT_PUBLIC_` value. Without it the map panel says so and
+the list beside it keeps working — a missing key is configuration, not an error.
+
 ## Not built yet
 
-The map and stay listings, groups, the school community, the intro board, school
-verification, account deletion, and the admin pages. Links to them resolve to the
-404 page until each lands.
+School verification (the student-card upload), account deletion, and the admin
+pages. Those three still point at the app.
 
 The UI copy is Korean and hard-coded. The app carries Korean and English in
 `src/lib/i18n.js`; the web does not read it yet.
