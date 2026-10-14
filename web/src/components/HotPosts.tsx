@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react';
 import type { HotBoardSection } from '@/lib/types';
 import { boardTone } from '@/lib/boards';
 import { FlameIcon } from './icons';
+import LinkPending from './LinkPending';
 
 /**
  * 48 hours is the server's own default and what the app shows, so the first tab
@@ -129,6 +130,7 @@ export default function HotPosts({ initialSections }: { initialSections: HotBoar
                     {post.boardName}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-[15px]">{post.title}</span>
+                  <LinkPending className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-brand-ink" />
                   <span className="hidden shrink-0 gap-2.5 text-[13px] text-muted sm:flex">
                     <span>♡ {post.likeCount}</span>
                     <span>댓글 {post.commentCount}</span>

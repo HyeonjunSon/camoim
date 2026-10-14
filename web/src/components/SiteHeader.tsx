@@ -1,27 +1,34 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 import type { User } from '@/lib/types';
 import { BellIcon, PlusIcon, SearchIcon } from './icons';
 import UserMenu from './UserMenu';
 import { ChatBadge, NotificationBadge } from './HeaderBadges';
 
+/**
+ * Rendered once by the (site) layout, not by each page.
+ *
+ * A layout is not re-rendered when you navigate between pages inside it, so the
+ * header stays painted while the next page's data loads. When every page drew
+ * its own header, a click replaced the entire screen and a 300ms wait read as a
+ * full reload. Active state and the search box therefore come from the URL here
+ * rather than from props.
+ */
 const NAV = [
-  { href: '/', label: '홈', key: 'home' },
-  { href: '/boards', label: '게시판', key: 'boards' },
-  { href: '/map', label: '지도', key: 'map' },
-  { href: '/chat', label: '채팅', key: 'chat' },
+  { href: '/', label: '홈', match: (p: string) => p === '/' },
+  { href: '/boards', label: '게시판', match: (p: string) => p.startsWith('/boards') || p.startsWith('/posts') },
+  { href: '/map', label: '지도', match: (p: string) => p.startsWith('/map') || p.startsWith('/businesses') || p.startsWith('/stays') },
+  { href: '/chat', label: '채팅', match: (p: string) => p.startsWith('/chat') },
 ] as const;
 
-export type NavKey = (typeof NAV)[number]['key'];
+export default function SiteHeader({ user }: { user: User | null }) {
+  const pathname = usePathname() ?? '/';
+  const params = useSearchParams();
+  // The board feed calls it `search`; everywhere else it is `q`.
+  const query = params.get('q') ?? params.get('search') ?? '';
 
-export default function SiteHeader({
-  user,
-  active,
-  query = '',
-}: {
-  user: User | null;
-  active?: NavKey;
-  query?: string;
-}) {
   return (
     <header className="border-b border-line bg-surface">
       <div className="mx-auto flex min-h-16 max-w-[1240px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-2 sm:px-6">
@@ -37,10 +44,10 @@ export default function SiteHeader({
 
         <nav aria-label="주요 메뉴" className="flex flex-wrap gap-1">
           {NAV.map((item) => {
-            const on = item.key === active;
+            const on = item.match(pathname);
             return (
               <Link
-                key={item.key}
+                key={item.href}
                 href={item.href}
                 aria-current={on ? 'page' : undefined}
                 className={
@@ -50,13 +57,16 @@ export default function SiteHeader({
                 }
               >
                 {item.label}
-                {item.key === 'chat' && user ? <ChatBadge /> : null}
+                {item.href === '/chat' && user ? <ChatBadge /> : null}
               </Link>
             );
           })}
         </nav>
 
-        <form action="/search" className="flex h-11 min-w-0 flex-[1_1_240px] items-center gap-2 rounded-control bg-field px-3.5">
+        <form
+          action="/search"
+          className="flex h-11 min-w-0 flex-[1_1_240px] items-center gap-2 rounded-control bg-field px-3.5"
+        >
           <SearchIcon className="shrink-0 text-muted" />
           <label htmlFor="site-search" className="sr-only-label">
             검색
@@ -65,6 +75,9 @@ export default function SiteHeader({
             id="site-search"
             name="q"
             type="search"
+            // Keyed so a navigation that changes the query resets the field,
+            // which an uncontrolled defaultValue alone would not do.
+            key={query}
             defaultValue={query}
             placeholder="게시글, 모임, 회원 검색"
             className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-muted"

@@ -297,8 +297,19 @@ npm run test:all     # 둘 다
 - **`apiFetchOrNull`로 "없음"을 판단하지 말 것** — 모든 에러를 삼켜 null을 주므로, 그 값으로
   `notFound()`를 부르면 API가 한 번 흔들릴 때 실존 페이지가 404가 되고 크롤러에 그렇게 캐시된다.
   `loadBoards()`는 그래서 **throw**하고, `app/error.tsx`가 사람 읽을 화면을 보여준다
-- **`loading.tsx`를 함부로 두지 말 것** — Suspense 경계가 생기면 셸이 200으로 먼저 흘러나가
-  그 뒤의 `notFound()`·`redirect()`가 상태코드에 반영되지 않는다 (없는 글이 404 대신 200)
+- **체감 속도 구조** (2026-10 개편)
+  - 헤더는 `web/src/app/(site)/layout.tsx`에서 **한 번만** 렌더. 레이아웃은 내부 페이지 이동 시
+    다시 렌더되지 않으므로 헤더가 유지된다. 페이지마다 그리던 시절엔 클릭 한 번에 화면 전체가
+    갈려나가 300ms 대기가 새로고침처럼 느껴졌다. 그래서 nav 활성 상태·검색어는 props가 아니라
+    `usePathname`/`useSearchParams`로 URL에서 읽는다
+  - **`loading.tsx`는 `notFound()`를 안 쓰는 페이지에만** 둔다. 경계가 생기면 셸이 200으로 먼저
+    흘러나가 뒤이은 `notFound()`·`redirect()`가 상태코드에 반영되지 않는다 (없는 글이 404 대신 200).
+    홈·게시판목록·지도·모임목록은 `(index)`/`(home)` route group으로 감싸서 **자식 상세 라우트에
+    경계가 번지지 않게** 격리했다 — 그냥 부모 세그먼트에 두면 `/boards/[slug]`까지 덮인다
+  - 404를 지켜야 하는 상세 페이지(`/posts/[id]`, `/boards/[slug]`, `/businesses/[id]` …)는 경계 대신
+    **`LinkPending`**(`useLinkStatus`)으로 클릭을 즉시 피드백한다
+  - 측정(프로덕션 빌드, 로그인 경로): 경계 있음 **첫 바이트 ~80ms** / 없음 **~400ms**
+  - ⚠️ **prefetch는 프로덕션에서만 동작**한다. dev가 느린 건 일부 이 탓이니 dev 수치로 판단 말 것
 - **글 상세 링크는 `prefetch={false}`** — `GET /api/posts/:id`가 `viewCount`를 올리므로
   링크에 마우스만 올려도 조회수가 오른다. HotPosts·MarketGrid·FreeAndJobs·PostListRow·검색 5곳
 - **`/search` 응답은 뷰어 권한으로 안 걸러져 온다** — 학교 게시판 글과 모임 글이 섞여 온다.

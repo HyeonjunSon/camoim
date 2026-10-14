@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Board } from '@/lib/types';
 import { boardTone } from '@/lib/boards';
+import LinkPending from './LinkPending';
 
 export default function BoardRail({
   boards,
@@ -34,6 +35,7 @@ export default function BoardRail({
                   style={{ background: tone.dot }}
                 />
                 <span className="flex-1 truncate">{board.name}</span>
+                <LinkPending className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-brand-ink" />
               </Link>
             </li>
           );

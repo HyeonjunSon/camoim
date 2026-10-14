@@ -4,6 +4,7 @@ import type { PostSummary } from '@/lib/types';
 import { cityLabel, isTradeBoard, tradeLabel } from '@/lib/boards';
 import { timeAgo } from '@/lib/format';
 import { ImageIcon } from './icons';
+import LinkPending from './LinkPending';
 
 export default function PostListRow({
   post,
@@ -46,6 +47,7 @@ export default function PostListRow({
           ) : null}
 
           <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 text-[12.5px] text-muted">
+            <LinkPending className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-brand-ink" />
             <span>{post.nickname}</span>
             {post.city ? <span>{cityLabel(post.city)}</span> : null}
             <span>{timeAgo(post.createdAt)}</span>
