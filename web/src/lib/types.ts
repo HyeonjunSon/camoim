@@ -148,7 +148,12 @@ export type Notice = {
   createdAt: string;
 };
 
-/** GET /api/stays — matches formatStay in server/routes/stays.js */
+/**
+ * GET /api/stays — matches formatStay in server/routes/stays.js.
+ *
+ * lat/lng are the *approximate* coordinates: the exact point is jittered before
+ * it leaves the server, and the exact address never does at all.
+ */
 export type Stay = {
   id: string;
   title: string;
@@ -160,6 +165,10 @@ export type Stay = {
   neighborhood?: string;
   moveInDate?: string;
   status: 'active' | 'closed';
+  lat: number | null;
+  lng: number | null;
+  /** Only when the request passed `near` */
+  distanceKm?: number | null;
 };
 
 /** GET /api/universities/community */
@@ -291,3 +300,59 @@ export const REPORT_REASONS = [
 ] as const;
 
 export type ReportReason = (typeof REPORT_REASONS)[number]['value'];
+
+// ── Korean business map ──────────────────────────────────────────────────────
+
+/** GET /api/businesses — `city` here is a lowercase slug, not an English name. */
+export type Business = {
+  id: string;
+  name: string;
+  category: string;
+  city: string;
+  address: string;
+  phone: string;
+  hours: string;
+  description: string;
+  images: string[];
+  lat: number | null;
+  lng: number | null;
+  source: 'google' | 'admin' | 'user';
+  status: 'pending' | 'approved' | 'rejected';
+  bookmarkCount: number;
+  ratingAvg: number;
+  ratingCount: number;
+  submitterNickname: string;
+  sourceName: string;
+  createdAt: string;
+  bookmarked: boolean;
+  /** Only when the request passed `near` */
+  distanceKm?: number | null;
+  /** Only on /businesses/trending */
+  rank?: number;
+  weeklyViews?: number;
+};
+
+export type BusinessReview = {
+  id: string;
+  rating: number;
+  text: string;
+  nickname: string;
+  createdAt: string;
+  mine: boolean;
+};
+
+/** GET /api/stays/:id — the exact address is never in a response. */
+export type StayDetail = Stay & {
+  deposit: number;
+  conditions: string[];
+  description: string;
+  address: string;
+  availableUntil?: string;
+  minLeaseMonths: number;
+  includes?: string;
+  host: { id: string; nickname: string; verified: boolean };
+  isMine: boolean;
+  bookmarkCount: number;
+  bookmarked: boolean;
+  createdAt: string;
+};

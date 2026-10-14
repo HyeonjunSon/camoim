@@ -55,7 +55,7 @@ export default function PostEditor({
     try {
       const body = new FormData();
       body.append('image', file);
-      const res = await fetch('/api/upload/image', { method: 'POST', body });
+      const res = await fetch('/api/upload/post', { method: 'POST', body });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.message || '업로드에 실패했어요.');
       editor?.chain().focus().setImage({ src: json.data.url }).run();

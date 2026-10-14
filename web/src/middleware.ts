@@ -35,7 +35,10 @@ export function middleware(req: NextRequest) {
   const needsAuth =
     PRIVATE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
     isPrivateBoardPath(pathname) ||
-    /^\/posts\/[^/]+\/edit$/.test(pathname);
+    /^\/posts\/[^/]+\/edit$/.test(pathname) ||
+    pathname === '/stays/new' ||
+    pathname === '/businesses/new' ||
+    /^\/stays\/[^/]+\/edit$/.test(pathname);
 
   if (!needsAuth) return NextResponse.next();
   if (req.cookies.has(SESSION_COOKIE)) return NextResponse.next();

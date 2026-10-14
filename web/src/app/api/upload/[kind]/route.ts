@@ -4,23 +4,38 @@ import { errorResponse, forbiddenCrossOrigin, isSameOrigin } from '@/lib/bff';
 import { readSessionToken } from '@/lib/session';
 
 /**
- * Multipart upload to the API's Cloudinary route. The generic BFF proxy only
- * speaks JSON, so this is its own handler.
+ * Image upload, for every kind of image the product stores.
  *
  * The body is streamed straight through with its original Content-Type, so the
- * multipart boundary survives and no file is ever buffered in this process.
- * Validation stays where it already is: multer caps the size at 10MB and
- * Cloudinary rejects anything that is not one of the allowed image formats
- * (server/routes/posts.js). Files always land in camoim/posts; nothing the
- * browser sends can choose a folder.
+ * multipart boundary survives and no file is buffered in this process. That also
+ * sidesteps a types clash: `Request.formData()` resolves to an empty type under
+ * @types/node with lib.dom in play.
  *
- * The browser gets back a Cloudinary URL to embed in the post body — the same
- * flow the app's rich editor uses.
+ * The upstream path is chosen from this map and never from the request, which is
+ * what keeps each kind in its own Cloudinary folder — posts, avatars, verify and
+ * groups are deliberately kept apart (CLAUDE.md). Validation stays upstream:
+ * multer caps the size and Cloudinary rejects anything that is not an image.
  */
+const UPSTREAM: Record<string, string> = {
+  post: '/posts/upload-image',
+  avatar: '/users/me/avatar',
+  stay: '/stays/upload-image',
+  business: '/businesses/upload-image',
+  intro: '/intro/upload-image',
+};
+
 const MAX_BYTES = 10 * 1024 * 1024; // matches multer's limit
 
-export async function POST(req: Request) {
+type Ctx = { params: Promise<{ kind: string }> };
+
+export async function POST(req: Request, ctx: Ctx) {
   if (!isSameOrigin(req)) return forbiddenCrossOrigin();
+
+  const { kind } = await ctx.params;
+  const upstream = UPSTREAM[kind];
+  if (!upstream) {
+    return NextResponse.json({ success: false, message: '알 수 없는 업로드 경로입니다.' }, { status: 404 });
+  }
 
   const token = await readSessionToken();
   if (!token) {
@@ -31,11 +46,7 @@ export async function POST(req: Request) {
   if (!contentType.startsWith('multipart/form-data')) {
     return NextResponse.json({ success: false, message: '잘못된 요청입니다.' }, { status: 400 });
   }
-
-  // Rejected before the upstream call when the browser declares a size; multer
-  // is still the real limit for a chunked request that declares none.
-  const declaredLength = Number(req.headers.get('content-length') ?? 0);
-  if (declaredLength > MAX_BYTES) {
+  if (Number(req.headers.get('content-length') ?? 0) > MAX_BYTES) {
     return NextResponse.json(
       { success: false, message: '이미지는 10MB까지 올릴 수 있어요.' },
       { status: 413 }
@@ -43,7 +54,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const res = await fetch(`${apiBaseUrl()}/posts/upload-image`, {
+    const res = await fetch(`${apiBaseUrl()}${upstream}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType },
       body: req.body,
@@ -59,7 +70,9 @@ export async function POST(req: Request) {
         { status: res.status }
       );
     }
-    return NextResponse.json({ success: true, data: { url: payload?.data?.url } });
+    // Shapes differ per endpoint (`data.url`, `data.avatarUrl`, bare `url`), so
+    // the whole payload is forwarded and the caller reads what it needs.
+    return NextResponse.json(payload);
   } catch (err) {
     return errorResponse(err);
   }
