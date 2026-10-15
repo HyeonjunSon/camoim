@@ -64,6 +64,16 @@ export default function UserMenu({ user }: { user: User }) {
             >
               마이페이지
             </Link>
+            {user.role === 'admin' ? (
+              <Link
+                role="menuitem"
+                href="/admin"
+                onClick={() => setOpen(false)}
+                className="block px-4 py-3 text-sm font-semibold text-ink-2 hover:bg-brand-tint-soft"
+              >
+                운영 페이지
+              </Link>
+            ) : null}
             <button
               role="menuitem"
               type="button"

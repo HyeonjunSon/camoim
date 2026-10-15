@@ -324,7 +324,14 @@ npm run test:all     # 둘 다
     높이 제한 없는 sticky는 창이 짧을 때 아래 항목이 영구히 손에 안 닿는다.
     부모가 `items-start`여야 하고 조상에 `overflow-hidden`이 없어야 동작한다
 - **화면을 추가하면 그 화면으로 가는 링크가 이미 있는지 확인할 것** — `/notices`를 안 만들어서
-  홈 공지 배너가 404였다. 링크를 먼저 심어두고 페이지를 잊는 패턴을 주의
+  홈 공지 배너가 404였다. 이제 `web/src/lib/links.test.ts`가 자동으로 잡는다
+  (죽은 `href` + 들어갈 길 없는 라우트, 양방향)
+- **관리자 영역은 가드가 두 겹** — `proxy.ts`는 쿠키 존재만 보므로 role은 못 본다.
+  실제 role 검사는 `app/(admin)/layout.tsx`에서 `notFound()`. 비로그인 307 / 비admin 404.
+  서버 `routes/admin.js`는 `router.use(requireAuth, requireRole('admin'))`로 독립 보호 중이니
+  레이아웃 가드는 2차 방어 (요청 전부 실패하는 화면을 안 보여주기 위한 것)
+- **학생증 이미지는 `camoim/verify`** — static serve 절대 금지(CLAUDE.md 1번). 검수 화면은
+  API가 준 Cloudinary URL만 쓴다
 - **글 상세 링크는 `prefetch={false}`** — `GET /api/posts/:id`가 `viewCount`를 올리므로
   링크에 마우스만 올려도 조회수가 오른다. HotPosts·MarketGrid·FreeAndJobs·PostListRow·검색 5곳
 - **`/search` 응답은 뷰어 권한으로 안 걸러져 온다** — 학교 게시판 글과 모임 글이 섞여 온다.
@@ -386,7 +393,8 @@ npm run test:all     # 둘 다
       내 글/좋아요/북마크·차단 목록), 공개 프로필, 신고·차단, 1:1 채팅 시작
 - [x] 4단계 — 지도(업체·숙소·리뷰·등록요청), 숙소 등록·수정, 모임(가입·멤버관리·모임글),
       학교 커뮤니티(링크·학생회장 인수인계), 소개팅(19세 게이트·신청·수락)
-- [ ] 5단계 — 관리자 페이지, Vercel 배포, `camoimapp.com` 연결, 공개 문서(README·ARCHITECTURE) 갱신
+- [ ] 5단계 — 관리자 페이지(대시보드·신고·학교인증 완료 / 회원·게시판·학교 CRUD 남음),
+      Vercel 배포, `camoimapp.com` 연결, 공개 문서(README·ARCHITECTURE) 갱신
 
 ### 웹에서 반드시 지킬 것 (QA)
 - [x] 앱에서 작성된 글 HTML은 **sanitize 후** 렌더 — `web/src/lib/sanitize.ts` (allowlist + 테스트 10개).

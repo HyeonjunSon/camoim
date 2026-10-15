@@ -493,3 +493,65 @@ export type IntroRequest = {
   message: string;
   createdAt: string;
 };
+
+// ── Admin ────────────────────────────────────────────────────────────────────
+//
+// Every /api/admin route is guarded by requireAuth + requireRole('admin') on
+// the server. The web adds its own check in the admin layout, because proxy.ts
+// can only see that a session cookie exists, not what role it carries.
+
+/** GET /api/admin/stats */
+export type AdminStats = {
+  users: { total: number; active: number; suspended: number; banned: number; deleted: number };
+  content: { posts: number; comments: number };
+  pending: {
+    reports: number;
+    verify: number;
+    inquiry: number;
+    groups: number;
+    businesses: number;
+  };
+  signups: { d1: number; d7: number; d30: number };
+  posts: { d1: number; d7: number };
+  signupTrend: { date: string; count: number }[];
+  dau: { today: number; trend: { date: string; count: number }[] };
+};
+
+/** GET /api/admin/verify-requests — the file is a student card in camoim/verify. */
+export type VerifyRequest = {
+  id: string;
+  userId: string;
+  nickname: string;
+  email: string;
+  university: string;
+  studentType?: string;
+  graduationYear?: number;
+  fileUrl: string;
+  status: 'pending' | 'approved' | 'rejected';
+  adminNote?: string;
+  createdAt: string;
+};
+
+/** GET /api/admin/reports */
+export type AdminReport = {
+  id: string;
+  reporterNickname?: string;
+  reporterEmail?: string;
+  targetType: 'post' | 'comment' | 'user' | 'business' | 'intro';
+  targetId: string;
+  postId?: string | null;
+  /** Already a Korean label from the server, not the raw enum. */
+  reason: string;
+  detail?: string;
+  /** The reported content itself, prefixed with its kind. */
+  targetText: string;
+  targetAuthor: {
+    userId: string | null;
+    nickname: string;
+    email?: string;
+    isAnonymous?: boolean;
+    isDeleted?: boolean;
+  };
+  status: 'pending' | 'resolved' | 'dismissed';
+  createdAt: string;
+};

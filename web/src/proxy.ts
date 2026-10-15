@@ -18,7 +18,17 @@ import { SESSION_COOKIE } from '@/lib/session';
  */
 
 /** Signed-in only, whatever the board. */
-const PRIVATE_PREFIXES = ['/write', '/intro', '/notifications', '/mypage', '/chat', '/school'];
+const PRIVATE_PREFIXES = [
+  '/write',
+  '/intro',
+  '/notifications',
+  '/mypage',
+  '/chat',
+  '/school',
+  // The role itself is checked in app/(admin)/layout.tsx — a cookie cannot
+  // carry it. This only keeps signed-out visitors off the admin pages.
+  '/admin',
+];
 
 /**
  * Boards closed to visitors: the anonymous board, and every school board
