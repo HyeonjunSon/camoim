@@ -2,10 +2,10 @@
 
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Image from '@tiptap/extension-image';
 import TextAlign from '@tiptap/extension-text-align';
 import { Placeholder } from '@tiptap/extensions';
 import { useRef, useState } from 'react';
+import { EditorImage } from './EditorImage';
 
 /**
  * The toolbar is deliberately the same set the app's pell editor exposes —
@@ -36,7 +36,7 @@ export default function PostEditor({
         horizontalRule: false,
         blockquote: false,
       }),
-      Image.configure({ inline: false, allowBase64: false }),
+      EditorImage.configure({ inline: false, allowBase64: false }),
       TextAlign.configure({ types: ['paragraph', 'heading'] }),
       Placeholder.configure({ placeholder: '내용을 입력해주세요' }),
     ],
