@@ -1,28 +1,18 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import type { ChatMessage, ChatMessagesEnvelope, ChatRoomSummary } from '@/lib/types';
 import { getSocket, type SocketMessage } from '@/lib/socket';
 import { initial } from '@/lib/format';
+import { clockTime, dayKey, dayLabel, markReadBy, unreadMark } from '@/lib/chat';
 
-function clockTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
-}
-
-function dayKey(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
-
-function dayLabel(iso: string): string {
-  const d = new Date(iso);
-  const today = new Date();
-  if (dayKey(iso) === dayKey(today.toISOString())) return '오늘';
-  return d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
+// False during SSR and the hydration pass, true after — so time text never
+// has to match between a UTC server and the viewer's browser.
+const noopSubscribe = () => () => {};
+function useHydrated(): boolean {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
 }
 
 export default function Conversation({
@@ -41,6 +31,7 @@ export default function Conversation({
   const [connected, setConnected] = useState(false);
   const [busy, setBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const hydrated = useHydrated();
 
   const pendingForMe = room.status === 'pending' && !room.isRequester;
   const pendingFromMe = room.status === 'pending' && room.isRequester;
@@ -78,6 +69,11 @@ export default function Conversation({
       );
       if (payload.senderId !== meId) socket.emit('read_messages', { roomId: room.id });
     };
+    const onRead = ({ roomId, readerId }: { roomId?: string; readerId: string }) => {
+      if (roomId && roomId !== room.id) return;
+      if (readerId === meId) return;
+      setMessages((prev) => markReadBy(prev, readerId));
+    };
     const onSendError = ({ message }: { message: string }) => setError(message);
     // A refused handshake is almost always an expired ticket or a revoked
     // session; the page reload re-runs the cookie check and lands on /login if
@@ -87,6 +83,7 @@ export default function Conversation({
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('new_message', onMessage);
+    socket.on('messages_read', onRead);
     socket.on('send_error', onSendError);
     socket.on('connect_error', onConnectError);
 
@@ -98,6 +95,7 @@ export default function Conversation({
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('new_message', onMessage);
+      socket.off('messages_read', onRead);
       socket.off('send_error', onSendError);
       socket.off('connect_error', onConnectError);
     };
@@ -212,9 +210,10 @@ export default function Conversation({
             {messages.map((m) => {
               const mine = m.senderId === meId;
               const key = dayKey(m.createdAt);
-              const showDay = key !== lastDay;
+              const showDay = hydrated && key !== lastDay;
               lastDay = key;
               const isLeader = !!leaderUserId && m.senderId === leaderUserId;
+              const unread = unreadMark(m, meId, room.kind);
               return (
                 <li key={m.id} className="flex flex-col gap-2.5">
                   {showDay ? (
@@ -226,7 +225,15 @@ export default function Conversation({
                     className={`flex items-end gap-1.5 ${mine ? 'justify-end' : 'justify-start'}`}
                   >
                     {mine ? (
-                      <span className="text-[11.5px] text-muted">{clockTime(m.createdAt)}</span>
+                      <span className="flex flex-col items-end leading-tight">
+                        {unread > 0 ? (
+                          <span className="text-[11px] font-bold text-brand-strong">
+                            {unread}
+                            <span className="sr-only-label">명이 아직 읽지 않음</span>
+                          </span>
+                        ) : null}
+                        <span className="text-[11.5px] text-muted">{hydrated ? clockTime(m.createdAt) : ''}</span>
+                      </span>
                     ) : null}
                     <div className="max-w-[62%]">
                       {!mine && room.kind !== 'dm' ? (
@@ -246,7 +253,7 @@ export default function Conversation({
                       </p>
                     </div>
                     {!mine ? (
-                      <span className="text-[11.5px] text-muted">{clockTime(m.createdAt)}</span>
+                      <span className="text-[11.5px] text-muted">{hydrated ? clockTime(m.createdAt) : ''}</span>
                     ) : null}
                   </div>
                 </li>
