@@ -23,7 +23,14 @@ export default function BoardRail({
   const ordered = [...general, ...school];
 
   return (
-    <aside className="w-full lg:max-w-[240px] lg:flex-[1_1_210px] lg:rounded-card lg:border lg:border-line-soft lg:bg-surface lg:px-2.5 lg:py-4">
+    // Sticky from `lg` up, where the rail is a column beside a long feed: the
+    // board switcher is the main thing you reach for while scrolling, and
+    // scrolling back to the top to change board is the kind of friction nobody
+    // reports but everybody feels. `max-h` plus its own overflow keeps it honest
+    // on a short window — a sticky element taller than the viewport would pin
+    // its bottom items out of reach. Below `lg` it is a chip row at the top of
+    // the page and sticky would only steal height.
+    <aside className="w-full lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:max-w-[240px] lg:flex-[1_1_210px] lg:overflow-y-auto lg:rounded-card lg:border lg:border-line-soft lg:bg-surface lg:px-2.5 lg:py-4">
       <h2 className="hidden px-2.5 pt-1 pb-2.5 text-[13px] font-semibold text-muted lg:block">
         게시판
       </h2>

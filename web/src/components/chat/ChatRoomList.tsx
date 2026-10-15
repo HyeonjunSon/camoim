@@ -3,6 +3,7 @@ import Image from 'next/image';
 import type { ChatRoomSummary } from '@/lib/types';
 import { initial, timeAgo } from '@/lib/format';
 import LinkPending from '../LinkPending';
+import NewChatDialog from './NewChatDialog';
 
 const BOXES = [
   { id: 'accepted', label: '대화' },
@@ -41,7 +42,12 @@ export default function ChatRoomList({
   return (
     <section className="flex w-full flex-[1_1_320px] flex-col border-line-faint md:max-w-[360px] md:border-r">
       <div className="px-5 pt-5 pb-3">
-        <h1 className="text-xl font-bold">채팅</h1>
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl font-bold">채팅</h1>
+          {/* Every other way into a conversation lives on another page, so the
+              chat tab needs one of its own. */}
+          <NewChatDialog />
+        </div>
         <nav aria-label="채팅 보관함" className="mt-3 flex gap-1.5">
           {BOXES.map((b) => {
             const on = b.id === box;
@@ -78,18 +84,11 @@ export default function ChatRoomList({
                 : '보낸 요청이 없어요.'}
           </p>
           {box === 'accepted' ? (
-            <>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
-                대화는 상대방 쪽에서 시작해요. 중고거래 글의 &lsquo;1:1 채팅하기&rsquo;,
-                회원 프로필, 모임 페이지에서 말을 걸 수 있어요.
-              </p>
-              <Link
-                href="/search"
-                className="mt-3.5 flex h-11 items-center justify-center rounded-control bg-brand-strong px-4 text-[15px] font-semibold text-white hover:bg-brand-ink-hover"
-              >
-                회원 찾아서 대화 시작
-              </Link>
-            </>
+            <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
+              위 <strong className="text-ink-3">+ 새 대화</strong>로 회원을 찾아 말을 걸 수 있어요.
+              중고거래 글의 &lsquo;1:1 채팅하기&rsquo;, 회원 프로필, 모임 페이지에서도 시작할 수
+              있어요.
+            </p>
           ) : null}
         </div>
       ) : (

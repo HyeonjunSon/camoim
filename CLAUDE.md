@@ -320,6 +320,11 @@ npm run test:all     # 둘 다
   - 헤더는 DOM 순서를 **모바일 기준**으로 두고 `md:order-*`로 데스크톱 순서를 복원한다.
     (로고+액션 / 검색 / nav 3줄 → md에서 1줄). 그래야 탭 순서가 보이는 순서와 같다
   - 지도는 모바일에서 **지도를 위로** (`order-1`). 목록이 위면 120행에 밀려 지도에 도달 못 한다
+  - 게시판 레일은 `lg:sticky lg:top-4` + `max-h-[calc(100vh-2rem)]` + 자체 `overflow-y-auto`.
+    높이 제한 없는 sticky는 창이 짧을 때 아래 항목이 영구히 손에 안 닿는다.
+    부모가 `items-start`여야 하고 조상에 `overflow-hidden`이 없어야 동작한다
+- **화면을 추가하면 그 화면으로 가는 링크가 이미 있는지 확인할 것** — `/notices`를 안 만들어서
+  홈 공지 배너가 404였다. 링크를 먼저 심어두고 페이지를 잊는 패턴을 주의
 - **글 상세 링크는 `prefetch={false}`** — `GET /api/posts/:id`가 `viewCount`를 올리므로
   링크에 마우스만 올려도 조회수가 오른다. HotPosts·MarketGrid·FreeAndJobs·PostListRow·검색 5곳
 - **`/search` 응답은 뷰어 권한으로 안 걸러져 온다** — 학교 게시판 글과 모임 글이 섞여 온다.
