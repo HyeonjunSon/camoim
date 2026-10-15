@@ -40,12 +40,23 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
-      <Field id="email" label="이메일">
+      {/*
+        Not type="email". The account identifier is whatever is in User.email,
+        which the server stores as a plain lower-cased string with no format
+        check — the oldest accounts, the admin among them, log in with a bare id
+        like `admin`. A type="email" input made the browser refuse to submit
+        those, a constraint the API never had. The app uses
+        keyboardType="email-address", which is only a keyboard hint.
+      */}
+      <Field id="email" label="이메일 또는 아이디">
         <input
           id="email"
-          type="email"
+          type="text"
+          inputMode="email"
           required
-          autoComplete="email"
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
           autoFocus
           value={email}
           onChange={(e) => setEmail(e.target.value)}

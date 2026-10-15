@@ -281,6 +281,11 @@ npm run test:all     # 둘 다
   화면 표기만 `cityLabel()` (`web/src/lib/boards.ts`)로 한글 변환 — 목록에 없는 도시는 영문 그대로 fallback
   (metro folding으로 Kitchener 같은 값이 올 수 있음). 앱은 영문을 그대로 보여주므로 표기는 양쪽이 다르다
 - **role 값은 스네이크케이스** (`working_holiday`). `toCamel`은 키만 바꾸고 값은 안 건드린다
+- ⚠️ **로그인 입력란에 `type="email"`을 쓰지 말 것** — `User.email`은 형식 검증이 없는 일반
+  문자열(`lowercase: true`뿐)이고 로그인은 `findOne({ email: 소문자화 })`만 한다. 초기 계정들,
+  특히 **admin은 `admin`처럼 `@` 없는 아이디**로 로그인한다. `type="email"`을 주면 브라우저가
+  제출 자체를 막아 API엔 없던 제약이 생긴다. 앱은 `keyboardType="email-address"`(키보드 힌트)만 쓴다.
+  회원가입은 코드를 메일로 보내므로 `type="email"` 유지가 맞다
 - **웹 전용 색 토큰 2개** (`web/src/app/globals.css`) — 앱 값이 흰 배경에서 AA 미달이라 웹에서만 올림.
   앱은 안 건드린다
   - `primary #7F77DD` + 흰 글씨 = 3.6:1 → `--color-brand-strong #6B63D0` (4.6:1)
