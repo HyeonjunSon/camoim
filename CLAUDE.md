@@ -530,6 +530,10 @@ npm run test:all     # 둘 다
 - `AbortSignal.timeout()` **미지원** → `AbortController` + `setTimeout` 사용
 
 ### 7. api.js `toCamel`: `_id` → `id` 자동 변환
+⚠️ **`aggregate()`의 `$group` 결과를 그대로 응답에 넣지 말 것** — 키가 `_id`라서 클라에선 `id`가 된다.
+`/admin/stats`의 `signupTrend`가 그래서 웹 대시보드를 터뜨렸다 (같은 응답의 `dauTrend`는 `date`였음).
+서버에서 `{ date, count }`로 이름을 맞춰 보낸다. `admin.stats.test.js`가 지킨다.
+
 - `request()` helper의 응답이 통과하는 `toCamel`이 `_id` 필드를 `id`로 바꿈
 - **프론트에서는 항상 `obj.id` 사용** — `obj._id`는 `undefined`
 - 백엔드가 명시적으로 `id: doc._id`로 보내든, list 응답에서 `.lean()` 결과를 그대로 보내든 결과적으로 클라에서는 `id`로 접근

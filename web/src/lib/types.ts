@@ -513,6 +513,12 @@ export type AdminStats = {
   };
   signups: { d1: number; d7: number; d30: number };
   posts: { d1: number; d7: number };
+  /**
+   * Both trends are `{ date, count }`. signupTrend comes out of a `$group`,
+   * whose day lives in `_id`, so the server renames it before replying —
+   * otherwise toCamel would deliver it as `id` and the two trends from this one
+   * endpoint would disagree.
+   */
   signupTrend: { date: string; count: number }[];
   dau: { today: number; trend: { date: string; count: number }[] };
 };

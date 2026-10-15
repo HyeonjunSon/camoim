@@ -45,10 +45,24 @@ function Tile({
   );
 }
 
-/** A 14-day bar row, scaled to its own maximum. */
-function Trend({ title, data }: { title: string; data: { date: string; count: number }[] }) {
-  const recent = data.slice(-14);
-  const max = Math.max(1, ...recent.map((d) => d.count));
+/**
+ * A 14-day bar row, scaled to its own maximum.
+ *
+ * Reads the day defensively. This endpoint used to hand back two shapes — the
+ * DAU trend as `{ date, count }` and the signup trend straight out of a `$group`,
+ * whose day sits in `_id` and reaches the client as `id` after toCamel. The
+ * server now normalises both, and this tolerates either, because a dashboard
+ * should not die over one chart.
+ */
+type TrendPoint = { date?: string; id?: string; count?: number };
+
+function dayOf(point: TrendPoint): string {
+  return point.date ?? point.id ?? '';
+}
+
+function Trend({ title, data }: { title: string; data: TrendPoint[] }) {
+  const recent = (data ?? []).slice(-14);
+  const max = Math.max(1, ...recent.map((d) => d.count ?? 0));
 
   return (
     <section className="rounded-card border border-line-soft bg-surface px-5 py-5">
@@ -57,19 +71,23 @@ function Trend({ title, data }: { title: string; data: { date: string; count: nu
         <p className="py-6 text-sm text-muted">아직 데이터가 없어요.</p>
       ) : (
         <ol className="mt-4 flex h-32 items-end gap-1.5">
-          {recent.map((d) => (
-            <li key={d.date} className="flex h-full flex-1 flex-col justify-end">
-              <span
-                title={`${d.date}: ${d.count}`}
-                className="block rounded-t-[3px] bg-brand"
-                // Inline height because the value is data, not a design choice.
-                style={{ height: `${Math.max(2, (d.count / max) * 100)}%` }}
-              />
-              <span className="mt-1.5 block text-center text-[10px] text-muted">
-                {d.date.slice(-2)}
-              </span>
-            </li>
-          ))}
+          {recent.map((point, i) => {
+            const day = dayOf(point);
+            const count = point.count ?? 0;
+            return (
+              <li key={day || i} className="flex h-full flex-1 flex-col justify-end">
+                <span
+                  title={`${day || '날짜 없음'}: ${count}`}
+                  className="block rounded-t-[3px] bg-brand"
+                  // Inline height because the value is data, not a design choice.
+                  style={{ height: `${Math.max(2, (count / max) * 100)}%` }}
+                />
+                <span className="mt-1.5 block text-center text-[10px] text-muted">
+                  {day ? day.slice(-2) : '–'}
+                </span>
+              </li>
+            );
+          })}
         </ol>
       )}
     </section>

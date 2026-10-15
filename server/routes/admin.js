@@ -862,7 +862,10 @@ router.get('/stats', async (req, res) => {
     ]);
 
     // Daily signups over the last 7 days
-    const signupTrend = await User.aggregate([
+    // $group puts the day in `_id`, so it is renamed here: the client's toCamel
+    // turns `_id` into `id`, and this endpoint's other trend (dauTrend) already
+    // uses `date`. One endpoint handing back two shapes is a trap.
+    const signupTrendRaw = await User.aggregate([
       { $match: { createdAt: { $gte: weekAgo } } },
       { $group: {
         _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
@@ -870,6 +873,7 @@ router.get('/stats', async (req, res) => {
       } },
       { $sort: { _id: 1 } },
     ]);
+    const signupTrend = signupTrendRaw.map((r) => ({ date: r._id, count: r.count }));
 
     // ── DAU — last 14 days, seed accounts excluded, Toronto dates ──
     const dayKeys = [...Array(14)].map((_, i) =>
