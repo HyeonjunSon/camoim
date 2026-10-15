@@ -226,7 +226,7 @@ export default function Comments({
       <h2 className="text-[17px] font-bold">댓글 {countAll(comments)}</h2>
 
       {comments.length === 0 ? (
-        <p className="py-6 text-sm text-muted">첫 댓글을 남겨보세요.</p>
+        <p className="pt-2 pb-1 text-sm text-muted">아직 댓글이 없어요. 첫 댓글을 남겨보세요.</p>
       ) : (
         <ul className="mt-1.5">{comments.map((node) => renderNode(node, 0))}</ul>
       )}
@@ -237,7 +237,7 @@ export default function Comments({
             e.preventDefault();
             submit(draft, null, secret);
           }}
-          className="mt-4 rounded-[14px] border border-line-strong px-3.5 py-3"
+          className="mt-4 rounded-[14px] border border-transparent bg-field px-4 pt-3 pb-2.5 transition-colors focus-within:border-brand-strong focus-within:bg-surface"
         >
           <label htmlFor="comment" className="sr-only-label">
             댓글 입력
@@ -246,28 +246,36 @@ export default function Comments({
             id="comment"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="댓글을 남겨주세요"
-            rows={3}
-            className="w-full resize-none border-none text-[15px] leading-relaxed outline-none"
+            placeholder={secret ? '비밀 댓글은 글쓴이만 볼 수 있어요' : '댓글을 남겨주세요'}
+            rows={2}
+            className="block w-full resize-none border-none bg-transparent text-[15px] leading-relaxed outline-none placeholder:text-muted"
           />
-          <div className="flex items-center justify-between gap-3">
+          <div className="mt-1.5 flex items-center justify-between gap-3">
             {anonymousBoard ? (
               <span className="text-[13px] text-muted">익명으로 등록돼요</span>
             ) : (
-              <label className="flex items-center gap-2 text-[13.5px] text-ink-3">
-                <input
-                  type="checkbox"
-                  checked={secret}
-                  onChange={(e) => setSecret(e.target.checked)}
-                  className="size-4.5 accent-brand-strong"
-                />
-                비밀 댓글 (글쓴이만 볼 수 있어요)
-              </label>
+              <button
+                type="button"
+                onClick={() => setSecret((v) => !v)}
+                aria-pressed={secret}
+                title="글쓴이만 볼 수 있어요"
+                className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-colors ${
+                  secret
+                    ? 'bg-brand-tint text-brand-ink-hover'
+                    : 'text-muted hover:bg-shade hover:text-ink-3'
+                }`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                  <rect x="5" y="11" width="14" height="10" rx="2" />
+                  <path d={secret ? 'M8 11V7a4 4 0 0 1 8 0v4' : 'M8 11V7a4 4 0 0 1 7.7-1.5'} />
+                </svg>
+                비밀 댓글
+              </button>
             )}
             <button
               type="submit"
               disabled={busy || !draft.trim()}
-              className="h-10 shrink-0 rounded-[10px] bg-brand-strong px-4 font-semibold text-white disabled:opacity-55"
+              className="h-9 shrink-0 rounded-full bg-brand-strong px-4 text-sm font-semibold text-white transition-colors hover:bg-brand-ink-hover disabled:bg-shade disabled:text-muted"
             >
               {busy ? '등록 중…' : '등록'}
             </button>

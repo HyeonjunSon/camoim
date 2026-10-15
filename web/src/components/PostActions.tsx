@@ -83,39 +83,53 @@ export default function PostActions({
     }
   }
 
-  const neutral =
-    'flex h-11 items-center gap-1.5 rounded-control border border-line-strong bg-surface px-4 text-[14.5px] font-semibold text-ink-2 hover:bg-field disabled:opacity-55';
+  const action =
+    'flex h-9 items-center gap-1.5 rounded-full px-3 text-[14px] font-medium transition-colors disabled:opacity-55';
+  const idle = 'text-ink-3 hover:bg-field';
 
   return (
-    <div className="mt-6 flex flex-wrap items-center gap-2">
+    <div className="mt-8 flex flex-wrap items-center gap-1 border-t border-line-faint pt-4">
       <button
         type="button"
         onClick={toggleLike}
         disabled={busy}
         aria-pressed={liked}
-        className={`flex h-11 items-center gap-1.5 rounded-control border px-4 text-[14.5px] font-semibold disabled:opacity-55 ${
-          liked
-            ? 'border-[#F9C6DA] bg-[#FDECF3] text-[#BE185D]'
-            : 'border-line-strong bg-surface text-ink-2 hover:bg-field'
-        }`}
+        aria-label={`좋아요 ${likeCount}`}
+        className={`${action} ${liked ? 'text-[#BE185D] hover:bg-[#FDECF3]' : idle}`}
       >
-        <HeartIcon size={18} filled={liked} />
-        좋아요 {likeCount}
+        <HeartIcon size={19} filled={liked} />
+        <span className="tabular-nums">{likeCount}</span>
       </button>
 
-      <button type="button" onClick={toggleBookmark} disabled={busy} aria-pressed={bookmarked} className={neutral}>
+      <button
+        type="button"
+        onClick={toggleBookmark}
+        disabled={busy}
+        aria-pressed={bookmarked}
+        className={`${action} ${bookmarked ? 'text-brand-ink hover:bg-brand-tint' : idle}`}
+      >
         <svg width="18" height="18" viewBox="0 0 24 24" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden>
           <path d="M6 3h12v18l-6-4-6 4z" />
         </svg>
-        {bookmarked ? '저장됨' : '북마크'}
+        {bookmarked ? '저장됨' : '저장'}
       </button>
 
-      <button type="button" onClick={copyLink} className={neutral}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
-          <path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" />
-          <path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" />
-        </svg>
-        {copied ? '복사됐어요' : '링크 복사'}
+      <button
+        type="button"
+        onClick={copyLink}
+        className={`${action} ${copied ? 'text-positive' : idle}`}
+      >
+        {copied ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="m5 12 5 5 9-10" />
+          </svg>
+        ) : (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+            <path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" />
+            <path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" />
+          </svg>
+        )}
+        <span aria-live="polite">{copied ? '복사됨' : '링크 복사'}</span>
       </button>
 
       {!isMine ? (
@@ -124,7 +138,7 @@ export default function PostActions({
             targetType="post"
             targetId={postId}
             signedIn={signedIn}
-            className="flex h-11 items-center rounded-control px-3 text-sm text-muted hover:bg-field hover:text-danger"
+            className="flex h-9 items-center rounded-full px-3 text-[13px] text-muted transition-colors hover:bg-field hover:text-danger"
           />
         </div>
       ) : null}
