@@ -6,10 +6,12 @@ import { readSessionToken } from '@/lib/session';
 /**
  * Image upload, for every kind of image the product stores.
  *
- * The body is streamed straight through with its original Content-Type, so the
- * multipart boundary survives and no file is buffered in this process. That also
- * sidesteps a types clash: `Request.formData()` resolves to an empty type under
- * @types/node with lib.dom in play.
+ * The raw body is forwarded with its original Content-Type, so the multipart
+ * boundary survives without re-encoding. It is read into a buffer first rather
+ * than streamed: Next's patched fetch threw on a `req.body` stream with
+ * `duplex: 'half'` and every upload came back 502. The 10MB cap below keeps the
+ * buffer small. Not parsing it also sidesteps a types clash: `Request.formData()`
+ * resolves to an empty type under @types/node with lib.dom in play.
  *
  * The upstream path is chosen from this map and never from the request, which is
  * what keeps each kind in its own Cloudinary folder — posts, avatars, verify and
@@ -54,14 +56,20 @@ export async function POST(req: Request, ctx: Ctx) {
   }
 
   try {
+    const body = await req.arrayBuffer();
+    // Content-Length can be absent (chunked), so the cap is checked on the bytes too.
+    if (body.byteLength > MAX_BYTES) {
+      return NextResponse.json(
+        { success: false, message: '이미지는 10MB까지 올릴 수 있어요.' },
+        { status: 413 }
+      );
+    }
     const res = await fetch(`${apiBaseUrl()}${upstream}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType },
-      body: req.body,
-      // Required by undici whenever the body is a stream.
-      duplex: 'half',
+      body,
       cache: 'no-store',
-    } as RequestInit & { duplex: 'half' });
+    });
 
     const payload = await res.json().catch(() => null);
     if (!res.ok || payload?.success === false) {

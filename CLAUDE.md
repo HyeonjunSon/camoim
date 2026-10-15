@@ -345,7 +345,8 @@ npm run test:all     # 둘 다
   통과시키고 `express.json()`이 파싱한다 (앱도 이미 JSON으로 보냄). 이미지는 `/api/upload/image`로
   먼저 올려 Cloudinary URL을 본문 HTML에 심는 방식
 - **`@types/node` v24 + `lib.dom` 충돌** — `Request.formData()`가 빈 타입으로 해석된다.
-  업로드 라우트는 파싱 대신 **원본 바디를 스트리밍 패스스루**해서 이 문제를 비켜간다 (`duplex: 'half'` 필요)
+  업로드 라우트는 파싱 대신 **원본 바디를 버퍼(`arrayBuffer()`)로 받아 그대로 전달**해서 이 문제를 비켜간다.
+  ⚠️ `req.body` 스트림 + `duplex: 'half'` 패스스루는 Next 16 fetch에서 throw → 업로드 전부 502였다. 되돌리지 말 것
 - 테스트: `cd web && npm test` (Node 내장 러너 + 네이티브 TS, 22개). sanitize·boards·camel 순수 로직.
   CI `web` job은 Node 24 필요 (네이티브 TS 스트리핑)
 - **채팅만 브라우저가 Railway에 직접 붙는다** — WebSocket은 다른 origin이라 httpOnly 쿠키가 안 가고
