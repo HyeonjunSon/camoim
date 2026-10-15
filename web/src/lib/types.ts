@@ -555,3 +555,87 @@ export type AdminReport = {
   status: 'pending' | 'resolved' | 'dismissed';
   createdAt: string;
 };
+
+/** GET /api/admin/groups — raw Group documents, so `_id` arrives as `id`. */
+export type AdminGroup = {
+  id: string;
+  name: string;
+  description: string;
+  coverImage?: string;
+  category: GroupCategory;
+  city?: string;
+  university?: string;
+  joinPolicy: 'open' | 'approval';
+  memberCount: number;
+  postCount: number;
+  maxMembers: number;
+  status: 'pending_review' | 'active' | 'rejected';
+  rejectReason?: string;
+  createdAt: string;
+  ownerId: { id: string; nickname: string; email?: string; avatarUrl?: string; verified?: boolean } | null;
+};
+
+/** GET /api/admin/businesses — counts sit beside `data`. */
+export type AdminBusinessEnvelope = {
+  data: AdminBusiness[];
+  counts: { pending: number; approved: number; rejected: number };
+};
+
+export type AdminBusiness = {
+  id: string;
+  name: string;
+  category: string;
+  city: string;
+  address: string;
+  phone: string;
+  hours: string;
+  description: string;
+  images: string[];
+  lat: number | null;
+  lng: number | null;
+  /** False means geocoding failed, so it would carry no pin on the map. */
+  hasLocation: boolean;
+  source: 'google' | 'admin' | 'user';
+  status: 'pending' | 'approved' | 'rejected';
+  bookmarkCount: number;
+  reportCount: number;
+  submittedBy: string | null;
+  submitterNickname: string;
+  sourceName: string;
+  createdAt: string;
+};
+
+/** GET /api/admin/users */
+export type AdminUsersPage = {
+  users: AdminUser[];
+  total: number;
+  page: number;
+  pages: number;
+};
+
+export type AdminUser = {
+  id: string;
+  email: string;
+  nickname: string;
+  role: Role;
+  /** Missing on older documents, which the API treats as active. */
+  status?: 'active' | 'suspended' | 'banned' | 'deleted';
+  verified?: boolean;
+  university?: string;
+  city?: string;
+  createdAt: string;
+  suspendedUntil?: string | null;
+  shadowBanned?: boolean;
+  warningCount?: number;
+  deletedAt?: string | null;
+};
+
+export type SanctionType = 'warn' | 'suspend' | 'ban' | 'unban' | 'shadow' | 'unshadow';
+
+/** GET /api/admin/settings — each key is written back on its own. */
+export type AdminSettings = {
+  maintenance: { enabled: boolean; message: string };
+  bannedWords: string[];
+  blockedIps: string[];
+  forceUpdate: { enabled: boolean; minVersion: string };
+};

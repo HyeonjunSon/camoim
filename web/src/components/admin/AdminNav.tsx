@@ -8,6 +8,10 @@ const ITEMS: { href: string; label: string; exact?: boolean }[] = [
   { href: '/admin', label: '대시보드', exact: true },
   { href: '/admin/reports', label: '신고' },
   { href: '/admin/verify', label: '학교 인증' },
+  { href: '/admin/groups', label: '모임' },
+  { href: '/admin/businesses', label: '업체' },
+  { href: '/admin/users', label: '회원' },
+  { href: '/admin/settings', label: '설정' },
 ];
 
 export default function AdminNav() {

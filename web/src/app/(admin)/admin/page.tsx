@@ -99,17 +99,17 @@ export default async function AdminDashboardPage() {
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <Tile label="신고" value={queue.reports} href="/admin/reports" urgent />
         <Tile label="학교 인증" value={queue.verify} href="/admin/verify" urgent />
-        <Tile label="모임 승인" value={queue.groups} urgent hint="앱에서 처리" />
-        <Tile label="업체 승인" value={queue.businesses} urgent hint="앱에서 처리" />
+        <Tile label="모임 승인" value={queue.groups} href="/admin/groups" urgent />
+        <Tile label="업체 승인" value={queue.businesses} href="/admin/businesses" urgent />
         <Tile label="문의" value={queue.inquiry} urgent hint="앱에서 처리" />
       </div>
 
       <h2 className="mt-7 text-[15px] font-bold">회원</h2>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <Tile label="전체" value={stats.users.total} />
+        <Tile label="전체" value={stats.users.total} href="/admin/users" />
         <Tile label="활동" value={stats.users.active} />
-        <Tile label="정지" value={stats.users.suspended} />
-        <Tile label="차단" value={stats.users.banned} />
+        <Tile label="정지" value={stats.users.suspended} href="/admin/users?status=suspended" />
+        <Tile label="차단" value={stats.users.banned} href="/admin/users?status=banned" />
         <Tile label="탈퇴" value={stats.users.deleted} />
       </div>
 
