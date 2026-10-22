@@ -89,3 +89,7 @@ server/scripts/editExchangePosts.js
 .next/
 next-env.d.ts
 .vercel/
+
+# EAS Metadata — store.config.json holds the App Review demo password; screenshots are large
+store.config.json
+store/apple/
