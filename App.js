@@ -27,6 +27,7 @@ import OnboardingScreen, { checkOnboardingDone } from './src/screens/onboarding/
 import ErrorBoundary from './src/components/ErrorBoundary';
 import OfflineNotice from './src/components/OfflineNotice';
 import useOtaUpdate from './src/hooks/useOtaUpdate';
+import useStoreUpdate from './src/hooks/useStoreUpdate';
 import { mark } from './src/lib/perf';
 
 export const navigationRef = createNavigationContainerRef();
@@ -36,9 +37,9 @@ function AppNavigator() {
   const { user, loading } = useAuth();
   const [onboardingDone, setOnboardingDone] = useState(null); // null=checking, true/false
 
-  // Offer to apply a downloaded OTA update straight away, rather than waiting for the user to
-  // happen to quit the app twice
+  // OTA updates apply silently; only a new store version prompts, with a link to the store
   useOtaUpdate();
+  useStoreUpdate();
 
   useEffect(() => {
     checkOnboardingDone().then(setOnboardingDone);

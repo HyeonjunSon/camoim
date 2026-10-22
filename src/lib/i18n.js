@@ -87,6 +87,11 @@ export const TRANSLATIONS = {
     offline: {
       title: '인터넷 연결 없음', desc: '네트워크 연결을 확인해주세요.\n연결되면 자동으로 복구됩니다.', retry: '다시 시도',
     },
+    storeUpdate: {
+      title: '새 버전이 나왔어요',
+      message: '{{version}} 버전이 출시됐어요. 스토어에서 업데이트해 주세요.',
+      later: '나중에', update: '업데이트',
+    },
     update: {
       title: '새 버전이 준비됐어요',
       message: '지금 다시 시작하면 바로 적용돼요. 쓰던 내용은 그대로 있어요.',
@@ -1033,6 +1038,11 @@ export const TRANSLATIONS = {
     },
     offline: {
       title: 'No Internet Connection', desc: 'Please check your network.\nIt will reconnect automatically.', retry: 'Retry',
+    },
+    storeUpdate: {
+      title: 'A new version is out',
+      message: 'Version {{version}} is available. Update from the store to get it.',
+      later: 'Later', update: 'Update',
     },
     update: {
       title: 'A new version is ready',

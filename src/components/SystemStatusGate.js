@@ -4,8 +4,6 @@ import {
   View,
   StyleSheet,
   TouchableOpacity,
-  Linking,
-  Platform,
 } from 'react-native';
 // The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -17,6 +15,7 @@ import {
   getSystemStatus,
   clearSystemStatus,
 } from '../lib/systemStatus';
+import { openStore } from '../lib/storeUpdate';
 
 // Work out the remaining suspension time
 function formatRemaining(until, t) {
@@ -57,22 +56,7 @@ export default function SystemStatusGate({ children }) {
     icon = 'cloud-download';
     title = t('system.updateRequired');
     actionLabel = t('system.openStore');
-    onAction = () => {
-      // Both ids were wrong: Android pointed at a package we never shipped, and iOS opened the
-      // store's front page rather than the app. Sources are eas.json (submit.production.ios
-      // .ascAppId) and app.json (android.package).
-      const url = Platform.OS === 'ios'
-        ? 'itms-apps://apps.apple.com/app/id6763469709'
-        : 'market://details?id=com.hyeonjun122.cahanin';
-      // The market:// and itms-apps:// schemes fail when no store app handles them (an emulator,
-      // a device without Play Services), so fall back to the https page, which a browser opens.
-      Linking.openURL(url).catch(() => {
-        const web = Platform.OS === 'ios'
-          ? 'https://apps.apple.com/app/id6763469709'
-          : 'https://play.google.com/store/apps/details?id=com.hyeonjun122.cahanin';
-        Linking.openURL(web).catch(() => {});
-      });
-    };
+    onAction = openStore;
   } else if (code === 'IP_BLOCKED') {
     icon = 'ban';
     title = t('system.accessBlocked');
