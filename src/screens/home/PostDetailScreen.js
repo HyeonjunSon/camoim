@@ -13,14 +13,13 @@ import {
   ActionSheetIOS,
   Share,
   Dimensions,
-  useWindowDimensions,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 // The barrel ('@expo/vector-icons') bundles the fonts for all 19 icon sets — import Ionicons directly instead
 import Ionicons from '@expo/vector-icons/Ionicons';
 import CustomHeader from '../../components/CustomHeader';
 import ImageGalleryModal from '../../components/ImageGalleryModal';
-import RenderHTML from 'react-native-render-html';
+import HtmlViewer, { cleanPostHtml } from '../../components/HtmlViewer';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 import { useFocusEffect } from '@react-navigation/native';
@@ -190,40 +189,15 @@ function CommentItem({ comment, isReply = false, onMore, onAvatarPress, onReply,
 // Decide whether the content is HTML
 const isHtmlContent = (s) => typeof s === 'string' && /<\w+/.test(s);
 
-const buildHtmlTagsStyles = (colors) => ({
-  body: { color: colors.text, fontSize: 15, lineHeight: 24 },
-  p: { marginTop: 0, marginBottom: 8, color: colors.text },
-  h1: { fontSize: 21, fontWeight: '800', color: colors.text, marginTop: 6, marginBottom: 6 },
-  h2: { fontSize: 19, fontWeight: '800', color: colors.text, marginTop: 6, marginBottom: 6 },
-  h3: { fontSize: 17, fontWeight: '700', color: colors.text, marginTop: 4, marginBottom: 4 },
-  strong: { fontWeight: '800' },
-  b: { fontWeight: '800' },
-  em: { fontStyle: 'italic' },
-  u: { textDecorationLine: 'underline' },
-  img: { borderRadius: 12, marginVertical: 10 },
-  a: { color: colors.primary },
-});
-
-// Turn relative src paths inside the HTML into absolute URLs
-function absolutizeHtml(html) {
-  if (!html) return '';
-  let out = html;
-  out = out.replace(/<span[^>]*data-img-del[^>]*>[\s\S]*?<\/span>/gi, '');
-  out = out.replace(/<span[^>]*data-img-wrap[^>]*>([\s\S]*?)<\/span>/gi, '$1');
-  return out.replace(/src=["'](\/uploads\/[^"']+)["']/g, `src="${BASE_URL}$1"`);
-}
-
 export default function PostDetailScreen({ route, navigation }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
-  const htmlTagsStyles = useMemo(() => buildHtmlTagsStyles(colors), [colors]);
 
   const { postId } = route.params ?? {};
   const { user } = useAuth();
   const { t } = useLang();
   const inputRef = useRef(null);
   const insets = useSafeAreaInsets();
-  const { width: winWidth } = useWindowDimensions();
 
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
@@ -254,6 +228,9 @@ export default function PostDetailScreen({ route, navigation }) {
   const [viewerIndex, setViewerIndex] = useState(0);
   const allImageUris = useMemo(() => {
     if (!post) return [];
+    if (isHtmlContent(post.content)) {
+      return [...cleanPostHtml(post.content).matchAll(/<img[^>]+src=["']([^"']+)["']/gi)].map(m => m[1]);
+    }
     const blocks = parseContentBlocks(post.content, post.images);
     return blocks.filter(b => b.type === 'image').map(b => b.uri);
   }, [post]);
@@ -760,16 +737,12 @@ export default function PostDetailScreen({ route, navigation }) {
 
           {/* Body: HTML (rich editor) or legacy blocks */}
           {isHtmlContent(post.content) ? (
-            <View>
-              <RenderHTML
-                contentWidth={winWidth - 40}
-                source={{ html: absolutizeHtml(post.content) }}
-                tagsStyles={htmlTagsStyles}
-                defaultTextProps={{ selectable: true, allowFontScaling: false }}
-                renderersProps={{ img: { initialDimensions: { width: winWidth - 40, height: 220 } } }}
-                enableExperimentalBRCollapsing
-              />
-            </View>
+            <HtmlViewer
+              html={post.content}
+              textColor={colors.text}
+              linkColor={colors.primary}
+              onImagePress={openImageViewer}
+            />
           ) : (
             parseContentBlocks(post.content, post.images).map((block, idx) =>
               block.type === 'image' ? (
