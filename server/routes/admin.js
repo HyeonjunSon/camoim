@@ -981,15 +981,40 @@ router.get('/logs', async (req, res) => {
 // Notifications — targeted push (everyone / by city / by school / by role)
 // ═══════════════════════════════════════════════════
 
-// POST /api/admin/push { title, body, target: {city?, university?, role?} }
+// POST /api/admin/push { title, body, target: {city?, university?, role?}, dryRun? }
+// dryRun counts the recipients without sending, so the console can show
+// "this reaches N people" before the irreversible send.
+const PUSH_TITLE_MAX = 60;
+const PUSH_BODY_MAX = 200;
 router.post('/push', async (req, res) => {
   try {
-    const { title, body, target = {} } = req.body;
+    const { target = {}, dryRun = false } = req.body;
+    const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
+    const body = typeof req.body.body === 'string' ? req.body.body.trim() : '';
     if (!title || !body) return res.status(400).json({ success: false, message: '제목/내용 필요' });
-    const filter = { pushToken: { $ne: '' }, 'notificationSettings.enabled': true };
-    if (target.city) filter.city = target.city;
-    if (target.university) filter.university = target.university;
-    if (target.role) filter.role = target.role;
+    if (title.length > PUSH_TITLE_MAX || body.length > PUSH_BODY_MAX) {
+      return res.status(400).json({
+        success: false,
+        message: `제목은 ${PUSH_TITLE_MAX}자, 내용은 ${PUSH_BODY_MAX}자까지 보낼 수 있어요.`,
+      });
+    }
+    // Exactly the accounts sendPush will deliver to (it skips anything that is not an
+    // Expo token), so the dry-run count is the real reach. A missing or null token
+    // used to match `$ne: ''` and inflate it.
+    const filter = {
+      pushToken: /^ExponentPushToken/,
+      'notificationSettings.enabled': true,
+      status: { $ne: 'deleted' },
+    };
+    // Strings only — an object here would turn into a query operator.
+    if (typeof target.city === 'string' && target.city) filter.city = target.city;
+    if (typeof target.university === 'string' && target.university) filter.university = target.university;
+    if (typeof target.role === 'string' && target.role) filter.role = target.role;
+
+    if (dryRun === true) {
+      const count = await User.countDocuments(filter);
+      return res.json({ success: true, data: { count } });
+    }
 
     const users = await User.find(filter).select('_id pushToken').lean();
     const { sendPush } = require('../utils/push');
