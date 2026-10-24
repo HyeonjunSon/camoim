@@ -1,0 +1,16 @@
+# Vercel builds web/ only (Root Directory = web). Everything else stays local —
+# server/.env, seed credentials and the app never leave this machine.
+# web/src/lib/legal.ts imports src/constants/legal.js (and its .d.ts), the only files outside web/.
+/*
+!/web
+!/src
+/src/*
+!/src/constants
+/src/constants/*
+!/src/constants/legal.js
+!/src/constants/legal.d.ts
+/web/node_modules
+/web/.next
+/web/.vercel
+/web/.env*
+!/web/.env.example

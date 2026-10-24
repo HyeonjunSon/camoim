@@ -390,6 +390,12 @@ npm run test:all     # 둘 다
   보드 선택·도시·익명 안내를 숨긴다 (모임 글은 익명 불가)
 - **zsh에서 `GID`는 특수 변수** (프로세스 group id) — 셸 스크립트에서 ObjectId를 담으면 산술 오류가 난다
 - 명령어: `cd web && npm run dev | typecheck | test | build`
+- **Vercel 배포 (2026-10-23 첫 배포)** — 프로젝트 `camoim` (계정 hyeonjunson), 주소 **https://camoim.vercel.app**
+  - Root Directory = `web`, Node 24, "Include files outside root" 켬. **레포 루트에서** `vercel deploy --prod`
+  - 루트 `.vercelignore`가 **허용목록** — web/ + `src/constants/legal.js`·`legal.d.ts`만 올라간다
+    (server/.env·시드 계정이 업로드되지 않게). web이 루트 밖 파일을 새로 import하면 여기에 추가할 것
+  - GitHub 자동 배포는 아직 미연결 (Vercel GitHub 앱이 레포 접근권한 없음) → 지금은 CLI 수동 배포
+  - 환경변수: `CAMOIM_API_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SOCKET_ORIGIN` (Maps 키는 아직 없음)
 
 ### 진행 상황
 - [x] 1단계 — 프로젝트 세팅, BFF 인증, 로그인·회원가입·이메일 인증, 홈 화면, 약관/개인정보 페이지
