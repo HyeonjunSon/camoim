@@ -85,3 +85,20 @@ describe('hidden post detail', () => {
     await request(app).get(`/api/posts/${adminHidden._id}`).set('Authorization', `Bearer ${tokenFor(author)}`).expect(200);
   });
 });
+
+describe('public profile shows only publicly readable posts', () => {
+  it('leaves out group posts and school board posts, and returns the board slug', async () => {
+    const Group = require('../../models/Group');
+    const author = await createUser();
+    const free = await Board.create({ slug: 'free', name: '자유게시판' });
+    const school = await Board.create({ slug: 'uoft-free', name: 'UofT 자유게시판', isUniversityBoard: true, university: 'UofT' });
+    const group = await Group.create({ name: 'g', description: 'd', category: 'hobby', ownerId: author._id, status: 'active' });
+    await Post.create({ boardId: free._id, userId: author._id, title: 'public', content: 'x' });
+    await Post.create({ boardId: school._id, userId: author._id, title: 'students only', content: 'x' });
+    await Post.create({ groupId: group._id, userId: author._id, title: 'members only', content: 'x' });
+
+    const res = await request(app).get(`/api/users/${author._id}`).expect(200);
+    expect(titles(res.body.data.posts)).toEqual(['public']);
+    expect(res.body.data.posts[0].boardSlug).toBe('free');
+  });
+});

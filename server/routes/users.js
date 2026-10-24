@@ -363,10 +363,19 @@ router.get('/:userId', async (req, res) => {
     const user = await User.findById(req.params.userId).select('-passwordHash -email -pushToken');
     if (!user) return res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
 
-    const posts = await Post.find({ userId: req.params.userId, isAnonymous: false, ...VISIBLE_POST })
+    // Only posts anyone could read anyway: group posts are members-only and school
+    // boards are students-only, so a public profile must not surface either.
+    const uniBoardIds = await Board.find({ isUniversityBoard: true }).distinct('_id');
+    const posts = await Post.find({
+      userId: req.params.userId,
+      isAnonymous: false,
+      groupId: null,
+      ...(uniBoardIds.length ? { boardId: { $nin: uniBoardIds } } : {}),
+      ...VISIBLE_POST,
+    })
       .sort({ createdAt: -1 })
       .limit(20)
-      .populate('boardId', 'name');
+      .populate('boardId', 'name slug');
 
     const formattedPosts = posts.map(p => ({
       id: p._id,
@@ -376,6 +385,7 @@ router.get('/:userId', async (req, res) => {
       commentCount: p.commentCount,
       createdAt: p.createdAt,
       boardName: p.boardId?.name,
+      boardSlug: p.boardId?.slug,
       thumbnail: p.images?.[0] ?? null,
     }));
 
