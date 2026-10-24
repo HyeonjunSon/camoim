@@ -21,7 +21,7 @@ const { containsBannedWord } = require('../middleware/systemGuard');
 const mongoose = require('mongoose');
 
 const { expandCity } = require('../utils/metro');
-const { LOCAL_BOARD_SLUGS, TRADE_BOARD_SLUGS } = require('../constants/boards');
+const { LOCAL_BOARD_SLUGS, TRADE_BOARD_SLUGS, normalizePrefix } = require('../constants/boards');
 const { toContentPreview } = require('../utils/contentPreview');
 
 const router = express.Router();
@@ -141,6 +141,7 @@ router.get('/feed', optionalAuth, async (req, res) => {
       thumbnail: p.images?.[0] ?? null, // First image
       city: p.city || '',
       tradeStatus: p.tradeStatus || 'selling',
+      prefix: p.prefix || '',
     }));
 
     res.json({ success: true, data: { posts: formatted, total } });
@@ -355,6 +356,7 @@ router.get('/home-sections', optionalAuth, async (req, res) => {
         // Lets a client badge a sold item without a second request. Additive:
         // older app builds simply ignore it.
         tradeStatus: p.tradeStatus || 'selling',
+        prefix: p.prefix || '',
       }));
     };
 
@@ -517,6 +519,7 @@ router.get('/:postId', optionalAuth, async (req, res) => {
         myGroupRole: req._myGroupRole || null,
         pinned: !!post.pinned,
         tradeStatus: post.tradeStatus || 'selling',
+        prefix: post.prefix || '',
         city: post.city ?? '',
         userId: post.isAnonymous ? null : post.userId?._id,
         // Real author id, kept distinct from the (possibly anonymized) userId above.
@@ -591,6 +594,7 @@ router.post('/', requireAuth, uploadImages.array('images', 5), async (req, res) 
       const isLocalBoard = board && LOCAL_BOARD_SLUGS.includes(board.slug);
       postData.boardId = boardId;
       postData.city = isLocalBoard ? (req.body.city?.trim() || '') : '';
+      postData.prefix = normalizePrefix(board?.slug, req.body.prefix);
       // Anonymity is decided by the board, not the client: always true on an anonymous board, always false otherwise
       postData.isAnonymous = !!board?.isAnonymousAllowed;
     }
@@ -630,11 +634,15 @@ router.put('/:postId', requireAuth, async (req, res) => {
       post.images = [];
     }
 
-    // City: stored only for local boards, decided by the board slug
-    if (req.body.city !== undefined) {
-      const board = await Board.findById(post.boardId).select('slug').lean();
-      const isLocalBoard = board && LOCAL_BOARD_SLUGS.includes(board.slug);
-      post.city = isLocalBoard ? (req.body.city?.trim() || '') : '';
+    // City and prefix both depend on the board slug. Each is touched only when sent,
+    // so an older client that omits prefix keeps the one already stored.
+    if (req.body.city !== undefined || req.body.prefix !== undefined) {
+      const board = post.boardId ? await Board.findById(post.boardId).select('slug').lean() : null;
+      if (req.body.city !== undefined) {
+        const isLocalBoard = board && LOCAL_BOARD_SLUGS.includes(board.slug);
+        post.city = isLocalBoard ? (req.body.city?.trim() || '') : '';
+      }
+      if (req.body.prefix !== undefined) post.prefix = normalizePrefix(board?.slug, req.body.prefix);
     }
 
     await post.save();

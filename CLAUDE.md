@@ -547,6 +547,15 @@ npm run test:all     # 둘 다
 - send_message 핸들러는 group/school을 모두 `isMultiUser`로 묶어 DM 전용 검사 우회
 - group/school 모두 `accepted` 상태로 시작 (pending 흐름 없음)
 
+### 10. 말머리 (Post.prefix) · 게시판 묶음
+- `Post.prefix`는 키(`sell`/`buy`/`hiring`…)를 저장. 라벨은 클라이언트가 (앱은 i18n `prefix.*`)
+- 목록 **3곳 동기화**: `server/constants/boards.js` `BOARD_PREFIXES` ↔ `src/constants/boards.js` ↔
+  `web/src/lib/boards.ts` — 앱·웹 테스트가 서버 목록과 비교해서 지킨다
+- 서버는 보드에 없는 값을 **거부하지 않고 ''로 버린다** (`normalizePrefix`) — 구버전 앱이 글쓰기 실패하지 않게
+- `want: true`(삽니다·구해요 등)는 "판매중" 배지를 숨긴다 (`getTradeBadge` / `tradeBadge`). 완료 배지는 유지
+- 게시판 묶음 `BOARD_GROUPS`는 앱·웹 두 곳 (목록에 없는 보드는 기타로 자동 배치)
+- 사진 없는 글: 앱은 보드 Ionicons 타일, 웹은 보드 이모지 타일 (앱은 텍스트 이모지 금지 규칙 때문)
+
 ### 9. 거래 상태 게시판 (TRADE_BOARD_SLUGS)
 - `server/constants/boards.js`, `src/constants/boards.js` 둘 다 동기화 유지
 - 현재: `['market', 'giveaway', 'car', 'roomrent']` — realestate/jobs는 의도적 제외

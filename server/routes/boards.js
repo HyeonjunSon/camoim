@@ -8,6 +8,7 @@ const University = require('../models/University');
 const { expandCity } = require('../utils/metro');
 const { toContentPreview } = require('../utils/contentPreview');
 const { getAllBoards } = require('../utils/boardCache');
+const { normalizePrefix } = require('../constants/boards');
 
 const router = express.Router();
 
@@ -123,6 +124,10 @@ router.get('/:boardId/posts', async (req, res) => {
       filter.tradeStatus = tradeStatus;
     }
 
+    // Prefix (말머리) filter — a key from BOARD_PREFIXES; anything else is ignored
+    const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : '';
+    if (prefix && normalizePrefix(board.slug, prefix)) filter.prefix = prefix;
+
     const sortMap = {
       popular: { likeCount: -1, createdAt: -1 },
       comments: { commentCount: -1, createdAt: -1 },
@@ -160,6 +165,8 @@ router.get('/:boardId/posts', async (req, res) => {
       thumbnail: p.images?.[0] ?? null,
       city: p.city || '',
       tradeStatus: p.tradeStatus || 'selling',
+      prefix: p.prefix || '',
+      viewCount: p.viewCount ?? 0,
       boardSlug: p.boardId?.slug,
       authorIsLeader: !!(leaderUserId && !p.isAnonymous && p.userId?._id && String(p.userId._id) === leaderUserId),
     }));

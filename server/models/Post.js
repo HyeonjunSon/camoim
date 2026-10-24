@@ -24,6 +24,8 @@ const postSchema = new mongoose.Schema({
   pinned:     { type: Boolean, default: false }, // Pinned to the top of the board
   // Trade status, for marketplace-style boards (market, giveaway, car, roomrent)
   tradeStatus: { type: String, enum: ['selling', 'sold'], default: 'selling', index: true },
+  // Title prefix (말머리), a key from BOARD_PREFIXES in constants/boards.js. '' = none
+  prefix: { type: String, default: '' },
 }, { timestamps: true });
 
 // Exactly one of boardId / groupId must be present

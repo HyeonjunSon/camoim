@@ -13,6 +13,7 @@ const draftSchema = new mongoose.Schema({
   images: [{ type: String, maxlength: 500 }],
   city:    { type: String, default: '', maxlength: 100 },
   tradeStatus: { type: String, enum: ['selling', 'sold'], default: 'selling' },
+  prefix:  { type: String, default: '', maxlength: 20 },
 }, { timestamps: true });
 
 // Newest-first list of the user's own drafts

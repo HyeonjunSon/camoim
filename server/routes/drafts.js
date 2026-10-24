@@ -12,7 +12,7 @@ router.use(requireAuth);
 
 const MAX_DRAFTS_PER_USER = 20;
 
-const PICK_FIELDS = ['boardId', 'groupId', 'title', 'content', 'isAnonymous', 'images', 'city', 'tradeStatus'];
+const PICK_FIELDS = ['boardId', 'groupId', 'title', 'content', 'isAnonymous', 'images', 'city', 'tradeStatus', 'prefix'];
 
 function pickPatch(body) {
   const patch = {};
