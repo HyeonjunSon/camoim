@@ -30,7 +30,7 @@ adds the campus features of a Korean university app on top of it.
 | **Business map** | ~580 Korean-owned businesses across Canada with reviews, rankings, and search |
 | **Marketplace** | Trade status (`selling` / `sold`) on marketplace-type boards, with rental-specific labels for room listings |
 | **Admin console** | In the app and on the web: reports, user sanctions, verification review, group and business approval, maintenance mode, forced-update gate, IP blocks. Board/university CRUD, the audit log and push broadcasts are app-only for now |
-| **Web client** | The same community in a browser at [camoimapp.com](https://camoimapp.com) — boards, posts, comments, search, real-time chat, notifications, my page, the map, groups, school communities, the intro board and the admin console. See [web/README.md](web/README.md) |
+| **Web client** | The same community in a browser on the [website](https://camoimapp.com) — boards, posts, comments, search, real-time chat, notifications, my page, the map, groups, school communities, the intro board and the admin console. See [web/README.md](web/README.md) |
 
 Bilingual throughout (Korean / English) — the app fully, the web on its main screens so far —
 with light and dark themes in the app.
