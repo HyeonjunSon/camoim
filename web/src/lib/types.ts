@@ -648,3 +648,44 @@ export type AdminSettings = {
   blockedIps: string[];
   forceUpdate: { enabled: boolean; minVersion: string };
 };
+
+/** GET /api/admin/boards — every board, school ones included, with a post count. */
+export type AdminBoard = {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string;
+  isAnonymousAllowed?: boolean;
+  sortOrder?: number;
+  isUniversityBoard?: boolean;
+  university?: string;
+  postCount: number;
+};
+
+/** GET /api/admin/universities */
+export type AdminUniversity = {
+  id: string;
+  name: string;
+  fullName?: string;
+  sortOrder?: number;
+  active: boolean;
+  leaderUserId?: string | null;
+};
+
+/** GET /api/admin/logs */
+export type AdminLogEntry = {
+  id: string;
+  adminName?: string;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  meta?: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type AdminLogPage = {
+  logs: AdminLogEntry[];
+  total: number;
+  page: number;
+  pages: number;
+};

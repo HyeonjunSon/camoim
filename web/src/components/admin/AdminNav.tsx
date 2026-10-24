@@ -11,6 +11,10 @@ const ITEMS: { href: string; label: string; exact?: boolean }[] = [
   { href: '/admin/groups', label: '모임' },
   { href: '/admin/businesses', label: '업체' },
   { href: '/admin/users', label: '회원' },
+  { href: '/admin/boards', label: '게시판' },
+  { href: '/admin/universities', label: '학교' },
+  { href: '/admin/push', label: '푸시' },
+  { href: '/admin/logs', label: '로그' },
   { href: '/admin/settings', label: '설정' },
 ];
 
