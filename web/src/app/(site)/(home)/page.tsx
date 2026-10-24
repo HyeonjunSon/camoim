@@ -8,6 +8,7 @@ import SchoolCard from '@/components/SchoolCard';
 import StaysCard from '@/components/StaysCard';
 import AppPromoCard from '@/components/AppPromoCard';
 import TrendingPlacesCard from '@/components/TrendingPlacesCard';
+import TodayVisitors from '@/components/TodayVisitors';
 import { apiFetchOrNull } from '@/lib/api';
 import { getCurrentUser } from '@/lib/user';
 import { DEFAULT_CITY } from '@/lib/boards';
@@ -32,7 +33,7 @@ export default async function HomePage() {
   // English name, and a city with no map preset simply gets no filter.
   const citySlug = mapCitySlugFor(city);
 
-  const [boards, hotSections, sections, stays, notices, school, trending] = await Promise.all([
+  const [boards, hotSections, sections, stays, notices, school, trending, visitors] = await Promise.all([
     apiFetchOrNull<Board[]>('/boards', { revalidate: 300 }),
     // Deliberately no city here. The server turns `city` into `city: { $in: [...] }`,
     // and only local boards ever set one — so filtering by city silently drops
@@ -49,6 +50,13 @@ export default async function HomePage() {
       `/businesses/trending${citySlug ? `?city=${citySlug}` : ''}`,
       { revalidate: 300 }
     ),
+    // Public and the same for everyone, so it is cached rather than sent with the
+    // session. The count sits beside `success`, not under `data`.
+    apiFetchOrNull<{ count: number }>('/stats/today-visitors', {
+      auth: false,
+      keepEnvelope: true,
+      revalidate: 60,
+    }),
   ]);
 
   const notice = notices?.find((n) => n.pinned) ?? notices?.[0] ?? null;
@@ -76,6 +84,7 @@ export default async function HomePage() {
         </main>
 
         <aside className="flex w-full flex-[1_1_280px] flex-col gap-4 lg:max-w-[320px]">
+          <TodayVisitors count={typeof visitors?.count === 'number' ? visitors.count : null} />
           <CurrencyCard />
           <TrendingPlacesCard places={trending ?? []} />
           {school?.university ? <SchoolCard school={school} /> : null}
