@@ -47,6 +47,8 @@ export type PostSummary = {
   city?: string;
   // Posts carry no price column — sellers write the price into the title or body.
   tradeStatus?: 'selling' | 'sold';
+  /** Title prefix (말머리) key — see BOARD_PREFIXES in lib/boards.ts. '' = none */
+  prefix?: string;
   /** School boards only: marks the student president, shown as a star. */
   authorIsLeader?: boolean;
   /** Set on a group post, which is readable by that group's members only. */
@@ -91,6 +93,7 @@ export type PostDetail = {
   groupName?: string;
   pinned: boolean;
   tradeStatus: 'selling' | 'sold';
+  prefix?: string;
   city: string;
   userId: string | null;
   authorId: string | null;

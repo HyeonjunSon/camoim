@@ -49,3 +49,31 @@ test('a city label is display only and falls back to the stored key', () => {
   assert.equal(cityLabel('Kitchener'), 'Kitchener');
   assert.equal(cityLabel(undefined), '');
 });
+
+test('prefix keys match the app and server lists', async () => {
+  const { BOARD_PREFIXES } = await import('./boards.ts');
+  // @ts-expect-error -- plain CommonJS from the server, no type declarations
+  const server = (await import('../../../server/constants/boards.js')).default.BOARD_PREFIXES;
+  const keysOf = (m: Record<string, { key: string; want?: boolean }[]>) =>
+    Object.fromEntries(Object.entries(m).map(([k, v]) => [k, v.map((p) => `${p.key}${p.want ? '*' : ''}`)]));
+  assert.deepEqual(keysOf(BOARD_PREFIXES), keysOf(server));
+});
+
+test('prefix label and trade badge', async () => {
+  const { prefixLabel, tradeBadge } = await import('./boards.ts');
+  assert.equal(prefixLabel('market', 'buy'), '삽니다');
+  assert.equal(prefixLabel('car', 'hiring'), '');
+  assert.equal(tradeBadge('market', 'selling', 'buy'), null);
+  assert.equal(tradeBadge('market', 'sold', 'buy'), 'sold');
+  assert.equal(tradeBadge('market', 'selling', 'sell'), 'selling');
+  assert.equal(tradeBadge('free', 'selling', ''), null);
+});
+
+test('board groups place every board once, unknown ones under 기타', async () => {
+  const { groupBoards } = await import('./boards.ts');
+  const out = groupBoards([{ slug: 'jobs' }, { slug: 'free' }, { slug: 'brand-new' }, { slug: 'market' }]);
+  assert.deepEqual(
+    out.map((s) => [s.title, s.boards.map((b) => b.slug)]),
+    [['소통', ['free']], ['사고팔고', ['market']], ['집·일자리', ['jobs']], ['기타', ['brand-new']]]
+  );
+});

@@ -2,8 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { PostSummary } from '@/lib/types';
 import { timeAgo } from '@/lib/format';
-import { cityLabel, tradeLabel } from '@/lib/boards';
-import { ImageIcon } from './icons';
+import { boardEmoji, boardTone, cityLabel, prefixLabel, tradeLabel } from '@/lib/boards';
 
 export default function MarketGrid({ posts, city }: { posts: PostSummary[]; city: string }) {
   if (posts.length === 0) return null;
@@ -26,17 +25,25 @@ export default function MarketGrid({ posts, city }: { posts: PostSummary[]; city
                 prefetch={false}
                 className="flex flex-col gap-2 text-ink"
               >
-                <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-shade text-[#B4B3BE]">
+                <div
+                  className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl"
+                  style={{ background: post.thumbnail ? 'var(--color-shade)' : boardTone('market').bg }}
+                >
                   {post.thumbnail ? (
                     <Image
                       src={post.thumbnail}
                       alt=""
                       fill
                       sizes="(max-width: 640px) 50vw, 180px"
+                      // Often the largest thing in view on the home page (Next flags it as
+                      // the LCP image). Only four render, so loading them eagerly is cheap.
+                      loading="eager"
                       className="object-cover"
                     />
                   ) : (
-                    <ImageIcon />
+                    <span aria-hidden className="text-4xl">
+                      {boardEmoji('market')}
+                    </span>
                   )}
                   {sold ? (
                     <span className="absolute left-2 top-2 rounded-md bg-ink-3 px-1.5 py-0.5 text-[11px] font-bold text-white">
@@ -45,6 +52,9 @@ export default function MarketGrid({ posts, city }: { posts: PostSummary[]; city
                   ) : null}
                 </div>
                 <span className="line-clamp-2 text-[14.5px] font-medium leading-[1.35]">
+                  {prefixLabel('market', post.prefix) ? (
+                    <span className="font-bold text-brand-ink">[{prefixLabel('market', post.prefix)}] </span>
+                  ) : null}
                   {post.title}
                 </span>
                 <span className="text-[12.5px] text-muted">

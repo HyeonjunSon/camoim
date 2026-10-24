@@ -44,6 +44,7 @@ export default async function EditPostPage({ params }: Props) {
             initialTitle={post.title}
             initialHtml={post.content}
             initialCity={post.city}
+            initialPrefix={post.prefix}
           />
         </div>
       </main>

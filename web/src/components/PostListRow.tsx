@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { PostSummary } from '@/lib/types';
-import { cityLabel, isTradeBoard, tradeLabel } from '@/lib/boards';
+import { boardEmoji, boardTone, cityLabel, prefixLabel, tradeBadge, tradeLabel } from '@/lib/boards';
 import { timeAgo } from '@/lib/format';
-import { ImageIcon } from './icons';
 import LinkPending from './LinkPending';
 
+/** The card view of a board feed row. The dense table view is PostTableRow. */
 export default function PostListRow({
   post,
   boardSlug,
@@ -13,8 +13,8 @@ export default function PostListRow({
   post: PostSummary;
   boardSlug: string;
 }) {
-  const showTrade = isTradeBoard(boardSlug) && post.tradeStatus;
-  const sold = post.tradeStatus === 'sold';
+  const badge = tradeBadge(boardSlug, post.tradeStatus, post.prefix);
+  const prefix = prefixLabel(boardSlug, post.prefix);
 
   return (
     <li>
@@ -25,13 +25,13 @@ export default function PostListRow({
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            {showTrade ? (
+            {badge ? (
               <span
                 className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs font-bold ${
-                  sold ? 'bg-[#EDEDF0] text-ink-3' : 'bg-positive-tint text-positive'
+                  badge === 'sold' ? 'bg-[#EDEDF0] text-ink-3' : 'bg-positive-tint text-positive'
                 }`}
               >
-                {tradeLabel(boardSlug, sold ? 'sold' : 'selling')}
+                {tradeLabel(boardSlug, badge)}
               </span>
             ) : null}
             {post.authorIsLeader ? (
@@ -39,7 +39,10 @@ export default function PostListRow({
                 ⭐
               </span>
             ) : null}
-            <span className="truncate text-base font-semibold">{post.title}</span>
+            <span className="truncate text-base font-semibold">
+              {prefix ? <span className="text-brand-ink">[{prefix}] </span> : null}
+              {post.title}
+            </span>
           </div>
 
           {post.content ? (
@@ -56,11 +59,18 @@ export default function PostListRow({
           </div>
         </div>
 
-        <div className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-shade text-[#B4B3BE]">
+        {/* A post without a photo gets its board's emoji on the board's tint
+            rather than an empty grey box, which read as a broken image. */}
+        <div
+          className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+          style={{ background: post.thumbnail ? 'var(--color-shade)' : boardTone(boardSlug).bg }}
+        >
           {post.thumbnail ? (
             <Image src={post.thumbnail} alt="" fill sizes="84px" className="object-cover" />
           ) : (
-            <ImageIcon size={24} />
+            <span aria-hidden className="text-3xl">
+              {boardEmoji(boardSlug)}
+            </span>
           )}
         </div>
       </Link>

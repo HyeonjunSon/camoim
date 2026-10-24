@@ -1,15 +1,19 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import BoardRail from '@/components/BoardRail';
 import PostListRow from '@/components/PostListRow';
+import PostTableRow, { PostTableHead } from '@/components/PostTableRow';
+import FeedViewToggle from '@/components/FeedViewToggle';
+import { FEED_VIEW_COOKIE, parseFeedView } from '@/lib/feedView';
 import Pagination from '@/components/Pagination';
 import TradeFilterToggle from '@/components/TradeFilterToggle';
 import { apiFetch } from '@/lib/api';
 import { ApiError } from '@/lib/api';
 import { boardPostsPath, findBoard, loadBoards } from '@/lib/posts';
 import { getCurrentUser } from '@/lib/user';
-import { CITIES, boardTone, cityLabel, isLocalBoard, isTradeBoard } from '@/lib/boards';
+import { CITIES, boardPrefixes, boardTone, cityLabel, isLocalBoard, isTradeBoard } from '@/lib/boards';
 import type { BoardPostsResponse } from '@/lib/posts';
 
 const PER_PAGE = 20;
@@ -47,7 +51,8 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
 
   if (slug === 'intro') redirect('/intro');
 
-  const [user, boards] = await Promise.all([getCurrentUser(), loadBoards()]);
+  const [user, boards, jar] = await Promise.all([getCurrentUser(), loadBoards(), cookies()]);
+  const view = parseFeedView(jar.get(FEED_VIEW_COOKIE)?.value);
   const board = findBoard(boards, slug);
 
   // A school board the viewer may not see is simply absent from /boards, so an
@@ -65,11 +70,13 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
   const city = (CITIES as readonly string[]).includes(one(sp.city)) ? one(sp.city) : '';
   const search = one(sp.search);
   const tradeStatus = one(sp.tradeStatus) === 'selling' ? 'selling' : '';
+  const prefixes = boardPrefixes(board.slug);
+  const prefix = prefixes.some((p) => p.key === one(sp.prefix)) ? one(sp.prefix) : '';
 
   let data: BoardPostsResponse;
   try {
     data = await apiFetch<BoardPostsResponse>(
-      boardPostsPath(board.id, { page, sort, city, search, tradeStatus })
+      boardPostsPath(board.id, { page, sort, city, search, tradeStatus, prefix })
     );
   } catch (err) {
     // 403 is the school-board gate; anything else is a real failure.
@@ -78,10 +85,11 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
   }
 
   const tone = boardTone(board.slug);
+  const now = Date.now();
   const basePath = `/boards/${board.slug}`;
   const hrefWith = (overrides: Record<string, string>) => {
     const query = new URLSearchParams();
-    const merged = { sort, city, search, tradeStatus, page: String(page), ...overrides };
+    const merged = { sort, city, search, tradeStatus, prefix, page: String(page), ...overrides };
     for (const [k, v] of Object.entries(merged)) {
       if (!v || (k === 'sort' && v === 'latest') || (k === 'page' && v === '1')) continue;
       query.set(k, v);
@@ -158,6 +166,27 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
           </section>
 
           <section className="overflow-hidden rounded-card border border-line-soft bg-surface">
+            {prefixes.length ? (
+              <nav aria-label="말머리" className="flex gap-5 border-b border-line-faint px-5 pt-3 sm:px-6">
+                {[{ key: '', label: '전체' }, ...prefixes].map((p) => {
+                  const on = p.key === prefix;
+                  return (
+                    <Link
+                      key={p.key || 'all'}
+                      href={hrefWith({ prefix: p.key, page: '1' })}
+                      aria-current={on ? 'true' : undefined}
+                      className={`-mb-px border-b-2 pb-2.5 text-[15px] ${
+                        on
+                          ? 'border-brand-strong font-bold text-ink'
+                          : 'border-transparent font-semibold text-muted hover:text-ink-3'
+                      }`}
+                    >
+                      {p.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            ) : null}
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-faint px-5 py-3.5 sm:px-6">
               <div className="flex gap-4 text-sm font-semibold">
                 {SORTS.map((s) => (
@@ -171,13 +200,25 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
                   </Link>
                 ))}
               </div>
-              {isTradeBoard(board.slug) ? <TradeFilterToggle basePath={basePath} /> : null}
+              <div className="flex items-center gap-4">
+                {isTradeBoard(board.slug) ? <TradeFilterToggle basePath={basePath} /> : null}
+                <FeedViewToggle view={view} />
+              </div>
             </div>
 
             {data.posts.length === 0 ? (
               <p className="px-6 py-14 text-center text-sm text-muted">
                 {search ? '검색 결과가 없어요.' : '아직 글이 없어요. 첫 글을 올려보세요.'}
               </p>
+            ) : view === 'list' ? (
+              <>
+                <PostTableHead />
+                <ul>
+                  {data.posts.map((post) => (
+                    <PostTableRow key={post.id} post={post} boardSlug={board.slug} now={now} />
+                  ))}
+                </ul>
+              </>
             ) : (
               <ul>
                 {data.posts.map((post) => (

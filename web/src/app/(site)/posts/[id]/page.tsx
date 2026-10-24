@@ -9,7 +9,7 @@ import StartChatButton from '@/components/StartChatButton';
 import { ApiError, apiFetch, apiFetchOrNull } from '@/lib/api';
 import { getCurrentUser } from '@/lib/user';
 import { sanitizePostHtml } from '@/lib/sanitize';
-import { boardTone, cityLabel, isTradeBoard, tradeLabel } from '@/lib/boards';
+import { boardTone, cityLabel, prefixLabel, tradeBadge, tradeLabel } from '@/lib/boards';
 import { initial, timeAgo } from '@/lib/format';
 import type { CommentNode, PostDetail } from '@/lib/types';
 
@@ -70,8 +70,10 @@ export default async function PostDetailPage({ params }: Params) {
   const post = postResult.value;
 
   const tone = boardTone(post.boardSlug);
-  const showTrade = isTradeBoard(post.boardSlug) && post.tradeStatus;
-  const sold = post.tradeStatus === 'sold';
+  const badge = tradeBadge(post.boardSlug, post.tradeStatus, post.prefix);
+  const showTrade = !!badge;
+  const sold = badge === 'sold';
+  const prefix = prefixLabel(post.boardSlug, post.prefix);
   const isMine = !!user && !!post.authorId && post.authorId === user.id;
   const anonymousBoard = post.isAnonymous;
 
@@ -132,6 +134,7 @@ export default async function PostDetailPage({ params }: Params) {
               </div>
 
               <h1 className="mt-3.5 text-[26px] leading-[1.35] font-bold -tracking-[0.5px]">
+                {prefix ? <span className="text-brand-ink">[{prefix}] </span> : null}
                 {post.title}
               </h1>
 

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import PostEditor from './PostEditor';
 import Field, { inputClass } from './Field';
-import { CITIES, cityLabel, isLocalBoard } from '@/lib/boards';
+import { CITIES, boardPrefixes, cityLabel, isLocalBoard } from '@/lib/boards';
 import type { Board } from '@/lib/types';
 
 type Props = {
@@ -21,6 +21,7 @@ type Props = {
   initialTitle?: string;
   initialHtml?: string;
   initialCity?: string;
+  initialPrefix?: string;
   /** The user's own city, used as the default on a local board. */
   defaultCity?: string;
 };
@@ -38,6 +39,7 @@ export default function PostForm({
   initialTitle = '',
   initialHtml = '',
   initialCity = '',
+  initialPrefix = '',
   defaultCity = '',
 }: Props) {
   const router = useRouter();
@@ -54,11 +56,15 @@ export default function PostForm({
   const [title, setTitle] = useState(initialTitle);
   const [html, setHtml] = useState(initialHtml);
   const [city, setCity] = useState(initialCity || defaultCity);
+  const [prefix, setPrefix] = useState(initialPrefix);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const board = writable.find((b) => b.slug === slug);
   const needsCity = !group && isLocalBoard(slug);
+  const prefixOptions = group ? [] : boardPrefixes(slug);
+  // A prefix from the previously picked board is not sent; the server would drop it anyway.
+  const sentPrefix = prefixOptions.some((p) => p.key === prefix) ? prefix : '';
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -78,6 +84,7 @@ export default function PostForm({
           title: title.trim(),
           content: html,
           city: needsCity ? city : '',
+          ...(prefixOptions.length ? { prefix: sentPrefix } : {}),
         }),
       });
       const json = await res.json();
@@ -125,6 +132,33 @@ export default function PostForm({
         <p className="rounded-[10px] bg-brand-tint px-3.5 py-3 text-[13.5px] text-brand-ink-hover">
           이 게시판은 익명으로 올라가요. 닉네임은 표시되지 않아요.
         </p>
+      ) : null}
+
+      {prefixOptions.length ? (
+        <fieldset>
+          <legend className="text-[13.5px] font-semibold text-ink-3">
+            말머리 <span className="font-normal text-muted">(선택)</span>
+          </legend>
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            {prefixOptions.map((p) => {
+              const on = sentPrefix === p.key;
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  aria-pressed={on}
+                  // Tap the chosen one again to clear it — the prefix is optional.
+                  onClick={() => setPrefix(on ? '' : p.key)}
+                  className={`h-9 rounded-full px-3.5 text-[13.5px] font-semibold transition-colors ${
+                    on ? 'bg-brand-strong text-white' : 'bg-field text-ink-3 hover:bg-shade'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
       ) : null}
 
       <Field id="title" label="제목">

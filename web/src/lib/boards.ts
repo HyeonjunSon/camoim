@@ -106,3 +106,89 @@ export function cityLabel(city?: string): string {
   if (!city) return '';
   return CITY_LABELS[city] ?? city;
 }
+
+// Per-board title prefixes (말머리). Keys mirror BOARD_PREFIXES in
+// server/constants/boards.js and src/constants/boards.js; the labels are the
+// app's Korean strings (`prefix.*` in src/lib/i18n.js). `want` marks the demand
+// side — buying, looking for — where a "판매중" badge would read wrong.
+export const BOARD_PREFIXES: Record<string, { key: string; label: string; want?: boolean }[]> = {
+  market: [{ key: 'sell', label: '팝니다' }, { key: 'buy', label: '삽니다', want: true }],
+  car: [{ key: 'sell', label: '팝니다' }, { key: 'buy', label: '삽니다', want: true }],
+  giveaway: [{ key: 'give', label: '나눔해요' }, { key: 'want', label: '구해요', want: true }],
+  roomrent: [{ key: 'offer', label: '방 있어요' }, { key: 'seek', label: '방 구해요', want: true }],
+  jobs: [{ key: 'hiring', label: '구인' }, { key: 'seeking', label: '구직', want: true }],
+  realestate: [{ key: 'sale', label: '매매' }, { key: 'lease', label: '렌트' }],
+};
+
+export function boardPrefixes(slug?: string) {
+  return (slug && BOARD_PREFIXES[slug]) || [];
+}
+
+/** The label for a stored prefix, or '' when this board does not offer it. */
+export function prefixLabel(slug: string | undefined, key: string | undefined): string {
+  if (!key) return '';
+  return boardPrefixes(slug).find((p) => p.key === key)?.label ?? '';
+}
+
+/**
+ * The trade badge to show, or null. A buying post has nothing for sale, so only
+ * its finished state earns a badge. Mirrors getTradeBadge in the app.
+ */
+export function tradeBadge(
+  slug: string | undefined,
+  status: 'selling' | 'sold' | undefined,
+  prefix?: string
+): 'selling' | 'sold' | null {
+  if (!isTradeBoard(slug)) return null;
+  const s = status === 'sold' ? 'sold' : 'selling';
+  if (s === 'selling' && boardPrefixes(slug).some((p) => p.key === prefix && p.want)) return null;
+  return s;
+}
+
+// Stand-in for a post without a photo. The app draws the same boards with
+// Ionicons (BOARD_ICONS in src/lib/icons.js); the web has no icon font, so emoji.
+const BOARD_EMOJI: Record<string, string> = {
+  intro: '💘',
+  free: '💬',
+  anonymous: '🤫',
+  meetup: '🙌',
+  immigration: '🍁',
+  study: '📚',
+  workingholiday: '✈️',
+  market: '🛍️',
+  car: '🚗',
+  giveaway: '🎁',
+  jobs: '💼',
+  realestate: '🏠',
+  roomrent: '🛏️',
+  exchange: '💱',
+  university: '🎓',
+};
+
+export function boardEmoji(slug?: string): string {
+  if (!slug) return '📝';
+  if (slug.endsWith('-free') || slug.endsWith('-anonymous')) return BOARD_EMOJI.university;
+  return BOARD_EMOJI[slug] ?? '📝';
+}
+
+// Rail sections. A board not listed lands in 기타, so a new board shows up
+// without anyone remembering to file it here. School boards keep their own
+// 내 학교 section.
+export const BOARD_GROUPS: { title: string; slugs: string[] }[] = [
+  { title: '소통', slugs: ['free', 'anonymous', 'meetup', 'intro'] },
+  { title: '사고팔고', slugs: ['market', 'giveaway', 'car'] },
+  { title: '집·일자리', slugs: ['roomrent', 'realestate', 'jobs'] },
+  { title: '정보', slugs: ['immigration', 'study', 'workingholiday', 'exchange'] },
+];
+
+/** Splits boards into rail sections, keeping the API's order inside each one. */
+export function groupBoards<T extends { slug: string }>(boards: T[]): { title: string; boards: T[] }[] {
+  const placed = new Set<string>();
+  const sections = BOARD_GROUPS.map((g) => {
+    const inGroup = boards.filter((b) => g.slugs.includes(b.slug));
+    inGroup.forEach((b) => placed.add(b.slug));
+    return { title: g.title, boards: inGroup };
+  });
+  const rest = boards.filter((b) => !placed.has(b.slug));
+  return [...sections, { title: '기타', boards: rest }].filter((s) => s.boards.length > 0);
+}

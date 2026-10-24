@@ -28,13 +28,14 @@ export type BoardPostsResponse = {
 
 export function boardPostsPath(
   boardId: string,
-  params: { page?: number; sort?: string; city?: string; search?: string; tradeStatus?: string }
+  params: { page?: number; sort?: string; city?: string; search?: string; tradeStatus?: string; prefix?: string }
 ): string {
   const query = new URLSearchParams({ page: String(params.page ?? 1) });
   if (params.sort && params.sort !== 'latest') query.set('sort', params.sort);
   if (params.city) query.set('city', params.city);
   if (params.search) query.set('search', params.search);
   if (params.tradeStatus) query.set('tradeStatus', params.tradeStatus);
+  if (params.prefix) query.set('prefix', params.prefix);
   return `/boards/${boardId}/posts?${query}`;
 }
 
