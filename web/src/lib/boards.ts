@@ -1,3 +1,5 @@
+import type { Lang } from './i18n/lang';
+
 // Board accent colours, mirroring lightBoardColors in src/constants/colors.js.
 //
 // `dot` is the app's exact value — it only ever appears as a bare swatch, so its
@@ -54,10 +56,16 @@ export function isLocalBoard(slug?: string): boolean {
 }
 
 /** roomrent reads as move-in status rather than sold; mirrors getTradeLabel in the app. */
-export function tradeLabel(slug: string | undefined, status: 'selling' | 'sold'): string {
-  if (slug === 'roomrent') return status === 'sold' ? '입주완료' : '입주가능';
-  if (slug === 'giveaway') return status === 'sold' ? '나눔완료' : '나눔중';
-  return status === 'sold' ? '거래완료' : '판매중';
+export function tradeLabel(slug: string | undefined, status: 'selling' | 'sold', lang: Lang = 'ko'): string {
+  const sold = status === 'sold';
+  if (lang === 'en') {
+    if (slug === 'roomrent') return sold ? 'Taken' : 'Available';
+    if (slug === 'giveaway') return sold ? 'Given' : 'Available';
+    return sold ? 'Sold' : 'For Sale';
+  }
+  if (slug === 'roomrent') return sold ? '입주완료' : '입주가능';
+  if (slug === 'giveaway') return sold ? '나눔완료' : '나눔중';
+  return sold ? '거래완료' : '판매중';
 }
 
 // Single source of truth for cities, mirroring src/constants/cities.js.
@@ -102,8 +110,10 @@ const CITY_LABELS: Record<string, string> = {
   Quebec: '퀘벡',
 };
 
-export function cityLabel(city?: string): string {
+/** Korean display name for a city key; English shows the key itself, as the app does. */
+export function cityLabel(city?: string, lang: Lang = 'ko'): string {
   if (!city) return '';
+  if (lang === 'en') return city;
   return CITY_LABELS[city] ?? city;
 }
 
@@ -111,23 +121,48 @@ export function cityLabel(city?: string): string {
 // server/constants/boards.js and src/constants/boards.js; the labels are the
 // app's Korean strings (`prefix.*` in src/lib/i18n.js). `want` marks the demand
 // side — buying, looking for — where a "판매중" badge would read wrong.
-export const BOARD_PREFIXES: Record<string, { key: string; label: string; want?: boolean }[]> = {
-  market: [{ key: 'sell', label: '팝니다' }, { key: 'buy', label: '삽니다', want: true }],
-  car: [{ key: 'sell', label: '팝니다' }, { key: 'buy', label: '삽니다', want: true }],
-  giveaway: [{ key: 'give', label: '나눔해요' }, { key: 'want', label: '구해요', want: true }],
-  roomrent: [{ key: 'offer', label: '방 있어요' }, { key: 'seek', label: '방 구해요', want: true }],
-  jobs: [{ key: 'hiring', label: '구인' }, { key: 'seeking', label: '구직', want: true }],
-  realestate: [{ key: 'sale', label: '매매' }, { key: 'lease', label: '렌트' }],
+type Prefix = { key: string; label: string; labelEn: string; want?: boolean };
+
+export const BOARD_PREFIXES: Record<string, Prefix[]> = {
+  market: [
+    { key: 'sell', label: '팝니다', labelEn: 'Selling' },
+    { key: 'buy', label: '삽니다', labelEn: 'Buying', want: true },
+  ],
+  car: [
+    { key: 'sell', label: '팝니다', labelEn: 'Selling' },
+    { key: 'buy', label: '삽니다', labelEn: 'Buying', want: true },
+  ],
+  giveaway: [
+    { key: 'give', label: '나눔해요', labelEn: 'Free' },
+    { key: 'want', label: '구해요', labelEn: 'Wanted', want: true },
+  ],
+  roomrent: [
+    { key: 'offer', label: '방 있어요', labelEn: 'Room available' },
+    { key: 'seek', label: '방 구해요', labelEn: 'Looking for room', want: true },
+  ],
+  jobs: [
+    { key: 'hiring', label: '구인', labelEn: 'Hiring' },
+    { key: 'seeking', label: '구직', labelEn: 'Seeking work', want: true },
+  ],
+  realestate: [
+    { key: 'sale', label: '매매', labelEn: 'For sale' },
+    { key: 'lease', label: '렌트', labelEn: 'For rent' },
+  ],
 };
+
+export function prefixText(p: Prefix, lang: Lang = 'ko'): string {
+  return lang === 'en' ? p.labelEn : p.label;
+}
 
 export function boardPrefixes(slug?: string) {
   return (slug && BOARD_PREFIXES[slug]) || [];
 }
 
 /** The label for a stored prefix, or '' when this board does not offer it. */
-export function prefixLabel(slug: string | undefined, key: string | undefined): string {
+export function prefixLabel(slug: string | undefined, key: string | undefined, lang: Lang = 'ko'): string {
   if (!key) return '';
-  return boardPrefixes(slug).find((p) => p.key === key)?.label ?? '';
+  const p = boardPrefixes(slug).find((x) => x.key === key);
+  return p ? prefixText(p, lang) : '';
 }
 
 /**
@@ -174,21 +209,85 @@ export function boardEmoji(slug?: string): string {
 // Rail sections. A board not listed lands in 기타, so a new board shows up
 // without anyone remembering to file it here. School boards keep their own
 // 내 학교 section.
-export const BOARD_GROUPS: { title: string; slugs: string[] }[] = [
-  { title: '소통', slugs: ['free', 'anonymous', 'meetup', 'intro'] },
-  { title: '사고팔고', slugs: ['market', 'giveaway', 'car'] },
-  { title: '집·일자리', slugs: ['roomrent', 'realestate', 'jobs'] },
-  { title: '정보', slugs: ['immigration', 'study', 'workingholiday', 'exchange'] },
+export const BOARD_GROUPS: { title: string; titleEn: string; slugs: string[] }[] = [
+  { title: '소통', titleEn: 'Community', slugs: ['free', 'anonymous', 'meetup', 'intro'] },
+  { title: '사고팔고', titleEn: 'Buy & Sell', slugs: ['market', 'giveaway', 'car'] },
+  { title: '집·일자리', titleEn: 'Housing & Jobs', slugs: ['roomrent', 'realestate', 'jobs'] },
+  { title: '정보', titleEn: 'Info', slugs: ['immigration', 'study', 'workingholiday', 'exchange'] },
 ];
 
 /** Splits boards into rail sections, keeping the API's order inside each one. */
-export function groupBoards<T extends { slug: string }>(boards: T[]): { title: string; boards: T[] }[] {
+export function groupBoards<T extends { slug: string }>(
+  boards: T[],
+  lang: Lang = 'ko'
+): { title: string; boards: T[] }[] {
   const placed = new Set<string>();
   const sections = BOARD_GROUPS.map((g) => {
     const inGroup = boards.filter((b) => g.slugs.includes(b.slug));
     inGroup.forEach((b) => placed.add(b.slug));
-    return { title: g.title, boards: inGroup };
+    return { title: lang === 'en' ? g.titleEn : g.title, boards: inGroup };
   });
   const rest = boards.filter((b) => !placed.has(b.slug));
-  return [...sections, { title: '기타', boards: rest }].filter((s) => s.boards.length > 0);
+  return [...sections, { title: lang === 'en' ? 'Other' : '기타', boards: rest }].filter(
+    (s) => s.boards.length > 0
+  );
+}
+
+// English board names and descriptions, copied from the app (boardName / boardDesc in
+// src/lib/i18n.js). Korean comes from the API's own `name`, so only English lives here.
+const BOARD_NAMES_EN: Record<string, string> = {
+  intro: 'Intro',
+  free: 'Free Board',
+  anonymous: 'Anonymous Board',
+  meetup: 'Meetups & Hangouts',
+  immigration: 'Immigration & PR',
+  study: 'Education & Study',
+  workingholiday: 'Working Holiday',
+  market: 'Buy & Sell',
+  car: 'Cars & Vehicles',
+  giveaway: 'Free Giveaways',
+  jobs: 'Jobs & Part-time',
+  realestate: 'Real Estate',
+  roomrent: 'Room Rent & Stays',
+  exchange: 'Currency & Scam Alert',
+};
+const BOARD_DESC_EN: Record<string, string> = {
+  intro: 'Introductions, open to any member 19+',
+  free: 'Talk freely about anything',
+  anonymous: 'Share your thoughts anonymously',
+  meetup: 'Find travel buddies & companions',
+  immigration: 'Immigration & PR tips and questions',
+  study: 'Education, school & study abroad info',
+  workingholiday: 'Working holiday tips & questions',
+  market: 'Buy and sell items',
+  car: 'Buy and sell used cars',
+  giveaway: 'Give away items for free',
+  jobs: 'Find or post jobs',
+  realestate: 'Home buying & leasing info',
+  roomrent: 'Room rentals, homestays & boarding',
+  exchange: 'Currency exchange & scam alerts',
+};
+// School boards are slugged `<school>-free` / `<school>-anonymous`.
+const SCHOOL_SUFFIX_EN: Record<string, [string, string]> = {
+  free: ['Free Board', 'Chat freely with schoolmates'],
+  anonymous: ['Anonymous Board', 'Chat anonymously with schoolmates'],
+};
+
+/**
+ * A board's display name. Korean is the API's name; English falls back to it when unknown.
+ * School boards keep the API name in both languages — it carries the school, and an admin
+ * sees every school's boards, where a bare "Free Board" would be ambiguous.
+ */
+export function boardName(slug: string | undefined, name: string | undefined, lang: Lang = 'ko'): string {
+  if (lang !== 'en' || !slug) return name ?? slug ?? '';
+  const suffix = slug.slice(slug.lastIndexOf('-') + 1);
+  if (slug.includes('-') && SCHOOL_SUFFIX_EN[suffix]) return name ?? SCHOOL_SUFFIX_EN[suffix][0];
+  return BOARD_NAMES_EN[slug] ?? name ?? slug;
+}
+
+export function boardDescription(slug: string | undefined, desc: string | undefined, lang: Lang = 'ko'): string {
+  if (lang !== 'en' || !slug) return desc ?? '';
+  const suffix = slug.slice(slug.lastIndexOf('-') + 1);
+  if (slug.includes('-') && SCHOOL_SUFFIX_EN[suffix]) return SCHOOL_SUFFIX_EN[suffix][1];
+  return BOARD_DESC_EN[slug] ?? desc ?? '';
 }

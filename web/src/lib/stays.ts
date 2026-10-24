@@ -6,6 +6,17 @@ export const STAY_TYPE_LABELS: Record<string, string> = {
   hasuk: '하숙',
 };
 
+const STAY_TYPE_LABELS_EN: Record<string, string> = {
+  minbak: 'Minbak',
+  roomrent: 'Room Rent',
+  homestay: 'Homestay',
+  hasuk: 'Boarding',
+};
+
+export function stayTypeLabel(type: string, lang: 'ko' | 'en' = 'ko'): string {
+  return (lang === 'en' ? STAY_TYPE_LABELS_EN[type] : STAY_TYPE_LABELS[type]) ?? (lang === 'en' ? 'Stay' : '숙소');
+}
+
 export const STAY_TYPE_COLORS: Record<string, string> = {
   minbak: '#1D4ED8',
   roomrent: '#047857',
@@ -13,9 +24,10 @@ export const STAY_TYPE_COLORS: Record<string, string> = {
   hasuk: '#6D28D9',
 };
 
-export function stayPrice(price?: number, unit?: string): string {
+export function stayPrice(price?: number, unit?: string, lang: 'ko' | 'en' = 'ko'): string {
   if (price === undefined || price === null) return '';
-  return `$${price.toLocaleString('en-CA')}/${unit === 'night' ? '박' : '월'}`;
+  const per = lang === 'en' ? (unit === 'night' ? 'night' : 'mo') : unit === 'night' ? '박' : '월';
+  return `$${price.toLocaleString('en-CA')}/${per}`;
 }
 
 /**

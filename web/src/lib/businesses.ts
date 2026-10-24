@@ -24,6 +24,21 @@ export type BusinessCategory = (typeof BUSINESS_CATEGORIES)[number]['key'];
 
 const CATEGORY_MAP = new Map(BUSINESS_CATEGORIES.map((c) => [c.key as string, c]));
 
+// English names as the app's map shows them (biz.cat* in src/lib/i18n.js).
+const CATEGORY_LABELS_EN: Record<string, string> = {
+  food: 'Restaurants',
+  cafe: 'Café & Bakery',
+  mart: 'Grocery',
+  hair: 'Hair Salon',
+  clinic: 'Clinic',
+  etc: 'Other',
+};
+
+export function categoryLabel(key: string | undefined, lang: 'ko' | 'en' = 'ko'): string {
+  const c = categoryOf(key);
+  return lang === 'en' ? (CATEGORY_LABELS_EN[c.key] ?? c.label) : c.label;
+}
+
 export function categoryOf(key: string | undefined) {
   return (
     CATEGORY_MAP.get(key ?? '') ?? { key: 'etc', label: '기타', color: '#374151', soft: '#F3F4F6' }

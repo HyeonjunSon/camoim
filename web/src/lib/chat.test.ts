@@ -35,3 +35,11 @@ test('day label: today, this year, an earlier year', () => {
   assert.equal(dayLabel(new Date(2026, 2, 3).toISOString(), now), '3월 3일');
   assert.equal(dayLabel(new Date(2025, 11, 31).toISOString(), now), '2025년 12월 31일');
 });
+
+test('english clock and day labels', () => {
+  const now = new Date(2026, 9, 15, 9);
+  assert.equal(clockTime(new Date(2026, 9, 15, 16, 11).toISOString(), 'en'), '4:11 PM');
+  assert.equal(dayLabel(new Date(2026, 9, 15, 23).toISOString(), now, 'en'), 'Today');
+  assert.equal(dayLabel(new Date(2026, 2, 3).toISOString(), now, 'en'), 'Mar 3');
+  assert.equal(dayLabel(new Date(2025, 11, 31).toISOString(), now, 'en'), 'Dec 31, 2025');
+});

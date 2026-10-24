@@ -25,12 +25,14 @@ export function markReadBy<T extends { readBy?: string[] | null }>(messages: T[]
 // toLocaleTimeString gave "PM 4:11" on the server (Node's ICU) and "오후 4:11" in
 // the browser, and the server runs in UTC anyway — so these are only ever
 // rendered after hydration, and never trust the runtime's locale data.
-export function clockTime(iso: string): string {
+export function clockTime(iso: string, lang: 'ko' | 'en' = 'ko'): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   const h = d.getHours();
   const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return `${h < 12 ? '오전' : '오후'} ${hour12}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  if (lang === 'en') return `${hour12}:${mm} ${h < 12 ? 'AM' : 'PM'}`;
+  return `${h < 12 ? '오전' : '오후'} ${hour12}:${mm}`;
 }
 
 export function dayKey(iso: string): string {
@@ -38,9 +40,16 @@ export function dayKey(iso: string): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-export function dayLabel(iso: string, now: Date = new Date()): string {
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export function dayLabel(iso: string, now: Date = new Date(), lang: 'ko' | 'en' = 'ko'): string {
   const d = new Date(iso);
-  if (dayKey(iso) === dayKey(now.toISOString())) return '오늘';
+  const sameYear = d.getFullYear() === now.getFullYear();
+  if (dayKey(iso) === dayKey(now.toISOString())) return lang === 'en' ? 'Today' : '오늘';
+  if (lang === 'en') {
+    const md = `${MONTHS_EN[d.getMonth()]} ${d.getDate()}`;
+    return sameYear ? md : `${md}, ${d.getFullYear()}`;
+  }
   const md = `${d.getMonth() + 1}월 ${d.getDate()}일`;
-  return d.getFullYear() === now.getFullYear() ? md : `${d.getFullYear()}년 ${md}`;
+  return sameYear ? md : `${d.getFullYear()}년 ${md}`;
 }
