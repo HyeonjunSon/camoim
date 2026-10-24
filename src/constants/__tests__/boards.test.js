@@ -73,3 +73,38 @@ describe('getTradeChangeLabel', () => {
     expect(getTradeChangeLabel('market', 'selling')).toBe('');
   });
 });
+
+describe('board prefixes (말머리)', () => {
+  const { BOARD_PREFIXES, getPrefixLabel, getTradeBadge } = require('../boards');
+  const serverPrefixes = require('../../../server/constants/boards').BOARD_PREFIXES;
+
+  it('matches the server list exactly', () => {
+    expect(BOARD_PREFIXES).toEqual(serverPrefixes);
+  });
+
+  it('labels only a prefix the board offers', () => {
+    const t = (k) => `T:${k}`;
+    expect(getPrefixLabel('market', 'sell', t)).toBe('T:prefix.sell');
+    expect(getPrefixLabel('market', 'hiring', t)).toBe('');
+    expect(getPrefixLabel('free', 'sell', t)).toBe('');
+    expect(getPrefixLabel('market', '', t)).toBe('');
+  });
+
+  it('hides the for-sale badge on a buying post but keeps sold', () => {
+    expect(getTradeBadge('market', 'selling', 'sell')).toBe('selling');
+    expect(getTradeBadge('market', 'selling', 'buy')).toBeNull();
+    expect(getTradeBadge('market', 'sold', 'buy')).toBe('sold');
+    expect(getTradeBadge('jobs', 'selling', 'hiring')).toBeNull();
+  });
+});
+
+describe('board list sections', () => {
+  const { groupBoards } = require('../boards');
+
+  it('places each board once, by topic, unknown ones under other', () => {
+    const out = groupBoards([{ slug: 'jobs' }, { slug: 'free' }, { slug: 'brand-new' }, { slug: 'market' }]);
+    expect(out.map((s) => [s.key, s.boards.map((b) => b.slug)])).toEqual([
+      ['talk', ['free']], ['trade', ['market']], ['living', ['jobs']], ['other', ['brand-new']],
+    ]);
+  });
+});

@@ -33,6 +33,7 @@ const BASE_URL = API_BASE_URL;
 
 const LOCAL_BOARD_SLUGS = ['market', 'jobs', 'roomrent', 'car', 'giveaway', 'realestate', 'meetup'];
 import { CITIES } from '../../constants/cities';
+import { getBoardPrefixes } from '../../constants/boards';
 
 // Stored HTML → editor form (relative /uploads/ to absolute URLs, leftover ✕ wrappers removed)
 function contentToHtml(content) {
@@ -102,6 +103,9 @@ export default function CreatePostScreen({ route, navigation }) {
   const isAnonymousBoard = boardSlug === 'anonymous' || /(^|-)anonymous$/.test(boardSlug || '');
   const [selectedCity, setSelectedCity] = useState(isEditMode ? (editPost?.city || '') : (user?.city || ''));
   const [cityModalOpen, setCityModalOpen] = useState(false);
+  // Title prefix (말머리) — optional, only on boards that define some
+  const prefixOptions = isGroupPost ? [] : getBoardPrefixes(boardSlug);
+  const [prefix, setPrefix] = useState(isEditMode ? (editPost?.prefix || '') : '');
 
   const [title, setTitle] = useState(editPost?.title ?? '');
   const [submitting, setSubmitting] = useState(false);
@@ -156,6 +160,7 @@ export default function CreatePostScreen({ route, navigation }) {
     setCurrentDraftId(d.id ?? d._id);
     setTitle(d.title || '');
     if (d.city !== undefined) setSelectedCity(d.city || '');
+    if (d.prefix !== undefined) setPrefix(d.prefix || '');
     const html = contentToHtml(d.content || '');
     currentHtml.current = html;
     setHasBody(!!html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, '').trim() || /<img/i.test(html));
@@ -192,6 +197,7 @@ export default function CreatePostScreen({ route, navigation }) {
         content: cleaned,
         isAnonymous: isAnonymousBoard,
         city: selectedCity || '',
+        prefix,
       };
       if (currentDraftId) await updateDraft(currentDraftId, payload);
       else {
@@ -465,6 +471,7 @@ export default function CreatePostScreen({ route, navigation }) {
               content: html,
               isAnonymous: isAnonymousBoard,
               ...(isLocalBoard ? { city: selectedCity || '' } : {}),
+              ...(prefixOptions.length ? { prefix } : {}),
             }
       );
       const url = isEditMode ? `${BASE_URL}/posts/${editPost.id}` : `${BASE_URL}/posts`;
@@ -634,6 +641,27 @@ export default function CreatePostScreen({ route, navigation }) {
               <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
+        </View>
+      )}
+
+      {/* Title prefix chips (말머리) — tap again to clear */}
+      {prefixOptions.length > 0 && (
+        <View style={styles.prefixRow}>
+          {prefixOptions.map((p) => {
+            const on = prefix === p.key;
+            return (
+              <TouchableOpacity
+                key={p.key}
+                style={[styles.prefixChip, on && styles.prefixChipOn]}
+                onPress={() => setPrefix(on ? '' : p.key)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+              >
+                <Text style={[styles.prefixChipText, on && styles.prefixChipTextOn]}>{t(`prefix.${p.key}`)}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
 
@@ -1377,6 +1405,14 @@ const createStyles = (colors) => StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 6,
   },
   citySelectText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+  prefixRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 16, paddingBottom: 6 },
+  prefixChip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
+    backgroundColor: colors.inputBg,
+  },
+  prefixChipOn: { backgroundColor: colors.primary },
+  prefixChipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  prefixChipTextOn: { color: '#FFFFFF' },
 
   // City modal
   cityModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },

@@ -24,6 +24,7 @@ import { getBoardName } from '../../lib/i18n';
 import { toShortUniversityName } from '../../lib/university';
 import { BOARD_ICONS } from '../../lib/icons';
 import { INTRO_ACCENT } from '../../constants/intro';
+import { groupBoards } from '../../constants/boards';
 import GroupListScreen from '../group/GroupListScreen';
 
 const PINNED_KEY = '@camoim_pinned_boards';
@@ -141,6 +142,18 @@ export default function BoardListScreen({ navigation }) {
         return 0;
       })
     : filteredBoards;
+
+  // Under 'all': the user's pinned boards as their own section, then the rest by topic.
+  // The pinned tab is already one short list, so it stays a single untitled card.
+  const boardSections = (() => {
+    if (filter !== 'all') return [{ key: 'list', title: null, boards: sortedBoards }];
+    const pinnedBoards = sortedBoards.filter((b) => pinned.includes(String(b.id)));
+    const rest = sortedBoards.filter((b) => !pinned.includes(String(b.id)));
+    return [
+      ...(pinnedBoards.length ? [{ key: 'pinned', title: t('board.filterPinned'), boards: pinnedBoards }] : []),
+      ...groupBoards(rest).map((g) => ({ key: g.key, title: t(`boardGroup.${g.key}`), boards: g.boards })),
+    ];
+  })();
 
   function goToBoard(item) {
     navigation.navigate('BoardFeed', {
@@ -386,16 +399,21 @@ export default function BoardListScreen({ navigation }) {
           </View>
         )}
 
-        {/* Board list (compact card groups) */}
+        {/* Board list — one card per section (pinned first, then 소통 / 사고팔고 / …) */}
         {sortedBoards.length > 0 ? (
-          <View style={styles.listCard}>
-            {sortedBoards.map((board, idx) => (
-              <View key={String(board.id)}>
-                {renderBoardRow(board)}
-                {idx < sortedBoards.length - 1 && <View style={styles.divider} />}
+          boardSections.map((section) => (
+            <View key={section.key}>
+              {section.title ? <Text style={styles.sectionTitle}>{section.title}</Text> : null}
+              <View style={styles.listCard}>
+                {section.boards.map((board, idx) => (
+                  <View key={String(board.id)}>
+                    {renderBoardRow(board)}
+                    {idx < section.boards.length - 1 && <View style={styles.divider} />}
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            </View>
+          ))
         ) : (
           <View style={styles.emptyBox}>
             <Ionicons
@@ -619,6 +637,14 @@ const createStyles = (colors) => StyleSheet.create({
   verifyBtnText: { color: colors.white, fontWeight: '700', fontSize: 12 },
 
   // ── Compact list card
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginHorizontal: 18,
+    marginTop: 18,
+    marginBottom: -6,
+  },
   listCard: {
     backgroundColor: colors.surface,
     marginHorizontal: 14,

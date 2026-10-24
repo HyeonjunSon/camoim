@@ -105,12 +105,13 @@ export const checkEmailCode = (email, code) =>
 // Board API
 export const getBoards = () => request('GET', '/boards');
 export const getUniversityBoards = () => request('GET', '/boards/university');
-export const getBoardPosts = (boardId, page = 1, { search, sort, city, tradeStatus } = {}) => {
+export const getBoardPosts = (boardId, page = 1, { search, sort, city, tradeStatus, prefix } = {}) => {
   const params = new URLSearchParams({ page });
   if (search) params.append('search', search);
   if (sort) params.append('sort', sort);
   if (city) params.append('city', city);
   if (tradeStatus) params.append('tradeStatus', tradeStatus);
+  if (prefix) params.append('prefix', prefix);
   return request('GET', `/boards/${boardId}/posts?${params}`);
 };
 // Unified search — posts, groups and users

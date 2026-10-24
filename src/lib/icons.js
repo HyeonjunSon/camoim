@@ -23,6 +23,14 @@ export const BOARD_ICONS = {
   default: { ion: 'clipboard', color: '#9CA3AF' },
 };
 
+// Icon for any board slug — school boards are slugged `<school>-free` / `<school>-anonymous`
+export function boardIconFor(slug) {
+  if (!slug) return BOARD_ICONS.default;
+  if (BOARD_ICONS[slug]) return BOARD_ICONS[slug];
+  if (/-(free|anonymous)$/.test(slug)) return BOARD_ICONS.university;
+  return BOARD_ICONS.default;
+}
+
 // Group categories (shared by GroupList, GroupCreate and GroupEdit) — matches the server's category keys
 export const GROUP_CATEGORY_ICONS = {
   hobby: { ion: 'color-palette', color: '#EC4899' },

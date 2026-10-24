@@ -370,8 +370,8 @@ export default function HomeScreen({ navigation }) {
                     accessibilityLabel={t('a11y.postImage')}
                   />
                 ) : (
-                  <View style={[styles.marketImage, styles.marketImagePlaceholder]}>
-                    <Ionicons name={SECTION_ICONS.market.ion} size={32} color={colors.textSecondary} />
+                  <View style={[styles.marketImage, styles.marketImagePlaceholder, { backgroundColor: SECTION_ICONS.market.color + '14' }]}>
+                    <Ionicons name={SECTION_ICONS.market.ion} size={32} color={SECTION_ICONS.market.color} />
                   </View>
                 )}
                 <View style={styles.marketCardBody}>

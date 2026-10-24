@@ -17,7 +17,7 @@ import { getBoardPosts } from '../../lib/api';
 import PostCard from '../../components/PostCard';
 import CustomHeader from '../../components/CustomHeader';
 import { useLang } from '../../context/LangContext';
-import { isTradeBoard, getTradeLabel } from '../../constants/boards';
+import { isTradeBoard, getTradeLabel, getBoardPrefixes } from '../../constants/boards';
 
 const SORT_OPTIONS = [
   { key: 'latest', icon: 'time-outline' },
@@ -65,6 +65,9 @@ export default function BoardFeedScreen({ route, navigation }) {
   // Trade status filter (marketplace boards) — all | selling | sold
   const [tradeFilter, setTradeFilter] = useState('all');
   const showTradeFilter = isTradeBoard(boardSlug);
+  // Title prefix filter (말머리) — '' = all
+  const prefixOptions = getBoardPrefixes(boardSlug);
+  const [prefixFilter, setPrefixFilter] = useState('');
 
   // Uses CustomHeader, matching the boards, groups and chat screens
   useLayoutEffect(() => {
@@ -116,6 +119,12 @@ export default function BoardFeedScreen({ route, navigation }) {
     loadPosts(1, true, activeSearch, sortBy, cityFilter, next);
   };
 
+  const handlePrefixFilterChange = (next) => {
+    if (next === prefixFilter) return;
+    setPrefixFilter(next);
+    loadPosts(1, true, activeSearch, sortBy, cityFilter, tradeFilter, next);
+  };
+
   // On first load and whenever the city filter changes
   useEffect(() => {
     loadPosts(1, true, '', 'latest', cityFilter);
@@ -135,7 +144,7 @@ export default function BoardFeedScreen({ route, navigation }) {
     return unsubscribe;
   }, [navigation, boardId]);
 
-  async function loadPosts(targetPage, reset = false, search = activeSearch, sort = sortBy, city = cityFilter, trade = tradeFilter) {
+  async function loadPosts(targetPage, reset = false, search = activeSearch, sort = sortBy, city = cityFilter, trade = tradeFilter, pfx = prefixFilter) {
     if (reset) {
       setLoading(true);
       setError(null);
@@ -146,6 +155,7 @@ export default function BoardFeedScreen({ route, navigation }) {
         sort: sort !== 'latest' ? sort : undefined,
         city: city || undefined,
         tradeStatus: trade !== 'all' ? trade : undefined,
+        prefix: pfx || undefined,
       });
       if (result.success) {
         const newPosts = result.data.posts ?? [];
@@ -247,6 +257,29 @@ export default function BoardFeedScreen({ route, navigation }) {
               </TouchableOpacity>
             ))}
           </ScrollView>
+        </View>
+      )}
+
+      {/* Prefix row (말머리) — its own line, the filter row below is already full on trade boards */}
+      {prefixOptions.length > 0 && (
+        <View style={styles.prefixRow}>
+          {[{ key: '' }, ...prefixOptions].map((opt) => {
+            const active = prefixFilter === opt.key;
+            return (
+              <TouchableOpacity
+                key={`prefix-${opt.key || 'all'}`}
+                style={[styles.prefixTab, active && styles.prefixTabActive]}
+                onPress={() => handlePrefixFilterChange(opt.key)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[styles.prefixTabText, active && styles.prefixTabTextActive]}>
+                  {opt.key ? t(`prefix.${opt.key}`) : t('board.tradeAll')}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
 
@@ -445,6 +478,18 @@ const createStyles = (colors) => StyleSheet.create({
     marginHorizontal: 6,
     alignSelf: 'center',
   },
+
+  // Prefix tabs (말머리)
+  prefixRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    gap: 16,
+  },
+  prefixTab: { paddingVertical: 4, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  prefixTabActive: { borderBottomColor: colors.primary },
+  prefixTabText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  prefixTabTextActive: { color: colors.text, fontWeight: '800' },
 
   // Sort chips
   sortRow: {

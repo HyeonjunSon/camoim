@@ -187,6 +187,15 @@ export const TRANSLATIONS = {
       tradeChangeToSold: '거래완료', tradeChangeToSelling: '다시 판매중으로',
       rentChangeToTaken: '입주완료', rentChangeToAvailable: '다시 입주가능으로',
       tradeChangeConfirm: '"{label}"(으)로 변경할까요?',
+      prefixNone: '말머리 없음',
+    },
+    boardGroup: {
+      talk: '소통', trade: '사고팔고', living: '집·일자리', info: '정보', other: '기타',
+    },
+    prefix: {
+      sell: '팝니다', buy: '삽니다', give: '나눔해요', want: '구해요',
+      offer: '방 있어요', seek: '방 구해요', hiring: '구인', seeking: '구직',
+      sale: '매매', lease: '렌트',
     },
     community: {
       instagram: 'Instagram', kakaoOpen: '카톡 오픈채팅', discord: 'Discord', homepage: '홈페이지',
@@ -1105,6 +1114,15 @@ export const TRANSLATIONS = {
       tradeChangeToSold: 'Mark Sold', tradeChangeToSelling: 'Back to For Sale',
       tradeChangeConfirm: 'Change to "{label}"?',
       rentChangeToTaken: 'Mark Taken', rentChangeToAvailable: 'Back to Available',
+      prefixNone: 'No tag',
+    },
+    boardGroup: {
+      talk: 'Community', trade: 'Buy & Sell', living: 'Housing & Jobs', info: 'Info', other: 'Other',
+    },
+    prefix: {
+      sell: 'Selling', buy: 'Buying', give: 'Free', want: 'Wanted',
+      offer: 'Room available', seek: 'Looking for room', hiring: 'Hiring', seeking: 'Seeking work',
+      sale: 'For sale', lease: 'For rent',
     },
     community: {
       instagram: 'Instagram', kakaoOpen: 'Kakao Open Chat', discord: 'Discord', homepage: 'Homepage',

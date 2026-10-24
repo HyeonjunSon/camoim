@@ -8,7 +8,8 @@ import { colors } from '../constants/colors'
 import { SERVER_HOST } from '../lib/config';
 import { formatTime } from '../lib/time';
 import { useLang } from '../context/LangContext';
-import { isTradeBoard, getTradeLabel } from '../constants/boards';
+import { getTradeLabel, getTradeBadge, getPrefixLabel } from '../constants/boards';
+import { boardIconFor } from '../lib/icons';
 
 // Body preview, with HTML tags and legacy markers stripped
 function getPreview(content) {
@@ -38,8 +39,11 @@ export default function PostCard({ post, onPress }) {
 
   const hasThumbnail = !!post.thumbnail;
   const preview = getPreview(post.content);
-  const showTrade = isTradeBoard(post.boardSlug);
-  const isSold = showTrade && post.tradeStatus === 'sold';
+  const tradeBadge = getTradeBadge(post.boardSlug, post.tradeStatus, post.prefix);
+  const showTrade = !!tradeBadge;
+  const isSold = tradeBadge === 'sold';
+  const prefixLabel = getPrefixLabel(post.boardSlug, post.prefix, t);
+  const boardIcon = boardIconFor(post.boardSlug);
 
   return (
     <TouchableOpacity
@@ -49,7 +53,7 @@ export default function PostCard({ post, onPress }) {
     >
       {/* Top: text + thumbnail */}
       <View style={styles.cardTop}>
-        <View style={[styles.cardText, hasThumbnail && { flex: 1, marginRight: 10 }]}>
+        <View style={[styles.cardText, { flex: 1, marginRight: 10 }]}>
           {/* Title — prefixed by the trade-status pill */}
           <View style={styles.titleRow}>
             {showTrade && (
@@ -59,14 +63,22 @@ export default function PostCard({ post, onPress }) {
                 </Text>
               </View>
             )}
-            <Text style={[styles.title, { flex: 1 }]} numberOfLines={1}>{post.title}</Text>
+            <Text style={[styles.title, { flex: 1 }]} numberOfLines={1}>
+              {prefixLabel ? <Text style={styles.prefix}>[{prefixLabel}] </Text> : null}
+              {post.title}
+            </Text>
           </View>
           {/* Body preview */}
           {preview.length > 0 && (
             <Text style={styles.preview} numberOfLines={1}>{preview}</Text>
           )}
         </View>
-        {/* Thumbnail */}
+        {/* Thumbnail — or the board's icon on a tint, so every row keeps the same shape */}
+        {!hasThumbnail && (
+          <View style={[styles.thumbnail, styles.iconTile, { backgroundColor: boardIcon.color + '14' }]}>
+            <Ionicons name={boardIcon.ion} size={22} color={boardIcon.color} />
+          </View>
+        )}
         {hasThumbnail && (
           <Image
             source={{ uri: post.thumbnail.startsWith('http') ? post.thumbnail : `${SERVER_HOST}${post.thumbnail}` }}
@@ -159,6 +171,14 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 3,
     lineHeight: 17,
+  },
+  prefix: {
+    color: colors.primary,
+    fontWeight: '800',
+  },
+  iconTile: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   thumbnail: {
     width: 52,

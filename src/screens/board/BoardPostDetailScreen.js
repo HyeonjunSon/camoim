@@ -26,7 +26,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../constants/colors'
 import { getPost, getComments, addComment, reportPost, pinComment, deleteComment, editComment, likePost, deletePost, bookmarkPost, pinPost, setBlock, setTradeStatus, getStayByPost } from '../../lib/api';
 import { track } from '../../lib/analytics';
-import { isTradeBoard, getTradeLabel, getTradeChangeLabel } from '../../constants/boards';
+import { getPrefixLabel, isTradeBoard, getTradeLabel, getTradeChangeLabel } from '../../constants/boards';
 import { formatTime } from '../../lib/time';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
@@ -711,7 +711,12 @@ export default function BoardPostDetailScreen({ route, navigation }) {
           )}
 
           {/* Title */}
-          <Text selectable style={[styles.title, isSold && { color: colors.textSecondary }]}>{post.title}</Text>
+          <Text selectable style={[styles.title, isSold && { color: colors.textSecondary }]}>
+            {getPrefixLabel(post.boardSlug, post.prefix, t) ? (
+              <Text style={{ color: colors.primary }}>[{getPrefixLabel(post.boardSlug, post.prefix, t)}] </Text>
+            ) : null}
+            {post.title}
+          </Text>
 
           {/* Room-rent and homestay posts → list as a stay on the map / view the listed stay (author) */}
           {showStayCta && (
