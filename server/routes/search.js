@@ -6,6 +6,7 @@ const Board = require('../models/Board');
 const GroupMembership = require('../models/GroupMembership');
 const { optionalAuth } = require('../middleware/auth');
 const { toContentPreview } = require('../utils/contentPreview');
+const { VISIBLE_POST } = require('../utils/visibility');
 
 const router = express.Router();
 
@@ -28,6 +29,7 @@ router.get('/', optionalAuth, async (req, res) => {
     // ── Post search ──────────────────────────────────
     if (type === 'all' || type === 'posts') {
       const postFilter = {
+        ...VISIBLE_POST,
         isDeleted: { $ne: true },
         $or: [{ title: regex }, { content: regex }],
       };

@@ -22,6 +22,7 @@ const mongoose = require('mongoose');
 
 const { expandCity } = require('../utils/metro');
 const { LOCAL_BOARD_SLUGS, TRADE_BOARD_SLUGS, normalizePrefix } = require('../constants/boards');
+const { VISIBLE_POST, isHiddenFrom } = require('../utils/visibility');
 const { toContentPreview } = require('../utils/contentPreview');
 
 const router = express.Router();
@@ -67,6 +68,7 @@ router.get('/', optionalAuth, async (req, res) => {
     const uniBoardIds = await Board.find({ isUniversityBoard: true }).distinct('_id');
     const regex = new RegExp(search.trim(), 'i');
     const posts = await Post.find({
+      ...VISIBLE_POST,
       $or: [{ title: regex }, { content: regex }],
       groupId: null,
       ...(uniBoardIds.length ? { boardId: { $nin: uniBoardIds } } : {}),
@@ -271,7 +273,7 @@ router.get('/hot-by-board', optionalAuth, async (req, res) => {
 router.get('/latest-by-board', optionalAuth, async (req, res) => {
   try {
     const blocked = await getBlockedUserIds(req.user?.id);
-    const baseFilter = blocked.length ? { userId: { $nin: blocked } } : {};
+    const baseFilter = { ...VISIBLE_POST, ...(blocked.length ? { userId: { $nin: blocked } } : {}) };
     const boards = await Board.find({ isUniversityBoard: false }).sort({ sortOrder: 1 });
 
     const result = await Promise.all(
@@ -475,12 +477,13 @@ router.get('/:postId', optionalAuth, async (req, res) => {
       req._myGroupRole = membership.role;
     }
 
-    // Auto-hidden posts are unreachable except by their author (admins have a separate route)
-    if (post.autoHidden) {
-      const isOwner = req.user && String(post.userId?._id || post.userId) === String(req.user.id);
-      if (!isOwner) {
-        return res.status(403).json({ success: false, message: '신고 누적으로 숨김 처리된 게시글입니다.' });
-      }
+    // Hidden posts (by an admin or by reports) are unreachable except by their author;
+    // admins have a separate route. Admin-hidden ones used to stay open by direct link.
+    if (isHiddenFrom(post, req.user?.id)) {
+      const message = post.autoHidden
+        ? '신고 누적으로 숨김 처리된 게시글입니다.'
+        : '운영 정책에 따라 숨김 처리된 게시글입니다.';
+      return res.status(403).json({ success: false, message });
     }
 
     const liked = req.user ? post.likedBy.some(id => String(id) === String(req.user.id)) : false;

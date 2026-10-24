@@ -570,6 +570,13 @@ npm run test:all     # 둘 다
 - send_message 핸들러는 group/school을 모두 `isMultiUser`로 묶어 DM 전용 검사 우회
 - group/school 모두 `accepted` 상태로 시작 (pending 흐름 없음)
 
+### 11. 숨김 글 노출 규칙 (`server/utils/visibility.js`)
+- 관리자 숨김(`hidden`)·신고 누적 자동숨김(`autoHidden`) 글은 **공개 목록 어디에도 나오면 안 된다**
+- **다른 사람이 보는 목록을 만드는 Post 쿼리에는 `...VISIBLE_POST`를 넣을 것** — 게시판 피드·검색 2종·
+  게시판별 최신글·공개 프로필이 이걸 빠뜨려서 숨긴 글이 그대로 보였다 (`posts.visibility.test.js`가 지킴)
+- 상세는 `isHiddenFrom(post, userId)` — 작성자 본인만 열람. 예전엔 관리자 숨김 글이 직접 링크로 열렸다
+- 예외: 본인 "내 글" 목록, 관리자 콘솔(`/api/admin/posts`)
+
 ### 10. 말머리 (Post.prefix) · 게시판 묶음
 - `Post.prefix`는 키(`sell`/`buy`/`hiring`…)를 저장. 라벨은 클라이언트가 (앱은 i18n `prefix.*`)
 - 목록 **3곳 동기화**: `server/constants/boards.js` `BOARD_PREFIXES` ↔ `src/constants/boards.js` ↔

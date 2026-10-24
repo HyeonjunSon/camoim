@@ -9,6 +9,7 @@ const { expandCity } = require('../utils/metro');
 const { toContentPreview } = require('../utils/contentPreview');
 const { getAllBoards } = require('../utils/boardCache');
 const { normalizePrefix } = require('../constants/boards');
+const { VISIBLE_POST } = require('../utils/visibility');
 
 const router = express.Router();
 
@@ -111,7 +112,7 @@ router.get('/:boardId/posts', async (req, res) => {
     const city = req.query.city?.trim();
     const sortBy = req.query.sort || 'latest'; // latest | popular | comments
 
-    const filter = { boardId };
+    const filter = { boardId, ...VISIBLE_POST };
     const cities = expandCity(city);
     if (cities) filter.city = { $in: cities };
     if (search) {

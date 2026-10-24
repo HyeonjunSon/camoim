@@ -9,6 +9,7 @@ const Block = require('../models/Block');
 const Bookmark = require('../models/Bookmark');
 const { TRADE_BOARD_SLUGS } = require('../constants/boards');
 const { requireAuth } = require('../middleware/auth');
+const { VISIBLE_POST } = require('../utils/visibility');
 
 const router = express.Router();
 
@@ -362,7 +363,7 @@ router.get('/:userId', async (req, res) => {
     const user = await User.findById(req.params.userId).select('-passwordHash -email -pushToken');
     if (!user) return res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
 
-    const posts = await Post.find({ userId: req.params.userId, isAnonymous: false })
+    const posts = await Post.find({ userId: req.params.userId, isAnonymous: false, ...VISIBLE_POST })
       .sort({ createdAt: -1 })
       .limit(20)
       .populate('boardId', 'name');
