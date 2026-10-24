@@ -2,7 +2,7 @@
 
 A community app for Koreans living in Canada — international students, immigrants, and
 working-holiday makers. Shipped solo to the App Store and Google Play, live in production
-with roughly 300 users.
+with roughly 500 users.
 
 **iOS + Android · v1.0.7 · Expo (React Native) + Express + MongoDB · deployed on Railway**
 
