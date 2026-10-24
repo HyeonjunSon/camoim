@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { apiFetchOrNull } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
 import type { Notice } from '@/lib/types';
+import { getI18n } from '@/lib/i18n/server';
 
 export const metadata: Metadata = {
   title: '공지사항',
@@ -11,16 +12,21 @@ export const metadata: Metadata = {
 
 export default async function NoticesPage() {
   // Already sorted pinned-first, then newest, by the API.
-  const notices = (await apiFetchOrNull<Notice[]>('/notices', { revalidate: 300 })) ?? [];
+  const [noticeList, { lang, m: all }] = await Promise.all([
+    apiFetchOrNull<Notice[]>('/notices', { revalidate: 300 }),
+    getI18n(),
+  ]);
+  const notices = noticeList ?? [];
+  const m = all.notice;
 
   return (
     <main className="mx-auto max-w-[760px] px-4 pb-20 pt-7 sm:px-6">
-      <h1 className="text-2xl font-bold -tracking-[0.4px]">공지사항</h1>
-      <p className="mt-1.5 text-[14.5px] text-muted">운영 소식과 업데이트 안내예요.</p>
+      <h1 className="text-2xl font-bold -tracking-[0.4px]">{m.title}</h1>
+      <p className="mt-1.5 text-[14.5px] text-muted">{m.intro}</p>
 
       {notices.length === 0 ? (
         <p className="mt-6 rounded-card border border-line-soft bg-surface px-5 py-14 text-center text-sm text-muted">
-          아직 공지가 없어요.
+          {m.empty}
         </p>
       ) : (
         <ul className="mt-5 overflow-hidden rounded-card border border-line-soft bg-surface">
@@ -33,7 +39,7 @@ export default async function NoticesPage() {
                 <span className="flex flex-wrap items-center gap-2">
                   {notice.pinned ? (
                     <span className="rounded-md bg-brand-strong px-1.5 py-0.5 text-[11.5px] font-bold text-white">
-                      고정
+                      {all.common.pinned}
                     </span>
                   ) : null}
                   <span className="min-w-0 flex-1 truncate text-[15.5px] font-semibold">
@@ -46,7 +52,7 @@ export default async function NoticesPage() {
                   </span>
                 ) : null}
                 <span className="mt-1.5 block text-[12.5px] text-muted">
-                  {timeAgo(notice.createdAt)}
+                  {timeAgo(notice.createdAt, undefined, lang)}
                 </span>
               </Link>
             </li>

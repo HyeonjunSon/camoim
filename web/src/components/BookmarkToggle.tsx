@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useMessages } from '@/lib/i18n/client';
 
 /**
  * Shared by the business and stay pages: both expose the same
@@ -24,6 +25,7 @@ export default function BookmarkToggle({
   const [bookmarked, setBookmarked] = useState(initialBookmarked);
   const [count, setCount] = useState(initialCount);
   const [busy, setBusy] = useState(false);
+  const m = useMessages().post;
 
   async function toggle() {
     if (!signedIn) {
@@ -58,7 +60,7 @@ export default function BookmarkToggle({
       <svg width="18" height="18" viewBox="0 0 24 24" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden>
         <path d="M6 3h12v18l-6-4-6 4z" />
       </svg>
-      {bookmarked ? '저장됨' : '저장'} {count > 0 ? count : ''}
+      {bookmarked ? m.saved : m.save} {count > 0 ? count : ''}
     </button>
   );
 }

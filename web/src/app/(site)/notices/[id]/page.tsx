@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { ApiError, apiFetch, apiFetchOrNull } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
 import type { Notice } from '@/lib/types';
+import { getI18n } from '@/lib/i18n/server';
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -28,25 +29,28 @@ export default async function NoticeDetailPage({ params }: Props) {
     throw err;
   }
 
+  const { lang, m: all } = await getI18n();
+  const m = all.notice;
+
   return (
     <main className="mx-auto max-w-[760px] px-4 pb-20 pt-6 sm:px-6">
-      <nav aria-label="경로" className="mb-4 flex gap-2 text-[13.5px] text-muted">
+      <nav aria-label={all.post.breadcrumb} className="mb-4 flex gap-2 text-[13.5px] text-muted">
         <Link href="/notices" className="hover:text-ink-3">
-          공지사항
+          {m.title}
         </Link>
       </nav>
 
       <article className="rounded-card border border-line-soft bg-surface px-5 py-6 sm:px-7">
         {notice.pinned ? (
           <span className="rounded-md bg-brand-strong px-2 py-1 text-xs font-bold text-white">
-            고정 공지
+            {m.pinned}
           </span>
         ) : null}
         <h1 className="mt-3 text-[26px] leading-[1.35] font-bold -tracking-[0.5px]">
           {notice.title}
         </h1>
         <p className="mt-2 border-b border-line-faint pb-5 text-[13px] text-muted">
-          {[notice.author, timeAgo(notice.createdAt)].filter(Boolean).join(' · ')}
+          {[notice.author, timeAgo(notice.createdAt, undefined, lang)].filter(Boolean).join(' · ')}
         </p>
 
         {/* Notice bodies are plain text, so React escapes them; no sanitiser needed. */}
@@ -59,7 +63,7 @@ export default async function NoticeDetailPage({ params }: Props) {
         href="/notices"
         className="mt-5 flex h-11 w-full items-center justify-center rounded-control border border-line-strong text-[15px] font-semibold text-ink-3 hover:bg-field sm:w-auto sm:px-5"
       >
-        공지 목록
+        {m.backToList}
       </Link>
     </main>
   );

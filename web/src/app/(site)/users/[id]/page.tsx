@@ -7,16 +7,11 @@ import BlockButton from '@/components/BlockButton';
 import ReportButton from '@/components/ReportButton';
 import { ApiError, apiFetch, apiFetchOrNull } from '@/lib/api';
 import { getCurrentUser } from '@/lib/user';
-import { cityLabel } from '@/lib/boards';
+import { boardName, cityLabel } from '@/lib/boards';
 import { initial, timeAgo } from '@/lib/format';
 import type { BlockStatus, PublicProfile } from '@/lib/types';
+import { getI18n } from '@/lib/i18n/server';
 
-const ROLE_LABELS: Record<string, string> = {
-  student: '유학생',
-  working_holiday: '워홀',
-  general: '일반',
-  admin: '운영자',
-};
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -32,7 +27,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function UserProfilePage({ params }: Props) {
   const { id } = await params;
-  const user = await getCurrentUser();
+  const [user, { lang, m: all }] = await Promise.all([getCurrentUser(), getI18n()]);
+  const m = all.profile;
 
   let profile: PublicProfile;
   try {
@@ -81,20 +77,20 @@ export default async function UserProfilePage({ params }: Props) {
                 <h1 className="text-xl font-bold">{profile.nickname}</h1>
                 {profile.verified && profile.university ? (
                   <span className="rounded-md bg-[#DBEAFE] px-1.5 py-0.5 text-[11.5px] font-bold text-[#1D4ED8]">
-                    {profile.university} 인증
+                    {m.verified(profile.university)}
                   </span>
                 ) : null}
                 {profile.tradeSoldCount > 0 ? (
                   <span className="rounded-md bg-positive-tint px-1.5 py-0.5 text-[11.5px] font-bold text-positive">
-                    거래 {profile.tradeSoldCount}회
+                    {m.trades(profile.tradeSoldCount)}
                   </span>
                 ) : null}
               </div>
               <p className="mt-1.5 text-[13.5px] text-muted">
                 {[
-                  ROLE_LABELS[profile.role] ?? null,
-                  cityLabel(profile.city) || null,
-                  `${timeAgo(profile.createdAt)} 가입`,
+                  m.roles[profile.role] ?? null,
+                  cityLabel(profile.city, lang) || null,
+                  m.joinedAgo(timeAgo(profile.createdAt, undefined, lang)),
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -110,7 +106,7 @@ export default async function UserProfilePage({ params }: Props) {
               href="/mypage"
               className="mt-5 flex h-11 w-full items-center justify-center rounded-control border border-line-strong text-[15px] font-semibold text-ink-3 hover:bg-field sm:w-auto sm:px-5"
             >
-              내 프로필 수정
+              {m.editMine}
             </Link>
           ) : (
             <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -135,10 +131,10 @@ export default async function UserProfilePage({ params }: Props) {
         </section>
 
         <section className="mt-5">
-          <h2 className="text-lg font-bold">작성한 글 {profile.posts.length}</h2>
+          <h2 className="text-lg font-bold">{m.posts(profile.posts.length)}</h2>
           {profile.posts.length === 0 ? (
             <p className="mt-3 rounded-card border border-line-soft bg-surface px-5 py-10 text-center text-sm text-muted">
-              공개된 글이 없어요. 익명 글은 여기 표시되지 않아요.
+              {m.noPosts}
             </p>
           ) : (
             <ul className="mt-3 overflow-hidden rounded-card border border-line-soft bg-surface">
@@ -151,12 +147,12 @@ export default async function UserProfilePage({ params }: Props) {
                   >
                     <span className="flex flex-wrap items-center gap-2">
                       {post.boardName ? (
-                        <span className="text-[12.5px] text-muted">{post.boardName}</span>
+                        <span className="text-[12.5px] text-muted">{boardName(post.boardSlug, post.boardName, lang)}</span>
                       ) : null}
                       <span className="min-w-0 flex-1 truncate font-semibold">{post.title}</span>
                     </span>
                     <span className="mt-1 block text-[12.5px] text-muted">
-                      {[timeAgo(post.createdAt), `♡ ${post.likeCount ?? 0}`, `댓글 ${post.commentCount ?? 0}`].join(
+                      {[timeAgo(post.createdAt, undefined, lang), `♡ ${post.likeCount ?? 0}`, all.common.comments(post.commentCount ?? 0)].join(
                         ' · '
                       )}
                     </span>

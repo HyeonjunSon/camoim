@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import Field, { inputClass } from './Field';
 import { BUSINESS_CATEGORIES, MAP_CITIES } from '@/lib/businesses';
+import { useLang, useMessages } from '@/lib/i18n/client';
+import { labelFor } from '@/lib/i18n/lang';
 
 const MAX_IMAGES = 5;
 
@@ -25,6 +27,9 @@ export default function BusinessForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const all = useMessages();
+  const m = all.business;
+  const lang = useLang();
 
   async function upload(file: File) {
     setUploading(true);
@@ -36,11 +41,11 @@ export default function BusinessForm() {
       const json = await res.json();
       // This endpoint answers with a bare `url`, not `data.url`.
       if (!res.ok || !json.success || !json.url) {
-        throw new Error(json.message || '업로드에 실패했어요.');
+        throw new Error(json.message || all.common.uploadFailed);
       }
       setImages((prev) => [...prev, json.url as string].slice(0, MAX_IMAGES));
     } catch (e) {
-      setError(e instanceof Error ? e.message : '업로드에 실패했어요.');
+      setError(e instanceof Error ? e.message : all.common.uploadFailed);
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -67,7 +72,7 @@ export default function BusinessForm() {
         }),
       });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '제보하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || m.submitFailed);
 
       // An ordinary member's submission is created as `pending` and is not on
       // the map yet, so sending them to its page would show an empty result.
@@ -78,7 +83,7 @@ export default function BusinessForm() {
       }
       setDone(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '제보하지 못했어요.');
+      setError(e instanceof Error ? e.message : m.submitFailed);
     } finally {
       setBusy(false);
     }
@@ -87,9 +92,9 @@ export default function BusinessForm() {
   if (done) {
     return (
       <div className="rounded-card border border-line-soft bg-surface px-5 py-8 text-center sm:px-7">
-        <p className="text-lg font-bold">알려주셔서 고마워요</p>
+        <p className="text-lg font-bold">{m.thanks}</p>
         <p className="mt-2 text-[14.5px] leading-relaxed text-muted">
-          운영팀이 확인한 뒤 지도에 올라가요. 승인되면 다른 회원들도 볼 수 있어요.
+          {m.thanksBody}
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <button
@@ -97,7 +102,7 @@ export default function BusinessForm() {
             onClick={() => router.replace('/map')}
             className="flex h-11 items-center rounded-control bg-brand-strong px-4 text-[15px] font-semibold text-white hover:bg-brand-ink-hover"
           >
-            지도로 돌아가기
+            {m.backToMap}
           </button>
           <button
             type="button"
@@ -112,7 +117,7 @@ export default function BusinessForm() {
             }}
             className="flex h-11 items-center rounded-control border border-line-strong px-4 text-[15px] font-semibold text-ink-3 hover:bg-field"
           >
-            하나 더 알려주기
+            {m.another}
           </button>
         </div>
       </div>
@@ -121,7 +126,7 @@ export default function BusinessForm() {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      <Field id="name" label="업체명">
+      <Field id="name" label={m.name}>
         <input
           id="name"
           required
@@ -134,22 +139,22 @@ export default function BusinessForm() {
 
       <div className="flex flex-wrap gap-4">
         <div className="min-w-[180px] flex-1">
-          <Field id="category" label="업종">
+          <Field id="category" label={m.category}>
             <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className={inputClass}>
               {BUSINESS_CATEGORIES.map((c) => (
                 <option key={c.key} value={c.key}>
-                  {c.label}
+                  {labelFor(c, lang)}
                 </option>
               ))}
             </select>
           </Field>
         </div>
         <div className="min-w-[180px] flex-1">
-          <Field id="city" label="도시">
+          <Field id="city" label={m.city}>
             <select id="city" value={city} onChange={(e) => setCity(e.target.value)} className={inputClass}>
               {MAP_CITIES.map((c) => (
                 <option key={c.key} value={c.key}>
-                  {c.label}
+                  {labelFor(c, lang)}
                 </option>
               ))}
             </select>
@@ -157,7 +162,7 @@ export default function BusinessForm() {
         </div>
       </div>
 
-      <Field id="address" label="주소" hint="지도 핀을 찍는 데 쓰여요.">
+      <Field id="address" label={m.address} hint={m.addressHint}>
         <input
           id="address"
           required
@@ -171,7 +176,7 @@ export default function BusinessForm() {
 
       <div className="flex flex-wrap gap-4">
         <div className="min-w-[180px] flex-1">
-          <Field id="phone" label="전화번호 (선택)">
+          <Field id="phone" label={m.phoneOptional}>
             <input
               id="phone"
               maxLength={40}
@@ -183,33 +188,33 @@ export default function BusinessForm() {
           </Field>
         </div>
         <div className="min-w-[180px] flex-1">
-          <Field id="hours" label="영업시간 (선택)">
+          <Field id="hours" label={m.hoursOptional}>
             <input
               id="hours"
               maxLength={200}
               value={hours}
               onChange={(e) => setHours(e.target.value)}
-              placeholder="월–토 11:00–21:00"
+              placeholder={m.hoursPlaceholder}
               className={inputClass}
             />
           </Field>
         </div>
       </div>
 
-      <Field id="description" label="설명 (선택)">
+      <Field id="description" label={m.descOptional}>
         <textarea
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={4}
           maxLength={1000}
-          placeholder="대표 메뉴나 특징을 알려주세요"
+          placeholder={m.descPlaceholder}
           className="w-full resize-none rounded-control border border-line-strong px-3.5 py-2.5 text-[15px] outline-none focus:border-brand-strong"
         />
       </Field>
 
       <div>
-        <span className="block text-[13.5px] font-semibold text-ink-3">사진 (최대 {MAX_IMAGES}장, 선택)</span>
+        <span className="block text-[13.5px] font-semibold text-ink-3">{m.photos(MAX_IMAGES)}</span>
         <div className="mt-2 flex flex-wrap gap-2">
           {images.map((src) => (
             <div key={src} className="relative size-24 overflow-hidden rounded-xl bg-shade">
@@ -217,7 +222,7 @@ export default function BusinessForm() {
               <button
                 type="button"
                 onClick={() => setImages((prev) => prev.filter((u) => u !== src))}
-                aria-label="사진 삭제"
+                aria-label={m.removePhoto}
                 className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-xs text-white"
               >
                 ✕
@@ -231,7 +236,7 @@ export default function BusinessForm() {
               disabled={uploading}
               className="flex size-24 items-center justify-center rounded-xl border border-dashed border-line-strong text-xs text-muted hover:bg-field disabled:opacity-55"
             >
-              {uploading ? '올리는 중…' : '+ 사진'}
+              {uploading ? m.uploading : m.addPhoto}
             </button>
           ) : null}
         </div>
@@ -259,14 +264,14 @@ export default function BusinessForm() {
           disabled={busy || !name.trim() || !address.trim()}
           className="flex h-12 items-center rounded-control bg-brand-strong px-5 text-base font-semibold text-white hover:bg-brand-ink-hover disabled:opacity-55"
         >
-          {busy ? '보내는 중…' : '등록 요청'}
+          {busy ? m.sending : m.submit}
         </button>
         <button
           type="button"
           onClick={() => router.back()}
           className="flex h-12 items-center rounded-control border border-line-strong px-5 text-base font-semibold text-ink-3 hover:bg-field"
         >
-          취소
+          {all.common.cancel}
         </button>
       </div>
     </form>

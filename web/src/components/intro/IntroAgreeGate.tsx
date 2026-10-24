@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { INTRO_RULES } from '@/lib/intro';
+import { useLang, useMessages } from '@/lib/i18n/client';
 
 /**
  * The age and rules gate. The server records only that agreement happened
@@ -14,6 +15,9 @@ export default function IntroAgreeGate() {
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const all = useMessages();
+  const m = all.intro;
+  const lang = useLang();
 
   async function start() {
     setBusy(true);
@@ -21,10 +25,10 @@ export default function IntroAgreeGate() {
     try {
       const res = await fetch('/api/bff/intro/agree', { method: 'POST' });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '처리하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || all.common.failed);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '처리하지 못했어요.');
+      setError(e instanceof Error ? e.message : all.common.failed);
       setBusy(false);
     }
   }
@@ -32,11 +36,11 @@ export default function IntroAgreeGate() {
   return (
     <div className="rounded-card border border-line-soft bg-surface px-5 py-7 sm:px-7">
       <span className="rounded-md bg-[#FCE7F3] px-2 py-1 text-xs font-bold text-[#BE185D]">
-        만 19세 이상
+        {m.adultsOnly}
       </span>
-      <h1 className="mt-3.5 text-xl font-bold">소개팅 이용 규칙</h1>
+      <h1 className="mt-3.5 text-xl font-bold">{m.rulesTitle}</h1>
       <p className="mt-1.5 text-[14.5px] text-muted">
-        닉네임과 사진은 공개되지 않아요. 수락한 뒤에만 익명 채팅이 열려요.
+        {m.rulesIntro}
       </p>
 
       <ol className="mt-5 flex flex-col gap-4">
@@ -49,9 +53,9 @@ export default function IntroAgreeGate() {
               {i + 1}
             </span>
             <span>
-              <span className="block text-[15px] font-semibold">{rule.title}</span>
+              <span className="block text-[15px] font-semibold">{lang === 'en' ? rule.titleEn : rule.title}</span>
               <span className="mt-0.5 block text-[13.5px] leading-relaxed text-muted">
-                {rule.description}
+                {lang === 'en' ? rule.descriptionEn : rule.description}
               </span>
             </span>
           </li>
@@ -65,7 +69,7 @@ export default function IntroAgreeGate() {
           onChange={(e) => setAgreed(e.target.checked)}
           className="size-4.5 accent-brand-strong"
         />
-        만 19세 이상이며, 이용 규칙에 동의해요
+        {m.agree}
       </label>
 
       {error ? (
@@ -80,7 +84,7 @@ export default function IntroAgreeGate() {
         disabled={busy || !agreed}
         className="mt-4 flex h-12 w-full items-center justify-center rounded-control bg-brand-strong text-base font-semibold text-white hover:bg-brand-ink-hover disabled:opacity-55"
       >
-        {busy ? '처리 중…' : '시작하기'}
+        {busy ? all.group.processing : m.start}
       </button>
     </div>
   );

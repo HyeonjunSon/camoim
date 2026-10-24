@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMessages } from '@/lib/i18n/client';
+import { useLang, useMessages } from '@/lib/i18n/client';
+import { labelFor } from '@/lib/i18n/lang';
 
 /**
  * Businesses, stays and intro posts each expose `POST /<kind>/:id/report` with
@@ -17,13 +18,14 @@ export default function SimpleReportButton({
 }: {
   kind: 'businesses' | 'stays' | 'intro';
   id: string;
-  reasons: readonly { value: string; label: string }[];
+  reasons: readonly { value: string; label: string; labelEn?: string }[];
   signedIn: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const m = useMessages().report;
+  const lang = useLang();
   const [message, setMessage] = useState<string | null>(null);
 
   async function send(reason: string) {
@@ -81,7 +83,7 @@ export default function SimpleReportButton({
                   disabled={busy}
                   className="block w-full px-4 py-3 text-left text-sm text-ink-2 hover:bg-brand-tint-soft disabled:opacity-55"
                 >
-                  {r.label}
+                  {labelFor(r, lang)}
                 </button>
               ))
             )}

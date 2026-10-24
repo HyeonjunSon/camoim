@@ -5,6 +5,8 @@ import { apiFetchOrNull } from '@/lib/api';
 import { getCurrentUser } from '@/lib/user';
 import { GROUP_BOXES, GROUP_CATEGORIES, GROUP_SORTS, groupCategoryLabel } from '@/lib/groups';
 import { cityLabel } from '@/lib/boards';
+import { getI18n } from '@/lib/i18n/server';
+import { labelFor } from '@/lib/i18n/lang';
 import type { GroupSummary } from '@/lib/types';
 
 export const metadata: Metadata = {
@@ -29,7 +31,12 @@ export default async function GroupsPage({ searchParams }: Props) {
   if (category) query.set('category', category);
   if (q) query.set('q', q);
 
-  const groups = (await apiFetchOrNull<GroupSummary[]>(`/groups?${query}`)) ?? [];
+  const [groupList, { lang, m: all }] = await Promise.all([
+    apiFetchOrNull<GroupSummary[]>(`/groups?${query}`),
+    getI18n(),
+  ]);
+  const groups = groupList ?? [];
+  const m = all.group;
 
   function hrefWith(overrides: Record<string, string>) {
     const next = new URLSearchParams({ box, category, sort, q, ...overrides });
@@ -46,20 +53,20 @@ export default async function GroupsPage({ searchParams }: Props) {
       <main className="mx-auto max-w-[1000px] px-4 pb-20 pt-7 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold -tracking-[0.4px]">모임</h1>
+            <h1 className="text-2xl font-bold -tracking-[0.4px]">{m.title}</h1>
             <p className="mt-1.5 text-[14.5px] text-muted">
-              관심사로 모이거나, 학교 동아리에 들어갈 수 있어요.
+              {m.intro}
             </p>
           </div>
           <Link
             href="/groups/new"
             className="flex h-11 items-center rounded-control bg-brand-strong px-4 text-[15px] font-semibold text-white hover:bg-brand-ink-hover"
           >
-            모임 만들기
+            {m.create}
           </Link>
         </div>
 
-        <nav aria-label="모임 보관함" className="mt-4 flex flex-wrap gap-2">
+        <nav aria-label={m.boxes} className="mt-4 flex flex-wrap gap-2">
           {GROUP_BOXES.map((b) => {
             const on = b.key === box;
             return (
@@ -73,14 +80,14 @@ export default async function GroupsPage({ searchParams }: Props) {
                     : 'border-line-strong bg-surface text-ink-3 hover:bg-field'
                 }`}
               >
-                {b.label}
+                {labelFor(b, lang)}
               </Link>
             );
           })}
         </nav>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          {[{ key: '', label: '전체' }, ...GROUP_CATEGORIES].map((c) => {
+          {[{ key: '', label: all.common.all }, ...GROUP_CATEGORIES].map((c) => {
             const on = c.key === category;
             return (
               <Link
@@ -91,7 +98,7 @@ export default async function GroupsPage({ searchParams }: Props) {
                   on ? 'bg-brand-tint font-bold text-brand-ink-hover' : 'text-muted hover:bg-field'
                 }`}
               >
-                {c.label}
+                {labelFor(c, lang)}
               </Link>
             );
           })}
@@ -103,7 +110,7 @@ export default async function GroupsPage({ searchParams }: Props) {
                 aria-current={s.key === sort ? 'true' : undefined}
                 className={s.key === sort ? 'text-ink' : 'text-muted hover:text-ink-3'}
               >
-                {s.label}
+                {labelFor(s, lang)}
               </Link>
             ))}
           </div>
@@ -111,14 +118,14 @@ export default async function GroupsPage({ searchParams }: Props) {
 
         <form action="/groups" className="mt-4 flex h-11 items-center gap-2 rounded-control bg-field px-3.5">
           <label htmlFor="group-q" className="sr-only-label">
-            모임 검색
+            {m.search}
           </label>
           <input
             id="group-q"
             name="q"
             type="search"
             defaultValue={q}
-            placeholder="모임 이름으로 찾기"
+            placeholder={m.searchPlaceholder}
             className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted"
           />
           {box !== 'all' ? <input type="hidden" name="box" value={box} /> : null}
@@ -128,10 +135,10 @@ export default async function GroupsPage({ searchParams }: Props) {
         {groups.length === 0 ? (
           <p className="mt-6 rounded-card border border-line-soft bg-surface px-5 py-14 text-center text-sm text-muted">
             {box === 'mine'
-              ? '아직 가입한 모임이 없어요.'
+              ? m.noneMine
               : q
-                ? '검색 결과가 없어요.'
-                : '아직 모임이 없어요. 첫 모임을 만들어보세요.'}
+                ? m.noResults
+                : m.noneYet}
           </p>
         ) : (
           <ul className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -149,7 +156,7 @@ export default async function GroupsPage({ searchParams }: Props) {
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-1.5">
                       <span className="rounded-md bg-field px-1.5 py-0.5 text-[11.5px] font-bold text-ink-3">
-                        {groupCategoryLabel(group.category)}
+                        {groupCategoryLabel(group.category, lang)}
                       </span>
                       {group.university ? (
                         <span className="rounded-md bg-[#DBEAFE] px-1.5 py-0.5 text-[11.5px] font-bold text-[#1D4ED8]">
@@ -158,7 +165,7 @@ export default async function GroupsPage({ searchParams }: Props) {
                       ) : null}
                       {group.joinPolicy === 'approval' ? (
                         <span className="rounded-md bg-[#FEF3C7] px-1.5 py-0.5 text-[11.5px] font-bold text-[#B45309]">
-                          승인 필요
+                          {m.approvalNeeded}
                         </span>
                       ) : null}
                     </span>
@@ -170,9 +177,9 @@ export default async function GroupsPage({ searchParams }: Props) {
                     ) : null}
                     <span className="mt-2 block text-xs text-muted">
                       {[
-                        `멤버 ${group.memberCount}명`,
-                        group.postCount > 0 ? `글 ${group.postCount}개` : null,
-                        cityLabel(group.city) || null,
+                        m.members(group.memberCount),
+                        group.postCount > 0 ? m.posts(group.postCount) : null,
+                        cityLabel(group.city, lang) || null,
                       ]
                         .filter(Boolean)
                         .join(' · ')}

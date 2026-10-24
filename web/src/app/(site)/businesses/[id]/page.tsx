@@ -9,6 +9,8 @@ import { ApiError, apiFetch, apiFetchOrNull } from '@/lib/api';
 import { getCurrentUser } from '@/lib/user';
 import { BUSINESS_REPORT_REASONS, categoryOf, mapCityOf } from '@/lib/businesses';
 import type { Business, BusinessReview } from '@/lib/types';
+import { getI18n } from '@/lib/i18n/server';
+import { labelFor } from '@/lib/i18n/lang';
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -35,7 +37,12 @@ export default async function BusinessDetailPage({ params }: Props) {
     throw err;
   }
 
-  const reviews = (await apiFetchOrNull<BusinessReview[]>(`/businesses/${id}/reviews`)) ?? [];
+  const [reviewList, { lang, m: all }] = await Promise.all([
+    apiFetchOrNull<BusinessReview[]>(`/businesses/${id}/reviews`),
+    getI18n(),
+  ]);
+  const reviews = reviewList ?? [];
+  const m = all.business;
   const category = categoryOf(business.category);
   const city = mapCityOf(business.city);
 
@@ -43,13 +50,13 @@ export default async function BusinessDetailPage({ params }: Props) {
     <>
 
       <main className="mx-auto max-w-[840px] px-4 pb-20 pt-6 sm:px-6">
-        <nav aria-label="경로" className="mb-4 flex flex-wrap gap-2 text-[13.5px] text-muted">
+        <nav aria-label={all.post.breadcrumb} className="mb-4 flex flex-wrap gap-2 text-[13.5px] text-muted">
           <Link href="/map" className="hover:text-ink-3">
-            지도
+            {m.map}
           </Link>
           <span aria-hidden>›</span>
           <Link href={`/map?city=${business.city}&category=${business.category}`} className="hover:text-ink-3">
-            {city.label} {category.label}
+            {labelFor(city, lang)} {labelFor(category, lang)}
           </Link>
         </nav>
 
@@ -69,20 +76,20 @@ export default async function BusinessDetailPage({ params }: Props) {
               className="rounded-md px-2 py-1 text-[12.5px] font-semibold"
               style={{ color: category.color, background: category.soft }}
             >
-              {category.label}
+              {labelFor(category, lang)}
             </span>
             <h1 className="mt-3 text-[26px] font-bold -tracking-[0.5px]">{business.name}</h1>
 
             {business.ratingCount > 0 ? (
               <p className="mt-2 flex items-center gap-2 text-sm text-ink-3">
                 <span className="text-[#F59E0B]">{'★'.repeat(Math.round(business.ratingAvg))}</span>
-                {business.ratingAvg.toFixed(1)} · 리뷰 {business.ratingCount}
+                {m.reviewsShort(business.ratingAvg.toFixed(1), business.ratingCount)}
               </p>
             ) : null}
 
             <dl className="mt-5 flex flex-col gap-2.5 border-t border-line-faint pt-5 text-[15px]">
               <div className="flex gap-3">
-                <dt className="w-16 shrink-0 text-muted">주소</dt>
+                <dt className="w-16 shrink-0 text-muted">{m.address}</dt>
                 <dd className="min-w-0">
                   {business.address}
                   {business.lat != null && business.lng != null ? (
@@ -93,14 +100,14 @@ export default async function BusinessDetailPage({ params }: Props) {
                       rel="noopener noreferrer"
                       className="ml-2 text-[13.5px] text-brand-ink hover:text-brand-ink-hover"
                     >
-                      길찾기 ›
+                      {m.directions}
                     </a>
                   ) : null}
                 </dd>
               </div>
               {business.phone ? (
                 <div className="flex gap-3">
-                  <dt className="w-16 shrink-0 text-muted">전화</dt>
+                  <dt className="w-16 shrink-0 text-muted">{m.phone}</dt>
                   <dd>
                     <a href={`tel:${business.phone}`} className="text-brand-ink hover:text-brand-ink-hover">
                       {business.phone}
@@ -110,7 +117,7 @@ export default async function BusinessDetailPage({ params }: Props) {
               ) : null}
               {business.hours ? (
                 <div className="flex gap-3">
-                  <dt className="w-16 shrink-0 text-muted">영업시간</dt>
+                  <dt className="w-16 shrink-0 text-muted">{m.hours}</dt>
                   <dd className="whitespace-pre-wrap">{business.hours}</dd>
                 </div>
               ) : null}
@@ -140,7 +147,7 @@ export default async function BusinessDetailPage({ params }: Props) {
 
             {business.source === 'user' && business.submitterNickname ? (
               <p className="mt-4 text-[12.5px] text-muted">
-                {business.submitterNickname}님이 알려준 곳이에요.
+                {m.submittedBy(business.submitterNickname)}
               </p>
             ) : null}
           </div>

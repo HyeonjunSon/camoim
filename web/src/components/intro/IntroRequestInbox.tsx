@@ -5,10 +5,11 @@ import { useState } from 'react';
 import type { IntroRequest } from '@/lib/types';
 import { ageFromBirthYear, genderLabel, jobLabel } from '@/lib/intro';
 import { timeAgo } from '@/lib/format';
+import { useLang, useMessages } from '@/lib/i18n/client';
 
-const BADGES: Record<string, { label: string; bg: string; fg: string }> = {
-  school: { label: '학교 인증', bg: '#DBEAFE', fg: '#1D4ED8' },
-  email: { label: '이메일 인증', bg: '#D1FAE5', fg: '#047857' },
+const BADGES: Record<string, { key: 'badgeSchool' | 'badgeEmail'; bg: string; fg: string }> = {
+  school: { key: 'badgeSchool', bg: '#DBEAFE', fg: '#1D4ED8' },
+  email: { key: 'badgeEmail', bg: '#D1FAE5', fg: '#047857' },
 };
 
 /**
@@ -21,6 +22,9 @@ export default function IntroRequestInbox({ requests }: { requests: IntroRequest
   const [items, setItems] = useState(requests);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const all = useMessages();
+  const m = all.intro;
+  const lang = useLang();
 
   async function accept(id: string) {
     setBusy(id);
@@ -28,27 +32,27 @@ export default function IntroRequestInbox({ requests }: { requests: IntroRequest
     try {
       const res = await fetch(`/api/bff/intro/requests/${id}/accept`, { method: 'PUT' });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '수락하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || m.acceptFailed);
       router.refresh();
       router.push(`/chat/${json.data.roomId}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '수락하지 못했어요.');
+      setError(e instanceof Error ? e.message : m.acceptFailed);
       setBusy(null);
     }
   }
 
   async function decline(id: string) {
-    if (!window.confirm('이 신청을 거절할까요? 상대에게는 알려지지 않아요.')) return;
+    if (!window.confirm(m.declineConfirm)) return;
     setBusy(id);
     setError(null);
     try {
       const res = await fetch(`/api/bff/intro/requests/${id}/decline`, { method: 'PUT' });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '거절하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || m.declineFailed);
       setItems((prev) => prev.filter((r) => r.id !== id));
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '거절하지 못했어요.');
+      setError(e instanceof Error ? e.message : m.declineFailed);
     } finally {
       setBusy(null);
     }
@@ -57,7 +61,7 @@ export default function IntroRequestInbox({ requests }: { requests: IntroRequest
   if (items.length === 0) {
     return (
       <p className="rounded-card border border-line-soft bg-surface px-5 py-10 text-center text-sm text-muted">
-        아직 받은 신청이 없어요.
+        {m.noRequests}
       </p>
     );
   }
@@ -77,29 +81,29 @@ export default function IntroRequestInbox({ requests }: { requests: IntroRequest
           return (
             <li key={req.id} className="rounded-card border border-line-soft bg-surface px-5 py-4">
               <p className="text-[12.5px] text-muted">
-                {req.introHeadline ? `"${req.introHeadline}" 에 온 신청` : '내 소개에 온 신청'}
+                {req.introHeadline ? m.requestFor(req.introHeadline) : m.requestForMine}
               </p>
 
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="text-[14.5px] font-bold">
-                  {[genderLabel(req.gender), ageFromBirthYear(req.birthYear)]
+                  {[genderLabel(req.gender, lang), ageFromBirthYear(req.birthYear, undefined, lang)]
                     .filter(Boolean)
                     .join(' · ')}
                 </span>
                 {req.region ? <span className="text-[13.5px] text-ink-3">{req.region}</span> : null}
-                {req.job ? <span className="text-[13.5px] text-ink-3">{jobLabel(req.job)}</span> : null}
+                {req.job ? <span className="text-[13.5px] text-ink-3">{jobLabel(req.job, lang)}</span> : null}
                 {badge ? (
                   <span
                     className="rounded-md px-1.5 py-0.5 text-[11.5px] font-bold"
                     style={{ background: badge.bg, color: badge.fg }}
                   >
-                    {badge.label}
+                    {m[badge.key]}
                   </span>
                 ) : null}
                 {req.memberMonths > 0 ? (
-                  <span className="text-[12px] text-muted">가입 {req.memberMonths}개월</span>
+                  <span className="text-[12px] text-muted">{m.memberFor(req.memberMonths)}</span>
                 ) : null}
-                <span className="ml-auto text-[12px] text-muted">{timeAgo(req.createdAt)}</span>
+                <span className="ml-auto text-[12px] text-muted">{timeAgo(req.createdAt, undefined, lang)}</span>
               </div>
 
               <p className="mt-2.5 rounded-[10px] bg-field px-3.5 py-3 text-[15px] leading-relaxed whitespace-pre-wrap">
@@ -113,7 +117,7 @@ export default function IntroRequestInbox({ requests }: { requests: IntroRequest
                   disabled={working}
                   className="flex h-11 items-center rounded-control bg-brand-strong px-4 text-[15px] font-semibold text-white hover:bg-brand-ink-hover disabled:opacity-55"
                 >
-                  {working ? '처리 중…' : '수락하고 채팅 열기'}
+                  {working ? all.group.processing : m.acceptOpen}
                 </button>
                 <button
                   type="button"
@@ -121,7 +125,7 @@ export default function IntroRequestInbox({ requests }: { requests: IntroRequest
                   disabled={working}
                   className="flex h-11 items-center rounded-control border border-line-strong px-4 text-[15px] font-semibold text-ink-3 hover:bg-field disabled:opacity-55"
                 >
-                  거절
+                  {m.decline}
                 </button>
               </div>
             </li>

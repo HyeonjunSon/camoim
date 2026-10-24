@@ -5,6 +5,8 @@ import { useState } from 'react';
 import Field, { inputClass } from '../Field';
 import { INTRO_GENDERS, INTRO_JOBS } from '@/lib/intro';
 import type { IntroMeta } from '@/lib/types';
+import { useLang, useMessages } from '@/lib/i18n/client';
+import { labelFor } from '@/lib/i18n/lang';
 
 /**
  * Asking to talk. The snapshot sent here is what the recipient sees about the
@@ -30,6 +32,9 @@ export default function IntroRequestForm({
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [remaining, setRemaining] = useState(meta.dailyRemaining);
+  const all = useMessages();
+  const m = all.intro;
+  const lang = useLang();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,12 +55,12 @@ export default function IntroRequestForm({
       const json = await res.json();
       // 429 is the daily limit, 400 an already-sent request; both carry the
       // API's own wording.
-      if (!res.ok || !json.success) throw new Error(json.message || '신청하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || m.requestFailed);
       setRemaining(json.data?.dailyRemaining ?? remaining - 1);
       setSent(true);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '신청하지 못했어요.');
+      setError(e instanceof Error ? e.message : m.requestFailed);
     } finally {
       setBusy(false);
     }
@@ -64,11 +69,11 @@ export default function IntroRequestForm({
   if (sent) {
     return (
       <div className="rounded-card border border-line-soft bg-surface px-5 py-6">
-        <p className="text-[15px] font-semibold">신청을 보냈어요</p>
+        <p className="text-[15px] font-semibold">{m.sent}</p>
         <p className="mt-2 text-[14px] leading-relaxed text-muted">
-          상대가 수락하면 익명 채팅이 열리고 알림이 가요. 거절하면 따로 알려드리지 않아요.
+          {m.sentBody}
         </p>
-        <p className="mt-3 text-[13px] text-muted">오늘 {remaining}회 더 신청할 수 있어요.</p>
+        <p className="mt-3 text-[13px] text-muted">{m.moreToday(remaining)}</p>
       </div>
     );
   }
@@ -76,23 +81,23 @@ export default function IntroRequestForm({
   if (remaining <= 0) {
     return (
       <div className="rounded-card border border-line-soft bg-surface px-5 py-6">
-        <p className="text-[15px] font-semibold">오늘 신청 횟수를 다 썼어요</p>
-        <p className="mt-2 text-[14px] text-muted">내일 다시 신청할 수 있어요.</p>
+        <p className="text-[15px] font-semibold">{m.limitTitle}</p>
+        <p className="mt-2 text-[14px] text-muted">{m.limitBody}</p>
       </div>
     );
   }
 
   return (
     <form onSubmit={submit} className="rounded-card border border-line-soft bg-surface px-5 py-6 sm:px-6">
-      <h2 className="text-[15px] font-bold">대화 신청하기</h2>
+      <h2 className="text-[15px] font-bold">{m.requestTitle}</h2>
       <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
-        아래 정보와 한마디만 상대에게 보여요. 닉네임이나 프로필은 전달되지 않아요.
+        {m.requestIntro}
       </p>
 
       <div className="mt-4 flex flex-col gap-4">
         <div className="flex flex-wrap gap-3">
           <div className="min-w-[120px] flex-1">
-            <Field id="req-gender" label="성별">
+            <Field id="req-gender" label={m.gender}>
               <select
                 id="req-gender"
                 required
@@ -100,17 +105,17 @@ export default function IntroRequestForm({
                 onChange={(e) => setGender(e.target.value)}
                 className={inputClass}
               >
-                <option value="">선택</option>
+                <option value="">{m.pick}</option>
                 {INTRO_GENDERS.map((g) => (
                   <option key={g.key} value={g.key}>
-                    {g.label}
+                    {labelFor(g, lang)}
                   </option>
                 ))}
               </select>
             </Field>
           </div>
           <div className="min-w-[120px] flex-1">
-            <Field id="req-birthYear" label="출생연도">
+            <Field id="req-birthYear" label={m.birthYear}>
               <input
                 id="req-birthYear"
                 required
@@ -127,25 +132,25 @@ export default function IntroRequestForm({
 
         <div className="flex flex-wrap gap-3">
           <div className="min-w-[140px] flex-1">
-            <Field id="req-region" label="지역">
+            <Field id="req-region" label={m.region}>
               <input
                 id="req-region"
                 required
                 maxLength={40}
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
-                placeholder="노스욕"
+                placeholder={m.regionPlaceholder}
                 className={inputClass}
               />
             </Field>
           </div>
           <div className="min-w-[140px] flex-1">
-            <Field id="req-job" label="직업 (선택)">
+            <Field id="req-job" label={m.jobOptional}>
               <select id="req-job" value={job} onChange={(e) => setJob(e.target.value)} className={inputClass}>
-                <option value="">선택 안 함</option>
+                <option value="">{all.common.none}</option>
                 {INTRO_JOBS.map((j) => (
                   <option key={j.key} value={j.key}>
-                    {j.label}
+                    {labelFor(j, lang)}
                   </option>
                 ))}
               </select>
@@ -153,7 +158,7 @@ export default function IntroRequestForm({
           </div>
         </div>
 
-        <Field id="req-message" label="한마디" hint="150자까지 보낼 수 있어요.">
+        <Field id="req-message" label={m.message} hint={m.messageHint}>
           <textarea
             id="req-message"
             required
@@ -161,7 +166,7 @@ export default function IntroRequestForm({
             onChange={(e) => setMessage(e.target.value)}
             rows={3}
             maxLength={150}
-            placeholder="어떤 점이 좋았는지, 어떤 사람인지 짧게 적어주세요"
+            placeholder={m.messagePlaceholder}
             className="w-full resize-none rounded-control border border-line-strong px-3.5 py-2.5 text-[15px] outline-none focus:border-brand-strong"
           />
         </Field>
@@ -178,7 +183,7 @@ export default function IntroRequestForm({
         disabled={busy || !gender || !birthYear || !region.trim() || !message.trim()}
         className="mt-4 flex h-12 w-full items-center justify-center rounded-control bg-brand-strong text-base font-semibold text-white hover:bg-brand-ink-hover disabled:opacity-55"
       >
-        {busy ? '보내는 중…' : `신청 보내기 (오늘 ${remaining}회 남음)`}
+        {busy ? all.report.sending : m.sendRequest(remaining)}
       </button>
     </form>
   );

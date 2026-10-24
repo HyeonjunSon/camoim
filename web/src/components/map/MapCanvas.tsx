@@ -2,6 +2,7 @@
 
 import { APIProvider, AdvancedMarker, Map, useMap } from '@vis.gl/react-google-maps';
 import { useEffect } from 'react';
+import { useMessages } from '@/lib/i18n/client';
 
 export type MapPin = {
   id: string;
@@ -53,16 +54,17 @@ export default function MapCanvas({
   onSelect: (id: string) => void;
   onCentreChange: (lat: number, lng: number) => void;
 }) {
+  const t = useMessages().map;
   // A missing key is a configuration gap, not an error state: the list beside
   // this panel still works, so say so plainly rather than rendering a grey box.
   if (!MAPS_KEY) {
     return (
       <div className="flex h-full min-h-[240px] items-center justify-center bg-[#EEF0EC] px-6">
         <p className="max-w-[320px] text-center text-sm leading-relaxed text-ink-3">
-          지도를 불러올 수 없어요.
+          {t.cantLoad}
           <br />
           <span className="text-muted">
-            Google Maps 키가 설정되지 않았어요. 왼쪽 목록은 그대로 쓸 수 있어요.
+            {t.noKey}
           </span>
         </p>
       </div>

@@ -5,6 +5,7 @@ import GroupCommunityForm from '@/components/GroupCommunityForm';
 import { ApiError, apiFetch } from '@/lib/api';
 import { getCurrentUser } from '@/lib/user';
 import type { GroupDetail } from '@/lib/types';
+import { getI18n } from '@/lib/i18n/server';
 
 export const metadata: Metadata = {
   title: '모임 설정',
@@ -27,13 +28,14 @@ export default async function EditGroupPage({ params }: Props) {
   }
 
   const isOwner = group.myMembership?.role === 'owner' && group.myMembership.status === 'active';
+  const { m } = await getI18n();
   // The links card is open to co-owners; everything else is the owner's alone.
   if (!isOwner && !group.canEditCommunity) notFound();
 
   return (
     <>
       <main className="mx-auto max-w-[760px] px-4 pb-20 pt-7 sm:px-6">
-        <h1 className="text-2xl font-bold -tracking-[0.4px]">모임 설정</h1>
+        <h1 className="text-2xl font-bold -tracking-[0.4px]">{m.group.settings}</h1>
         <p className="mt-1.5 text-[14.5px] text-muted">{group.name}</p>
 
         {isOwner ? (
@@ -43,9 +45,9 @@ export default async function EditGroupPage({ params }: Props) {
         ) : null}
 
         <section className="mt-5 rounded-card border border-line-soft bg-surface px-5 py-6 sm:px-7">
-          <h2 className="text-lg font-bold">모임 링크</h2>
+          <h2 className="text-lg font-bold">{m.group.links}</h2>
           <p className="mt-1 text-[13.5px] text-muted">
-            인스타그램, 오픈채팅, 디스코드 링크를 걸어두면 멤버들이 찾기 쉬워요.
+            {m.group.linksIntro}
           </p>
           <div className="mt-4">
             <GroupCommunityForm groupId={group.id} community={group.community} />

@@ -10,14 +10,14 @@
  * So the city filter has to be built from whichever mode the map is in.
  */
 export const BUSINESS_CATEGORIES = [
-  { key: 'food', label: '음식점', color: '#C2410C', soft: '#FFF4ED' },
-  { key: 'cafe', label: '카페·베이커리', color: '#B45309', soft: '#FEF3C7' },
-  { key: 'mart', label: '마트', color: '#047857', soft: '#ECFDF5' },
-  { key: 'hair', label: '미용실', color: '#6D28D9', soft: '#F5F3FF' },
-  { key: 'clinic', label: '병원·한의원', color: '#BE123C', soft: '#FFF1F2' },
+  { key: 'food', label: '음식점', labelEn: 'Restaurants', color: '#C2410C', soft: '#FFF4ED' },
+  { key: 'cafe', label: '카페·베이커리', labelEn: 'Café & Bakery', color: '#B45309', soft: '#FEF3C7' },
+  { key: 'mart', label: '마트', labelEn: 'Grocery', color: '#047857', soft: '#ECFDF5' },
+  { key: 'hair', label: '미용실', labelEn: 'Hair Salon', color: '#6D28D9', soft: '#F5F3FF' },
+  { key: 'clinic', label: '병원·한의원', labelEn: 'Clinic', color: '#BE123C', soft: '#FFF1F2' },
   // `realty` exists in the server enum but is deliberately left out of the
   // picker: individual agent pins cluttered the map, and the app omits it too.
-  { key: 'etc', label: '기타', color: '#374151', soft: '#F3F4F6' },
+  { key: 'etc', label: '기타', labelEn: 'Other', color: '#374151', soft: '#F3F4F6' },
 ] as const;
 
 export type BusinessCategory = (typeof BUSINESS_CATEGORIES)[number]['key'];
@@ -41,23 +41,23 @@ export function categoryLabel(key: string | undefined, lang: 'ko' | 'en' = 'ko')
 
 export function categoryOf(key: string | undefined) {
   return (
-    CATEGORY_MAP.get(key ?? '') ?? { key: 'etc', label: '기타', color: '#374151', soft: '#F3F4F6' }
+    CATEGORY_MAP.get(key ?? '') ?? { key: 'etc', label: '기타', labelEn: 'Other', color: '#374151', soft: '#F3F4F6' }
   );
 }
 
 /** Camera presets, not a restriction — a stay's address can be anywhere. */
 export const MAP_CITIES = [
-  { key: 'toronto', label: '토론토', lat: 43.6532, lng: -79.3832 },
-  { key: 'vancouver', label: '밴쿠버', lat: 49.2827, lng: -123.1207 },
-  { key: 'montreal', label: '몬트리올', lat: 45.5019, lng: -73.5674 },
-  { key: 'calgary', label: '캘거리', lat: 51.0447, lng: -114.0719 },
-  { key: 'edmonton', label: '에드먼턴', lat: 53.5461, lng: -113.4938 },
-  { key: 'ottawa', label: '오타와', lat: 45.4215, lng: -75.6972 },
-  { key: 'waterloo', label: '워털루', lat: 43.4643, lng: -80.5204 },
-  { key: 'winnipeg', label: '위니펙', lat: 49.8951, lng: -97.1384 },
-  { key: 'saskatoon', label: '사스카툰', lat: 52.1332, lng: -106.67 },
-  { key: 'london', label: '런던(ON)', lat: 42.9849, lng: -81.2453 },
-  { key: 'halifax', label: '핼리팩스', lat: 44.6488, lng: -63.5752 },
+  { key: 'toronto', label: '토론토', labelEn: 'Toronto', lat: 43.6532, lng: -79.3832 },
+  { key: 'vancouver', label: '밴쿠버', labelEn: 'Vancouver', lat: 49.2827, lng: -123.1207 },
+  { key: 'montreal', label: '몬트리올', labelEn: 'Montreal', lat: 45.5019, lng: -73.5674 },
+  { key: 'calgary', label: '캘거리', labelEn: 'Calgary', lat: 51.0447, lng: -114.0719 },
+  { key: 'edmonton', label: '에드먼턴', labelEn: 'Edmonton', lat: 53.5461, lng: -113.4938 },
+  { key: 'ottawa', label: '오타와', labelEn: 'Ottawa', lat: 45.4215, lng: -75.6972 },
+  { key: 'waterloo', label: '워털루', labelEn: 'Waterloo', lat: 43.4643, lng: -80.5204 },
+  { key: 'winnipeg', label: '위니펙', labelEn: 'Winnipeg', lat: 49.8951, lng: -97.1384 },
+  { key: 'saskatoon', label: '사스카툰', labelEn: 'Saskatoon', lat: 52.1332, lng: -106.67 },
+  { key: 'london', label: '런던(ON)', labelEn: 'London, ON', lat: 42.9849, lng: -81.2453 },
+  { key: 'halifax', label: '핼리팩스', labelEn: 'Halifax', lat: 44.6488, lng: -63.5752 },
 ] as const;
 
 export const DEFAULT_MAP_CITY = 'toronto';
@@ -107,7 +107,7 @@ export function mapCitySlugFor(city: string | undefined): string | null {
 
 /** Reasons the business report endpoint accepts. */
 export const BUSINESS_REPORT_REASONS = [
-  { value: 'closed', label: '폐업했어요' },
-  { value: 'info', label: '정보가 사실과 달라요' },
-  { value: 'spam', label: '스팸·중복 등록이에요' },
+  { value: 'closed', label: '폐업했어요', labelEn: 'Permanently closed' },
+  { value: 'info', label: '정보가 사실과 달라요', labelEn: 'Address or phone is incorrect' },
+  { value: 'spam', label: '스팸·중복 등록이에요', labelEn: 'Spam or duplicate' },
 ] as const;

@@ -5,6 +5,7 @@ import GroupMemberList from '@/components/GroupMemberList';
 import { ApiError, apiFetch, apiFetchOrNull } from '@/lib/api';
 import { getCurrentUser } from '@/lib/user';
 import type { GroupDetail, GroupMember } from '@/lib/types';
+import { getI18n } from '@/lib/i18n/server';
 
 export const metadata: Metadata = {
   title: '모임 멤버',
@@ -31,6 +32,7 @@ export default async function GroupMembersPage({ params }: Props) {
   if (!isMember) notFound();
   const canManage = group.myMembership?.role === 'owner' || group.myMembership?.role === 'manager';
 
+  const { m: all } = await getI18n();
   const [members, pending] = await Promise.all([
     apiFetchOrNull<GroupMember[]>(`/groups/${id}/members?status=active`),
     canManage
@@ -41,9 +43,9 @@ export default async function GroupMembersPage({ params }: Props) {
   return (
     <>
       <main className="mx-auto max-w-[760px] px-4 pb-20 pt-6 sm:px-6">
-        <nav aria-label="경로" className="mb-4 flex gap-2 text-[13.5px] text-muted">
+        <nav aria-label={all.post.breadcrumb} className="mb-4 flex gap-2 text-[13.5px] text-muted">
           <Link href="/groups" className="hover:text-ink-3">
-            모임
+            {all.group.title}
           </Link>
           <span aria-hidden>›</span>
           <Link href={`/groups/${group.id}`} className="hover:text-ink-3">
@@ -51,9 +53,9 @@ export default async function GroupMembersPage({ params }: Props) {
           </Link>
         </nav>
 
-        <h1 className="text-2xl font-bold -tracking-[0.4px]">멤버</h1>
+        <h1 className="text-2xl font-bold -tracking-[0.4px]">{all.group.membersTitle}</h1>
         <p className="mt-1.5 text-[14.5px] text-muted">
-          {group.memberCount}/{group.maxMembers}명
+          {all.group.capacityShort(group.memberCount, group.maxMembers)}
         </p>
 
         <div className="mt-6">

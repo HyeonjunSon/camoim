@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useMessages } from '@/lib/i18n/client';
 
 type Candidate = { id: string; nickname: string };
 
@@ -15,6 +16,8 @@ export default function LeaderHandover({ candidates }: { candidates: Candidate[]
   const [target, setTarget] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const all = useMessages();
+  const m = all.school;
 
   async function call(path: string, method: 'PUT' | 'DELETE', body?: unknown) {
     setBusy(true);
@@ -26,23 +29,23 @@ export default function LeaderHandover({ candidates }: { candidates: Candidate[]
         body: body ? JSON.stringify(body) : undefined,
       });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '처리하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || all.common.failed);
       router.refresh();
       router.push('/school');
     } catch (e) {
-      setError(e instanceof Error ? e.message : '처리하지 못했어요.');
+      setError(e instanceof Error ? e.message : all.common.failed);
       setBusy(false);
     }
   }
 
   function handover() {
-    const name = candidates.find((c) => c.id === target)?.nickname ?? '이 회원';
-    if (!window.confirm(`${name}님에게 학생회장을 넘길까요? 넘기면 바로 권한이 사라져요.`)) return;
+    const name = candidates.find((c) => c.id === target)?.nickname ?? m.thisMember;
+    if (!window.confirm(m.handoverConfirm(name))) return;
     call('/leader/transfer', 'PUT', { newUserId: target });
   }
 
   function resign() {
-    if (!window.confirm('학생회장에서 사임할까요? 학교의 학생회장 자리가 비게 돼요.')) return;
+    if (!window.confirm(m.resignConfirm)) return;
     call('/leader', 'DELETE');
   }
 
@@ -50,7 +53,7 @@ export default function LeaderHandover({ candidates }: { candidates: Candidate[]
     <div className="flex flex-col gap-4">
       <div>
         <label htmlFor="next-leader" className="block text-[13.5px] font-semibold text-ink-3">
-          다음 학생회장
+          {m.next}
         </label>
         <div className="mt-1.5 flex flex-wrap gap-2">
           <select
@@ -59,7 +62,7 @@ export default function LeaderHandover({ candidates }: { candidates: Candidate[]
             onChange={(e) => setTarget(e.target.value)}
             className="h-12 min-w-[200px] flex-1 rounded-control border border-line-strong bg-surface px-3.5 text-[15px] outline-none focus:border-brand-strong"
           >
-            <option value="">같은 학교 인증 회원 중에서 고르기</option>
+            <option value="">{m.pickMember}</option>
             {candidates.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.nickname}
@@ -72,12 +75,12 @@ export default function LeaderHandover({ candidates }: { candidates: Candidate[]
             disabled={busy || !target}
             className="flex h-12 items-center rounded-control bg-brand-strong px-4 text-[15px] font-semibold text-white hover:bg-brand-ink-hover disabled:opacity-55"
           >
-            인수인계
+            {m.handover}
           </button>
         </div>
         {candidates.length === 0 ? (
           <p className="mt-1.5 text-xs text-muted">
-            넘길 수 있는 인증 회원이 아직 없어요.
+            {m.noCandidates}
           </p>
         ) : null}
       </div>
@@ -89,7 +92,7 @@ export default function LeaderHandover({ candidates }: { candidates: Candidate[]
           disabled={busy}
           className="flex h-11 items-center rounded-control border border-line-strong px-4 text-[14.5px] font-semibold text-muted hover:bg-field hover:text-danger disabled:opacity-55"
         >
-          학생회장 사임
+          {m.resign}
         </button>
       </div>
 

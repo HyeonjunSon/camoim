@@ -6,6 +6,8 @@ import { apiFetchOrNull } from '@/lib/api';
 import { getCurrentUser } from '@/lib/user';
 import { INTRO_GENDERS } from '@/lib/intro';
 import type { IntroMeta, IntroPost } from '@/lib/types';
+import { getI18n } from '@/lib/i18n/server';
+import { labelFor } from '@/lib/i18n/lang';
 
 export const metadata: Metadata = {
   title: '소개팅',
@@ -18,7 +20,8 @@ type Props = { searchParams: Promise<{ gender?: string; region?: string; proxyOn
 export default async function IntroPage({ searchParams }: Props) {
   const sp = await searchParams;
   // proxy.ts gates /intro, so a signed-in user is expected.
-  const user = await getCurrentUser();
+  const [user, { lang, m: all }] = await Promise.all([getCurrentUser(), getI18n()]);
+  const m = all.intro;
 
   const meta = await apiFetchOrNull<IntroMeta>('/intro/meta');
 
@@ -63,9 +66,9 @@ export default async function IntroPage({ searchParams }: Props) {
       <main className="mx-auto max-w-[1000px] px-4 pb-20 pt-7 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold -tracking-[0.4px]">소개팅</h1>
+            <h1 className="text-2xl font-bold -tracking-[0.4px]">{m.title}</h1>
             <p className="mt-1.5 text-[14.5px] text-muted">
-              만 19세 이상 회원이면 누구나 이용할 수 있어요. 닉네임은 공개되지 않아요.
+              {m.intro}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -73,7 +76,7 @@ export default async function IntroPage({ searchParams }: Props) {
               href="/intro/mine"
               className="flex h-11 items-center gap-1.5 rounded-control border border-line-strong px-4 text-[15px] font-semibold text-ink-3 hover:bg-field"
             >
-              내 소개·신청
+              {m.mine}
               {pendingTotal > 0 ? (
                 <span className="rounded-full bg-danger px-1.5 text-[11px] font-bold text-white">
                   {pendingTotal}
@@ -84,13 +87,13 @@ export default async function IntroPage({ searchParams }: Props) {
               href="/intro/new"
               className="flex h-11 items-center rounded-control bg-brand-strong px-4 text-[15px] font-semibold text-white hover:bg-brand-ink-hover"
             >
-              소개 올리기
+              {m.post}
             </Link>
           </div>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          {[{ key: '', label: '전체' }, ...INTRO_GENDERS].map((g) => {
+          {[{ key: '', label: all.common.all }, ...INTRO_GENDERS].map((g) => {
             const on = g.key === gender;
             return (
               <Link
@@ -103,7 +106,7 @@ export default async function IntroPage({ searchParams }: Props) {
                     : 'border-line-strong bg-surface text-ink-3 hover:bg-field'
                 }`}
               >
-                {g.label}
+                {labelFor(g, lang)}
               </Link>
             );
           })}
@@ -116,23 +119,23 @@ export default async function IntroPage({ searchParams }: Props) {
                 : 'border-line-strong bg-surface text-ink-3 hover:bg-field'
             }`}
           >
-            지인 소개만
+            {m.proxyOnly}
           </Link>
           <span className="ml-auto text-[13px] text-muted">
-            오늘 신청 {meta.dailyRemaining}회 남음
+            {m.remainingToday(meta.dailyRemaining)}
           </span>
         </div>
 
         <form action="/intro" className="mt-3 flex h-11 items-center gap-2 rounded-control bg-field px-3.5">
           <label htmlFor="intro-region" className="sr-only-label">
-            지역으로 찾기
+            {m.searchRegion}
           </label>
           <input
             id="intro-region"
             name="region"
             type="search"
             defaultValue={region}
-            placeholder="지역으로 찾기 (예: 노스욕)"
+            placeholder={m.searchRegionPlaceholder}
             className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted"
           />
           {gender ? <input type="hidden" name="gender" value={gender} /> : null}
@@ -141,8 +144,8 @@ export default async function IntroPage({ searchParams }: Props) {
         {list.length === 0 ? (
           <p className="mt-6 rounded-card border border-line-soft bg-surface px-5 py-14 text-center text-sm text-muted">
             {region || gender || proxyOnly
-              ? '조건에 맞는 소개가 없어요.'
-              : '아직 올라온 소개가 없어요. 첫 소개를 올려보세요.'}
+              ? m.noMatch
+              : m.noneYet}
           </p>
         ) : (
           <ul className="mt-5 grid gap-4 sm:grid-cols-2">

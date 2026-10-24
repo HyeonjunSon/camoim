@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: '이용약관' };
 export default function TermsPage() {
   return (
     <LegalDocument
-      title="이용약관"
+      kind="terms"
       version={TERMS_VERSION}
       effectiveDate={TERMS_EFFECTIVE_DATE}
       body={TERMS_OF_SERVICE}

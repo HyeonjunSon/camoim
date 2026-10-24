@@ -6,12 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { GroupMember } from '@/lib/types';
 import { initial, timeAgo } from '@/lib/format';
-
-const ROLE_LABELS: Record<string, string> = {
-  owner: '모임장',
-  manager: '부모임장',
-  member: '멤버',
-};
+import { useLang, useMessages } from '@/lib/i18n/client';
 
 export default function GroupMemberList({
   groupId,
@@ -31,6 +26,9 @@ export default function GroupMemberList({
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const all = useMessages();
+  const m = all.group;
+  const lang = useLang();
 
   async function act(userId: string, path: string, method: 'PUT' | 'DELETE', body?: unknown) {
     setBusy(userId);
@@ -42,10 +40,10 @@ export default function GroupMemberList({
         body: body ? JSON.stringify(body) : undefined,
       });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '처리하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || all.common.failed);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '처리하지 못했어요.');
+      setError(e instanceof Error ? e.message : all.common.failed);
     } finally {
       setBusy(null);
     }
@@ -92,14 +90,14 @@ export default function GroupMemberList({
                       : 'bg-field text-ink-3'
                 }`}
               >
-                {ROLE_LABELS[member.role]}
+                {m.roles[member.role]}
               </span>
             ) : null}
             {member.verified && member.university ? (
               <span className="text-[11.5px] text-muted">{member.university}</span>
             ) : null}
           </div>
-          <p className="text-[12.5px] text-muted">{timeAgo(member.joinedAt)} 가입</p>
+          <p className="text-[12.5px] text-muted">{m.joinedAgo(timeAgo(member.joinedAt, undefined, lang))}</p>
         </div>
 
         {canManage && !me ? (
@@ -112,7 +110,7 @@ export default function GroupMemberList({
                   disabled={working}
                   className="h-9 rounded-control bg-brand-strong px-3 text-sm font-semibold text-white disabled:opacity-55"
                 >
-                  승인
+                  {m.approve}
                 </button>
                 <button
                   type="button"
@@ -120,7 +118,7 @@ export default function GroupMemberList({
                   disabled={working}
                   className="h-9 rounded-control border border-line-strong px-3 text-sm font-semibold text-ink-3 hover:bg-field disabled:opacity-55"
                 >
-                  거절
+                  {m.reject}
                 </button>
               </>
             ) : member.role !== 'owner' ? (
@@ -136,19 +134,19 @@ export default function GroupMemberList({
                     disabled={working}
                     className="h-9 rounded-control border border-line-strong px-3 text-sm font-semibold text-ink-3 hover:bg-field disabled:opacity-55"
                   >
-                    {member.role === 'manager' ? '부모임장 해제' : '부모임장 임명'}
+                    {member.role === 'manager' ? m.unsetManager : m.setManager}
                   </button>
                 ) : null}
                 <button
                   type="button"
                   onClick={() => {
-                    if (!window.confirm(`${member.nickname}님을 모임에서 내보낼까요?`)) return;
+                    if (!window.confirm(m.kickConfirm(member.nickname))) return;
                     act(member.id, `/members/${member.id}`, 'DELETE');
                   }}
                   disabled={working}
                   className="h-9 rounded-control px-3 text-sm font-semibold text-muted hover:bg-field hover:text-danger disabled:opacity-55"
                 >
-                  내보내기
+                  {m.kick}
                 </button>
               </>
             ) : null}
@@ -168,7 +166,7 @@ export default function GroupMemberList({
 
       {canManage && pending.length > 0 ? (
         <section className="mb-5">
-          <h2 className="text-lg font-bold">가입 신청 {pending.length}</h2>
+          <h2 className="text-lg font-bold">{m.pending(pending.length)}</h2>
           <ul className="mt-3 overflow-hidden rounded-card border border-line-soft bg-surface">
             {pending.map((m) => (
               <Row key={m.id} member={m} isPending />
@@ -178,7 +176,7 @@ export default function GroupMemberList({
       ) : null}
 
       <section>
-        <h2 className="text-lg font-bold">멤버 {members.length}</h2>
+        <h2 className="text-lg font-bold">{m.memberCount(members.length)}</h2>
         <ul className="mt-3 overflow-hidden rounded-card border border-line-soft bg-surface">
           {members.map((m) => (
             <Row key={m.id} member={m} isPending={false} />

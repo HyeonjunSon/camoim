@@ -6,6 +6,8 @@ import { useRef, useState } from 'react';
 import Field, { inputClass } from '../Field';
 import { INTRO_CONTACT_TYPES, INTRO_EXPIRY_DAYS, INTRO_GENDERS, INTRO_JOBS } from '@/lib/intro';
 import type { IntroMeta } from '@/lib/types';
+import { useLang, useMessages } from '@/lib/i18n/client';
+import { labelFor } from '@/lib/i18n/lang';
 
 export default function IntroForm({ meta }: { meta: IntroMeta }) {
   const router = useRouter();
@@ -32,6 +34,9 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const all = useMessages();
+  const m = all.intro;
+  const lang = useLang();
 
   async function upload(file: File) {
     setUploading(true);
@@ -43,11 +48,11 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
       const json = await res.json();
       // This endpoint answers with a bare `url`, not `data.url`.
       if (!res.ok || !json.success || !json.url) {
-        throw new Error(json.message || '업로드에 실패했어요.');
+        throw new Error(json.message || all.common.uploadFailed);
       }
       setPhoto(json.url as string);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '업로드에 실패했어요.');
+      setError(e instanceof Error ? e.message : all.common.uploadFailed);
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -83,11 +88,11 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
         }),
       });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '등록하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || m.postFailed);
       router.refresh();
       router.replace(`/intro/${json.data.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '등록하지 못했어요.');
+      setError(e instanceof Error ? e.message : m.postFailed);
       setBusy(false);
     }
   }
@@ -95,7 +100,7 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
       <fieldset>
-        <legend className="text-[13.5px] font-semibold text-ink-3">누구를 소개하나요?</legend>
+        <legend className="text-[13.5px] font-semibold text-ink-3">{m.who}</legend>
         <div className="mt-2 flex flex-col gap-1.5">
           <label className="flex items-start gap-2.5 text-[15px]">
             <input
@@ -106,8 +111,8 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
               className="mt-1 size-4.5 accent-brand-strong"
             />
             <span>
-              내 소개
-              <span className="block text-[13px] text-muted">직접 올리는 소개예요.</span>
+              {m.self}
+              <span className="block text-[13px] text-muted">{m.selfHint}</span>
             </span>
           </label>
           <label className="flex items-start gap-2.5 text-[15px]">
@@ -119,9 +124,9 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
               className="mt-1 size-4.5 accent-brand-strong"
             />
             <span>
-              지인 소개
+              {m.proxy}
               <span className="block text-[13px] text-muted">
-                소개할 분의 동의를 먼저 받아야 해요.
+                {m.proxyHint}
               </span>
             </span>
           </label>
@@ -137,9 +142,9 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
             className="mt-1 size-4.5 accent-brand-strong"
           />
           <span>
-            소개할 분의 동의를 받았어요
+            {m.proxyConsent}
             <span className="block text-[13px] text-muted">
-              동의 없이 올리면 신고 대상이 될 수 있어요.
+              {m.proxyConsentHint}
             </span>
           </span>
         </label>
@@ -147,7 +152,7 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
 
       <div className="flex flex-wrap gap-3">
         <div className="min-w-[120px] flex-1">
-          <Field id="intro-gender" label="성별">
+          <Field id="intro-gender" label={m.gender}>
             <select
               id="intro-gender"
               required
@@ -155,17 +160,17 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
               onChange={(e) => setGender(e.target.value)}
               className={inputClass}
             >
-              <option value="">선택</option>
+              <option value="">{m.pick}</option>
               {INTRO_GENDERS.map((g) => (
                 <option key={g.key} value={g.key}>
-                  {g.label}
+                  {labelFor(g, lang)}
                 </option>
               ))}
             </select>
           </Field>
         </div>
         <div className="min-w-[120px] flex-1">
-          <Field id="intro-birthYear" label="출생연도">
+          <Field id="intro-birthYear" label={m.birthYear}>
             <input
               id="intro-birthYear"
               required
@@ -179,7 +184,7 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
           </Field>
         </div>
         <div className="min-w-[110px] flex-1">
-          <Field id="intro-height" label="키 (선택)">
+          <Field id="intro-height" label={m.heightOptional}>
             <input
               id="intro-height"
               maxLength={20}
@@ -194,25 +199,25 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
 
       <div className="flex flex-wrap gap-3">
         <div className="min-w-[160px] flex-1">
-          <Field id="intro-region" label="지역">
+          <Field id="intro-region" label={m.region}>
             <input
               id="intro-region"
               required
               maxLength={40}
               value={region}
               onChange={(e) => setRegion(e.target.value)}
-              placeholder="노스욕"
+              placeholder={m.regionPlaceholder}
               className={inputClass}
             />
           </Field>
         </div>
         <div className="min-w-[160px] flex-1">
-          <Field id="intro-job" label="직업 (선택)">
+          <Field id="intro-job" label={m.jobOptional}>
             <select id="intro-job" value={job} onChange={(e) => setJob(e.target.value)} className={inputClass}>
-              <option value="">선택 안 함</option>
+              <option value="">{all.common.none}</option>
               {INTRO_JOBS.map((j) => (
                 <option key={j.key} value={j.key}>
-                  {j.label}
+                  {labelFor(j, lang)}
                 </option>
               ))}
             </select>
@@ -222,8 +227,8 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
 
       <Field
         id="intro-headline"
-        label="한 줄 소개"
-        hint="실명, 회사명, 연락처는 적지 않아요. 60자까지 쓸 수 있어요."
+        label={m.headline}
+        hint={m.headlineHint}
       >
         <input
           id="intro-headline"
@@ -231,12 +236,12 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
           maxLength={60}
           value={headline}
           onChange={(e) => setHeadline(e.target.value)}
-          placeholder="주말엔 하이킹, 평일엔 집밥 해먹는 사람"
+          placeholder={m.headlinePlaceholder}
           className={inputClass}
         />
       </Field>
 
-      <Field id="intro-bio" label="자기소개 (선택)">
+      <Field id="intro-bio" label={m.bioOptional}>
         <textarea
           id="intro-bio"
           value={bio}
@@ -248,11 +253,11 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
       </Field>
 
       <fieldset className="rounded-control border border-line-strong px-3.5 py-3">
-        <legend className="px-1 text-[13.5px] font-semibold text-ink-3">찾는 사람 (선택)</legend>
+        <legend className="px-1 text-[13.5px] font-semibold text-ink-3">{m.preferOptional}</legend>
         <div className="flex flex-wrap gap-3">
           <div className="min-w-[110px] flex-1">
             <label htmlFor="intro-pref-min" className="block text-[12.5px] text-muted">
-              출생연도 (이후)
+              {m.birthFrom}
             </label>
             <input
               id="intro-pref-min"
@@ -266,7 +271,7 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
           </div>
           <div className="min-w-[110px] flex-1">
             <label htmlFor="intro-pref-max" className="block text-[12.5px] text-muted">
-              출생연도 (이전)
+              {m.birthTo}
             </label>
             <input
               id="intro-pref-max"
@@ -280,14 +285,14 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
           </div>
           <div className="min-w-[140px] flex-1">
             <label htmlFor="intro-pref-region" className="block text-[12.5px] text-muted">
-              지역
+              {m.region}
             </label>
             <input
               id="intro-pref-region"
               maxLength={40}
               value={preferredRegion}
               onChange={(e) => setPreferredRegion(e.target.value)}
-              placeholder="토론토 전체"
+              placeholder={m.preferRegionPlaceholder}
               className={`${inputClass} mt-1`}
             />
           </div>
@@ -295,22 +300,22 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
       </fieldset>
 
       <fieldset className="rounded-control border border-line-strong px-3.5 py-3">
-        <legend className="px-1 text-[13.5px] font-semibold text-ink-3">연락처 (선택)</legend>
+        <legend className="px-1 text-[13.5px] font-semibold text-ink-3">{m.contactOptional}</legend>
         <p className="text-[12.5px] leading-relaxed text-muted">
-          다른 사람에게는 보이지 않아요. 채팅이 열린 뒤 직접 알려줄 때 참고용으로만 저장돼요.
+          {m.contactNote}
         </p>
         <div className="mt-2 flex flex-wrap gap-3">
           <div className="min-w-[140px] flex-1">
             <select
-              aria-label="연락처 종류"
+              aria-label={m.contactType}
               value={contactType}
               onChange={(e) => setContactType(e.target.value)}
               className={inputClass}
             >
-              <option value="">선택 안 함</option>
+              <option value="">{all.common.none}</option>
               {INTRO_CONTACT_TYPES.map((c) => (
                 <option key={c.key} value={c.key}>
-                  {c.label}
+                  {labelFor(c, lang)}
                 </option>
               ))}
             </select>
@@ -318,11 +323,11 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
           {contactType ? (
             <div className="min-w-[160px] flex-1">
               <input
-                aria-label="연락처"
+                aria-label={m.contact}
                 maxLength={100}
                 value={contactValue}
                 onChange={(e) => setContactValue(e.target.value)}
-                placeholder={contactType === 'kakao' ? '카카오톡 ID' : '@instagram'}
+                placeholder={contactType === 'kakao' ? m.kakaoId : '@instagram'}
                 className={inputClass}
               />
             </div>
@@ -331,7 +336,7 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
       </fieldset>
 
       <div>
-        <span className="block text-[13.5px] font-semibold text-ink-3">사진 (선택)</span>
+        <span className="block text-[13.5px] font-semibold text-ink-3">{m.photoOptional}</span>
         <div className="mt-2 flex items-center gap-3">
           {photo ? (
             <div className="relative size-24 overflow-hidden rounded-xl bg-shade">
@@ -344,7 +349,7 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
             disabled={uploading}
             className="h-10 rounded-control border border-line-strong px-3.5 text-sm font-semibold text-ink-3 hover:bg-field disabled:opacity-55"
           >
-            {uploading ? '올리는 중…' : photo ? '사진 바꾸기' : '사진 올리기'}
+            {uploading ? all.business.uploading : photo ? all.group.changePhoto : all.group.uploadPhoto}
           </button>
           {photo ? (
             <button
@@ -352,7 +357,7 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
               onClick={() => setPhoto('')}
               className="text-[13px] text-muted hover:text-danger"
             >
-              제거
+              {all.group.remove}
             </button>
           ) : null}
         </div>
@@ -369,7 +374,7 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
       </div>
 
       <p className="rounded-[10px] bg-field px-3.5 py-3 text-[13px] leading-relaxed text-muted">
-        소개는 {INTRO_EXPIRY_DAYS}일 뒤 자동으로 내려가요. 닉네임과 프로필은 공개되지 않아요.
+        {m.expiry(INTRO_EXPIRY_DAYS)}
       </p>
 
       {error ? (
@@ -391,14 +396,14 @@ export default function IntroForm({ meta }: { meta: IntroMeta }) {
           }
           className="flex h-12 items-center rounded-control bg-brand-strong px-5 text-base font-semibold text-white hover:bg-brand-ink-hover disabled:opacity-55"
         >
-          {busy ? '올리는 중…' : '소개 올리기'}
+          {busy ? m.posting : m.post}
         </button>
         <button
           type="button"
           onClick={() => router.back()}
           className="flex h-12 items-center rounded-control border border-line-strong px-5 text-base font-semibold text-ink-3 hover:bg-field"
         >
-          취소
+          {all.common.cancel}
         </button>
       </div>
     </form>

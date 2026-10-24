@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import Field, { inputClass } from './Field';
 import { CITIES, cityLabel } from '@/lib/boards';
+import { useLang, useMessages } from '@/lib/i18n/client';
+import { labelFor } from '@/lib/i18n/lang';
 import { STAY_CONDITIONS, STAY_TYPE_OPTIONS } from '@/lib/stays';
 import type { StayDetail } from '@/lib/types';
 
@@ -36,6 +38,9 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const all = useMessages();
+  const m = all.stay;
+  const lang = useLang();
 
   function toggleCondition(key: string) {
     setConditions((prev) =>
@@ -53,11 +58,11 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
       const json = await res.json();
       // This endpoint answers with a bare `url`, not `data.url`.
       if (!res.ok || !json.success || !json.url) {
-        throw new Error(json.message || '업로드에 실패했어요.');
+        throw new Error(json.message || all.common.uploadFailed);
       }
       setImages((prev) => [...prev, json.url as string].slice(0, MAX_IMAGES));
     } catch (e) {
-      setError(e instanceof Error ? e.message : '업로드에 실패했어요.');
+      setError(e instanceof Error ? e.message : all.common.uploadFailed);
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -95,12 +100,12 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
         body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '저장하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || all.common.saveFailed);
 
       // `located` is false when geocoding failed: the listing saves, but it has
       // no pin, so the host should know before they go looking for it.
       if (!editing && json.located === false) {
-        setNotice('주소를 지도에서 찾지 못했어요. 등록은 됐지만 지도에 핀이 안 보일 수 있어요.');
+        setNotice(m.geocodeMiss);
         setTimeout(() => router.replace(`/stays/${json.data.id}`), 2500);
         return;
       }
@@ -108,30 +113,30 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
       router.refresh();
       router.replace(`/stays/${editing ? stay.id : json.data.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '저장하지 못했어요.');
+      setError(e instanceof Error ? e.message : all.common.saveFailed);
       setBusy(false);
     }
   }
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      <Field id="title" label="숙소 이름">
+      <Field id="title" label={m.name}>
         <input
           id="title"
           required
           maxLength={100}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="영앤핀치 콘도 세컨룸"
+          placeholder={m.namePlaceholder}
           className={inputClass}
         />
       </Field>
 
-      <Field id="stayType" label="숙소 유형">
+      <Field id="stayType" label={m.type}>
         <select id="stayType" value={stayType} onChange={(e) => setStayType(e.target.value)} className={inputClass}>
           {STAY_TYPE_OPTIONS.map((t) => (
             <option key={t.key} value={t.key}>
-              {t.label}
+              {labelFor(t, lang)}
             </option>
           ))}
         </select>
@@ -139,7 +144,7 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
 
       <div className="flex flex-wrap gap-4">
         <div className="min-w-[160px] flex-1">
-          <Field id="price" label="가격 (CAD)">
+          <Field id="price" label={m.price}>
             <input
               id="price"
               required
@@ -152,15 +157,15 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
           </Field>
         </div>
         <div className="min-w-[140px] flex-1">
-          <Field id="priceUnit" label="단위">
+          <Field id="priceUnit" label={m.unit}>
             <select id="priceUnit" value={priceUnit} onChange={(e) => setPriceUnit(e.target.value)} className={inputClass}>
-              <option value="month">월세</option>
-              <option value="night">1박</option>
+              <option value="month">{m.perMonth}</option>
+              <option value="night">{m.perNight}</option>
             </select>
           </Field>
         </div>
         <div className="min-w-[140px] flex-1">
-          <Field id="deposit" label="보증금 (선택)">
+          <Field id="deposit" label={m.depositOptional}>
             <input
               id="deposit"
               inputMode="numeric"
@@ -174,8 +179,8 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
 
       <Field
         id="address"
-        label="주소"
-        hint="지도 핀을 찍는 데만 쓰여요. 정확한 주소는 공개되지 않고, 핀도 대략적인 위치로 흐려져요."
+        label={m.address}
+        hint={m.addressHint}
       >
         <input
           id="address"
@@ -189,44 +194,44 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
       </Field>
 
       {!editing ? (
-        <Field id="city" label="도시 (선택)" hint="목록에서 걸러질 때 쓰는 표시용 이름이에요.">
+        <Field id="city" label={m.cityOptional} hint={m.cityHint}>
           <select id="city" value={city} onChange={(e) => setCity(e.target.value)} className={inputClass}>
-            <option value="">선택 안 함</option>
+            <option value="">{all.common.none}</option>
             {CITIES.map((c) => (
               <option key={c} value={c}>
-                {cityLabel(c)}
+                {cityLabel(c, lang)}
               </option>
             ))}
           </select>
         </Field>
       ) : null}
 
-      <Field id="neighborhood" label="동네 설명 (선택)">
+      <Field id="neighborhood" label={m.neighborhood}>
         <input
           id="neighborhood"
           maxLength={80}
           value={neighborhood}
           onChange={(e) => setNeighborhood(e.target.value)}
-          placeholder="노스욕 · 핀치역 도보 8분"
+          placeholder={m.neighborhoodPlaceholder}
           className={inputClass}
         />
       </Field>
 
       <div className="flex flex-wrap gap-4">
         <div className="min-w-[180px] flex-1">
-          <Field id="moveInDate" label="입주 가능일 (선택)">
+          <Field id="moveInDate" label={m.moveInOptional}>
             <input
               id="moveInDate"
               maxLength={40}
               value={moveInDate}
               onChange={(e) => setMoveInDate(e.target.value)}
-              placeholder="11월 1일 또는 즉시"
+              placeholder={m.moveInPlaceholder}
               className={inputClass}
             />
           </Field>
         </div>
         <div className="min-w-[160px] flex-1">
-          <Field id="minLeaseMonths" label="최소 계약 (개월, 선택)">
+          <Field id="minLeaseMonths" label={m.minLeaseOptional}>
             <input
               id="minLeaseMonths"
               inputMode="numeric"
@@ -238,19 +243,19 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
         </div>
       </div>
 
-      <Field id="includes" label="포함 사항 (선택)">
+      <Field id="includes" label={m.includesOptional}>
         <input
           id="includes"
           maxLength={200}
           value={includes}
           onChange={(e) => setIncludes(e.target.value)}
-          placeholder="하루 2식, 세탁, Wi-Fi"
+          placeholder={m.includesPlaceholder}
           className={inputClass}
         />
       </Field>
 
       <fieldset>
-        <legend className="text-[13.5px] font-semibold text-ink-3">조건 (최대 12개)</legend>
+        <legend className="text-[13.5px] font-semibold text-ink-3">{m.conditions}</legend>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {STAY_CONDITIONS.map((c) => {
             const on = conditions.includes(c.key);
@@ -266,14 +271,14 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
                     : 'border-line-strong bg-surface text-ink-3 hover:bg-field'
                 }`}
               >
-                {c.label}
+                {labelFor(c, lang)}
               </button>
             );
           })}
         </div>
       </fieldset>
 
-      <Field id="description" label="소개 (선택)">
+      <Field id="description" label={m.descOptional}>
         <textarea
           id="description"
           value={description}
@@ -285,7 +290,7 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
       </Field>
 
       <div>
-        <span className="block text-[13.5px] font-semibold text-ink-3">사진 (최대 {MAX_IMAGES}장)</span>
+        <span className="block text-[13.5px] font-semibold text-ink-3">{m.photos(MAX_IMAGES)}</span>
         <div className="mt-2 flex flex-wrap gap-2">
           {images.map((src) => (
             <div key={src} className="relative size-24 overflow-hidden rounded-xl bg-shade">
@@ -293,7 +298,7 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
               <button
                 type="button"
                 onClick={() => setImages((prev) => prev.filter((u) => u !== src))}
-                aria-label="사진 삭제"
+                aria-label={all.business.removePhoto}
                 className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-xs text-white"
               >
                 ✕
@@ -307,7 +312,7 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
               disabled={uploading}
               className="flex size-24 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line-strong text-xs text-muted hover:bg-field disabled:opacity-55"
             >
-              {uploading ? '올리는 중…' : '+ 사진'}
+              {uploading ? all.business.uploading : all.business.addPhoto}
             </button>
           ) : null}
         </div>
@@ -340,14 +345,14 @@ export default function StayForm({ stay }: { stay?: StayDetail }) {
           disabled={busy || !title.trim() || !price || !address.trim()}
           className="flex h-12 items-center rounded-control bg-brand-strong px-5 text-base font-semibold text-white hover:bg-brand-ink-hover disabled:opacity-55"
         >
-          {busy ? '저장 중…' : editing ? '수정 완료' : '등록하기'}
+          {busy ? all.common.saving : editing ? all.write.update : m.publish}
         </button>
         <button
           type="button"
           onClick={() => router.back()}
           className="flex h-12 items-center rounded-control border border-line-strong px-5 text-base font-semibold text-ink-3 hover:bg-field"
         >
-          취소
+          {all.common.cancel}
         </button>
       </div>
     </form>

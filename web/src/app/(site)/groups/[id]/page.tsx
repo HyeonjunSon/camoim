@@ -9,6 +9,7 @@ import { getCurrentUser } from '@/lib/user';
 import { groupCategoryLabel } from '@/lib/groups';
 import { cityLabel } from '@/lib/boards';
 import { initial, timeAgo } from '@/lib/format';
+import { getI18n } from '@/lib/i18n/server';
 import type { GroupDetail, PostSummary } from '@/lib/types';
 
 type Props = { params: Promise<{ id: string }> };
@@ -44,6 +45,8 @@ export default async function GroupDetailPage({ params }: Props) {
     throw err;
   }
   const group = groupResult.value;
+  const { lang, m: all } = await getI18n();
+  const m = all.group;
 
   const isMember = group.myMembership?.status === 'active';
   const canManage =
@@ -58,23 +61,23 @@ export default async function GroupDetailPage({ params }: Props) {
     <>
 
       <main className="mx-auto max-w-[1000px] px-4 pb-20 pt-6 sm:px-6">
-        <nav aria-label="경로" className="mb-4 flex gap-2 text-[13.5px] text-muted">
+        <nav aria-label={all.post.breadcrumb} className="mb-4 flex gap-2 text-[13.5px] text-muted">
           <Link href="/groups" className="hover:text-ink-3">
-            모임
+            {m.title}
           </Link>
           <span aria-hidden>›</span>
-          <span className="text-ink">{groupCategoryLabel(group.category)}</span>
+          <span className="text-ink">{groupCategoryLabel(group.category, lang)}</span>
         </nav>
 
         {group.status === 'pending_review' ? (
           <p className="mb-4 rounded-[10px] bg-[#FEF3C7] px-3.5 py-3 text-sm text-[#B45309]">
-            운영팀 승인을 기다리는 모임이에요. 승인되면 목록에 올라가요.
+            {m.pendingReview}
           </p>
         ) : null}
         {group.status === 'rejected' ? (
           <p className="mb-4 rounded-[10px] bg-[#FEF2F2] px-3.5 py-3 text-sm text-[#B91C1C]">
-            승인되지 않은 모임이에요.
-            {group.rejectReason ? ` 사유: ${group.rejectReason}` : ''}
+            {m.rejected}
+            {group.rejectReason ? m.rejectReason(group.rejectReason) : ''}
           </p>
         ) : null}
 
@@ -89,16 +92,16 @@ export default async function GroupDetailPage({ params }: Props) {
               <div className="px-5 py-5 sm:px-6">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="rounded-md bg-field px-1.5 py-0.5 text-[11.5px] font-bold text-ink-3">
-                    {groupCategoryLabel(group.category)}
+                    {groupCategoryLabel(group.category, lang)}
                   </span>
                   {group.university ? (
                     <span className="rounded-md bg-[#DBEAFE] px-1.5 py-0.5 text-[11.5px] font-bold text-[#1D4ED8]">
-                      {group.university} 동아리
+                      {m.club(group.university)}
                     </span>
                   ) : null}
                   {group.joinPolicy === 'approval' ? (
                     <span className="rounded-md bg-[#FEF3C7] px-1.5 py-0.5 text-[11.5px] font-bold text-[#B45309]">
-                      승인 필요
+                      {m.approvalNeeded}
                     </span>
                   ) : null}
                 </div>
@@ -106,9 +109,9 @@ export default async function GroupDetailPage({ params }: Props) {
                 <h1 className="mt-3 text-2xl font-bold -tracking-[0.4px]">{group.name}</h1>
                 <p className="mt-1.5 text-[13.5px] text-muted">
                   {[
-                    `멤버 ${group.memberCount}/${group.maxMembers}명`,
-                    cityLabel(group.city) || null,
-                    `${timeAgo(group.createdAt)} 개설`,
+                    m.capacity(group.memberCount, group.maxMembers),
+                    cityLabel(group.city, lang) || null,
+                    m.openedAgo(timeAgo(group.createdAt, undefined, lang)),
                   ]
                     .filter(Boolean)
                     .join(' · ')}
@@ -130,20 +133,20 @@ export default async function GroupDetailPage({ params }: Props) {
                       href={`/write?group=${group.id}`}
                       className="flex h-10 items-center rounded-control bg-field px-3.5 text-sm font-semibold text-ink-2 hover:bg-line-faint"
                     >
-                      글쓰기
+                      {m.write}
                     </Link>
                     <Link
                       href={`/groups/${group.id}/members`}
                       className="flex h-10 items-center rounded-control bg-field px-3.5 text-sm font-semibold text-ink-2 hover:bg-line-faint"
                     >
-                      멤버 {canManage ? '관리' : '보기'}
+                      {canManage ? m.manageMembers : m.viewMembers}
                     </Link>
                     {canManage ? (
                       <Link
                         href={`/groups/${group.id}/edit`}
                         className="flex h-10 items-center rounded-control bg-field px-3.5 text-sm font-semibold text-ink-2 hover:bg-line-faint"
                       >
-                        모임 설정
+                        {m.settings}
                       </Link>
                     ) : null}
                   </div>
@@ -154,12 +157,12 @@ export default async function GroupDetailPage({ params }: Props) {
             {isMember ? (
               <section className="rounded-card border border-line-soft bg-surface px-5 py-5 sm:px-6">
                 <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-lg font-bold">모임 게시판</h2>
-                  <span className="text-[13px] text-muted">글 {postList?.total ?? 0}개</span>
+                  <h2 className="text-lg font-bold">{m.board}</h2>
+                  <span className="text-[13px] text-muted">{m.postCount(postList?.total ?? 0)}</span>
                 </div>
                 {(postList?.posts.length ?? 0) === 0 ? (
                   <p className="py-8 text-center text-sm text-muted">
-                    아직 글이 없어요. 첫 글을 올려보세요.
+                    {m.emptyBoard}
                   </p>
                 ) : (
                   <ul className="mt-2">
@@ -174,13 +177,13 @@ export default async function GroupDetailPage({ params }: Props) {
                             <span className="flex items-center gap-1.5">
                               {post.pinned ? (
                                 <span className="rounded-[5px] bg-brand-tint px-1.5 py-0.5 text-[11px] font-bold text-brand-ink-hover">
-                                  고정
+                                  {all.common.pinned}
                                 </span>
                               ) : null}
                               <span className="truncate text-[15px] font-semibold">{post.title}</span>
                             </span>
                             <span className="mt-1 block text-[12.5px] text-muted">
-                              {[post.nickname, timeAgo(post.createdAt), `댓글 ${post.commentCount ?? 0}`]
+                              {[post.nickname, timeAgo(post.createdAt, undefined, lang), all.common.comments(post.commentCount ?? 0)]
                                 .filter(Boolean)
                                 .join(' · ')}
                             </span>
@@ -199,7 +202,7 @@ export default async function GroupDetailPage({ params }: Props) {
             ) : (
               <section className="rounded-card border border-line-soft bg-surface px-5 py-10 text-center">
                 <p className="text-sm text-muted">
-                  모임 게시판과 단체 채팅은 멤버만 볼 수 있어요.
+                  {m.membersOnly}
                 </p>
               </section>
             )}
@@ -210,11 +213,11 @@ export default async function GroupDetailPage({ params }: Props) {
               community={group.community}
               canEdit={group.canEditCommunity}
               editHref={`/groups/${group.id}/edit`}
-              title="모임 링크"
+              title={m.links}
             />
 
             <section className="rounded-card border border-line-soft bg-surface px-5 py-5">
-              <h2 className="text-[15px] font-bold">모임장</h2>
+              <h2 className="text-[15px] font-bold">{m.owner}</h2>
               <Link
                 href={`/users/${group.owner.id}`}
                 className="mt-3 flex items-center gap-3 text-ink hover:underline"

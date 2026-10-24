@@ -7,6 +7,8 @@ import Field, { inputClass } from './Field';
 import { GROUP_CATEGORIES } from '@/lib/groups';
 import { CITIES, cityLabel } from '@/lib/boards';
 import type { GroupDetail, User } from '@/lib/types';
+import { useLang, useMessages } from '@/lib/i18n/client';
+import { labelFor } from '@/lib/i18n/lang';
 
 export default function GroupForm({ group, user }: { group?: GroupDetail; user: User }) {
   const router = useRouter();
@@ -24,6 +26,9 @@ export default function GroupForm({ group, user }: { group?: GroupDetail; user: 
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const all = useMessages();
+  const m = all.group;
+  const lang = useLang();
 
   // A school club can only be created by a verified member, and the API takes
   // the school from their own account rather than from this form.
@@ -40,10 +45,10 @@ export default function GroupForm({ group, user }: { group?: GroupDetail; user: 
       // only the resulting URL is stored.
       const res = await fetch('/api/upload/post', { method: 'POST', body });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '업로드에 실패했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || all.common.uploadFailed);
       setCoverImage(json.data.url as string);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '업로드에 실패했어요.');
+      setError(e instanceof Error ? e.message : all.common.uploadFailed);
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -71,19 +76,19 @@ export default function GroupForm({ group, user }: { group?: GroupDetail; user: 
       });
       const json = await res.json();
       // 409 is a duplicate name, with the API's own wording.
-      if (!res.ok || !json.success) throw new Error(json.message || '저장하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || all.common.saveFailed);
 
       router.refresh();
       router.replace(`/groups/${editing ? group.id : json.data.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '저장하지 못했어요.');
+      setError(e instanceof Error ? e.message : all.common.saveFailed);
       setBusy(false);
     }
   }
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      <Field id="name" label="모임 이름">
+      <Field id="name" label={m.name}>
         <input
           id="name"
           required
@@ -91,42 +96,42 @@ export default function GroupForm({ group, user }: { group?: GroupDetail; user: 
           maxLength={60}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="토론토 등산 모임"
+          placeholder={m.namePlaceholder}
           className={inputClass}
         />
       </Field>
 
-      <Field id="description" label="소개">
+      <Field id="description" label={m.description}>
         <textarea
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={4}
           maxLength={500}
-          placeholder="어떤 모임인지, 어떻게 활동하는지 알려주세요"
+          placeholder={m.descPlaceholder}
           className="w-full resize-none rounded-control border border-line-strong px-3.5 py-2.5 text-[15px] outline-none focus:border-brand-strong"
         />
       </Field>
 
       <div className="flex flex-wrap gap-4">
         <div className="min-w-[180px] flex-1">
-          <Field id="category" label="카테고리">
+          <Field id="category" label={m.category}>
             <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className={inputClass}>
               {GROUP_CATEGORIES.map((c) => (
                 <option key={c.key} value={c.key}>
-                  {c.label}
+                  {labelFor(c, lang)}
                 </option>
               ))}
             </select>
           </Field>
         </div>
         <div className="min-w-[180px] flex-1">
-          <Field id="city" label="지역 (선택)">
+          <Field id="city" label={m.cityOptional}>
             <select id="city" value={city} onChange={(e) => setCity(e.target.value)} className={inputClass}>
-              <option value="">선택 안 함</option>
+              <option value="">{all.common.none}</option>
               {CITIES.map((c) => (
                 <option key={c} value={c}>
-                  {cityLabel(c)}
+                  {cityLabel(c, lang)}
                 </option>
               ))}
             </select>
@@ -135,7 +140,7 @@ export default function GroupForm({ group, user }: { group?: GroupDetail; user: 
       </div>
 
       <fieldset>
-        <legend className="text-[13.5px] font-semibold text-ink-3">가입 방식</legend>
+        <legend className="text-[13.5px] font-semibold text-ink-3">{m.joinPolicy}</legend>
         <div className="mt-2 flex flex-col gap-1.5">
           <label className="flex items-start gap-2.5 text-[15px]">
             <input
@@ -147,8 +152,8 @@ export default function GroupForm({ group, user }: { group?: GroupDetail; user: 
               className="mt-1 size-4.5 accent-brand-strong"
             />
             <span>
-              자유 가입
-              <span className="block text-[13px] text-muted">누구나 바로 들어올 수 있어요.</span>
+              {m.open}
+              <span className="block text-[13px] text-muted">{m.openHint}</span>
             </span>
           </label>
           <label className="flex items-start gap-2.5 text-[15px]">
@@ -161,9 +166,9 @@ export default function GroupForm({ group, user }: { group?: GroupDetail; user: 
               className="mt-1 size-4.5 accent-brand-strong"
             />
             <span>
-              승인 후 가입
+              {m.approval}
               <span className="block text-[13px] text-muted">
-                신청을 받고 모임장이 승인해요.
+                {m.approvalHint}
               </span>
             </span>
           </label>
@@ -184,22 +189,22 @@ export default function GroupForm({ group, user }: { group?: GroupDetail; user: 
             className="mt-1 size-4.5 accent-brand-strong"
           />
           <span>
-            학교 동아리로 만들기
+            {m.makeClub}
             <span className="block text-[13px] text-muted">
               {canMakeSchoolClub
-                ? `${user.university} 인증 회원만 가입할 수 있어요.`
-                : '학교 인증을 받은 회원만 만들 수 있어요. 인증은 앱에서 할 수 있어요.'}
+                ? m.clubHint(user.university ?? '')
+                : m.clubNeedsVerify}
             </span>
           </span>
         </label>
       ) : group.university ? (
         <p className="rounded-[10px] bg-[#DBEAFE] px-3.5 py-3 text-[13.5px] text-[#1D4ED8]">
-          {group.university} 동아리예요. 학교 설정은 바꿀 수 없어요.
+          {m.clubFixed(group.university)}
         </p>
       ) : null}
 
       <div>
-        <span className="block text-[13.5px] font-semibold text-ink-3">대표 사진 (선택)</span>
+        <span className="block text-[13.5px] font-semibold text-ink-3">{m.cover}</span>
         <div className="mt-2 flex items-center gap-3">
           {coverImage ? (
             <div className="relative h-24 w-40 overflow-hidden rounded-xl bg-shade">
@@ -212,7 +217,7 @@ export default function GroupForm({ group, user }: { group?: GroupDetail; user: 
             disabled={uploading}
             className="h-10 rounded-control border border-line-strong px-3.5 text-sm font-semibold text-ink-3 hover:bg-field disabled:opacity-55"
           >
-            {uploading ? '올리는 중…' : coverImage ? '사진 바꾸기' : '사진 올리기'}
+            {uploading ? all.business.uploading : coverImage ? m.changePhoto : m.uploadPhoto}
           </button>
           {coverImage ? (
             <button
@@ -220,7 +225,7 @@ export default function GroupForm({ group, user }: { group?: GroupDetail; user: 
               onClick={() => setCoverImage('')}
               className="text-[13px] text-muted hover:text-danger"
             >
-              제거
+              {m.remove}
             </button>
           ) : null}
         </div>
@@ -238,7 +243,7 @@ export default function GroupForm({ group, user }: { group?: GroupDetail; user: 
 
       {!editing ? (
         <p className="rounded-[10px] bg-[#FEF3C7] px-3.5 py-3 text-[13.5px] text-[#B45309]">
-          만든 모임은 운영팀 승인 후 목록에 올라가요. 승인 전에도 모임장은 들어올 수 있어요.
+          {m.reviewNote}
         </p>
       ) : null}
 
@@ -254,14 +259,14 @@ export default function GroupForm({ group, user }: { group?: GroupDetail; user: 
           disabled={busy || name.trim().length < 2}
           className="flex h-12 items-center rounded-control bg-brand-strong px-5 text-base font-semibold text-white hover:bg-brand-ink-hover disabled:opacity-55"
         >
-          {busy ? '저장 중…' : editing ? '저장' : '모임 만들기'}
+          {busy ? all.common.saving : editing ? all.common.save : m.create}
         </button>
         <button
           type="button"
           onClick={() => router.back()}
           className="flex h-12 items-center rounded-control border border-line-strong px-5 text-base font-semibold text-ink-3 hover:bg-field"
         >
-          취소
+          {all.common.cancel}
         </button>
       </div>
     </form>

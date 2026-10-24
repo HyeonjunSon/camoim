@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useMessages } from '@/lib/i18n/client';
 
 /** The host's own switch between 입주가능 and 입주완료 (`PUT /stays/:id/status`). */
 export default function StayStatusToggle({
@@ -14,6 +15,7 @@ export default function StayStatusToggle({
   const router = useRouter();
   const [current, setCurrent] = useState(status);
   const [busy, setBusy] = useState(false);
+  const m = useMessages().stay;
 
   async function toggle() {
     const next = current === 'active' ? 'closed' : 'active';
@@ -40,7 +42,7 @@ export default function StayStatusToggle({
       disabled={busy}
       className="flex h-11 items-center rounded-control border border-line-strong px-4 text-[14.5px] font-semibold text-ink-2 hover:bg-field disabled:opacity-55"
     >
-      {current === 'active' ? '입주완료로 변경' : '다시 입주가능으로'}
+      {current === 'active' ? m.markFilled : m.markAvailable}
     </button>
   );
 }

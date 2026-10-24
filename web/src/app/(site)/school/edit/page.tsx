@@ -6,6 +6,7 @@ import LeaderHandover from '@/components/LeaderHandover';
 import { ApiError, apiFetch, apiFetchEnvelope } from '@/lib/api';
 import { getCurrentUser } from '@/lib/user';
 import type { SchoolCommunity, SchoolMembersEnvelope } from '@/lib/types';
+import { getI18n } from '@/lib/i18n/server';
 
 export const metadata: Metadata = {
   title: '학교 커뮤니티 꾸미기',
@@ -28,6 +29,8 @@ export default async function SchoolEditPage() {
   if (!community.canEdit) notFound();
 
   // Handover candidates exclude the caller, which is what includeSelf=false does.
+  const { m: all } = await getI18n();
+  const m = all.school;
   const candidates = community.isLeader
     ? ((await apiFetchEnvelope<SchoolMembersEnvelope>(
         '/universities/members?limit=200&includeSelf=false'
@@ -37,17 +40,17 @@ export default async function SchoolEditPage() {
   return (
     <>
       <main className="mx-auto max-w-[760px] px-4 pb-20 pt-6 sm:px-6">
-        <nav aria-label="경로" className="mb-4 flex gap-2 text-[13.5px] text-muted">
+        <nav aria-label={all.post.breadcrumb} className="mb-4 flex gap-2 text-[13.5px] text-muted">
           <Link href="/school" className="hover:text-ink-3">
-            학교 커뮤니티
+            {m.title}
           </Link>
         </nav>
 
-        <h1 className="text-2xl font-bold -tracking-[0.4px]">학교 커뮤니티 꾸미기</h1>
+        <h1 className="text-2xl font-bold -tracking-[0.4px]">{m.editTitle}</h1>
         <p className="mt-1.5 text-[14.5px] text-muted">{community.university}</p>
 
         <section className="mt-6 rounded-card border border-line-soft bg-surface px-5 py-6 sm:px-7">
-          <h2 className="text-lg font-bold">학교 링크</h2>
+          <h2 className="text-lg font-bold">{m.links}</h2>
           <div className="mt-4">
             <SchoolCommunityForm community={community.community} />
           </div>
@@ -55,9 +58,9 @@ export default async function SchoolEditPage() {
 
         {community.isLeader ? (
           <section className="mt-5 rounded-card border border-line-soft bg-surface px-5 py-6 sm:px-7">
-            <h2 className="text-lg font-bold">⭐ 학생회장 인수인계</h2>
+            <h2 className="text-lg font-bold">{m.handoverTitle}</h2>
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
-              다음 학생회장에게 바로 넘길 수 있어요. 운영팀 승인은 필요하지 않아요.
+              {m.handoverIntro}
             </p>
             <div className="mt-4">
               <LeaderHandover candidates={candidates} />

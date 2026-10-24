@@ -8,6 +8,7 @@ import { ApiError, apiFetch, apiFetchOrNull } from '@/lib/api';
 import { getCurrentUser } from '@/lib/user';
 import { GENDER_COLORS, ageFromBirthYear, genderLabel, jobLabel } from '@/lib/intro';
 import type { IntroMeta, IntroPost } from '@/lib/types';
+import { getI18n } from '@/lib/i18n/server';
 
 export const metadata: Metadata = {
   title: '소개팅',
@@ -15,16 +16,17 @@ export const metadata: Metadata = {
 };
 
 const INTRO_REPORT_REASONS = [
-  { value: 'fake', label: '사칭·허위 정보예요' },
-  { value: 'contact', label: '연락처·실명이 적혀 있어요' },
-  { value: 'spam', label: '스팸·광고예요' },
+  { value: 'fake', label: '사칭·허위 정보예요', labelEn: 'Impersonation or false info' },
+  { value: 'contact', label: '연락처·실명이 적혀 있어요', labelEn: 'Contains contact info or a real name' },
+  { value: 'spam', label: '스팸·광고예요', labelEn: 'Spam or ads' },
 ] as const;
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function IntroDetailPage({ params }: Props) {
   const { id } = await params;
-  const user = await getCurrentUser();
+  const [user, { lang, m: all }] = await Promise.all([getCurrentUser(), getI18n()]);
+  const m = all.intro;
 
   const meta = await apiFetchOrNull<IntroMeta>('/intro/meta');
   // Reading a post needs the same agreement the API requires for acting on one.
@@ -41,16 +43,16 @@ export default async function IntroDetailPage({ params }: Props) {
   const tint = GENDER_COLORS[post.gender] ?? '#374151';
   const preferredRange =
     post.preferredBirthYearMin || post.preferredBirthYearMax
-      ? `${post.preferredBirthYearMin ?? '~'}–${post.preferredBirthYearMax ?? '~'}년생`
+      ? m.birthRange(String(post.preferredBirthYearMin ?? '~'), String(post.preferredBirthYearMax ?? '~'))
       : '';
 
   return (
     <>
 
       <main className="mx-auto max-w-[760px] px-4 pb-20 pt-6 sm:px-6">
-        <nav aria-label="경로" className="mb-4 flex gap-2 text-[13.5px] text-muted">
+        <nav aria-label={all.post.breadcrumb} className="mb-4 flex gap-2 text-[13.5px] text-muted">
           <Link href="/intro" className="hover:text-ink-3">
-            소개팅
+            {m.title}
           </Link>
         </nav>
 
@@ -64,16 +66,16 @@ export default async function IntroDetailPage({ params }: Props) {
           <div className="px-5 py-6 sm:px-7">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[14px] font-bold" style={{ color: tint }}>
-                {genderLabel(post.gender)} · {ageFromBirthYear(post.birthYear)}
+                {genderLabel(post.gender, lang)} · {ageFromBirthYear(post.birthYear, undefined, lang)}
               </span>
               {post.mode === 'proxy' ? (
                 <span className="rounded-md bg-[#FEF3C7] px-2 py-0.5 text-[11.5px] font-bold text-[#B45309]">
-                  지인 소개 (본인 동의 받음)
+                  {m.proxyConsented}
                 </span>
               ) : null}
               {post.expired ? (
                 <span className="rounded-md bg-[#EDEDF0] px-2 py-0.5 text-[11.5px] font-bold text-ink-3">
-                  만료됨
+                  {m.expired}
                 </span>
               ) : null}
             </div>
@@ -84,30 +86,30 @@ export default async function IntroDetailPage({ params }: Props) {
 
             <dl className="mt-5 flex flex-col gap-2.5 border-t border-line-faint pt-5 text-[15px]">
               <div className="flex gap-3">
-                <dt className="w-20 shrink-0 text-muted">지역</dt>
+                <dt className="w-20 shrink-0 text-muted">{m.region}</dt>
                 <dd>{post.region}</dd>
               </div>
               {post.job ? (
                 <div className="flex gap-3">
-                  <dt className="w-20 shrink-0 text-muted">직업</dt>
-                  <dd>{jobLabel(post.job)}</dd>
+                  <dt className="w-20 shrink-0 text-muted">{m.job}</dt>
+                  <dd>{jobLabel(post.job, lang)}</dd>
                 </div>
               ) : null}
               {post.height ? (
                 <div className="flex gap-3">
-                  <dt className="w-20 shrink-0 text-muted">키</dt>
+                  <dt className="w-20 shrink-0 text-muted">{m.height}</dt>
                   <dd>{post.height}</dd>
                 </div>
               ) : null}
               {preferredRange || post.preferredRegion ? (
                 <div className="flex gap-3">
-                  <dt className="w-20 shrink-0 text-muted">찾는 사람</dt>
+                  <dt className="w-20 shrink-0 text-muted">{m.lookingFor}</dt>
                   <dd>{[preferredRange, post.preferredRegion].filter(Boolean).join(' · ')}</dd>
                 </div>
               ) : null}
               <div className="flex gap-3">
-                <dt className="w-20 shrink-0 text-muted">남은 기간</dt>
-                <dd>{post.daysLeft > 0 ? `${post.daysLeft}일` : '만료'}</dd>
+                <dt className="w-20 shrink-0 text-muted">{m.timeLeft}</dt>
+                <dd>{post.daysLeft > 0 ? m.days(post.daysLeft) : m.expiredShort}</dd>
               </div>
             </dl>
 
@@ -117,10 +119,10 @@ export default async function IntroDetailPage({ params }: Props) {
 
             {post.isMine && post.contactValue ? (
               <p className="mt-5 rounded-[10px] bg-field px-3.5 py-3 text-[13.5px] text-ink-3">
-                내가 적은 연락처: {post.contactType === 'kakao' ? '카카오톡' : '인스타그램'}{' '}
+                {m.myContact(post.contactType === 'kakao' ? m.kakao : m.instagram)}
                 {post.contactValue}
                 <span className="mt-1 block text-[12.5px] text-muted">
-                  연락처는 다른 사람에게 보이지 않아요.
+                  {m.contactPrivate}
                 </span>
               </p>
             ) : null}
@@ -141,14 +143,14 @@ export default async function IntroDetailPage({ params }: Props) {
         <div className="mt-5">
           {post.isMine ? (
             <p className="rounded-card border border-line-soft bg-surface px-5 py-6 text-sm text-muted">
-              내가 올린 소개예요.{' '}
+              {m.isMine}
               <Link href="/intro/mine" className="font-semibold text-brand-ink hover:text-brand-ink-hover">
-                받은 신청 보기 ›
+                {m.seeRequests}
               </Link>
             </p>
           ) : post.expired || post.status !== 'active' ? (
             <p className="rounded-card border border-line-soft bg-surface px-5 py-6 text-sm text-muted">
-              기간이 지난 소개라 신청할 수 없어요.
+              {m.closed}
             </p>
           ) : (
             <IntroRequestForm postId={post.id} meta={meta} />

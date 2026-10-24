@@ -8,3 +8,8 @@ export type Lang = 'ko' | 'en';
 export function parseLang(value: string | undefined | null): Lang {
   return value === 'en' ? 'en' : 'ko';
 }
+
+/** For option lists that carry both labels: `{ label: '학생', labelEn: 'Student' }`. */
+export function labelFor(item: { label: string; labelEn?: string }, lang: Lang): string {
+  return lang === 'en' && item.labelEn ? item.labelEn : item.label;
+}
