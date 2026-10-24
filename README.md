@@ -9,7 +9,7 @@ production with roughly 500 users.
 
 [App Store](https://apps.apple.com/app/id6763469709) ·
 [Google Play](https://play.google.com/store/apps/details?id=com.hyeonjun122.cahanin) ·
-[camoimapp.com](https://camoimapp.com)
+[Website](https://camoimapp.com)
 
 > The app's UI is in Korean because its users are — the code, comments and documentation
 > are in English.
