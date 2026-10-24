@@ -1,13 +1,15 @@
 # CaMoim
 
 A community app for Koreans living in Canada — international students, immigrants, and
-working-holiday makers. Shipped solo to the App Store and Google Play, live in production
-with roughly 500 users.
+working-holiday makers. Shipped solo to the App Store, Google Play and the web, live in
+production with roughly 500 users.
 
-**iOS + Android · v1.0.7 · Expo (React Native) + Express + MongoDB · deployed on Railway**
+**iOS + Android · v1.0.9 · Expo (React Native) + Express + MongoDB · deployed on Railway**<br>
+**Web · Next.js 16 on Vercel · same API, same database**
 
 [App Store](https://apps.apple.com/app/id6763469709) ·
-[Google Play](https://play.google.com/store/apps/details?id=com.hyeonjun122.cahanin)
+[Google Play](https://play.google.com/store/apps/details?id=com.hyeonjun122.cahanin) ·
+[camoimapp.com](https://camoimapp.com)
 
 > The app's UI is in Korean because its users are — the code, comments and documentation
 > are in English.
@@ -27,9 +29,11 @@ adds the campus features of a Korean university app on top of it.
 | **Real-time chat** | 1:1 DMs with a request/accept handshake, group chats, and school-wide lounges — one Socket.io layer, three room kinds |
 | **Business map** | ~580 Korean-owned businesses across Canada with reviews, rankings, and search |
 | **Marketplace** | Trade status (`selling` / `sold`) on marketplace-type boards, with rental-specific labels for room listings |
-| **Admin console** | In-app moderation: reports, user sanctions, verification review, board/university CRUD, broadcast notices, maintenance mode, forced-update gate |
+| **Admin console** | In the app and on the web: reports, user sanctions, verification review, group and business approval, maintenance mode, forced-update gate, IP blocks. Board/university CRUD, the audit log and push broadcasts are app-only for now |
+| **Web client** | The same community in a browser at [camoimapp.com](https://camoimapp.com) — boards, posts, comments, search, real-time chat, notifications, my page, the map, groups, school communities, the intro board and the admin console. See [web/README.md](web/README.md) |
 
-Bilingual throughout (Korean / English), with light and dark themes.
+Bilingual throughout (Korean / English) — the app fully, the web on its main screens so far —
+with light and dark themes in the app.
 
 ---
 
@@ -38,7 +42,7 @@ Bilingual throughout (Korean / English), with light and dark themes.
 ```mermaid
 flowchart TB
     subgraph client["iOS / Android app — Expo (React Native)"]
-        UI["66 screens<br/>React Navigation"]
+        UI["69 screens<br/>React Navigation"]
         CTX["Context layer<br/>Auth · Socket · Theme · Lang"]
         API["lib/api.js<br/>fetch wrapper"]
         WS["socket.io-client"]
@@ -46,15 +50,21 @@ flowchart TB
         CTX --> WS
     end
 
+    subgraph vercel["Browser + Vercel — Next.js 16"]
+        BR["Browser<br/>httpOnly session cookie"]
+        BFF["Next.js server<br/>pages + BFF route handlers"]
+        BR -- "HTTPS (same origin)" --> BFF
+    end
+
     subgraph railway["Railway — Node.js"]
-        EXP["Express<br/>19 route modules"]
+        EXP["Express<br/>20 route modules"]
         SOCK["Socket.io<br/>JWT handshake auth"]
         MW["Middleware<br/>auth · requireRole · systemGuard"]
         EXP --> MW
     end
 
     subgraph data["Managed services"]
-        DB[("MongoDB Atlas<br/>27 collections")]
+        DB[("MongoDB Atlas<br/>29 collections")]
         CDN["Cloudinary<br/>posts · avatars · verify · groups"]
         MAIL["Resend<br/>transactional email"]
         PUSH["Expo Push"]
@@ -62,6 +72,8 @@ flowchart TB
 
     API -- "HTTPS / REST" --> EXP
     WS  -- "WSS" --> SOCK
+    BFF -- "HTTPS + Bearer JWT" --> EXP
+    BR  -- "WSS + 2-min socket ticket" --> SOCK
     MW  --> DB
     SOCK --> DB
     EXP --> CDN
@@ -70,7 +82,12 @@ flowchart TB
     EXP --> PUSH
 ```
 
-Full write-up, including the real-time message path and the data model:
+The web client never holds a token in JavaScript: the Next.js server keeps the JWT in an
+httpOnly cookie and calls the API on the browser's behalf (a backend-for-frontend). Chat is the
+one exception — a WebSocket can't go through Vercel — so the browser gets a two-minute ticket
+that is valid for the socket handshake and refused by every REST route.
+
+Full write-up, including the real-time message path, the web's auth path and the data model:
 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**
 
 ---
@@ -88,6 +105,7 @@ cost me — is in **[docs/DECISIONS.md](docs/DECISIONS.md)**.
 | **Railway** over AWS | Push-to-deploy with zero infra work, which is the right trade for a solo side project | Opaque runtime limits — outbound SMTP is silently blocked (see below) |
 | **Cloudinary** over S3 | On-the-fly resizing and CDN delivery without an image pipeline | Vendor lock-in on URL format; a second bill |
 | **JWT + `tokenVersion`** | Stateless auth that can still be revoked — bumping the counter invalidates every issued token for that user | Revocation costs a DB read per request |
+| **Next.js BFF** for the web, not a browser calling the API | Post bodies are user HTML rendered in another user's page; with the token in an httpOnly cookie an XSS can't steal a 30-day session. The API's auth code didn't change at all | An extra hop on every web request, and chat needs its own ticket flow |
 
 ---
 
@@ -125,7 +143,7 @@ Full text in **[docs/ENGINEERING-NOTES.md](docs/ENGINEERING-NOTES.md)**.
 | # | Problem | One-line root cause |
 |---|---|---|
 | 1 | **App crashed on opening the map** | React Native's New Architecture interop layer passed `nil` subviews and out-of-range indices into `react-native-maps`' Objective-C view manager during fast marker churn. Fixed with a nil guard and an index clamp, pinned via `patch-package` |
-| 2 | **All real-time chat and notifications died after a deploy** | A CORS origin allowlist I added "for security" — native WebSocket clients send a non-empty `Origin` that was never on the list. Security theater on a native-only app, at the cost of the core feature |
+| 2 | **All real-time chat and notifications died after a deploy** | A CORS origin allowlist I added "for security" — native WebSocket clients send a non-empty `Origin` that was never on the list. Security theater on what was then a native-only app, at the cost of the core feature |
 | 3 | **Student ID cards were publicly readable** | Verification documents were written to local disk and served by `express.static('/uploads')`. Anyone with the URL could read someone's student ID. Moved to Cloudinary with folder separation and a 90-day purge job |
 | 4 | **Signup emails worked locally, timed out in production** | Railway blocks outbound SMTP ports (25/465/587), so Nodemailer hung until `ETIMEDOUT`. Replaced with Resend's HTTPS API on a DKIM-verified domain |
 
@@ -134,8 +152,9 @@ Full text in **[docs/ENGINEERING-NOTES.md](docs/ENGINEERING-NOTES.md)**.
 ## Testing & CI
 
 ```
-Client unit (jest-expo)      72 tests   ~1s    pure logic, no native
-Server unit + integration    81 tests   ~15s   real Express + in-memory MongoDB + real Socket.io
+Client unit (jest-expo)     102 tests   ~1s    pure logic, no native
+Server unit + integration   136 tests   ~15s   real Express + in-memory MongoDB + real Socket.io
+Web unit (node:test)         35 tests   <1s    sanitizer, shared constants, dead links
 Maestro E2E                   2 flows          real app on a device/emulator
 ```
 
@@ -159,6 +178,7 @@ app → WebSocket → server → MongoDB → broadcast → app all succeeded.
 npm test             # client
 npm run test:server  # server
 npm run test:all     # both
+cd web && npm test   # web (Node 24 — `nvm use` picks it up from web/.nvmrc)
 ```
 
 Details: **[docs/TESTING.md](docs/TESTING.md)** · E2E: **[.maestro/README.md](.maestro/README.md)**
@@ -172,21 +192,25 @@ camoim/
 ├── App.js                    app root
 ├── app.json / eas.json       Expo + EAS build config
 ├── patches/                  patch-package fixes applied at install time
-├── src/                      React Native client  (~31k LOC)
-│   ├── screens/              66 screens across 14 domains
+├── src/                      React Native client  (~34k LOC)
+│   ├── screens/              69 screens across 17 domains
 │   ├── components/           shared UI
 │   ├── context/              Auth · Socket · Theme · Lang providers
 │   ├── lib/                  api client, i18n, config, storage, analytics
 │   ├── navigation/           tab + stack navigators
 │   └── constants/            colors, boards, cities, roles
-├── server/                   Express backend      (~11k LOC)
+├── server/                   Express backend      (~14k LOC)
 │   ├── app.js                Express assembly — no side effects, imported by tests
 │   ├── index.js              DB connect → seeds/migrations → socket init → listen
 │   ├── socket.js             Socket.io: auth handshake, send/read/join handlers
-│   ├── routes/               19 route modules
-│   ├── models/               27 Mongoose schemas
+│   ├── routes/               20 route modules
+│   ├── models/               29 Mongoose schemas
 │   ├── middleware/           auth · requireRole · systemGuard
 │   └── __tests__/            unit + integration
+├── web/                      Next.js web client   (~18k LOC, TypeScript)
+│   ├── src/app/              App Router pages + BFF route handlers
+│   ├── src/components/       server and client components
+│   └── src/lib/              API calls, session cookie, sanitizer, i18n
 ├── .maestro/                 E2E flows
 ├── perf/                     benchmarks, latency-injection proxy, results
 └── docs/                     architecture, decisions, engineering notes, testing
@@ -214,7 +238,15 @@ moving between networks needs no edit. Production builds always use Railway rega
 this flag.
 
 ```bash
-npm run test:all        # 153 tests
+npm run test:all        # 238 tests (client + server)
+```
+
+```bash
+# 3. Web (optional)
+cd web
+cp .env.example .env.local   # points at the deployed Railway API by default
+npm install
+npm run dev                  # http://localhost:3000
 ```
 
 ---
@@ -224,6 +256,7 @@ npm run test:all        # 153 tests
 | Change | Path | Time to users |
 |---|---|---|
 | Backend | `git push` → Railway auto-deploy | 1–2 min |
+| Web | the same `git push` → Vercel auto-deploy | 1–2 min |
 | JS-only app change | `eas update --branch production` | Next app launch |
 | Native change (new module, permissions, SDK bump) | `eas build` → `eas submit` → store review | Days |
 

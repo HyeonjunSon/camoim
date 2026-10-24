@@ -107,3 +107,8 @@ planned:
   this plan at all
 - `react-native-maps` required a local patch to avoid a crash; see
   `patches/react-native-maps+1.20.1.patch`
+- The web client got the same map later (`web/src/app/(site)/map`), with businesses and
+  stays on one Google Maps JavaScript map. It renders at most 120 pins, nearest first: Toronto
+  alone has 534 businesses, and every row and marker is a real DOM node. Business cities are
+  lowercase slugs (`toronto`) while stay cities are capitalised (`Toronto`), so the web
+  converts between them with `stayCityForSlug()`

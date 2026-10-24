@@ -5,6 +5,7 @@ How CaMoim is put together, and why the seams are where they are.
 - [System overview](#system-overview)
 - [Request path](#request-path)
 - [Real-time chat](#real-time-chat)
+- [Web client](#web-client)
 - [Data model](#data-model)
 - [Authentication](#authentication)
 - [Media handling](#media-handling)
@@ -23,6 +24,14 @@ flowchart TB
         APP["CaMoim app<br/>Expo · React Native 0.81 · React 19"]
     end
 
+    subgraph browser["User's browser"]
+        WEBUI["camoimapp.com"]
+    end
+
+    subgraph vercel["Vercel"]
+        NEXT["Next.js 16<br/>pages + BFF route handlers"]
+    end
+
     subgraph railway["Railway (single Node process)"]
         HTTP["Express<br/>REST API"]
         IO["Socket.io<br/>WebSocket"]
@@ -37,11 +46,15 @@ flowchart TB
 
     APP -- HTTPS --> HTTP
     APP -- WSS --> IO
+    WEBUI -- "HTTPS, httpOnly cookie" --> NEXT
+    NEXT -- "HTTPS, Bearer JWT" --> HTTP
+    WEBUI -- "WSS, socket ticket" --> IO
     HTTP --> ATLAS
     IO --> ATLAS
     JOBS --> ATLAS
     HTTP -- "upload / destroy" --> CLOUD
     APP -- "GET images" --> CLOUD
+    WEBUI -- "GET images" --> CLOUD
     HTTP -- "verification codes,<br/>password resets" --> RESEND
     HTTP --> EXPO
     IO --> EXPO
@@ -53,6 +66,10 @@ Mongoose models and the same JWT secret, so a token issued by `POST /api/auth/lo
 accepted verbatim by the socket handshake. Everything stateful lives in managed services —
 the container itself holds nothing that matters, which is what makes Railway's
 deploy-by-restart model safe.
+
+The web client is a second consumer of the same API, not a second backend. It has no database
+of its own and the API's auth middleware is unchanged — see [Web client](#web-client) for how a
+browser gets authenticated without ever holding the JWT.
 
 ### Client layers
 
@@ -83,7 +100,7 @@ sequenceDiagram
     participant Route
     participant DB as MongoDB
 
-    App->>Guard: GET /api/posts/:id<br/>Authorization: Bearer …<br/>x-app-version: 1.0.7
+    App->>Guard: GET /api/posts/:id<br/>Authorization: Bearer …<br/>x-app-version: 1.0.9
     Note over Guard: settings cached 5s<br/>maintenance · IP block · force-update
     Guard-->>App: 503 MAINTENANCE / 403 IP_BLOCKED / 426 UPDATE_REQUIRED
     Guard->>Auth: pass
@@ -120,6 +137,7 @@ them with a TTL, coalesces concurrent lookups for the same key, and uses a gener
 so a read in flight during an invalidation can't write stale data back. Invalidation lives in
 **Mongoose post-hooks on the `Board` and `Block` models**, so every write path clears the
 cache without route handlers having to remember to.
+
 ---
 
 ## Real-time chat
@@ -177,9 +195,80 @@ currently viewing.
 
 ---
 
+## Web client
+
+[`web/`](../web/README.md) is a Next.js 16 App Router app on Vercel, served at
+[camoimapp.com](https://camoimapp.com). It renders on the server and talks to the same
+Railway API as the phone app.
+
+### Backend-for-frontend auth
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant N as Next.js (Vercel)
+    participant API as Railway API
+
+    B->>N: POST /api/auth/login { email, password }
+    N->>API: POST /api/auth/login
+    API-->>N: { token, user }
+    N-->>B: Set-Cookie camoim_session (httpOnly, SameSite=Lax, Secure in prod)
+    Note over B: the token never reaches page JavaScript
+    B->>N: GET /posts/123  (cookie)
+    N->>API: GET /api/posts/123<br/>Authorization: Bearer <cookie value>
+    API-->>N: { success, data }
+    N-->>B: rendered HTML
+```
+
+Post bodies are HTML from the app's rich-text editor, so the post page is where one user's
+markup lands in another user's browser. Every body goes through an allowlist sanitizer
+(`web/src/lib/sanitize.ts`) before rendering, and the session cookie is httpOnly as a second
+line: even a sanitizer gap can't read a 30-day token.
+
+- **The API didn't change.** `middleware/auth.js` still reads `Authorization: Bearer`. The
+  cookie-to-header translation happens entirely in Next.js.
+- **Writes are gated on `Origin` matching `Host`.** The cookie is same-site, so no
+  `SameSite=None` and no CSRF token exchange are needed.
+- **Only dedicated handlers ever see a token.** Login and signup have their own route
+  handlers; the general passthrough (`/api/bff/[...path]`) refuses every endpoint that mints a
+  JWT, so one can never be returned into the page.
+- **Page access is gated before rendering.** `web/src/proxy.ts` (Next 16's renamed
+  middleware) checks that the session cookie exists and answers a real `307` to the login page.
+  Whether the token is *valid* is still the API's call. Admin pages add a role check in their
+  layout and answer `404` to non-admins; the API's own `requireRole('admin')` is the real
+  guard.
+- **The web never sends `x-app-version`.** The force-update gate only fires when that header
+  is present, and a browser has no store build to update.
+
+### Chat from the browser
+
+A WebSocket to Railway is a different origin, so the session cookie doesn't reach it, and
+Vercel doesn't proxy WebSockets. The browser therefore connects straight to Railway with a
+**socket ticket**:
+
+1. The browser calls `POST /api/socket-ticket` on Next.js, which reads the cookie.
+2. Next.js calls `POST /api/auth/socket-ticket` on the API with the session JWT.
+3. The API returns a token that lives **two minutes** and carries `scope: 'socket'`.
+4. The browser uses it for the Socket.io handshake.
+
+`socket.js` accepts a token with no scope (the app's) or exactly `'socket'`.
+`middleware/auth.js` **rejects** `'socket'`, so a leaked ticket can open a chat connection and
+nothing else — it can't act as the user over REST. The web passes `auth` to socket.io as a
+callback, so every reconnection fetches a fresh ticket instead of replaying an expired one.
+
+### Keeping the two clients in step
+
+Four things are mirrored from the app rather than shared, and tests check the ones that can
+drift silently: board slugs, colours and cities (`web/src/lib/boards.ts`), stay constants
+(`stays.ts`), the `_id` → `id` rewrite (`camel.ts`), and title prefixes — the last is checked
+against the server's own list. Terms and privacy text are imported straight from the app's
+`src/constants/legal.js`, so the two can't disagree.
+
+---
+
 ## Data model
 
-27 collections. The ones that carry the domain:
+29 collections. The ones that carry the domain:
 
 ```mermaid
 erDiagram
@@ -309,14 +398,15 @@ noisy group without muting chat entirely.
 
 ## Operational controls
 
-The admin console is part of the app, not a separate deployment. Beyond moderation, three
+The admin console lives in both clients — in the app, and under `/admin` on the web — rather
+than in a separate deployment. Both call the same `/api/admin` routes. Beyond moderation, three
 controls affect every client:
 
 - **Maintenance mode** — `systemGuard` returns `503 MAINTENANCE` to everything except
   `/api/admin` and `/api/auth/login`, so an admin can still get in while the app is down.
 - **Forced update** — clients send `x-app-version`; below `forceUpdate.minVersion` they get
   `426 UPDATE_REQUIRED` and the app shows an update wall. This is the escape hatch for a bug
-  that OTA can't fix.
+  that OTA can't fix. The web sends no version header, so it's never caught by the gate.
 - **IP blocking** — an allowlist-free denylist checked ahead of auth.
 
 All three live in the `SystemSetting` collection behind the same 5-second cache.
@@ -328,7 +418,10 @@ All three live in the `SystemSetting` collection behind the same 5-second cache.
 ```mermaid
 flowchart LR
     DEV["git push main"] --> RW["Railway<br/>auto-deploy"]
-    RW --> PROD["api.camoim<br/>1–2 min"]
+    RW --> PROD["API<br/>1–2 min"]
+
+    DEV --> VC["Vercel<br/>auto-deploy"]
+    VC --> WEB["camoimapp.com<br/>1–2 min"]
 
     DEV --> OTA["eas update<br/>--branch production"]
     OTA --> USERS["users' phones<br/>next app launch"]
@@ -340,6 +433,11 @@ flowchart LR
 
 Railway's root directory is set to `server/`, because the repo also holds the Expo app.
 `.easignore` does the mirror-image exclusion so EAS never uploads the backend.
+
+Vercel's root directory is `web/`. A `.vercelignore` at the repo root is an *allowlist*: only
+`web/` and the one app file it imports (`src/constants/legal.js`) are uploaded, so `server/.env`
+and other local files can never reach a build. DNS for `camoimapp.com` stays on Cloudflare
+(it also holds the email records for Resend), pointed at Vercel with proxying turned off.
 
 The OTA channel (`production`) matches the EAS build channel of the same name, and
 `runtimeVersion` follows `app.json`'s `version`. Bumping the version is therefore an explicit,
@@ -373,6 +471,12 @@ Written down because pretending they don't exist is worse than owning them.
   price of not having migrated to ObjectId references early.
 - **Search is a regex scan.** `unifiedSearch` runs `$regex` across posts, groups, and users.
   It's correct and it's fast enough at this size; it won't be at 10×.
+- **Search isn't scoped to the viewer.** `GET /api/search` returns school-board and group
+  posts to anyone. The web filters them out server-side before rendering; the app has the same
+  exposure, and the real fix belongs in the API.
+- **The web adds a hop.** Every web request goes browser → Vercel → Railway → Atlas, on top of
+  the cross-region database cost above. Server rendering and a header that loads its badges
+  client-side keep that to one serial API call per page where possible.
 - **No APM.** There's a lightweight `AnalyticsEvent` collection, `DailyActive` tracking, and
   client-side performance telemetry (`perf_*` events — cold start, feed load, chat round trip),
   but no distributed tracing or error aggregation service. Production debugging is

@@ -194,8 +194,9 @@ ipconfig getifaddr en0
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 시스템/시퀀스/ER 다이어그램, 요청 경로, 실시간 채팅, 인증, 미디어, 배포, 알려진 한계 |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | 기술 선택 11건 — 이유 + 트레이드오프 + "다시 고른다면" |
 | [docs/ENGINEERING-NOTES.md](docs/ENGINEERING-NOTES.md) | 프로덕션 문제 4건 상세 (면접용 30초 스크립트 포함) |
-| [docs/TESTING.md](docs/TESTING.md) | 테스트 3계층 + CI |
+| [docs/TESTING.md](docs/TESTING.md) | 테스트 3계층 + 웹 유닛 + CI |
 | [docs/BUSINESS-MAP-PLAN.md](docs/BUSINESS-MAP-PLAN.md) | 한인업체 지도 설계 문서 + 실제 출시된 결과 차이 |
+| [web/README.md](web/README.md) | 웹 클라이언트 — BFF·소켓 티켓·레이아웃·i18n·Vercel 배포 |
 | [server/.env.example](server/.env.example) | 서버 환경변수 템플릿 |
 
 기능·구조를 바꾸면 해당 문서도 같이 갱신할 것. 특히 ARCHITECTURE.md의 "Known limits"와
@@ -206,16 +207,17 @@ DECISIONS.md의 트레이드오프는 사실과 어긋나면 역효과가 난다
 ## 🧪 테스트 & CI
 
 ```bash
-npm test             # 클라이언트 Jest (72 tests)
-npm run test:server  # 서버 Jest — 유닛 + 통합 (81 tests)
+npm test             # 클라이언트 Jest (102 tests)
+npm run test:server  # 서버 Jest — 유닛 + 통합 (136 tests)
 npm run test:all     # 둘 다
+cd web && nvm use && npm test   # 웹 (Node 내장 러너, 35 tests)
 ```
 
 - 상세: [docs/TESTING.md](docs/TESTING.md), E2E: [.maestro/README.md](.maestro/README.md)
 - ⚠️ **docs/ 와 README.md, .maestro/README.md 는 영어로 작성** (채용 담당자·북미 지원용).
   **코드 주석도 전부 영어**로 통일됨 (2026-09, 공개 레포 + 북미 채용 대비).
   CLAUDE.md만 한국어 유지. 문서 수정 시 언어 섞지 말 것
-- **CI**: `.github/workflows/ci.yml` — main push/PR마다 양쪽 Jest 자동 실행
+- **CI**: `.github/workflows/ci.yml` — main push/PR마다 client·server Jest + web(typecheck·test·build) 3개 job
 - **서버 앱 분리**: `server/app.js`(Express 조립, 부작용 없음) ↔ `server/index.js`(DB연결·시드·listen).
   테스트는 `app.js`를 supertest로 가져다 쓴다. 새 라우트는 `app.js`에 마운트할 것
 - **rate limiter**는 `NODE_ENV === 'test'`일 때 skip (`routes/auth.js`의 `skipInTest`)
@@ -342,13 +344,11 @@ npm run test:all     # 둘 다
 - **`/search` 응답은 뷰어 권한으로 안 걸러져 온다** — 학교 게시판 글과 모임 글이 섞여 온다.
   `src/app/search/page.tsx`의 `visiblePosts()`가 서버에서 걸러낸다. 앱도 같은 노출이 있으니 서버 수정 검토 필요
 - **글 작성 POST는 JSON으로 보낸다** — `POST /api/posts`는 multer로 감싸져 있지만 multipart가 아니면
-  통과시키고 `express.json()`이 파싱한다 (앱도 이미 JSON으로 보냄). 이미지는 `/api/upload/image`로
+  통과시키고 `express.json()`이 파싱한다 (앱도 이미 JSON으로 보냄). 이미지는 `/api/upload/post`(= `/api/upload/[kind]`)로
   먼저 올려 Cloudinary URL을 본문 HTML에 심는 방식
 - **`@types/node` v24 + `lib.dom` 충돌** — `Request.formData()`가 빈 타입으로 해석된다.
   업로드 라우트는 파싱 대신 **원본 바디를 버퍼(`arrayBuffer()`)로 받아 그대로 전달**해서 이 문제를 비켜간다.
   ⚠️ `req.body` 스트림 + `duplex: 'half'` 패스스루는 Next 16 fetch에서 throw → 업로드 전부 502였다. 되돌리지 말 것
-- 테스트: `cd web && npm test` (Node 내장 러너 + 네이티브 TS, 22개). sanitize·boards·camel 순수 로직.
-  CI `web` job은 Node 24 필요 (네이티브 TS 스트리핑)
 - **채팅만 브라우저가 Railway에 직접 붙는다** — WebSocket은 다른 origin이라 httpOnly 쿠키가 안 가고
   Vercel은 소켓을 프록시 못 한다. 그래서 **단기 티켓** 방식:
   - `POST /api/auth/socket-ticket` (서버) — 2분 수명 + `scope: 'socket'` 클레임
@@ -364,7 +364,7 @@ npm run test:all     # 둘 다
   BFF 범용 프록시도 이제 **봉투 전체를 그대로 전달**한다
 - **익명 글에는 1:1 채팅 버튼을 띄우지 말 것** — `post.userId`가 null이다 (`authorId`는 차단·신고 전용).
   채팅을 열면 익명성이 깨진다
-- 테스트: `cd web && npm test` (Node 내장 러너 + 네이티브 TS, 22개). sanitize·boards·camel 순수 로직.
+- 테스트: `cd web && npm test` (Node 내장 러너 + 네이티브 TS, 35개). sanitize·boards·camel·chat·links.
   ⚠️ **Node 22.6+ 필요** — 레포 기본이 v20.13.1이라 `web/.nvmrc`(=24)로 고정. `cd web && nvm use` 후 실행.
   CI `web` job은 Node 24 고정
 - **지도 화면은 도시 어휘가 두 개다** (4단계에서 제일 많이 헤맨 지점)
@@ -389,7 +389,7 @@ npm run test:all     # 둘 다
 - **글은 board 또는 group 중 하나** (`Post` pre-validate). `/write?group=`은 `groupId`를 보내고
   보드 선택·도시·익명 안내를 숨긴다 (모임 글은 익명 불가)
 - **zsh에서 `GID`는 특수 변수** (프로세스 group id) — 셸 스크립트에서 ObjectId를 담으면 산술 오류가 난다
-- **한국어/영어 전환 (2026-10, 1차)** — 헤더 오른쪽 `LangToggle` (로그인·회원가입은 우측 상단)
+- **한국어/영어 전환 (2026-10, 1·2차 완료)** — 헤더 오른쪽 `LangToggle` (로그인·회원가입은 우측 상단)
   - 언어는 **쿠키 `camoim_lang`** (`ko` 기본). 서버가 첫 바이트부터 그 언어로 렌더 → 깜빡임 없음.
     root layout이 쿠키를 읽으므로 `<html lang>`도 맞게 나간다
   - 문구는 **`web/src/lib/i18n/messages.ts` 한 곳**. `en`이 `Messages`(= ko의 타입)라서
@@ -401,7 +401,11 @@ npm run test:all     # 둘 다
   - 학교 게시판 이름은 영어에서도 API 이름 유지 (학교명이 들어 있고, admin은 여러 학교를 본다)
   - **번역 안 하는 것**: 페이지 `<title>`/검색 메타(한국어 SEO), 서버 에러·알림 본문, 사용자 글,
     익명 닉네임("익명"은 서버가 보냄)
-  - **2차 남음**: 지도·업체·숙소·모임·학교·소개팅·공개 프로필·공지·약관. 관리자는 한국어 유지
+  - 옵션 목록(카테고리·숙소 조건·성별 등)은 항목에 `labelEn`을 두고 `labelFor(item, lang)`로 고른다
+  - **약관·개인정보처리방침 본문은 번역하지 않는다** — 앱도 한국어 원문만 있고 동의받은 텍스트가 그것.
+    영어 모드에선 "한국어 원문이 적용된다" 안내만 띄운다 (`LegalDocument`). 번역본을 넣으려면 법률 검토 후
+  - 관리자 화면은 한국어 유지
+  - ⚠️ `MapExplorer.tsx`도 루프 변수가 `m`이라 번역 객체를 `t`로 쓴다
   - ⚠️ `Conversation.tsx`는 메시지 루프 변수가 `m`이라 번역 객체를 `t`로 쓴다
 - 명령어: `cd web && npm run dev | typecheck | test | build`
 - **Vercel 배포 (2026-10-23 첫 배포)** — 프로젝트 `camoim` (계정 hyeonjunson), 주소 **https://camoimapp.com**
@@ -423,8 +427,10 @@ npm run test:all     # 둘 다
 - [x] 4단계 — 지도(업체·숙소·리뷰·등록요청), 숙소 등록·수정, 모임(가입·멤버관리·모임글),
       학교 커뮤니티(링크·학생회장 인수인계), 소개팅(19세 게이트·신청·수락)
 - [ ] 5단계 — 관리자 페이지(대시보드·신고·학교인증·모임승인·업체승인·회원관리·시스템설정 완료 /
-      게시판·학교 CRUD·운영로그·푸시발송 남음), Vercel 배포, `camoimapp.com` 연결,
-      공개 문서(README·ARCHITECTURE) 갱신
+      게시판·학교 CRUD·운영로그·푸시발송 남음)
+  - [x] Vercel 배포 + `camoimapp.com` 연결 (2026-10-23)
+  - [x] 공개 문서 갱신 (2026-10-23) — README·ARCHITECTURE(Web client 섹션)·DECISIONS #12(BFF)·
+        TESTING(웹 유닛·CI web job)·ENGINEERING-NOTES #2 후기·web/README
 
 ### 웹에서 반드시 지킬 것 (QA)
 - [x] 앱에서 작성된 글 HTML은 **sanitize 후** 렌더 — `web/src/lib/sanitize.ts` (allowlist + 테스트 10개).
@@ -576,6 +582,7 @@ npm run test:all     # 둘 다
   게시판별 최신글·공개 프로필이 이걸 빠뜨려서 숨긴 글이 그대로 보였다 (`posts.visibility.test.js`가 지킴)
 - 상세는 `isHiddenFrom(post, userId)` — 작성자 본인만 열람. 예전엔 관리자 숨김 글이 직접 링크로 열렸다
 - 예외: 본인 "내 글" 목록, 관리자 콘솔(`/api/admin/posts`)
+- **공개 프로필 글 목록은 모임 글(`groupId`)·학교 게시판 글도 뺀다** — 멤버·재학생 전용 글이 프로필로 새던 문제
 
 ### 10. 말머리 (Post.prefix) · 게시판 묶음
 - `Post.prefix`는 키(`sell`/`buy`/`hiring`…)를 저장. 라벨은 클라이언트가 (앱은 i18n `prefix.*`)

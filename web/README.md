@@ -29,33 +29,40 @@ mints a JWT, so one can never be returned into page JavaScript.
 
 ## Layout
 
+Live at **[camoimapp.com](https://camoimapp.com)**.
+
 | Path | What it holds |
 |---|---|
-| `src/middleware.ts` | Auth gating, before anything renders |
-| `src/app/page.tsx` | Home — three columns, server-rendered |
-| `src/app/boards/` | Board index and one board's feed |
-| `src/app/posts/[id]/` | Post detail, and its editor |
-| `src/app/write/` | New post |
-| `src/app/search/` | Posts, groups and members in one list |
-| `src/app/chat/` | Room list, and one conversation over Socket.io |
-| `src/app/notifications/` | Notification list |
-| `src/app/mypage/` | Profile, my posts, likes, bookmarks, blocks |
-| `src/app/users/[id]/` | Public profile |
-| `src/app/map/` | Businesses and stays on one map |
-| `src/app/businesses/`, `src/app/stays/` | Detail, reviews, and submission forms |
-| `src/app/groups/` | List, detail, members, settings |
-| `src/app/school/` | School community and the president's controls |
-| `src/app/intro/` | The age-gated, anonymous intro board |
-| `src/app/api/socket-ticket` | The only credential the browser is handed |
-| `src/app/api/upload/[kind]` | Every image upload, one folder per kind |
+| `src/proxy.ts` | Auth gating, before anything renders (Next 16's name for `middleware.ts`) |
+| `src/app/(site)/layout.tsx` | The header, rendered once and kept across navigations |
+| `src/app/(site)/(home)/` | Home — three columns, server-rendered |
+| `src/app/(site)/boards/` | Board index and one board's feed |
+| `src/app/(site)/posts/[id]/` | Post detail, and its editor |
+| `src/app/(site)/write/` | New post, on a board or in a group |
+| `src/app/(site)/search/` | Posts, groups and members in one list |
+| `src/app/(site)/chat/` | Room list, and one conversation over Socket.io |
+| `src/app/(site)/notifications/` | Notification list |
+| `src/app/(site)/notices/` | Notices from the operators |
+| `src/app/(site)/mypage/` | Profile, my posts, likes, bookmarks, blocks |
+| `src/app/(site)/users/[id]/` | Public profile |
+| `src/app/(site)/map/` | Businesses and stays on one map |
+| `src/app/(site)/businesses/`, `stays/` | Detail, reviews, and submission forms |
+| `src/app/(site)/groups/` | List, detail, members, settings |
+| `src/app/(site)/school/` | School community and the president's controls |
+| `src/app/(site)/intro/` | The age-gated, anonymous intro board |
+| `src/app/(admin)/admin/` | Dashboard, reports, verification, group and business approval, users, system settings |
 | `src/app/(auth)/` | Login and signup |
+| `src/app/terms`, `src/app/privacy` | The app's own legal text |
 | `src/app/api/auth/*` | The only routes that see a JWT |
 | `src/app/api/bff/[...path]` | Authenticated passthrough for client components |
-| `src/app/api/upload/image` | Multipart passthrough to Cloudinary |
+| `src/app/api/socket-ticket` | The only credential the browser is handed |
+| `src/app/api/upload/[kind]` | Every image upload, one Cloudinary folder per kind |
 | `src/app/api/rate` | CAD→KRW, cached 10 minutes |
 | `src/lib/sanitize.ts` | The allowlist every post body passes through |
 | `src/lib/api.ts` | Server-side calls to Railway |
-| `src/lib/boards.ts` | Board tones, cities, trade-board slugs |
+| `src/lib/session.ts` | The httpOnly session cookie |
+| `src/lib/i18n/` | Korean/English message table and the language cookie |
+| `src/lib/boards.ts` | Board tones, cities, prefixes, trade-board slugs |
 | `src/lib/legal.ts` | Re-exports the app's `src/constants/legal.js` |
 
 ## Chat is the exception to the BFF
@@ -97,14 +104,20 @@ italic, underline, H2, align — and `codeBlock`, `blockquote` and
 `horizontalRule` are switched off in `PostEditor.tsx`. A mark TipTap can produce
 but pell cannot would render as unstyled text on a phone.
 
-## Three things that bite
+## Things that bite
 
 - **Auth redirects belong in middleware.** A `redirect()` inside a page runs
   during the render; once the shell has started streaming, the status code is
   already sent. The visitor gets a 200 that redirects late, or not at all.
 - **`loading.tsx` creates that same streaming boundary.** With one in place a
   missing post answered 200 instead of 404, because `notFound()` ran after the
-  flush. There are none in this app for that reason.
+  flush. So loading states live only on pages that never call `notFound()` —
+  home, board index, map, group list and the like — and those sit inside route
+  groups (`(home)`, `(index)`) so the boundary can't spread to a detail route
+  beneath them. Detail pages show a pending state on the clicked link instead
+  (`LinkPending`).
+- **Prefetching only happens in production.** `next dev` is slower than the
+  deployed site partly for that reason; don't judge navigation speed from it.
 - **`GET /api/posts/:id` increments `viewCount`.** Every link to a post detail
   therefore carries `prefetch={false}`; without it, hovering a feed row inflates
   the count.
@@ -148,6 +161,19 @@ Two app values fail WCAG AA on a white page and are replaced in
 `#7F77DD` is still used for the logo tile and board dots, where nothing sits on
 top of it.
 
+## Korean and English
+
+The language lives in a `camoim_lang` cookie (Korean by default), so the server
+renders the right language from the first byte and `<html lang>` matches. Every
+string is in `src/lib/i18n/messages.ts`; the English table is typed as the
+Korean one's shape, so adding a string to one side only fails `typecheck`.
+Server components call `getI18n()`, client components `useMessages()`.
+
+Not translated on purpose: page titles and search metadata (the audience
+searches in Korean), server error and notification text, and anything users
+wrote. The main screens are done; the map, groups, school, intro, notices and
+legal pages are next. The admin console stays Korean.
+
 ## Running it
 
 ```bash
@@ -156,9 +182,12 @@ npm install
 npm run dev                  # http://localhost:3000
 npm run typecheck
 nvm use                      # .nvmrc pins 24; the repo default is v20, which cannot run the tests
-npm test                     # Node's own runner, executing the .ts files directly
+npm test                     # Node's own runner, executing the .ts files directly (35 tests)
 npm run build
 ```
+
+CI runs typecheck, tests and a production build on every push (the `web` job in
+`.github/workflows/ci.yml`).
 
 Pointing `CAMOIM_API_URL` at `http://localhost:4000/api` runs against a local
 backend (`cd ../server && node index.js`).
@@ -178,10 +207,24 @@ with **Maps JavaScript API** enabled separately. Such a key is public by design,
 which is why it is a `NEXT_PUBLIC_` value. Without it the map panel says so and
 the list beside it keeps working — a missing key is configuration, not an error.
 
+## Deployment
+
+Vercel project `camoim`, Root Directory `web`, Node 24. Every push to `main`
+deploys automatically — the same push Railway deploys the API from.
+
+- **Domain.** `camoimapp.com` serves the site; `www` redirects to it. DNS stays
+  on Cloudflare, because the Resend email records live there, with both A
+  records pointed at Vercel and **proxying off** — an orange-cloud record breaks
+  Vercel's certificate renewal.
+- **What gets uploaded.** The repo-root `.vercelignore` is an allowlist: only
+  `web/` and `src/constants/legal.js` (+ its `.d.ts`) leave the machine, so
+  `server/.env` and seed credentials can't. If the web starts importing another
+  file from outside `web/`, add it there.
+- **Environment.** `CAMOIM_API_URL`, `NEXT_PUBLIC_SITE_URL`,
+  `NEXT_PUBLIC_SOCKET_ORIGIN`, and optionally `NEXT_PUBLIC_GOOGLE_MAPS_KEY`.
+
 ## Not built yet
 
-School verification (the student-card upload), account deletion, and the admin
-pages. Those three still point at the app.
-
-The UI copy is Korean and hard-coded. The app carries Korean and English in
-`src/lib/i18n.js`; the web does not read it yet.
+School verification (the student-card upload) and account deletion still point
+at the app. In the admin console, board and university management, the audit
+log and push broadcasts are app-only for now.

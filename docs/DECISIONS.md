@@ -17,6 +17,7 @@ aspirational.
 | 9 | [`_id` → `id` normalization in one place](#9-_id--id-normalization-in-one-place) |
 | 10 | [OTA updates vs. store builds](#10-ota-updates-vs-store-builds) |
 | 11 | [Hand-rolled i18n, not i18next](#11-hand-rolled-i18n-not-i18next) |
+| 12 | [A Next.js backend-for-frontend for the web, not a browser calling the API](#12-a-nextjs-backend-for-frontend-for-the-web-not-a-browser-calling-the-api) |
 
 ---
 
@@ -101,7 +102,7 @@ mechanism in the system — and a token revoked for REST is revoked for the sock
 - **Horizontal scaling needs `@socket.io/redis-adapter`.** Room membership is in-process
   today, so a second container would silently split the chat. This is a known, bounded step,
   not an unknown.
-- The CORS configuration is not what it appears to be on a native-only app, which cost me the
+- The CORS configuration is not what it appears to be on a native client, which cost me the
   entire chat feature for a stretch — see
   [note #2](ENGINEERING-NOTES.md#2-all-real-time-chat-and-notifications-died-after-a-deploy).
 
@@ -299,3 +300,43 @@ crashing.
 a test: [`runtimeLang.test.js`](../src/lib/__tests__/runtimeLang.test.js) flattens both
 dictionaries and asserts the key sets are identical. CI fails on a missing translation, which
 is what the library would have given me.
+
+The web client made the same choice for the same reasons: one typed table in
+`web/src/lib/i18n/messages.ts`, where the English half is typed as the Korean half's shape, so
+a string added to only one language fails `npm run typecheck` instead of needing a test.
+
+---
+
+### 12. A Next.js backend-for-frontend for the web, not a browser calling the API
+
+**Decision.** The web client is a Next.js app on Vercel that renders on the server and proxies
+API calls. The browser holds an httpOnly session cookie; Next.js turns it into the
+`Authorization: Bearer` header the API already understands. The browser never sees the JWT.
+
+**Alternatives considered.**
+- *A single-page app calling Railway directly, token in `localStorage`.* Least code, and it
+  would have reused the app's request layer almost unchanged. But post bodies are HTML written
+  by other users through the app's rich-text editor, so the web renders untrusted markup by
+  design. One sanitizer gap and any script on the page could read a token that is valid for 30
+  days.
+- *Cookie auth on the API itself.* It would remove the proxy hop, but means changing the auth
+  middleware the shipped apps depend on, adding CORS with credentials, and taking on CSRF
+  defences on a cross-site cookie.
+
+**Why.** The BFF needed **no change to the API's authentication** — `middleware/auth.js` still
+reads only `Bearer`, so nothing the phone apps rely on moved. The cookie is same-site, so
+there's no `SameSite=None` and no CSRF token: writes are accepted only when `Origin` matches
+`Host`. Server rendering also gives search engines real HTML for public boards, which a
+client-rendered app wouldn't.
+
+**What it costs.**
+- **An extra hop** on every web request (browser → Vercel → Railway), on top of the
+  cross-region database round trip. Server components fetch in parallel to keep it to one
+  serial API call where they can.
+- **Chat can't follow the pattern.** Vercel doesn't proxy WebSockets and the cookie doesn't
+  reach Railway's origin, so the browser connects to Railway directly with a two-minute
+  ticket scoped to `'socket'`, which the REST middleware refuses. That's a small, separate
+  credential flow I had to add to the API after all.
+- **Mirrored constants.** Board slugs, cities, stay types and the `_id` → `id` rewrite exist
+  in both clients. Tests compare the web's copies against the app's and the server's, so drift
+  fails CI rather than showing up as an empty list.

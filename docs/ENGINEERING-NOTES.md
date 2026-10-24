@@ -148,6 +148,14 @@ round trip is now covered by
 [an integration test with two real clients](../server/__tests__/integration/chat.socket.test.js)
 that runs on every push.
 
+**Now that a web client exists.** The browser does connect to this socket directly — Vercel
+can't proxy WebSockets — and `SOCKET_CORS_ORIGINS` is still unset. That's deliberate. The
+browser's credential is a two-minute ticket scoped to the socket (the REST middleware refuses
+it), fetched through the web server with the httpOnly session cookie, so a page on another
+origin has nothing to hand the handshake. Narrowing the allowlist would add nothing the ticket
+doesn't already do, and setting it carelessly would repeat this incident. If it's ever set, the
+"no origin ⇒ allow" branch has to stay, or the phone apps go dark again.
+
 ---
 
 ## 3. Student ID cards were publicly readable

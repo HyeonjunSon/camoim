@@ -1,20 +1,23 @@
 # Testing & CI
 
-Three layers. Further down is slower and closer to reality.
+Three layers for the app, plus the web client's own unit tests. Further down is slower and
+closer to reality.
 
 ```
-Client unit (jest-expo)         72 tests · ~1s    pure logic, no native
-Server unit + integration       81 tests · ~15s   real Express + in-memory MongoDB + real Socket.io
+Client unit (jest-expo)        102 tests · ~1s    pure logic, no native
+Server unit + integration      136 tests · ~15s   real Express + in-memory MongoDB + real Socket.io
+Web unit (node:test)            35 tests · <1s    sanitizer, shared constants, routes
 Maestro E2E                      2 flows          real app on a device/emulator
 ```
 
-The first two run on every push and pull request via GitHub Actions. Maestro is a pre-release
-gate run locally, because it needs an installed app build.
+The first three run on every push and pull request via GitHub Actions. Maestro is a
+pre-release gate run locally, because it needs an installed app build.
 
 ```bash
 npm test                 # client
 npm run test:server      # server  (= npm --prefix server test)
 npm run test:all         # both
+cd web && npm test       # web — needs Node 22.6+; web/.nvmrc pins 24, so `nvm use` first
 
 npm run test:watch
 npm run test:coverage
@@ -37,6 +40,8 @@ whole app quietly.
 | [`src/lib/__tests__/session.test.js`](../src/lib/__tests__/session.test.js) | Cold-start session restore. **Only an auth failure (401, revoked, banned, suspended) signs the user out** — offline, timeout, 5xx, and maintenance keep the session. Pins the fix for the offline-logout bug ([perf/README.md](../perf/README.md#a-bug-fixed-on-the-way)) |
 | [`src/lib/__tests__/perf.test.js`](../src/lib/__tests__/perf.test.js) | Production telemetry: cold start reported once, never for sessions that went through the login screen |
 | [`src/lib/__tests__/storage.test.js`](../src/lib/__tests__/storage.test.js) | Cached-user storage, including a corrupted entry falling back to network restore |
+| [`src/lib/__tests__/storeUpdate.test.js`](../src/lib/__tests__/storeUpdate.test.js) | Version comparison behind the "new version in the store" prompt — numeric, not string, and silent when either version is unknown |
+| [`src/constants/__tests__/intro.test.js`](../src/constants/__tests__/intro.test.js) | Intro board age ↔ birth-year conversion, and **client job keys accepted by the server enum** |
 
 The last two carry the most weight. `CLAUDE.md` contains rules of the form "update both
 sides" — client and server board constants, Korean and English dictionaries. A rule a human
@@ -70,12 +75,18 @@ server/__tests__/
 ├── unit/
 │   ├── cache.test.js
 │   ├── contentPreview.test.js
-│   └── metro.test.js
+│   ├── metro.test.js
+│   └── prefix.test.js
 └── integration/
-    ├── auth.test.js          real Express app via supertest
-    ├── chat.socket.test.js   real Socket.io server + two real clients
-    ├── home-feed.test.js     home screen APIs, caching and invalidation
-    └── posts.like.test.js    like toggle, incl. concurrent requests
+    ├── admin.stats.test.js       admin dashboard response shape
+    ├── auth.test.js              real Express app via supertest
+    ├── chat.socket.test.js       real Socket.io server + two real clients
+    ├── home-feed.test.js         home screen APIs, caching and invalidation
+    ├── intro.test.js             anonymous intro board: limits, accept/decline, no leaks
+    ├── posts.anonymity.test.js   anonymous posts stay blockable
+    ├── posts.like.test.js        like toggle, incl. concurrent requests
+    ├── posts.prefix.test.js      title prefixes
+    └── posts.visibility.test.js  hidden posts stay out of public lists
 ```
 
 ### Why `app.js` exists
@@ -97,7 +108,7 @@ login tests trip the 10-per-15-minutes limit and the rest of the suite fails on 
 
 ### Coverage
 
-**[`auth.test.js`](../server/__tests__/integration/auth.test.js) — 21 tests**
+**[`auth.test.js`](../server/__tests__/integration/auth.test.js) — 35 tests**
 
 - Registration: email verification enforced before signup, duplicate email/nickname `409`,
   password length, **`role: 'admin'` injection rejected** (an arbitrary role in the request
@@ -108,7 +119,7 @@ login tests trip the 10-per-15-minutes limit and the rest of the suite fails on 
   suspended account `403`, expired suspension auto-lifted
 - `passwordHash` never appears in any response body
 
-**[`chat.socket.test.js`](../server/__tests__/integration/chat.socket.test.js) — 22 tests** — the core flow
+**[`chat.socket.test.js`](../server/__tests__/integration/chat.socket.test.js) — 24 tests** — the core flow
 
 - Socket JWT handshake: missing and forged tokens rejected, a real login token accepted,
   **revoked (`tokenVersion`), banned, and suspended accounts rejected**
@@ -158,13 +169,56 @@ return the same results as the ones they replaced.
 - **15 concurrent likes produce `likeCount === 15`** — the toggle is a conditional atomic
   update, not read-modify-save
 
+**[`posts.visibility.test.js`](../server/__tests__/integration/posts.visibility.test.js) — 7 tests**
+
+- Admin-hidden and report-hidden posts stay out of the board feed, both searches, the
+  latest-per-board list and public profiles — each of those used to show them
+- A hidden post's detail is `403` to everyone but its author, admins included
+- A public profile lists only posts anyone could read — no group or school-board posts
+
+**[`intro.test.js`](../server/__tests__/integration/intro.test.js) — 17 tests**
+
+- The rules agreement is required before posting; daily request limits hold across posts
+- Contact details stay hidden until the owner accepts; a decline is silent and opens no chat
+- The chat room an accept creates never exposes either side's nickname
+
+**[`admin.stats.test.js`](../server/__tests__/integration/admin.stats.test.js) — 4 tests**
+
+- Admin only; **both trends come back as `{ date, count }`**. One of them used to be a raw
+  `$group` result keyed by `_id`, which `toCamel` turned into `id` and crashed the web
+  dashboard
+
+**[`posts.anonymity.test.js`](../server/__tests__/integration/posts.anonymity.test.js) — 4 tests**
+and **[`posts.prefix.test.js`](../server/__tests__/integration/posts.prefix.test.js) — 3 tests**
+
+- Anonymous posts mask the author's display fields but keep a real `authorId`, so the author
+  can still be blocked and reported
+- A title prefix is stored only when the board offers it — a foreign one is dropped, not
+  rejected, so older app builds can still post
+
 Only email (Resend) and push (Expo) are mocked. Everything else runs the same code path
 production does — the real Express app, the real Socket.io server, real Mongoose models
 against a real database.
 
 ---
 
-## 3. Maestro E2E
+## 3. Web unit tests
+
+`web/` uses Node's built-in test runner and runs the TypeScript sources directly (native type
+stripping), so there's no Jest or build step. That needs Node 22.6+; `web/.nvmrc` pins 24
+because the repo's default is 20.
+
+| File | What it protects |
+|---|---|
+| [`sanitize.test.ts`](../web/src/lib/sanitize.test.ts) | The allowlist every post body passes before `dangerouslySetInnerHTML` — scripts, event handlers and `javascript:` URLs removed, the marks both editors produce kept |
+| [`boards.test.ts`](../web/src/lib/boards.test.ts) | **Web ↔ app ↔ server sync** — trade boards, local boards and title prefixes (the last imported straight from the server's module) |
+| [`camel.test.ts`](../web/src/lib/camel.test.ts) | The web's copy of `toCamel`: `_id` → `id` at every depth |
+| [`chat.test.ts`](../web/src/lib/chat.test.ts) | Unread marks on DM messages, read receipts, Korean/English clock and day labels |
+| [`links.test.ts`](../web/src/lib/links.test.ts) | **Every internal `href` points at a route that exists, and every route is linked from somewhere.** Written after the home notice banner linked to a page that was never built |
+
+---
+
+## 4. Maestro E2E
 
 See [`.maestro/README.md`](../.maestro/README.md).
 
@@ -178,7 +232,7 @@ Flows select elements by `testID`, never by text, so they survive Korean/English
 
 ---
 
-## 4. CI
+## 5. CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — on push to `main`, on pull
 requests, and manually.
@@ -187,6 +241,7 @@ requests, and manually.
 |---|---|
 | `client` | `npm ci` → `npm test -- --ci --coverage` |
 | `server` | `npm ci` → `npm test -- --ci --coverage`, with the `mongod` binary cached |
+| `web` | Node 24 · `npm ci` → `npm run typecheck` → `npm test` → `npm run build` |
 
 Re-pushing to a branch cancels the in-flight run (`concurrency`). Coverage is uploaded as an
 artifact and kept for 7 days.
