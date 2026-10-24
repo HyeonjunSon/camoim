@@ -390,11 +390,14 @@ npm run test:all     # 둘 다
   보드 선택·도시·익명 안내를 숨긴다 (모임 글은 익명 불가)
 - **zsh에서 `GID`는 특수 변수** (프로세스 group id) — 셸 스크립트에서 ObjectId를 담으면 산술 오류가 난다
 - 명령어: `cd web && npm run dev | typecheck | test | build`
-- **Vercel 배포 (2026-10-23 첫 배포)** — 프로젝트 `camoim` (계정 hyeonjunson), 주소 **https://camoim.vercel.app**
+- **Vercel 배포 (2026-10-23 첫 배포)** — 프로젝트 `camoim` (계정 hyeonjunson), 주소 **https://camoimapp.com**
+  (`www`는 308로 루트로 리다이렉트, `camoim.vercel.app`도 살아 있음)
+  - DNS는 **Cloudflare에 A `@`·`www` → `76.76.21.21`, DNS only(회색 구름)**. 네임서버는 Cloudflare 유지
+    (Resend 메일 레코드가 거기 있음). 주황 구름(Proxied)으로 바꾸면 Vercel 인증서 갱신이 꼬인다
   - Root Directory = `web`, Node 24, "Include files outside root" 켬. **레포 루트에서** `vercel deploy --prod`
   - 루트 `.vercelignore`가 **허용목록** — web/ + `src/constants/legal.js`·`legal.d.ts`만 올라간다
     (server/.env·시드 계정이 업로드되지 않게). web이 루트 밖 파일을 새로 import하면 여기에 추가할 것
-  - GitHub 자동 배포는 아직 미연결 (Vercel GitHub 앱이 레포 접근권한 없음) → 지금은 CLI 수동 배포
+  - **GitHub 연결됨** — main push마다 Vercel이 자동 배포 (Railway도 같은 push로 배포됨)
   - 환경변수: `CAMOIM_API_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SOCKET_ORIGIN` (Maps 키는 아직 없음)
 
 ### 진행 상황
