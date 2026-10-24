@@ -4,12 +4,15 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { PostDetail } from '@/lib/types';
 import { isTradeBoard, tradeLabel } from '@/lib/boards';
+import { useLang, useMessages } from '@/lib/i18n/client';
 
 export default function PostOwnerMenu({ post }: { post: PostDetail }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const m = useMessages();
+  const lang = useLang();
 
   const tradeBoard = isTradeBoard(post.boardSlug);
   const sold = post.tradeStatus === 'sold';
@@ -24,10 +27,10 @@ export default function PostOwnerMenu({ post }: { post: PostDetail }) {
         body: body ? JSON.stringify(body) : undefined,
       });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '처리하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || m.common.failed);
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : '처리하지 못했어요.');
+      setError(e instanceof Error ? e.message : m.common.failed);
       return false;
     } finally {
       setBusy(false);
@@ -43,7 +46,7 @@ export default function PostOwnerMenu({ post }: { post: PostDetail }) {
   }
 
   async function remove() {
-    if (!window.confirm('이 글을 삭제할까요? 되돌릴 수 없어요.')) return;
+    if (!window.confirm(m.post.deleteConfirm)) return;
     const ok = await call(`/posts/${post.id}`, 'DELETE');
     if (ok) {
       router.refresh();
@@ -60,7 +63,7 @@ export default function PostOwnerMenu({ post }: { post: PostDetail }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label="글 관리"
+        aria-label={m.post.manage}
         className="flex size-11 items-center justify-center rounded-[10px] hover:bg-field"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="#6E6E73" aria-hidden>
@@ -84,11 +87,11 @@ export default function PostOwnerMenu({ post }: { post: PostDetail }) {
             className="absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-control border border-line-soft bg-surface shadow-lg"
           >
             <a role="menuitem" href={`/posts/${post.id}/edit`} className={item}>
-              수정
+              {m.common.edit}
             </a>
             {tradeBoard ? (
               <button role="menuitem" type="button" onClick={toggleTrade} disabled={busy} className={item}>
-                {tradeTogglLabel(post.boardSlug, sold)}
+                {m.post.changeTo(tradeLabel(post.boardSlug, sold ? 'selling' : 'sold', lang))}
               </button>
             ) : null}
             <button
@@ -98,7 +101,7 @@ export default function PostOwnerMenu({ post }: { post: PostDetail }) {
               disabled={busy}
               className={`${item} text-danger`}
             >
-              삭제
+              {m.common.delete}
             </button>
           </div>
         </>
@@ -111,10 +114,4 @@ export default function PostOwnerMenu({ post }: { post: PostDetail }) {
       ) : null}
     </div>
   );
-}
-
-/** "거래완료로 변경" / "입주완료로 변경", matching the board's own wording. */
-function tradeTogglLabel(slug: string | undefined, sold: boolean): string {
-  const next = tradeLabel(slug, sold ? 'selling' : 'sold');
-  return `${next}로 변경`;
 }

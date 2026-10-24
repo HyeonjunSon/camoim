@@ -4,31 +4,33 @@ import type { ChatRoomSummary } from '@/lib/types';
 import { initial, timeAgo } from '@/lib/format';
 import LinkPending from '../LinkPending';
 import NewChatDialog from './NewChatDialog';
+import { getI18n } from '@/lib/i18n/server';
+import type { Messages } from '@/lib/i18n/messages';
 
 const BOXES = [
-  { id: 'accepted', label: '대화' },
-  { id: 'requests', label: '받은 요청' },
-  { id: 'sent', label: '보낸 요청' },
+  { id: 'accepted' },
+  { id: 'requests' },
+  { id: 'sent' },
 ] as const;
 
 export type ChatBox = (typeof BOXES)[number]['id'];
 
-function roomTitle(room: ChatRoomSummary): string {
-  if (room.kind === 'group') return room.group?.name ?? '모임 채팅';
-  if (room.kind === 'school') return room.school?.name ?? '학교 채팅';
-  if (room.otherDeleted) return '탈퇴한 회원';
-  return room.other?.nickname ?? '알 수 없음';
+function roomTitle(room: ChatRoomSummary, m: Messages): string {
+  if (room.kind === 'group') return room.group?.name ?? m.chat.groupChat;
+  if (room.kind === 'school') return room.school?.name ?? m.chat.schoolChat;
+  if (room.otherDeleted) return m.common.deletedUser;
+  return room.other?.nickname ?? m.common.unknown;
 }
 
-function roomContext(room: ChatRoomSummary): string {
-  if (room.kind === 'group') return `모임 · 멤버 ${room.group?.memberCount ?? 0}명`;
-  if (room.kind === 'school') return `학교 라운지 · ${room.school?.memberCount ?? 0}명`;
-  if (room.other?.anonymous) return '익명 채팅';
-  if (room.otherLeft) return '상대가 채팅방을 나갔어요';
-  return '1:1 채팅';
+function roomContext(room: ChatRoomSummary, m: Messages): string {
+  if (room.kind === 'group') return m.chat.groupSub(room.group?.memberCount ?? 0);
+  if (room.kind === 'school') return m.chat.schoolSub(room.school?.memberCount ?? 0);
+  if (room.other?.anonymous) return m.chat.anonymousChat;
+  if (room.otherLeft) return m.chat.otherLeft;
+  return m.chat.dm;
 }
 
-export default function ChatRoomList({
+export default async function ChatRoomList({
   rooms,
   box,
   activeRoomId,
@@ -39,16 +41,17 @@ export default function ChatRoomList({
   activeRoomId?: string;
   requestCount: number;
 }) {
+  const { lang, m } = await getI18n();
   return (
     <section className="flex w-full flex-[1_1_320px] flex-col border-line-faint md:max-w-[360px] md:border-r">
       <div className="px-5 pt-5 pb-3">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-xl font-bold">채팅</h1>
+          <h1 className="text-xl font-bold">{m.chat.title}</h1>
           {/* Every other way into a conversation lives on another page, so the
               chat tab needs one of its own. */}
           <NewChatDialog />
         </div>
-        <nav aria-label="채팅 보관함" className="mt-3 flex gap-1.5">
+        <nav aria-label={m.chat.boxes} className="mt-3 flex gap-1.5">
           {BOXES.map((b) => {
             const on = b.id === box;
             return (
@@ -62,7 +65,7 @@ export default function ChatRoomList({
                     : 'border-line-strong bg-surface text-ink-3 hover:bg-field'
                 }`}
               >
-                {b.label}
+                {m.chat[b.id]}
                 {b.id === 'requests' && requestCount > 0 ? (
                   <span className="rounded-full bg-danger px-1.5 text-[11px] font-bold text-white">
                     {requestCount}
@@ -78,16 +81,16 @@ export default function ChatRoomList({
         <div className="px-5 py-10">
           <p className="text-sm text-muted">
             {box === 'accepted'
-              ? '아직 대화가 없어요.'
+              ? m.chat.emptyAccepted
               : box === 'requests'
-                ? '받은 요청이 없어요.'
-                : '보낸 요청이 없어요.'}
+                ? m.chat.emptyRequests
+                : m.chat.emptySent}
           </p>
           {box === 'accepted' ? (
             <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
-              위 <strong className="text-ink-3">+ 새 대화</strong>로 회원을 찾아 말을 걸 수 있어요.
-              중고거래 글의 &lsquo;1:1 채팅하기&rsquo;, 회원 프로필, 모임 페이지에서도 시작할 수
-              있어요.
+              {m.chat.howToPre}
+              <strong className="text-ink-3">{m.chat.howToNew}</strong>
+              {m.chat.howToPost}
             </p>
           ) : null}
         </div>
@@ -118,22 +121,22 @@ export default function ChatRoomList({
                       aria-hidden
                       className="flex size-11.5 shrink-0 items-center justify-center rounded-full bg-brand-tint font-bold text-brand-ink"
                     >
-                      {initial(roomTitle(room))}
+                      {initial(roomTitle(room, m))}
                     </span>
                   )}
                   <span className="min-w-0 flex-1">
                     <span className="flex justify-between gap-2">
-                      <span className="truncate text-[15px] font-semibold">{roomTitle(room)}</span>
+                      <span className="truncate text-[15px] font-semibold">{roomTitle(room, m)}</span>
                       <span className="shrink-0 text-xs text-muted">
-                        {timeAgo(room.lastMessageAt)}
+                        {timeAgo(room.lastMessageAt, undefined, lang)}
                       </span>
                     </span>
                     <span className="mt-0.5 block truncate text-xs text-muted">
-                      {roomContext(room)}
+                      {roomContext(room, m)}
                     </span>
                     <span className="mt-0.5 flex items-center justify-between gap-2">
                       <span className="truncate text-sm text-ink-3">
-                        {room.lastMessage || '메시지가 없어요'}
+                        {room.lastMessage || m.chat.noMessages}
                       </span>
                       <LinkPending />
                       {room.unreadCount > 0 ? (

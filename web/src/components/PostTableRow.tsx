@@ -3,6 +3,7 @@ import type { PostSummary } from '@/lib/types';
 import { prefixLabel, tradeBadge, tradeLabel } from '@/lib/boards';
 import { timeAgo } from '@/lib/format';
 import LinkPending from './LinkPending';
+import { getI18n } from '@/lib/i18n/server';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -11,7 +12,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * scanning a board. Title, then author · time · likes · views as columns from
  * `sm` up, folded under the title below that.
  */
-export default function PostTableRow({
+export default async function PostTableRow({
   post,
   boardSlug,
   now,
@@ -21,8 +22,10 @@ export default function PostTableRow({
   /** Passed in so every row on the page agrees on what "new" means. */
   now: number;
 }) {
+  const { lang, m: all } = await getI18n();
+  const m = all.boards;
   const badge = tradeBadge(boardSlug, post.tradeStatus, post.prefix);
-  const prefix = prefixLabel(boardSlug, post.prefix);
+  const prefix = prefixLabel(boardSlug, post.prefix, lang);
   const isNew = now - new Date(post.createdAt).getTime() < DAY_MS;
   const comments = post.commentCount ?? 0;
 
@@ -42,25 +45,25 @@ export default function PostTableRow({
                 badge === 'sold' ? 'bg-[#EDEDF0] text-ink-3' : 'bg-positive-tint text-positive'
               }`}
             >
-              {tradeLabel(boardSlug, badge)}
+              {tradeLabel(boardSlug, badge, lang)}
             </span>
           ) : null}
           {prefix ? <span className="shrink-0 font-semibold text-brand-ink">[{prefix}]</span> : null}
           <span className="truncate">{post.title}</span>
           {comments > 0 ? (
-            <span className="shrink-0 text-[12.5px] font-semibold text-brand-ink" aria-label={`댓글 ${comments}개`}>
+            <span className="shrink-0 text-[12.5px] font-semibold text-brand-ink" aria-label={m.commentCount(comments)}>
               [{comments}]
             </span>
           ) : null}
           {post.thumbnail ? (
-            <span className="shrink-0 text-[13px]" role="img" aria-label="사진 있음">
+            <span className="shrink-0 text-[13px]" role="img" aria-label={m.hasPhoto}>
               📷
             </span>
           ) : null}
           {isNew ? (
             <span
               className="flex size-4 shrink-0 items-center justify-center rounded-full bg-[#F43F5E] text-[9.5px] font-extrabold text-white"
-              aria-label="새 글"
+              aria-label={m.newPost}
             >
               N
             </span>
@@ -71,13 +74,13 @@ export default function PostTableRow({
         {/* Columns from sm up; one muted line under the title below that. */}
         <span className="flex gap-2 text-[12.5px] text-muted sm:contents">
           <span className="truncate sm:text-[13px] sm:text-ink-3">{post.nickname}</span>
-          <span className="sm:text-center">{timeAgo(post.createdAt)}</span>
+          <span className="sm:text-center">{timeAgo(post.createdAt, undefined, lang)}</span>
           <span className="sm:text-center">
-            <span className="sm:hidden">추천 </span>
+            <span className="sm:hidden">{m.likesShort}</span>
             {post.likeCount ?? 0}
           </span>
           <span className="sm:text-center">
-            <span className="sm:hidden">조회 </span>
+            <span className="sm:hidden">{m.viewsShort}</span>
             {post.viewCount ?? 0}
           </span>
         </span>
@@ -87,17 +90,18 @@ export default function PostTableRow({
 }
 
 /** Column headings for the table view, shown from `sm` up. */
-export function PostTableHead() {
+export async function PostTableHead() {
+  const m = (await getI18n()).m.boards;
   return (
     <div
       aria-hidden
       className="hidden border-b border-line-faint bg-field px-6 py-2 text-[12.5px] font-semibold text-muted sm:grid sm:grid-cols-[minmax(0,1fr)_7rem_4.5rem_3rem_3.5rem] sm:gap-3"
     >
-      <span className="text-center">제목</span>
-      <span>글쓴이</span>
-      <span className="text-center">작성</span>
-      <span className="text-center">추천</span>
-      <span className="text-center">조회</span>
+      <span className="text-center">{m.colTitle}</span>
+      <span>{m.colAuthor}</span>
+      <span className="text-center">{m.colDate}</span>
+      <span className="text-center">{m.colLikes}</span>
+      <span className="text-center">{m.colViews}</span>
     </div>
   );
 }

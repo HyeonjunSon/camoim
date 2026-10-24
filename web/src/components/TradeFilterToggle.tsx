@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useId, useTransition } from 'react';
+import { useMessages } from '@/lib/i18n/client';
 
 /**
  * A real checkbox rather than a link styled as one, so it is announced and
@@ -13,6 +14,7 @@ export default function TradeFilterToggle({ basePath }: { basePath: string }) {
   const params = useSearchParams();
   const id = useId();
   const [pending, startTransition] = useTransition();
+  const m = useMessages();
 
   const on = params.get('tradeStatus') === 'selling';
 
@@ -38,7 +40,7 @@ export default function TradeFilterToggle({ basePath }: { basePath: string }) {
         onChange={(e) => toggle(e.target.checked)}
         className="size-4.5 accent-brand-strong"
       />
-      거래중만 보기
+      {m.boards.sellingOnly}
     </label>
   );
 }

@@ -3,14 +3,17 @@ import type { PostSummary } from '@/lib/types';
 import { timeAgo } from '@/lib/format';
 import { cityLabel } from '@/lib/boards';
 import { BriefcaseIcon } from './icons';
+import { getI18n } from '@/lib/i18n/server';
 
 function CardShell({
   title,
   href,
+  more,
   children,
 }: {
   title: string;
   href: string;
+  more: string;
   children: React.ReactNode;
 }) {
   return (
@@ -18,7 +21,7 @@ function CardShell({
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-lg font-bold">{title}</h2>
         <Link href={href} className="text-sm text-brand-ink hover:text-brand-ink-hover">
-          더보기 ›
+          {more}
         </Link>
       </div>
       {children}
@@ -26,7 +29,7 @@ function CardShell({
   );
 }
 
-export default function FreeAndJobs({
+export default async function FreeAndJobs({
   freePosts,
   jobsPosts,
   city,
@@ -35,11 +38,12 @@ export default function FreeAndJobs({
   jobsPosts: PostSummary[];
   city: string;
 }) {
+  const { lang, m } = await getI18n();
   return (
     <div className="flex flex-wrap gap-5">
-      <CardShell title="자유게시판 최신" href="/boards/free">
+      <CardShell title={m.home.freeLatest} href="/boards/free" more={m.common.more}>
         {freePosts.length === 0 ? (
-          <p className="py-4 text-sm text-muted">아직 글이 없어요.</p>
+          <p className="py-4 text-sm text-muted">{m.common.noPostsYet}</p>
         ) : (
           <ul>
             {freePosts.map((post) => (
@@ -51,7 +55,7 @@ export default function FreeAndJobs({
                 >
                   <span className="block truncate text-[15px]">{post.title}</span>
                   <span className="mt-1 block text-[12.5px] text-muted">
-                    {[post.nickname, timeAgo(post.createdAt), `댓글 ${post.commentCount ?? 0}`]
+                    {[post.nickname, timeAgo(post.createdAt, undefined, lang), m.common.comments(post.commentCount ?? 0)]
                       .filter(Boolean)
                       .join(' · ')}
                   </span>
@@ -62,9 +66,9 @@ export default function FreeAndJobs({
         )}
       </CardShell>
 
-      <CardShell title={`${cityLabel(city)} 구인구직`} href="/boards/jobs">
+      <CardShell title={m.home.jobs(cityLabel(city, lang))} href="/boards/jobs" more={m.common.more}>
         {jobsPosts.length === 0 ? (
-          <p className="py-4 text-sm text-muted">아직 글이 없어요.</p>
+          <p className="py-4 text-sm text-muted">{m.common.noPostsYet}</p>
         ) : (
           <ul>
             {jobsPosts.map((post) => (
@@ -83,7 +87,7 @@ export default function FreeAndJobs({
                   <span className="min-w-0">
                     <span className="block truncate text-[15px]">{post.title}</span>
                     <span className="mt-0.5 block text-[12.5px] text-muted">
-                      {[cityLabel(post.city), timeAgo(post.createdAt)].filter(Boolean).join(' · ')}
+                      {[cityLabel(post.city, lang), timeAgo(post.createdAt, undefined, lang)].filter(Boolean).join(' · ')}
                     </span>
                   </span>
                 </Link>

@@ -4,17 +4,19 @@ import type { PostSummary } from '@/lib/types';
 import { boardEmoji, boardTone, cityLabel, prefixLabel, tradeBadge, tradeLabel } from '@/lib/boards';
 import { timeAgo } from '@/lib/format';
 import LinkPending from './LinkPending';
+import { getI18n } from '@/lib/i18n/server';
 
 /** The card view of a board feed row. The dense table view is PostTableRow. */
-export default function PostListRow({
+export default async function PostListRow({
   post,
   boardSlug,
 }: {
   post: PostSummary;
   boardSlug: string;
 }) {
+  const { lang, m } = await getI18n();
   const badge = tradeBadge(boardSlug, post.tradeStatus, post.prefix);
-  const prefix = prefixLabel(boardSlug, post.prefix);
+  const prefix = prefixLabel(boardSlug, post.prefix, lang);
 
   return (
     <li>
@@ -31,11 +33,11 @@ export default function PostListRow({
                   badge === 'sold' ? 'bg-[#EDEDF0] text-ink-3' : 'bg-positive-tint text-positive'
                 }`}
               >
-                {tradeLabel(boardSlug, badge)}
+                {tradeLabel(boardSlug, badge, lang)}
               </span>
             ) : null}
             {post.authorIsLeader ? (
-              <span title="학생회장" aria-label="학생회장" className="shrink-0 text-sm">
+              <span title={m.common.leader} aria-label={m.common.leader} className="shrink-0 text-sm">
                 ⭐
               </span>
             ) : null}
@@ -52,10 +54,10 @@ export default function PostListRow({
           <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 text-[12.5px] text-muted">
             <LinkPending className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-brand-ink" />
             <span>{post.nickname}</span>
-            {post.city ? <span>{cityLabel(post.city)}</span> : null}
-            <span>{timeAgo(post.createdAt)}</span>
+            {post.city ? <span>{cityLabel(post.city, lang)}</span> : null}
+            <span>{timeAgo(post.createdAt, undefined, lang)}</span>
             <span>♡ {post.likeCount ?? 0}</span>
-            <span>댓글 {post.commentCount ?? 0}</span>
+            <span>{m.common.comments(post.commentCount ?? 0)}</span>
           </div>
         </div>
 

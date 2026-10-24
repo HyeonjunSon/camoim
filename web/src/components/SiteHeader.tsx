@@ -6,6 +6,8 @@ import type { User } from '@/lib/types';
 import { BellIcon, PlusIcon, SearchIcon } from './icons';
 import UserMenu from './UserMenu';
 import { ChatBadge, NotificationBadge } from './HeaderBadges';
+import LangToggle from './LangToggle';
+import { useMessages } from '@/lib/i18n/client';
 
 /**
  * Rendered once by the (site) layout, not by each page.
@@ -17,10 +19,10 @@ import { ChatBadge, NotificationBadge } from './HeaderBadges';
  * rather than from props.
  */
 const NAV = [
-  { href: '/', label: '홈', match: (p: string) => p === '/' },
-  { href: '/boards', label: '게시판', match: (p: string) => p.startsWith('/boards') || p.startsWith('/posts') },
-  { href: '/map', label: '지도', match: (p: string) => p.startsWith('/map') || p.startsWith('/businesses') || p.startsWith('/stays') },
-  { href: '/chat', label: '채팅', match: (p: string) => p.startsWith('/chat') },
+  { href: '/', key: 'home', match: (p: string) => p === '/' },
+  { href: '/boards', key: 'boards', match: (p: string) => p.startsWith('/boards') || p.startsWith('/posts') },
+  { href: '/map', key: 'map', match: (p: string) => p.startsWith('/map') || p.startsWith('/businesses') || p.startsWith('/stays') },
+  { href: '/chat', key: 'chat', match: (p: string) => p.startsWith('/chat') },
 ] as const;
 
 export default function SiteHeader({ user }: { user: User | null }) {
@@ -28,6 +30,7 @@ export default function SiteHeader({ user }: { user: User | null }) {
   const params = useSearchParams();
   // The board feed calls it `search`; everywhere else it is `q`.
   const query = params.get('q') ?? params.get('search') ?? '';
+  const m = useMessages().header;
 
   return (
     <header className="border-b border-line bg-surface">
@@ -45,11 +48,11 @@ export default function SiteHeader({ user }: { user: User | null }) {
           >
             C
           </span>
-          <span className="text-xl font-bold -tracking-[0.4px]">캐모임</span>
+          <span className="text-xl font-bold -tracking-[0.4px]">{m.brand}</span>
         </Link>
 
         <nav
-          aria-label="주요 메뉴"
+          aria-label={m.nav}
           className="-mx-1 order-3 flex w-full gap-1 overflow-x-auto px-1 md:order-2 md:mx-0 md:w-auto md:flex-wrap md:overflow-visible md:px-0"
         >
           {NAV.map((item) => {
@@ -63,7 +66,7 @@ export default function SiteHeader({ user }: { user: User | null }) {
                   on ? 'bg-brand-tint text-brand-ink' : 'text-ink-3 hover:bg-field'
                 }`}
               >
-                {item.label}
+                {m[item.key]}
                 {item.href === '/chat' && user ? <ChatBadge /> : null}
               </Link>
             );
@@ -76,7 +79,7 @@ export default function SiteHeader({ user }: { user: User | null }) {
         >
           <SearchIcon className="shrink-0 text-muted" />
           <label htmlFor="site-search" className="sr-only-label">
-            검색
+            {m.search}
           </label>
           <input
             id="site-search"
@@ -86,17 +89,18 @@ export default function SiteHeader({ user }: { user: User | null }) {
             // which an uncontrolled defaultValue alone would not do.
             key={query}
             defaultValue={query}
-            placeholder="게시글, 모임, 회원 검색"
+            placeholder={m.searchPlaceholder}
             className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-muted"
           />
         </form>
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5 md:order-4 md:ml-0 md:gap-2">
+          <LangToggle />
           {user ? (
             <>
               <Link
                 href="/notifications"
-                aria-label="알림"
+                aria-label={m.notifications}
                 className="flex h-11 items-center justify-center rounded-control px-2.5 text-ink hover:bg-field"
               >
                 <BellIcon />
@@ -104,11 +108,11 @@ export default function SiteHeader({ user }: { user: User | null }) {
               </Link>
               <Link
                 href="/write"
-                aria-label="글쓰기"
+                aria-label={m.write}
                 className="flex h-11 items-center gap-1.5 rounded-control bg-brand-strong px-3 text-[15px] font-semibold text-white hover:bg-brand-ink-hover sm:px-4"
               >
                 <PlusIcon />
-                <span className="hidden sm:inline">글쓰기</span>
+                <span className="hidden sm:inline">{m.write}</span>
               </Link>
               <UserMenu user={user} />
             </>
@@ -118,13 +122,13 @@ export default function SiteHeader({ user }: { user: User | null }) {
                 href="/login"
                 className="flex h-11 items-center rounded-control px-3 text-[15px] font-semibold text-ink-3 hover:bg-field sm:px-4 sm:text-ink-3"
               >
-                로그인
+                {m.login}
               </Link>
               <Link
                 href="/signup"
                 className="hidden h-11 items-center rounded-control bg-brand-strong px-4 text-[15px] font-semibold text-white hover:bg-brand-ink-hover sm:flex"
               >
-                회원가입
+                {m.signup}
               </Link>
             </>
           )}

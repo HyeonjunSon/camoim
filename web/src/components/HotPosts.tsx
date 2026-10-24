@@ -6,6 +6,8 @@ import type { HotBoardSection } from '@/lib/types';
 import { boardTone } from '@/lib/boards';
 import { FlameIcon } from './icons';
 import LinkPending from './LinkPending';
+import { useLang, useMessages } from '@/lib/i18n/client';
+import { boardName as boardDisplayName } from '@/lib/boards';
 
 /**
  * 48 hours is the server's own default and what the app shows, so the first tab
@@ -13,8 +15,8 @@ import LinkPending from './LinkPending';
  * from yesterday evening.
  */
 const TABS = [
-  { id: 'now', label: '지금', hours: 48 },
-  { id: 'week', label: '이번 주', hours: 168 },
+  { id: 'now', key: 'hotNow', hours: 48 },
+  { id: 'week', key: 'hotWeek', hours: 168 },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -52,6 +54,8 @@ export default function HotPosts({ initialSections }: { initialSections: HotBoar
   });
   const [pending, startTransition] = useTransition();
   const [failed, setFailed] = useState(false);
+  const m = useMessages();
+  const lang = useLang();
 
   async function pick(next: TabId) {
     setTab(next);
@@ -80,9 +84,9 @@ export default function HotPosts({ initialSections }: { initialSections: HotBoar
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-lg font-bold">
           <FlameIcon className="text-[#E8590C]" />
-          지금 인기글
+          {m.home.hotTitle}
         </h2>
-        <div role="tablist" aria-label="인기글 기간" className="flex gap-1.5">
+        <div role="tablist" aria-label={m.home.hotPeriod} className="flex gap-1.5">
           {TABS.map((t) => {
             const on = t.id === tab;
             return (
@@ -98,7 +102,7 @@ export default function HotPosts({ initialSections }: { initialSections: HotBoar
                     : 'border-line-strong bg-surface text-ink-3 hover:bg-field'
                 }`}
               >
-                {t.label}
+                {m.home[t.key]}
               </button>
             );
           })}
@@ -107,10 +111,10 @@ export default function HotPosts({ initialSections }: { initialSections: HotBoar
 
       {!rows ? (
         <p className="py-6 text-center text-sm text-muted">
-          {failed ? '인기글을 불러오지 못했어요.' : '불러오는 중…'}
+          {failed ? m.home.hotFailed : m.common.loading}
         </p>
       ) : rows.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted">아직 인기글이 없어요.</p>
+        <p className="py-6 text-center text-sm text-muted">{m.home.hotEmpty}</p>
       ) : (
         <ol aria-busy={pending}>
           {rows.map((post, i) => {
@@ -127,13 +131,13 @@ export default function HotPosts({ initialSections }: { initialSections: HotBoar
                     className="shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold"
                     style={{ color: tone.fg, background: tone.bg }}
                   >
-                    {post.boardName}
+                    {boardDisplayName(post.boardSlug, post.boardName, lang)}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-[15px]">{post.title}</span>
                   <LinkPending className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-brand-ink" />
                   <span className="hidden shrink-0 gap-2.5 text-[13px] text-muted sm:flex">
                     <span>♡ {post.likeCount}</span>
-                    <span>댓글 {post.commentCount}</span>
+                    <span>{m.common.comments(post.commentCount)}</span>
                   </span>
                 </Link>
               </li>

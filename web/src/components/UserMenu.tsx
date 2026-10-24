@@ -5,11 +5,13 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { User } from '@/lib/types';
 import { initial } from '@/lib/format';
+import { useMessages } from '@/lib/i18n/client';
 
 export default function UserMenu({ user }: { user: User }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const m = useMessages().header;
 
   async function logout() {
     setBusy(true);
@@ -31,7 +33,7 @@ export default function UserMenu({ user }: { user: User }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label={`${user.nickname} 메뉴`}
+        aria-label={m.userMenu(user.nickname)}
         className="flex size-10 items-center justify-center rounded-full bg-brand-tint font-bold text-brand-ink"
       >
         {initial(user.nickname)}
@@ -62,7 +64,7 @@ export default function UserMenu({ user }: { user: User }) {
               onClick={() => setOpen(false)}
               className="block px-4 py-3 text-sm text-ink-2 hover:bg-brand-tint-soft"
             >
-              마이페이지
+              {m.mypage}
             </Link>
             {user.role === 'admin' ? (
               <Link
@@ -71,7 +73,7 @@ export default function UserMenu({ user }: { user: User }) {
                 onClick={() => setOpen(false)}
                 className="block px-4 py-3 text-sm font-semibold text-ink-2 hover:bg-brand-tint-soft"
               >
-                운영 페이지
+                {m.admin}
               </Link>
             ) : null}
             <button
@@ -81,7 +83,7 @@ export default function UserMenu({ user }: { user: User }) {
               disabled={busy}
               className="block w-full px-4 py-3 text-left text-sm text-ink-2 hover:bg-brand-tint-soft disabled:opacity-50"
             >
-              {busy ? '로그아웃 중…' : '로그아웃'}
+              {busy ? m.loggingOut : m.logout}
             </button>
           </div>
         </>

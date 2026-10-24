@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import PostEditor from './PostEditor';
 import Field, { inputClass } from './Field';
-import { CITIES, boardPrefixes, cityLabel, isLocalBoard } from '@/lib/boards';
+import { CITIES, boardName, boardPrefixes, cityLabel, isLocalBoard, prefixText } from '@/lib/boards';
+import { useLang, useMessages } from '@/lib/i18n/client';
 import type { Board } from '@/lib/types';
 
 type Props = {
@@ -59,6 +60,9 @@ export default function PostForm({
   const [prefix, setPrefix] = useState(initialPrefix);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const all = useMessages();
+  const m = all.write;
+  const lang = useLang();
 
   const board = writable.find((b) => b.slug === slug);
   const needsCity = !group && isLocalBoard(slug);
@@ -68,9 +72,9 @@ export default function PostForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!group && !board) return setError('게시판을 선택해주세요.');
-    if (!title.trim()) return setError('제목을 입력해주세요.');
-    if (isBlank(html)) return setError('내용을 입력해주세요.');
+    if (!group && !board) return setError(m.pickBoard);
+    if (!title.trim()) return setError(m.needTitle);
+    if (isBlank(html)) return setError(m.needBody);
 
     setBusy(true);
     setError(null);
@@ -89,12 +93,12 @@ export default function PostForm({
       });
       const json = await res.json();
       // Banned-word rejections come back with the server's own message.
-      if (!res.ok || !json.success) throw new Error(json.message || '저장하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || all.common.saveFailed);
 
       router.refresh();
       router.replace(editing ? `/posts/${postId}` : `/posts/${json.data.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '저장하지 못했어요.');
+      setError(e instanceof Error ? e.message : all.common.saveFailed);
       setBusy(false);
     }
   }
@@ -103,11 +107,12 @@ export default function PostForm({
     <form onSubmit={submit} className="flex flex-col gap-4">
       {group ? (
         <p className="text-[13.5px] text-muted">
-          <span className="font-semibold text-ink-3">{group.name}</span> 모임 게시판에 올라가요.
-          멤버만 볼 수 있어요.
+          {m.groupNotePre}
+          <span className="font-semibold text-ink-3">{group.name}</span>
+          {m.groupNotePost}
         </p>
       ) : !editing ? (
-        <Field id="board" label="게시판">
+        <Field id="board" label={m.board}>
           <select
             id="board"
             value={slug}
@@ -116,28 +121,31 @@ export default function PostForm({
           >
             {writable.map((b) => (
               <option key={b.id} value={b.slug}>
-                {b.name}
+                {boardName(b.slug, b.name, lang)}
               </option>
             ))}
           </select>
         </Field>
       ) : (
         <p className="text-[13.5px] text-muted">
-          <span className="font-semibold text-ink-3">{board?.name ?? '게시판'}</span> 글을 수정하고
-          있어요. 게시판은 바꿀 수 없어요.
+          {m.editingPre}
+          <span className="font-semibold text-ink-3">
+            {board ? boardName(board.slug, board.name, lang) : m.board}
+          </span>
+          {m.editingPost}
         </p>
       )}
 
       {!group && board?.isAnonymousAllowed ? (
         <p className="rounded-[10px] bg-brand-tint px-3.5 py-3 text-[13.5px] text-brand-ink-hover">
-          이 게시판은 익명으로 올라가요. 닉네임은 표시되지 않아요.
+          {m.anonymousNote}
         </p>
       ) : null}
 
       {prefixOptions.length ? (
         <fieldset>
           <legend className="text-[13.5px] font-semibold text-ink-3">
-            말머리 <span className="font-normal text-muted">(선택)</span>
+            {m.prefix} <span className="font-normal text-muted">{m.optional}</span>
           </legend>
           <div className="mt-1.5 flex flex-wrap gap-2">
             {prefixOptions.map((p) => {
@@ -153,7 +161,7 @@ export default function PostForm({
                     on ? 'bg-brand-strong text-white' : 'bg-field text-ink-3 hover:bg-shade'
                   }`}
                 >
-                  {p.label}
+                  {prefixText(p, lang)}
                 </button>
               );
             })}
@@ -161,25 +169,25 @@ export default function PostForm({
         </fieldset>
       ) : null}
 
-      <Field id="title" label="제목">
+      <Field id="title" label={m.titleLabel}>
         <input
           id="title"
           required
           maxLength={120}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="제목을 입력해주세요"
+          placeholder={m.titlePlaceholder}
           className={inputClass}
         />
       </Field>
 
       {needsCity ? (
-        <Field id="city" label="도시" hint="지역 게시판이라 도시를 함께 보여줘요.">
+        <Field id="city" label={m.city} hint={m.cityHint}>
           <select id="city" value={city} onChange={(e) => setCity(e.target.value)} className={inputClass}>
-            <option value="">선택 안 함</option>
+            <option value="">{all.common.none}</option>
             {CITIES.map((c) => (
               <option key={c} value={c}>
-                {cityLabel(c)}
+                {cityLabel(c, lang)}
               </option>
             ))}
           </select>
@@ -187,7 +195,7 @@ export default function PostForm({
       ) : null}
 
       <div>
-        <span className="block text-[13.5px] font-semibold text-ink-3">내용</span>
+        <span className="block text-[13.5px] font-semibold text-ink-3">{m.body}</span>
         <div className="mt-1.5">
           <PostEditor initialHtml={initialHtml} onChange={setHtml} />
         </div>
@@ -205,14 +213,14 @@ export default function PostForm({
           disabled={busy}
           className="flex h-12 items-center rounded-control bg-brand-strong px-5 text-base font-semibold text-white hover:bg-brand-ink-hover disabled:opacity-55"
         >
-          {busy ? '저장 중…' : editing ? '수정 완료' : '올리기'}
+          {busy ? all.common.saving : editing ? m.update : m.publish}
         </button>
         <button
           type="button"
           onClick={() => router.back()}
           className="flex h-12 items-center rounded-control border border-line-strong px-5 text-base font-semibold text-ink-3 hover:bg-field"
         >
-          취소
+          {all.common.cancel}
         </button>
       </div>
     </form>

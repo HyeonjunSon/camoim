@@ -5,6 +5,7 @@ import { ApiError, apiFetch } from '@/lib/api';
 import { loadBoards } from '@/lib/posts';
 import { getCurrentUser } from '@/lib/user';
 import type { PostDetail } from '@/lib/types';
+import { getI18n } from '@/lib/i18n/server';
 
 export const metadata: Metadata = {
   title: '글 수정',
@@ -30,12 +31,12 @@ export default async function EditPostPage({ params }: Props) {
   // cannot be submitted.
   if (post.authorId !== user.id) notFound();
 
-  const boards = await loadBoards();
+  const [boards, { m }] = await Promise.all([loadBoards(), getI18n()]);
 
   return (
     <>
       <main className="mx-auto max-w-[840px] px-4 pb-20 pt-7 sm:px-6">
-        <h1 className="text-2xl font-bold -tracking-[0.4px]">글 수정</h1>
+        <h1 className="text-2xl font-bold -tracking-[0.4px]">{m.write.editTitle}</h1>
         <div className="mt-6">
           <PostForm
             boards={boards}

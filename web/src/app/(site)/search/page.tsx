@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { apiFetchOrNull } from '@/lib/api';
 import { getCurrentUser } from '@/lib/user';
-import { boardTone } from '@/lib/boards';
+import { boardName, boardTone } from '@/lib/boards';
+import { getI18n } from '@/lib/i18n/server';
 import { initial, timeAgo } from '@/lib/format';
 import type { PostSummary, SearchResults, User } from '@/lib/types';
 
@@ -40,7 +41,8 @@ type Props = { searchParams: Promise<{ q?: string }> };
 export default async function SearchPage({ searchParams }: Props) {
   const { q } = await searchParams;
   const query = (q ?? '').trim();
-  const user = await getCurrentUser();
+  const [user, { lang, m: all }] = await Promise.all([getCurrentUser(), getI18n()]);
+  const m = all.search;
 
   const results =
     query.length >= MIN_QUERY
@@ -59,28 +61,28 @@ export default async function SearchPage({ searchParams }: Props) {
 
       <main className="mx-auto max-w-[840px] px-4 pb-20 pt-7 sm:px-6">
         <h1 className="text-2xl font-bold -tracking-[0.4px]">
-          {query ? `‘${query}’ 검색 결과` : '검색'}
+          {query ? m.resultsFor(query) : m.title}
         </h1>
 
         {query.length > 0 && query.length < MIN_QUERY ? (
-          <p className="mt-2 text-[14.5px] text-muted">두 글자 이상 입력해주세요.</p>
+          <p className="mt-2 text-[14.5px] text-muted">{m.twoChars}</p>
         ) : null}
 
         {!query ? (
           <p className="mt-2 text-[14.5px] text-muted">
-            게시글, 모임, 회원을 한 번에 찾을 수 있어요.
+            {m.intro}
           </p>
         ) : null}
 
         {nothing ? (
           <p className="mt-10 text-center text-sm text-muted">
-            검색 결과가 없어요. 다른 단어로 찾아보세요.
+            {m.none}
           </p>
         ) : null}
 
         {posts.length > 0 ? (
           <section className="mt-6">
-            <h2 className="text-lg font-bold">게시글 {posts.length}</h2>
+            <h2 className="text-lg font-bold">{m.posts(posts.length)}</h2>
             <ul className="mt-3 overflow-hidden rounded-card border border-line-soft bg-surface">
               {posts.map((post) => {
                 const tone = boardTone(post.boardSlug);
@@ -97,7 +99,7 @@ export default async function SearchPage({ searchParams }: Props) {
                             className="rounded-md px-1.5 py-0.5 text-[11.5px] font-semibold"
                             style={{ color: tone.fg, background: tone.bg }}
                           >
-                            {post.boardName}
+                            {boardName(post.boardSlug, post.boardName, lang)}
                           </span>
                         ) : null}
                         <span className="min-w-0 flex-1 truncate font-semibold">{post.title}</span>
@@ -108,7 +110,7 @@ export default async function SearchPage({ searchParams }: Props) {
                         </span>
                       ) : null}
                       <span className="mt-1.5 block text-[12.5px] text-muted">
-                        {[post.nickname, timeAgo(post.createdAt), `댓글 ${post.commentCount ?? 0}`]
+                        {[post.nickname, timeAgo(post.createdAt, undefined, lang), all.common.comments(post.commentCount ?? 0)]
                           .filter(Boolean)
                           .join(' · ')}
                       </span>
@@ -122,7 +124,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
         {groups.length > 0 ? (
           <section className="mt-6">
-            <h2 className="text-lg font-bold">모임 {groups.length}</h2>
+            <h2 className="text-lg font-bold">{m.groups(groups.length)}</h2>
             <ul className="mt-3 grid gap-3 sm:grid-cols-2">
               {groups.map((group) => (
                 <li key={group.id}>
@@ -137,7 +139,7 @@ export default async function SearchPage({ searchParams }: Props) {
                       </span>
                     ) : null}
                     <span className="mt-2 text-xs text-muted">
-                      멤버 {group.memberCount ?? 0}명
+                      {all.common.members(group.memberCount ?? 0)}
                     </span>
                   </Link>
                 </li>
@@ -148,7 +150,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
         {users.length > 0 ? (
           <section className="mt-6">
-            <h2 className="text-lg font-bold">회원 {users.length}</h2>
+            <h2 className="text-lg font-bold">{m.users(users.length)}</h2>
             <ul className="mt-3 flex flex-wrap gap-2">
               {users.map((u) => (
                 <li key={u.id}>

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { CommentNode } from '@/lib/types';
 import { initial, timeAgo } from '@/lib/format';
 import ReportButton from './ReportButton';
+import { useLang, useMessages } from '@/lib/i18n/client';
 
 type Props = {
   postId: string;
@@ -48,6 +49,9 @@ export default function Comments({
   const [secret, setSecret] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const all = useMessages();
+  const m = all.comments;
+  const lang = useLang();
 
   async function reload() {
     const res = await fetch(`/api/bff/posts/${postId}/comments`);
@@ -72,7 +76,7 @@ export default function Comments({
       });
       const json = await res.json();
       // The server rejects banned words with its own message; show it verbatim.
-      if (!res.ok || !json.success) throw new Error(json.message || '댓글을 남기지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || m.failed);
       if (parentId) {
         setReplyDraft('');
         setReplyTo(null);
@@ -84,14 +88,14 @@ export default function Comments({
       // Keeps the post's comment count in the server-rendered header honest.
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '댓글을 남기지 못했어요.');
+      setError(e instanceof Error ? e.message : m.failed);
     } finally {
       setBusy(false);
     }
   }
 
   async function remove(commentId: string) {
-    if (!window.confirm('이 댓글을 삭제할까요?')) return;
+    if (!window.confirm(m.deleteConfirm)) return;
     setBusy(true);
     setError(null);
     try {
@@ -99,11 +103,11 @@ export default function Comments({
         method: 'DELETE',
       });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '삭제하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || all.common.deleteFailed);
       await reload();
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '삭제하지 못했어요.');
+      setError(e instanceof Error ? e.message : all.common.deleteFailed);
     } finally {
       setBusy(false);
     }
@@ -120,7 +124,7 @@ export default function Comments({
           style={{ paddingLeft: depth > 0 ? 48 : 0 }}
         >
           {node.isSecretMasked ? (
-            <p className="text-sm text-muted">🔒 비밀 댓글이에요. 작성자와 글쓴이만 볼 수 있어요.</p>
+            <p className="text-sm text-muted">{m.secretHidden}</p>
           ) : (
             <>
               <span
@@ -135,13 +139,13 @@ export default function Comments({
                   <span className="text-[14.5px] font-semibold">{node.nickname}</span>
                   {node.isPinned ? (
                     <span className="rounded-[5px] bg-brand-tint px-1.5 py-0.5 text-[11.5px] font-bold text-brand-ink-hover">
-                      고정
+                      {all.common.pinned}
                     </span>
                   ) : null}
-                  {node.isSecret ? <span className="text-[12px] text-muted">🔒 비밀</span> : null}
+                  {node.isSecret ? <span className="text-[12px] text-muted">{m.secretTag}</span> : null}
                   <span className="text-[12.5px] text-muted">
-                    {timeAgo(node.createdAt)}
-                    {node.edited ? ' · 수정됨' : ''}
+                    {timeAgo(node.createdAt, undefined, lang)}
+                    {node.edited ? m.edited : ''}
                   </span>
                 </div>
                 <p className="mt-1 text-[15px] leading-relaxed whitespace-pre-wrap break-words">
@@ -157,7 +161,7 @@ export default function Comments({
                       }}
                       className="hover:text-ink-3"
                     >
-                      답글
+                      {m.reply}
                     </button>
                   ) : null}
                   {mine ? (
@@ -167,7 +171,7 @@ export default function Comments({
                       disabled={busy}
                       className="hover:text-danger"
                     >
-                      삭제
+                      {all.common.delete}
                     </button>
                   ) : (
                     <ReportButton
@@ -188,14 +192,14 @@ export default function Comments({
                     className="mt-2.5 flex gap-2"
                   >
                     <label htmlFor={`reply-${node.id}`} className="sr-only-label">
-                      답글 입력
+                      {m.replyInput}
                     </label>
                     <input
                       id={`reply-${node.id}`}
                       autoFocus
                       value={replyDraft}
                       onChange={(e) => setReplyDraft(e.target.value)}
-                      placeholder="답글을 남겨주세요"
+                      placeholder={m.replyPlaceholder}
                       className="h-11 min-w-0 flex-1 rounded-control border border-line-strong px-3.5 text-[15px] outline-none focus:border-brand-strong"
                     />
                     <button
@@ -203,7 +207,7 @@ export default function Comments({
                       disabled={busy || !replyDraft.trim()}
                       className="h-11 shrink-0 rounded-control bg-brand-strong px-4 text-sm font-semibold text-white disabled:opacity-55"
                     >
-                      등록
+                      {all.common.submit}
                     </button>
                   </form>
                 ) : null}
@@ -223,10 +227,10 @@ export default function Comments({
       id="comments"
       className="rounded-card border border-line-soft bg-surface px-5 py-5 sm:px-7"
     >
-      <h2 className="text-[17px] font-bold">댓글 {countAll(comments)}</h2>
+      <h2 className="text-[17px] font-bold">{m.title(countAll(comments))}</h2>
 
       {comments.length === 0 ? (
-        <p className="pt-2 pb-1 text-sm text-muted">아직 댓글이 없어요. 첫 댓글을 남겨보세요.</p>
+        <p className="pt-2 pb-1 text-sm text-muted">{m.empty}</p>
       ) : (
         <ul className="mt-1.5">{comments.map((node) => renderNode(node, 0))}</ul>
       )}
@@ -240,25 +244,25 @@ export default function Comments({
           className="mt-4 rounded-[14px] border border-transparent bg-field px-4 pt-3 pb-2.5 transition-colors focus-within:border-brand-strong focus-within:bg-surface"
         >
           <label htmlFor="comment" className="sr-only-label">
-            댓글 입력
+            {m.input}
           </label>
           <textarea
             id="comment"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder={secret ? '비밀 댓글은 글쓴이만 볼 수 있어요' : '댓글을 남겨주세요'}
+            placeholder={secret ? m.secretPlaceholder : m.placeholder}
             rows={2}
             className="block w-full resize-none border-none bg-transparent text-[15px] leading-relaxed outline-none placeholder:text-muted"
           />
           <div className="mt-1.5 flex items-center justify-between gap-3">
             {anonymousBoard ? (
-              <span className="text-[13px] text-muted">익명으로 등록돼요</span>
+              <span className="text-[13px] text-muted">{m.anonymous}</span>
             ) : (
               <button
                 type="button"
                 onClick={() => setSecret((v) => !v)}
                 aria-pressed={secret}
-                title="글쓴이만 볼 수 있어요"
+                title={m.secretHint}
                 className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-colors ${
                   secret
                     ? 'bg-brand-tint text-brand-ink-hover'
@@ -269,7 +273,7 @@ export default function Comments({
                   <rect x="5" y="11" width="14" height="10" rx="2" />
                   <path d={secret ? 'M8 11V7a4 4 0 0 1 8 0v4' : 'M8 11V7a4 4 0 0 1 7.7-1.5'} />
                 </svg>
-                비밀 댓글
+                {m.secret}
               </button>
             )}
             <button
@@ -277,20 +281,20 @@ export default function Comments({
               disabled={busy || !draft.trim()}
               className="h-9 shrink-0 rounded-full bg-brand-strong px-4 text-sm font-semibold text-white transition-colors hover:bg-brand-ink-hover disabled:bg-shade disabled:text-muted"
             >
-              {busy ? '등록 중…' : '등록'}
+              {busy ? all.common.submitting : all.common.submit}
             </button>
           </div>
         </form>
       ) : (
         <p className="mt-4 rounded-[14px] border border-line-strong px-3.5 py-4 text-sm text-muted">
-          댓글을 남기려면{' '}
+          {m.loginPre}
           <a
             href={`/login?next=${encodeURIComponent(`/posts/${postId}`)}`}
             className="font-semibold text-brand-ink hover:text-brand-ink-hover"
           >
-            로그인
+            {m.login}
           </a>
-          이 필요해요.
+          {m.loginPost}
         </p>
       )}
 

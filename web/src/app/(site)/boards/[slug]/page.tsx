@@ -13,15 +13,26 @@ import { apiFetch } from '@/lib/api';
 import { ApiError } from '@/lib/api';
 import { boardPostsPath, findBoard, loadBoards } from '@/lib/posts';
 import { getCurrentUser } from '@/lib/user';
-import { CITIES, boardPrefixes, boardTone, cityLabel, isLocalBoard, isTradeBoard } from '@/lib/boards';
+import {
+  CITIES,
+  boardDescription,
+  boardName,
+  boardPrefixes,
+  boardTone,
+  cityLabel,
+  isLocalBoard,
+  isTradeBoard,
+  prefixText,
+} from '@/lib/boards';
+import { getI18n } from '@/lib/i18n/server';
 import type { BoardPostsResponse } from '@/lib/posts';
 
 const PER_PAGE = 20;
 
 const SORTS = [
-  { id: 'latest', label: '최신순' },
-  { id: 'popular', label: '인기순' },
-  { id: 'comments', label: '댓글순' },
+  { id: 'latest', key: 'sortLatest' },
+  { id: 'popular', key: 'sortPopular' },
+  { id: 'comments', key: 'sortComments' },
 ] as const;
 
 /** Members-only boards, which must also stay out of search results. */
@@ -51,7 +62,12 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
 
   if (slug === 'intro') redirect('/intro');
 
-  const [user, boards, jar] = await Promise.all([getCurrentUser(), loadBoards(), cookies()]);
+  const [user, boards, jar, { lang, m }] = await Promise.all([
+    getCurrentUser(),
+    loadBoards(),
+    cookies(),
+    getI18n(),
+  ]);
   const view = parseFeedView(jar.get(FEED_VIEW_COOKIE)?.value);
   const board = findBoard(boards, slug);
 
@@ -114,14 +130,18 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
                     className="size-3 rounded-full"
                     style={{ background: tone.dot }}
                   />
-                  <h1 className="text-2xl font-bold -tracking-[0.4px]">{board.name}</h1>
+                  <h1 className="text-2xl font-bold -tracking-[0.4px]">
+                    {boardName(board.slug, board.name, lang)}
+                  </h1>
                 </div>
                 {board.description ? (
-                  <p className="mt-1.5 text-[14.5px] text-muted">{board.description}</p>
+                  <p className="mt-1.5 text-[14.5px] text-muted">
+                    {boardDescription(board.slug, board.description, lang)}
+                  </p>
                 ) : null}
                 {board.isAnonymousAllowed ? (
                   <p className="mt-1.5 text-[13px] text-muted">
-                    이 게시판은 글과 댓글이 모두 익명으로 올라가요.
+                    {m.boards.anonymousNote}
                   </p>
                 ) : null}
               </div>
@@ -129,7 +149,7 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
                 href={`/write?board=${board.slug}`}
                 className="flex h-11 items-center rounded-control bg-brand-strong px-4 text-[15px] font-semibold text-white hover:bg-brand-ink-hover"
               >
-                이 게시판에 글쓰기
+                {m.boards.writeHere}
               </Link>
             </div>
 
@@ -148,7 +168,7 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
                           : 'border-line-strong bg-surface text-ink-3 hover:bg-field'
                       }`}
                     >
-                      {c ? cityLabel(c) : '전체'}
+                      {c ? cityLabel(c, lang) : m.common.all}
                     </Link>
                   );
                 })}
@@ -157,9 +177,9 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
 
             {search ? (
               <p className="mt-4 text-sm text-muted">
-                &lsquo;{search}&rsquo; 검색 결과 {data.total}건 ·{' '}
+                {m.boards.searchResult(search, data.total)} ·{' '}
                 <Link href={hrefWith({ search: '', page: '1' })} className="text-brand-ink">
-                  검색 해제
+                  {m.boards.clearSearch}
                 </Link>
               </p>
             ) : null}
@@ -167,8 +187,8 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
 
           <section className="overflow-hidden rounded-card border border-line-soft bg-surface">
             {prefixes.length ? (
-              <nav aria-label="말머리" className="flex gap-5 border-b border-line-faint px-5 pt-3 sm:px-6">
-                {[{ key: '', label: '전체' }, ...prefixes].map((p) => {
+              <nav aria-label={m.boards.prefixNav} className="flex gap-5 border-b border-line-faint px-5 pt-3 sm:px-6">
+                {[{ key: '', text: m.common.all }, ...prefixes.map((p) => ({ key: p.key, text: prefixText(p, lang) }))].map((p) => {
                   const on = p.key === prefix;
                   return (
                     <Link
@@ -181,7 +201,7 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
                           : 'border-transparent font-semibold text-muted hover:text-ink-3'
                       }`}
                     >
-                      {p.label}
+                      {p.text}
                     </Link>
                   );
                 })}
@@ -196,7 +216,7 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
                     aria-current={s.id === sort ? 'true' : undefined}
                     className={s.id === sort ? 'text-ink' : 'text-muted hover:text-ink-3'}
                   >
-                    {s.label}
+                    {m.boards[s.key]}
                   </Link>
                 ))}
               </div>
@@ -208,7 +228,7 @@ export default async function BoardFeedPage({ params, searchParams }: Params) {
 
             {data.posts.length === 0 ? (
               <p className="px-6 py-14 text-center text-sm text-muted">
-                {search ? '검색 결과가 없어요.' : '아직 글이 없어요. 첫 글을 올려보세요.'}
+                {search ? m.boards.noResults : m.boards.emptyFeed}
               </p>
             ) : view === 'list' ? (
               <>

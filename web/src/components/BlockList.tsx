@@ -6,25 +6,29 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { BlockEntry } from '@/lib/types';
 import { initial } from '@/lib/format';
+import { useMessages } from '@/lib/i18n/client';
 
 export default function BlockList({ initialBlocks }: { initialBlocks: BlockEntry[] }) {
   const router = useRouter();
   const [blocks, setBlocks] = useState(initialBlocks);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const all = useMessages();
+  const m = all.mypage;
+  const unknown = all.common.unknown;
 
   async function unblock(userId: string, nickname: string) {
-    if (!window.confirm(`${nickname}님의 차단을 해제할까요?`)) return;
+    if (!window.confirm(m.unblockConfirm(nickname))) return;
     setBusy(userId);
     setError(null);
     try {
       const res = await fetch(`/api/bff/users/${userId}/block`, { method: 'DELETE' });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '해제하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || m.unblockFailed);
       setBlocks((prev) => prev.filter((b) => b.blockedId !== userId));
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '해제하지 못했어요.');
+      setError(e instanceof Error ? e.message : m.unblockFailed);
     } finally {
       setBusy(null);
     }
@@ -33,7 +37,7 @@ export default function BlockList({ initialBlocks }: { initialBlocks: BlockEntry
   if (blocks.length === 0) {
     return (
       <p className="rounded-card border border-line-soft bg-surface px-5 py-10 text-center text-sm text-muted">
-        차단한 회원이 없어요.
+        {m.noBlocks}
       </p>
     );
   }
@@ -67,21 +71,21 @@ export default function BlockList({ initialBlocks }: { initialBlocks: BlockEntry
                 href={`/users/${block.blockedId}`}
                 className="block truncate text-[15px] font-semibold text-ink hover:underline"
               >
-                {block.nickname ?? '알 수 없음'}
+                {block.nickname ?? unknown}
               </Link>
               <p className="text-[12.5px] text-muted">
-                {[block.hideContent ? '글·댓글 숨김' : null, block.blockChat ? '채팅 차단' : null]
+                {[block.hideContent ? m.hidePosts : null, block.blockChat ? m.blockChat : null]
                   .filter(Boolean)
                   .join(' · ')}
               </p>
             </div>
             <button
               type="button"
-              onClick={() => unblock(block.blockedId, block.nickname ?? '이 회원')}
+              onClick={() => unblock(block.blockedId, block.nickname ?? m.thisMember)}
               disabled={busy === block.blockedId}
               className="h-10 shrink-0 rounded-control border border-line-strong px-3 text-sm font-semibold text-ink-3 hover:bg-field disabled:opacity-55"
             >
-              해제
+              {m.unblock}
             </button>
           </li>
         ))}

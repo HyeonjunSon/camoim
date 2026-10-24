@@ -7,11 +7,12 @@ import Field, { inputClass } from './Field';
 import { CITIES, cityLabel } from '@/lib/boards';
 import { initial } from '@/lib/format';
 import type { User } from '@/lib/types';
+import { useLang, useMessages } from '@/lib/i18n/client';
 
 const ROLES = [
-  { value: 'student', label: '유학생' },
-  { value: 'working_holiday', label: '워홀' },
-  { value: 'general', label: '일반' },
+  { value: 'student' },
+  { value: 'working_holiday' },
+  { value: 'general' },
 ] as const;
 
 export default function ProfileEditForm({ user }: { user: User }) {
@@ -27,6 +28,9 @@ export default function ProfileEditForm({ user }: { user: User }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const all = useMessages();
+  const m = all.mypage;
+  const lang = useLang();
 
   // An admin's role is not editable here; the API refuses a self-promotion and
   // offering the control would only produce a 403.
@@ -40,11 +44,11 @@ export default function ProfileEditForm({ user }: { user: User }) {
       body.append('image', file);
       const res = await fetch('/api/upload/avatar', { method: 'POST', body });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '업로드에 실패했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || all.common.uploadFailed);
       setAvatarUrl(json.data.avatarUrl);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '업로드에 실패했어요.');
+      setError(e instanceof Error ? e.message : all.common.uploadFailed);
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -69,11 +73,11 @@ export default function ProfileEditForm({ user }: { user: User }) {
       });
       const json = await res.json();
       // 409 is a taken nickname; the API's message says so.
-      if (!res.ok || !json.success) throw new Error(json.message || '저장하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || all.common.saveFailed);
       setSaved(true);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '저장하지 못했어요.');
+      setError(e instanceof Error ? e.message : all.common.saveFailed);
     } finally {
       setBusy(false);
     }
@@ -105,9 +109,9 @@ export default function ProfileEditForm({ user }: { user: User }) {
             disabled={uploading}
             className="h-10 rounded-control border border-line-strong px-3.5 text-sm font-semibold text-ink-3 hover:bg-field disabled:opacity-55"
           >
-            {uploading ? '올리는 중…' : '사진 바꾸기'}
+            {uploading ? m.uploadingPhoto : m.changePhoto}
           </button>
-          <p className="mt-1.5 text-xs text-muted">JPG, PNG, WEBP · 10MB까지</p>
+          <p className="mt-1.5 text-xs text-muted">{m.photoHint}</p>
         </div>
         <input
           ref={fileRef}
@@ -121,7 +125,7 @@ export default function ProfileEditForm({ user }: { user: User }) {
         />
       </div>
 
-      <Field id="nickname" label="닉네임">
+      <Field id="nickname" label={m.nickname}>
         <input
           id="nickname"
           required
@@ -132,7 +136,7 @@ export default function ProfileEditForm({ user }: { user: User }) {
         />
       </Field>
 
-      <Field id="bio" label="소개" hint="프로필에 공개돼요.">
+      <Field id="bio" label={m.bio} hint={m.bioHint}>
         <textarea
           id="bio"
           value={bio}
@@ -143,23 +147,23 @@ export default function ProfileEditForm({ user }: { user: User }) {
         />
       </Field>
 
-      <Field id="city" label="지내는 도시">
+      <Field id="city" label={m.city}>
         <select id="city" value={city} onChange={(e) => setCity(e.target.value)} className={inputClass}>
-          <option value="">선택 안 함</option>
+          <option value="">{all.common.none}</option>
           {CITIES.map((c) => (
             <option key={c} value={c}>
-              {cityLabel(c)}
+              {cityLabel(c, lang)}
             </option>
           ))}
         </select>
       </Field>
 
       {roleEditable ? (
-        <Field id="role" label="신분">
+        <Field id="role" label={m.role}>
           <select id="role" value={role} onChange={(e) => setRole(e.target.value)} className={inputClass}>
             {ROLES.map((r) => (
               <option key={r.value} value={r.value}>
-                {r.label}
+                {m.roles[r.value]}
               </option>
             ))}
           </select>
@@ -168,7 +172,7 @@ export default function ProfileEditForm({ user }: { user: User }) {
 
       {user.university ? (
         <p className="rounded-[10px] bg-[#DBEAFE] px-3.5 py-3 text-[13.5px] text-[#1D4ED8]">
-          {user.university} 재학생으로 인증됐어요. 학교는 인증 절차로만 바뀌어요.
+          {m.verifiedAt(user.university)}
         </p>
       ) : null}
 
@@ -179,7 +183,7 @@ export default function ProfileEditForm({ user }: { user: User }) {
       ) : null}
       {saved ? (
         <p role="status" className="rounded-[10px] bg-[#E8FFF1] px-3.5 py-3 text-sm text-[#0F7A4F]">
-          저장됐어요.
+          {all.common.saved}
         </p>
       ) : null}
 
@@ -188,7 +192,7 @@ export default function ProfileEditForm({ user }: { user: User }) {
         disabled={busy || !nickname.trim()}
         className="flex h-12 items-center justify-center rounded-control bg-brand-strong px-5 text-base font-semibold text-white hover:bg-brand-ink-hover disabled:opacity-55 sm:self-start"
       >
-        {busy ? '저장 중…' : '저장'}
+        {busy ? all.common.saving : all.common.save}
       </button>
     </form>
   );

@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 import { FEED_VIEW_COOKIE, type FeedView } from '@/lib/feedView';
+import { useMessages } from '@/lib/i18n/client';
 
 /**
  * 카드형 / 목록형. The choice is a cookie rather than a query parameter so it
@@ -12,6 +13,7 @@ import { FEED_VIEW_COOKIE, type FeedView } from '@/lib/feedView';
 export default function FeedViewToggle({ view }: { view: FeedView }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const m = useMessages().boards;
 
   function choose(next: FeedView) {
     if (next === view) return;
@@ -37,13 +39,13 @@ export default function FeedViewToggle({ view }: { view: FeedView }) {
   return (
     <div
       role="group"
-      aria-label="보기 방식"
+      aria-label={m.view}
       data-pending={pending ? '' : undefined}
       className="flex rounded-lg bg-field p-0.5 data-pending:opacity-60"
     >
       {option(
         'card',
-        '카드',
+        m.viewCard,
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
           <rect x="3" y="4" width="18" height="7" rx="1.5" />
           <rect x="3" y="14" width="18" height="7" rx="1.5" />
@@ -51,7 +53,7 @@ export default function FeedViewToggle({ view }: { view: FeedView }) {
       )}
       {option(
         'list',
-        '목록',
+        m.viewList,
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
           <path d="M4 6h16M4 12h16M4 18h16" />
         </svg>

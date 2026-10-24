@@ -389,6 +389,20 @@ npm run test:all     # 둘 다
 - **글은 board 또는 group 중 하나** (`Post` pre-validate). `/write?group=`은 `groupId`를 보내고
   보드 선택·도시·익명 안내를 숨긴다 (모임 글은 익명 불가)
 - **zsh에서 `GID`는 특수 변수** (프로세스 group id) — 셸 스크립트에서 ObjectId를 담으면 산술 오류가 난다
+- **한국어/영어 전환 (2026-10, 1차)** — 헤더 오른쪽 `LangToggle` (로그인·회원가입은 우측 상단)
+  - 언어는 **쿠키 `camoim_lang`** (`ko` 기본). 서버가 첫 바이트부터 그 언어로 렌더 → 깜빡임 없음.
+    root layout이 쿠키를 읽으므로 `<html lang>`도 맞게 나간다
+  - 문구는 **`web/src/lib/i18n/messages.ts` 한 곳**. `en`이 `Messages`(= ko의 타입)라서
+    **한쪽에만 추가하면 typecheck가 실패**한다. 값이 들어가는 문구는 함수(`comments(n)`)
+  - 서버 컴포넌트: `const { lang, m } = await getI18n()` / 클라이언트: `useMessages()`·`useLang()`
+  - 공용 함수는 `lang` 인자를 받는다 (기본 'ko'): `timeAgo(iso, now, lang)`, `cityLabel`, `tradeLabel`,
+    `prefixLabel`/`prefixText`, `boardName`/`boardDescription`, `groupBoards`, `stayPrice`, `stayTypeLabel`,
+    `categoryLabel`, `clockTime`, `dayLabel`. 영어 게시판 이름·설명은 앱 i18n.js에서 그대로 복사
+  - 학교 게시판 이름은 영어에서도 API 이름 유지 (학교명이 들어 있고, admin은 여러 학교를 본다)
+  - **번역 안 하는 것**: 페이지 `<title>`/검색 메타(한국어 SEO), 서버 에러·알림 본문, 사용자 글,
+    익명 닉네임("익명"은 서버가 보냄)
+  - **2차 남음**: 지도·업체·숙소·모임·학교·소개팅·공개 프로필·공지·약관. 관리자는 한국어 유지
+  - ⚠️ `Conversation.tsx`는 메시지 루프 변수가 `m`이라 번역 객체를 `t`로 쓴다
 - 명령어: `cd web && npm run dev | typecheck | test | build`
 - **Vercel 배포 (2026-10-23 첫 배포)** — 프로젝트 `camoim` (계정 hyeonjunson), 주소 **https://camoimapp.com**
   (`www`는 308로 루트로 리다이렉트, `camoim.vercel.app`도 살아 있음)

@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { LangProvider } from '@/lib/i18n/client';
+import { getLang } from '@/lib/i18n/server';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://camoimapp.com';
 
@@ -28,9 +30,10 @@ export const viewport: Viewport = {
   themeColor: '#7F77DD',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const lang = await getLang();
   return (
-    <html lang="ko">
+    <html lang={lang}>
       <head>
         {/* Pretendard is the app's typeface. The dynamic-subset build only ships
             the Hangul blocks a page actually uses. */}
@@ -40,7 +43,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <LangProvider lang={lang}>{children}</LangProvider>
+      </body>
     </html>
   );
 }

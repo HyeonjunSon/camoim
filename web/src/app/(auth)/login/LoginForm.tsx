@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import Field, { buttonClass, inputClass } from '@/components/Field';
+import { useMessages } from '@/lib/i18n/client';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -10,6 +11,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const m = useMessages().auth;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,14 +27,14 @@ export default function LoginForm() {
       if (!res.ok || !json.success) {
         // The API's own Korean message is shown as-is: it carries the real
         // reason (wrong password, lockout after 5 tries, suspension).
-        setError(json.message || '로그인에 실패했어요.');
+        setError(json.message || m.loginFailed);
         return;
       }
       // Server components cached for the anonymous visitor must be dropped.
       router.refresh();
       router.replace('/');
     } catch {
-      setError('서버에 연결할 수 없어요. 잠시 후 다시 시도해주세요.');
+      setError(m.serverDown);
     } finally {
       setBusy(false);
     }
@@ -48,7 +50,7 @@ export default function LoginForm() {
         those, a constraint the API never had. The app uses
         keyboardType="email-address", which is only a keyboard hint.
       */}
-      <Field id="email" label="이메일 또는 아이디">
+      <Field id="email" label={m.emailOrId}>
         <input
           id="email"
           type="text"
@@ -65,7 +67,7 @@ export default function LoginForm() {
         />
       </Field>
 
-      <Field id="password" label="비밀번호">
+      <Field id="password" label={m.password}>
         <input
           id="password"
           type="password"
@@ -85,7 +87,7 @@ export default function LoginForm() {
       ) : null}
 
       <button type="submit" disabled={busy || !email || !password} className={buttonClass}>
-        {busy ? '로그인 중…' : '로그인'}
+        {busy ? m.loggingIn : m.loginTitle}
       </button>
     </form>
   );

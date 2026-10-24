@@ -3,16 +3,18 @@ import Image from 'next/image';
 import type { PostSummary } from '@/lib/types';
 import { timeAgo } from '@/lib/format';
 import { boardEmoji, boardTone, cityLabel, prefixLabel, tradeLabel } from '@/lib/boards';
+import { getI18n } from '@/lib/i18n/server';
 
-export default function MarketGrid({ posts, city }: { posts: PostSummary[]; city: string }) {
+export default async function MarketGrid({ posts, city }: { posts: PostSummary[]; city: string }) {
   if (posts.length === 0) return null;
+  const { lang, m } = await getI18n();
 
   return (
     <section className="rounded-card border border-line-soft bg-surface px-5 py-5 sm:px-6">
       <div className="mb-3.5 flex items-center justify-between">
-        <h2 className="text-lg font-bold">{cityLabel(city)} 중고거래</h2>
+        <h2 className="text-lg font-bold">{m.home.market(cityLabel(city, lang))}</h2>
         <Link href="/boards/market" className="text-sm text-brand-ink hover:text-brand-ink-hover">
-          더보기 ›
+          {m.common.more}
         </Link>
       </div>
       <ul className="grid grid-cols-2 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
@@ -47,18 +49,18 @@ export default function MarketGrid({ posts, city }: { posts: PostSummary[]; city
                   )}
                   {sold ? (
                     <span className="absolute left-2 top-2 rounded-md bg-ink-3 px-1.5 py-0.5 text-[11px] font-bold text-white">
-                      {tradeLabel('market', 'sold')}
+                      {tradeLabel('market', 'sold', lang)}
                     </span>
                   ) : null}
                 </div>
                 <span className="line-clamp-2 text-[14.5px] font-medium leading-[1.35]">
-                  {prefixLabel('market', post.prefix) ? (
-                    <span className="font-bold text-brand-ink">[{prefixLabel('market', post.prefix)}] </span>
+                  {prefixLabel('market', post.prefix, lang) ? (
+                    <span className="font-bold text-brand-ink">[{prefixLabel('market', post.prefix, lang)}] </span>
                   ) : null}
                   {post.title}
                 </span>
                 <span className="text-[12.5px] text-muted">
-                  {[cityLabel(post.city), timeAgo(post.createdAt)].filter(Boolean).join(' · ')}
+                  {[cityLabel(post.city, lang), timeAgo(post.createdAt, undefined, lang)].filter(Boolean).join(' · ')}
                 </span>
               </Link>
             </li>

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { HeartIcon } from './icons';
 import ReportButton from './ReportButton';
+import { useMessages } from '@/lib/i18n/client';
 
 type Props = {
   postId: string;
@@ -30,6 +31,7 @@ export default function PostActions({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const m = useMessages();
 
   function requireLogin() {
     router.push(`/login?next=${encodeURIComponent(`/posts/${postId}`)}`);
@@ -52,7 +54,7 @@ export default function PostActions({
     } catch {
       setLiked(liked);
       setLikeCount(initialLikeCount);
-      setError('잠시 후 다시 시도해주세요.');
+      setError(m.common.tryLater);
     } finally {
       setBusy(false);
     }
@@ -67,7 +69,7 @@ export default function PostActions({
       if (!res.ok || !json.success) throw new Error(json.message);
       setBookmarked(json.data.bookmarked);
     } catch {
-      setError('잠시 후 다시 시도해주세요.');
+      setError(m.common.tryLater);
     } finally {
       setBusy(false);
     }
@@ -79,7 +81,7 @@ export default function PostActions({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError('링크를 복사할 수 없어요.');
+      setError(m.post.copyFailed);
     }
   }
 
@@ -94,7 +96,7 @@ export default function PostActions({
         onClick={toggleLike}
         disabled={busy}
         aria-pressed={liked}
-        aria-label={`좋아요 ${likeCount}`}
+        aria-label={m.post.like(likeCount)}
         className={`${action} ${liked ? 'text-[#BE185D] hover:bg-[#FDECF3]' : idle}`}
       >
         <HeartIcon size={19} filled={liked} />
@@ -111,7 +113,7 @@ export default function PostActions({
         <svg width="18" height="18" viewBox="0 0 24 24" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden>
           <path d="M6 3h12v18l-6-4-6 4z" />
         </svg>
-        {bookmarked ? '저장됨' : '저장'}
+        {bookmarked ? m.post.saved : m.post.save}
       </button>
 
       <button
@@ -129,7 +131,7 @@ export default function PostActions({
             <path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" />
           </svg>
         )}
-        <span aria-live="polite">{copied ? '복사됨' : '링크 복사'}</span>
+        <span aria-live="polite">{copied ? m.post.copied : m.post.copyLink}</span>
       </button>
 
       {!isMine ? (

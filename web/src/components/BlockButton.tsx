@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { BlockStatus } from '@/lib/types';
+import { useMessages } from '@/lib/i18n/client';
 
 /**
  * Blocking covers two things the API tracks separately: hiding the person's
@@ -22,10 +23,11 @@ export default function BlockButton({
   const [status, setStatus] = useState(initialStatus);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const m = useMessages();
 
   async function toggle() {
     const blocking = !status.blocked;
-    if (blocking && !window.confirm(`${nickname}님을 차단할까요? 글과 댓글이 보이지 않고 채팅도 막혀요.`)) {
+    if (blocking && !window.confirm(m.post.blockConfirm(nickname))) {
       return;
     }
     setBusy(true);
@@ -38,11 +40,11 @@ export default function BlockButton({
         body: JSON.stringify({ blockChat: blocking, hideContent: blocking }),
       });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || '처리하지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || m.common.failed);
       setStatus(json.data as BlockStatus);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '처리하지 못했어요.');
+      setError(e instanceof Error ? e.message : m.common.failed);
     } finally {
       setBusy(false);
     }
@@ -61,7 +63,7 @@ export default function BlockButton({
             : 'border-line-strong bg-surface text-ink-2 hover:bg-field'
         }`}
       >
-        {status.blocked ? '차단 해제' : '차단'}
+        {status.blocked ? m.post.unblock : m.post.block}
       </button>
       {error ? (
         <span role="alert" className="text-[13px] text-danger">

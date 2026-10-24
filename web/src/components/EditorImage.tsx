@@ -2,6 +2,7 @@
 
 import Image from '@tiptap/extension-image';
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from '@tiptap/react';
+import { useMessages } from '@/lib/i18n/client';
 
 /**
  * The editor's image, with a remove button once it is clicked (selected).
@@ -12,6 +13,7 @@ import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from 
  * editor and the post page already understand.
  */
 function ImageView({ node, selected, deleteNode }: ReactNodeViewProps) {
+  const label = useMessages().write.removeImage;
   const { src, alt, title } = node.attrs as { src: string; alt?: string; title?: string };
   return (
     <NodeViewWrapper className="relative my-2 block w-fit max-w-full">
@@ -25,8 +27,8 @@ function ImageView({ node, selected, deleteNode }: ReactNodeViewProps) {
       {selected ? (
         <button
           type="button"
-          aria-label="이미지 삭제"
-          title="이미지 삭제"
+          aria-label={label}
+          title={label}
           // mousedown, not click: keep ProseMirror from moving the selection
           // off the image before the delete runs.
           onMouseDown={(e) => {

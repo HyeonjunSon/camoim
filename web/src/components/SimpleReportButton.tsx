@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useMessages } from '@/lib/i18n/client';
 
 /**
  * Businesses, stays and intro posts each expose `POST /<kind>/:id/report` with
@@ -22,6 +23,7 @@ export default function SimpleReportButton({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const m = useMessages().report;
   const [message, setMessage] = useState<string | null>(null);
 
   async function send(reason: string) {
@@ -36,8 +38,8 @@ export default function SimpleReportButton({
       const json = await res.json();
       setMessage(
         !res.ok || !json.success
-          ? (json.message || '신고하지 못했어요.')
-          : '알려주셔서 고마워요. 확인 후 반영할게요.'
+          ? (json.message || m.failed)
+          : m.infoThanks
       );
       if (res.ok && json.success) setTimeout(() => setOpen(false), 1500);
     } finally {
@@ -59,7 +61,7 @@ export default function SimpleReportButton({
         aria-expanded={open}
         className="flex h-11 items-center rounded-control px-3 text-sm text-muted hover:bg-field hover:text-danger"
       >
-        정보 신고
+        {m.infoButton}
       </button>
 
       {open ? (

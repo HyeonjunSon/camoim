@@ -7,6 +7,7 @@ import type { ChatMessage, ChatMessagesEnvelope, ChatRoomSummary } from '@/lib/t
 import { getSocket, type SocketMessage } from '@/lib/socket';
 import { initial } from '@/lib/format';
 import { clockTime, dayKey, dayLabel, markReadBy, unreadMark } from '@/lib/chat';
+import { useLang, useMessages } from '@/lib/i18n/client';
 
 // False during SSR and the hydration pass, true after — so time text never
 // has to match between a UTC server and the viewer's browser.
@@ -30,6 +31,10 @@ export default function Conversation({
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [busy, setBusy] = useState(false);
+  // `m` is the loop variable for messages below, so the strings are `t`.
+  const all = useMessages();
+  const t = all.chat;
+  const lang = useLang();
   const bottomRef = useRef<HTMLDivElement>(null);
   const hydrated = useHydrated();
 
@@ -117,14 +122,14 @@ export default function Conversation({
       if (!res.ok || !json.success) throw new Error(json.message);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '수락하지 못했어요.');
+      setError(e instanceof Error ? e.message : t.acceptFailed);
     } finally {
       setBusy(false);
     }
   }
 
   async function leave() {
-    if (!window.confirm('이 채팅방을 나갈까요? 대화 내용은 사라져요.')) return;
+    if (!window.confirm(t.leaveConfirm)) return;
     setBusy(true);
     try {
       const res = await fetch(`/api/bff/chats/${room.id}`, { method: 'DELETE' });
@@ -133,32 +138,32 @@ export default function Conversation({
       router.refresh();
       router.replace('/chat');
     } catch (e) {
-      setError(e instanceof Error ? e.message : '나가지 못했어요.');
+      setError(e instanceof Error ? e.message : t.leaveFailed);
       setBusy(false);
     }
   }
 
   const title =
     room.kind === 'group'
-      ? (room.group?.name ?? '모임 채팅')
+      ? (room.group?.name ?? t.groupChat)
       : room.kind === 'school'
-        ? (room.school?.name ?? '학교 채팅')
+        ? (room.school?.name ?? t.schoolChat)
         : room.otherDeleted
-          ? '탈퇴한 회원'
-          : (room.other?.nickname ?? '알 수 없음');
+          ? all.common.deletedUser
+          : (room.other?.nickname ?? all.common.unknown);
 
   const subtitle =
     room.kind === 'group'
-      ? `멤버 ${room.group?.memberCount ?? 0}명`
+      ? all.common.members(room.group?.memberCount ?? 0)
       : room.kind === 'school'
-        ? `${room.school?.memberCount ?? 0}명이 함께 있어요`
+        ? t.schoolTogether(room.school?.memberCount ?? 0)
         : room.other?.anonymous
-          ? '익명 채팅이에요. 상대 닉네임은 보이지 않아요'
+          ? t.anonymousSub
           : room.otherLeft
-            ? '상대가 채팅방을 나갔어요'
+            ? t.otherLeft
             : connected
-              ? '연결됨'
-              : '연결 중…';
+              ? t.connected
+              : t.connecting;
 
   let lastDay = '';
 
@@ -167,7 +172,7 @@ export default function Conversation({
       <header className="flex items-center gap-3 border-b border-line-faint px-5 py-3.5">
         <Link
           href="/chat"
-          aria-label="채팅 목록으로"
+          aria-label={t.backToList}
           className="flex size-9 items-center justify-center rounded-lg text-ink-3 hover:bg-field md:hidden"
         >
           ‹
@@ -187,7 +192,7 @@ export default function Conversation({
             href={`/users/${room.other.id}`}
             className="hidden h-9 items-center rounded-control border border-line-strong px-3 text-[13px] font-semibold text-ink-3 hover:bg-field sm:flex"
           >
-            프로필
+            {t.profile}
           </Link>
         ) : null}
         <button
@@ -196,14 +201,14 @@ export default function Conversation({
           disabled={busy}
           className="h-9 rounded-control px-3 text-[13px] font-semibold text-muted hover:bg-field hover:text-danger disabled:opacity-55"
         >
-          나가기
+          {t.leave}
         </button>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto bg-[#FBFBFD] px-5 py-5">
         {messages.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted">
-            아직 메시지가 없어요. 먼저 인사해보세요.
+            {t.emptyRoom}
           </p>
         ) : (
           <ul className="flex flex-col gap-2.5">
@@ -218,7 +223,7 @@ export default function Conversation({
                 <li key={m.id} className="flex flex-col gap-2.5">
                   {showDay ? (
                     <span className="mx-auto rounded-[10px] bg-[#F0F0F3] px-2.5 py-1 text-xs text-muted">
-                      {dayLabel(m.createdAt)}
+                      {dayLabel(m.createdAt, undefined, lang)}
                     </span>
                   ) : null}
                   <div
@@ -229,17 +234,17 @@ export default function Conversation({
                         {unread > 0 ? (
                           <span className="text-[11px] font-bold text-brand-strong">
                             {unread}
-                            <span className="sr-only-label">명이 아직 읽지 않음</span>
+                            <span className="sr-only-label">{t.unread}</span>
                           </span>
                         ) : null}
-                        <span className="text-[11.5px] text-muted">{hydrated ? clockTime(m.createdAt) : ''}</span>
+                        <span className="text-[11.5px] text-muted">{hydrated ? clockTime(m.createdAt, lang) : ''}</span>
                       </span>
                     ) : null}
                     <div className="max-w-[62%]">
                       {!mine && room.kind !== 'dm' ? (
                         <p className="mb-0.5 flex items-center gap-1 text-[12.5px] text-muted">
                           {m.senderNickname}
-                          {isLeader ? <span title="학생회장">⭐</span> : null}
+                          {isLeader ? <span title={all.common.leader}>⭐</span> : null}
                         </p>
                       ) : null}
                       <p
@@ -253,7 +258,7 @@ export default function Conversation({
                       </p>
                     </div>
                     {!mine ? (
-                      <span className="text-[11.5px] text-muted">{hydrated ? clockTime(m.createdAt) : ''}</span>
+                      <span className="text-[11.5px] text-muted">{hydrated ? clockTime(m.createdAt, lang) : ''}</span>
                     ) : null}
                   </div>
                 </li>
@@ -273,7 +278,7 @@ export default function Conversation({
       {pendingForMe ? (
         <div className="flex flex-wrap items-center gap-3 border-t border-line-faint px-5 py-4">
           <p className="flex-1 text-sm text-ink-3">
-            메시지 요청이에요. 수락하면 자유롭게 대화할 수 있어요.
+            {t.requestNote}
           </p>
           <button
             type="button"
@@ -281,7 +286,7 @@ export default function Conversation({
             disabled={busy}
             className="h-11 rounded-control bg-brand-strong px-4 text-[15px] font-semibold text-white hover:bg-brand-ink-hover disabled:opacity-55"
           >
-            수락하기
+            {t.accept}
           </button>
         </div>
       ) : (
@@ -293,7 +298,7 @@ export default function Conversation({
           className="flex items-center gap-2.5 border-t border-line-faint px-4 py-3.5"
         >
           <label htmlFor="chat-input" className="sr-only-label">
-            메시지 입력
+            {t.input}
           </label>
           <input
             id="chat-input"
@@ -302,8 +307,8 @@ export default function Conversation({
             maxLength={2000}
             placeholder={
               pendingFromMe
-                ? '상대가 수락하기 전에는 한 통만 보낼 수 있어요'
-                : '메시지를 입력하세요'
+                ? t.oneMessageOnly
+                : t.placeholder
             }
             className="h-11 min-w-0 flex-1 rounded-control border border-line-strong px-3.5 text-[15px] outline-none focus:border-brand-strong"
           />
@@ -312,7 +317,7 @@ export default function Conversation({
             disabled={!draft.trim()}
             className="h-11 shrink-0 rounded-control bg-brand-strong px-4 font-semibold text-white disabled:opacity-55"
           >
-            전송
+            {t.send}
           </button>
         </form>
       )}

@@ -9,7 +9,8 @@ import StartChatButton from '@/components/StartChatButton';
 import { ApiError, apiFetch, apiFetchOrNull } from '@/lib/api';
 import { getCurrentUser } from '@/lib/user';
 import { sanitizePostHtml } from '@/lib/sanitize';
-import { boardTone, cityLabel, prefixLabel, tradeBadge, tradeLabel } from '@/lib/boards';
+import { boardName, boardTone, cityLabel, prefixLabel, tradeBadge, tradeLabel } from '@/lib/boards';
+import { getI18n } from '@/lib/i18n/server';
 import { initial, timeAgo } from '@/lib/format';
 import type { CommentNode, PostDetail } from '@/lib/types';
 
@@ -49,13 +50,14 @@ export default async function PostDetailPage({ params }: Params) {
   // One parallel wave. The comments only need the id from the URL, not the post,
   // so waiting for the post first bought nothing and cost a round trip to an API
   // ~110ms away — on the page people open most.
-  const [user, postResult, comments] = await Promise.all([
+  const [user, postResult, comments, { lang, m }] = await Promise.all([
     getCurrentUser(),
     apiFetch<PostDetail>(`/posts/${id}`).then(
       (value) => ({ ok: true as const, value }),
       (error: unknown) => ({ ok: false as const, error })
     ),
     apiFetchOrNull<CommentNode[]>(`/posts/${id}/comments`),
+    getI18n(),
   ]);
 
   if (!postResult.ok) {
@@ -73,7 +75,8 @@ export default async function PostDetailPage({ params }: Params) {
   const badge = tradeBadge(post.boardSlug, post.tradeStatus, post.prefix);
   const showTrade = !!badge;
   const sold = badge === 'sold';
-  const prefix = prefixLabel(post.boardSlug, post.prefix);
+  const prefix = prefixLabel(post.boardSlug, post.prefix, lang);
+  const boardLabel = boardName(post.boardSlug, post.boardName, lang);
   const isMine = !!user && !!post.authorId && post.authorId === user.id;
   const anonymousBoard = post.isAnonymous;
 
@@ -85,22 +88,22 @@ export default async function PostDetailPage({ params }: Params) {
     <>
 
       <div className="mx-auto max-w-[1240px] px-4 pb-16 pt-6 sm:px-6">
-        <nav aria-label="경로" className="mb-4 flex flex-wrap gap-2 text-[13.5px] text-muted">
+        <nav aria-label={m.post.breadcrumb} className="mb-4 flex flex-wrap gap-2 text-[13.5px] text-muted">
           <Link href="/" className="hover:text-ink-3">
-            홈
+            {m.common.home}
           </Link>
           <span aria-hidden>›</span>
           {post.boardSlug ? (
             <Link href={`/boards/${post.boardSlug}`} className="hover:text-ink-3">
-              {post.boardName}
+              {boardLabel}
             </Link>
           ) : (
-            <span>{post.groupName ?? '모임'}</span>
+            <span>{post.groupName ?? m.common.group}</span>
           )}
           {post.city ? (
             <>
               <span aria-hidden>›</span>
-              <span className="text-ink">{cityLabel(post.city)}</span>
+              <span className="text-ink">{cityLabel(post.city, lang)}</span>
             </>
           ) : null}
         </nav>
@@ -114,7 +117,7 @@ export default async function PostDetailPage({ params }: Params) {
                     className="rounded-md px-2 py-1 text-[12.5px] font-semibold"
                     style={{ color: tone.fg, background: tone.bg }}
                   >
-                    {post.boardName}
+                    {boardLabel}
                   </span>
                 ) : null}
                 {showTrade ? (
@@ -123,12 +126,12 @@ export default async function PostDetailPage({ params }: Params) {
                       sold ? 'bg-[#EDEDF0] text-ink-3' : 'bg-positive-tint text-positive'
                     }`}
                   >
-                    {tradeLabel(post.boardSlug, sold ? 'sold' : 'selling')}
+                    {tradeLabel(post.boardSlug, sold ? 'sold' : 'selling', lang)}
                   </span>
                 ) : null}
                 {post.pinned ? (
                   <span className="rounded-md bg-brand-tint px-2 py-1 text-[12.5px] font-bold text-brand-ink-hover">
-                    고정
+                    {m.common.pinned}
                   </span>
                 ) : null}
               </div>
@@ -169,13 +172,13 @@ export default async function PostDetailPage({ params }: Params) {
                       <span className="text-[15px] font-semibold">{post.nickname}</span>
                     )}
                     {post.authorIsLeader ? (
-                      <span title="학생회장" aria-label="학생회장">
+                      <span title={m.common.leader} aria-label={m.common.leader}>
                         ⭐
                       </span>
                     ) : null}
                   </div>
                   <p className="mt-0.5 text-[13px] text-muted">
-                    {[cityLabel(post.city), timeAgo(post.createdAt), `조회 ${post.viewCount ?? 0}`]
+                    {[cityLabel(post.city, lang), timeAgo(post.createdAt, undefined, lang), m.common.views(post.viewCount ?? 0)]
                       .filter(Boolean)
                       .join(' · ')}
                   </p>
@@ -222,7 +225,7 @@ export default async function PostDetailPage({ params }: Params) {
           <aside className="flex w-full flex-[1_1_300px] flex-col gap-4 lg:max-w-[320px]">
             {showTrade && !isMine ? (
               <section className="rounded-card border border-line-soft bg-surface p-5">
-                <h2 className="text-[15px] font-bold">판매자와 이야기하기</h2>
+                <h2 className="text-[15px] font-bold">{m.post.sellerTitle}</h2>
                 {post.userId ? (
                   <div className="mt-3.5">
                     <StartChatButton targetUserId={post.userId} signedIn={!!user} />
@@ -231,23 +234,23 @@ export default async function PostDetailPage({ params }: Params) {
                   // An anonymous post has no one to open a DM with: the API hides
                   // the author, and revealing them through chat would undo that.
                   <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
-                    익명으로 올린 글이라 1:1 채팅을 열 수 없어요. 댓글로 물어보세요.
+                    {m.post.anonymousNoChat}
                   </p>
                 )}
                 <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
-                  선입금 요구나 외부 링크 결제는 사기일 수 있어요. 직거래를 권해요.
+                  {m.post.scamWarning}
                 </p>
               </section>
             ) : null}
 
             {post.boardSlug ? (
               <section className="rounded-card border border-line-soft bg-surface p-5">
-                <h2 className="text-[15px] font-bold">{post.boardName}</h2>
+                <h2 className="text-[15px] font-bold">{boardLabel}</h2>
                 <Link
                   href={`/boards/${post.boardSlug}`}
                   className="mt-2 inline-flex text-[13.5px] text-brand-ink hover:text-brand-ink-hover"
                 >
-                  이 게시판 글 더 보기 ›
+                  {m.post.moreFromBoard}
                 </Link>
               </section>
             ) : null}

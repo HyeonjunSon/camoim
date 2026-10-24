@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useMessages } from '@/lib/i18n/client';
 
 /**
  * Opens (or reuses) the DM room with this person and goes there. A first DM
@@ -11,7 +12,7 @@ import { useState } from 'react';
 export default function StartChatButton({
   targetUserId,
   signedIn,
-  label = '1:1 채팅하기',
+  label,
   className,
 }: {
   targetUserId: string;
@@ -22,6 +23,7 @@ export default function StartChatButton({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const m = useMessages();
 
   async function start() {
     if (!signedIn) {
@@ -38,10 +40,10 @@ export default function StartChatButton({
       });
       const json = await res.json();
       // A block in either direction comes back as 403 with its own message.
-      if (!res.ok || !json.success) throw new Error(json.message || '채팅방을 열지 못했어요.');
+      if (!res.ok || !json.success) throw new Error(json.message || m.post.chatFailed);
       router.push(`/chat/${json.data.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '채팅방을 열지 못했어요.');
+      setError(e instanceof Error ? e.message : m.post.chatFailed);
       setBusy(false);
     }
   }
@@ -60,7 +62,7 @@ export default function StartChatButton({
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden>
           <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" />
         </svg>
-        {busy ? '여는 중…' : label}
+        {busy ? `${m.common.opening}…` : (label ?? m.post.startChat)}
       </button>
       {error ? (
         <p role="alert" className="mt-2 text-[13px] text-danger">

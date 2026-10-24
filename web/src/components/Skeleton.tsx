@@ -1,3 +1,5 @@
+import { getI18n } from '@/lib/i18n/server';
+
 /**
  * Shared shapes for the loading boundaries.
  *
@@ -11,10 +13,11 @@ export function SkeletonBlock({ className = '' }: { className?: string }) {
   return <div className={`animate-pulse rounded-card bg-shade ${className}`} />;
 }
 
-export function SkeletonPage({ children }: { children: React.ReactNode }) {
+export async function SkeletonPage({ children }: { children: React.ReactNode }) {
+  const { m } = await getI18n();
   return (
     <div aria-busy="true" aria-live="polite" className="mx-auto max-w-[1000px] px-4 pt-7 sm:px-6">
-      <span className="sr-only-label">불러오는 중</span>
+      <span className="sr-only-label">{m.common.loading}</span>
       {children}
     </div>
   );

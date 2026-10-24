@@ -1,20 +1,22 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Stay } from '@/lib/types';
-import { STAY_TYPE_COLORS, STAY_TYPE_LABELS, stayPrice } from '@/lib/stays';
+import { STAY_TYPE_COLORS, stayPrice, stayTypeLabel } from '@/lib/stays';
+import { getI18n } from '@/lib/i18n/server';
 import { cityLabel } from '@/lib/boards';
 
-export default function StaysCard({ stays, city }: { stays: Stay[]; city: string }) {
+export default async function StaysCard({ stays, city }: { stays: Stay[]; city: string }) {
+  const { lang, m } = await getI18n();
   return (
     <section className="rounded-card border border-line-soft bg-surface px-5 py-4.5">
       <div className="flex items-center justify-between">
-        <h2 className="text-[15px] font-bold">{city ? `${cityLabel(city)} 숙소` : '내 주변 숙소'}</h2>
+        <h2 className="text-[15px] font-bold">{city ? m.home.staysTitle(cityLabel(city, lang)) : m.home.staysNearby}</h2>
         <Link href="/map?mode=stay" className="text-[13.5px] text-brand-ink hover:text-brand-ink-hover">
-          지도 ›
+          {m.common.seeMap}
         </Link>
       </div>
       {stays.length === 0 ? (
-        <p className="mt-3 text-[13px] text-muted">아직 올라온 숙소가 없어요.</p>
+        <p className="mt-3 text-[13px] text-muted">{m.home.staysEmpty}</p>
       ) : (
         <ul>
           {stays.map((stay) => (
@@ -33,11 +35,11 @@ export default function StaysCard({ stays, city }: { stays: Stay[]; city: string
                     className="block text-xs font-semibold"
                     style={{ color: STAY_TYPE_COLORS[stay.stayType] }}
                   >
-                    {STAY_TYPE_LABELS[stay.stayType] ?? '숙소'}
+                    {stayTypeLabel(stay.stayType, lang)}
                   </span>
                   <span className="block truncate text-[14.5px]">{stay.title}</span>
                   <span className="mt-0.5 block text-[13px] font-bold">
-                    {stayPrice(stay.price, stay.priceUnit)}
+                    {stayPrice(stay.price, stay.priceUnit, lang)}
                   </span>
                 </span>
               </Link>
