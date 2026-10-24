@@ -94,3 +94,7 @@ next-env.d.ts
 store.config.json
 store/apple/
 .vercel
+
+# Local working folders (store assets, signing keys, OAuth client secrets) — never in a public repo
+/hanin/
+/방사진/

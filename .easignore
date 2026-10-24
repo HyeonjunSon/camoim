@@ -30,3 +30,7 @@ android/
 
 # The web app is excluded (it deploys to Vercel)
 web/
+
+# Local working folders — 370MB of store assets plus signing keys and OAuth secrets
+hanin/
+방사진/
